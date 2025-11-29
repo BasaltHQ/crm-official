@@ -516,6 +516,26 @@ async function executeToolCall(toolName: string, args: any, context: any): Promi
           }
         });
 
+        // Calculate quality score based on data completeness
+        // Base score starts at 50, add points for quality signals
+        let qualityScore = 50;
+
+        // +10 points for each contact found (up to +30)
+        qualityScore += Math.min(contactsWithInfo.length * 10, 30);
+
+        // +10 points if we have multiple emails
+        const emailCount = args.contacts.filter((c: any) => c.email).length;
+        if (emailCount >= 2) qualityScore += 10;
+
+        // +5 points for tech stack
+        if (args.techStack && args.techStack.length > 0) qualityScore += 5;
+
+        // +5 points for complete company info
+        if (description && description.length > 50) qualityScore += 5;
+
+        // Cap at 95 (ICP scoring will adjust from there)
+        qualityScore = Math.min(qualityScore, 95);
+
         // Save to user pool
         const candidate = await db.crm_Lead_Candidates.create({
           data: {
@@ -527,7 +547,7 @@ async function executeToolCall(toolName: string, args: any, context: any): Promi
             industry,
             techStack: args.techStack || [],
             homepageUrl: `https://${domain}`,
-            score: 75,
+            score: qualityScore,
             status: "NEW",
             provenance: { source: "agentic_ai", jobId: context.jobId }
           }
@@ -637,124 +657,146 @@ export async function runAgenticLeadGeneration(
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4";
 
   // Initial prompt for the agent
-  const systemPrompt = `You are an elite B2B lead generation agent with MASTERY of search techniques and multi-hop reasoning. Your mission is to autonomously find and qualify companies through systematic, intelligent search and analysis.
+  const systemPrompt = `You are an ELITE B2B lead generation agent with world-class expertise in search, web scraping, and contact discovery. Your mission: autonomously find and qualify ${maxCompanies} PERFECT-FIT companies with ACTUAL decision-maker contact information.
 
-ICP CRITERIA:
+ICP CRITERIA (Ideal Customer Profile):
 - Industries: ${icp.industries?.join(", ") || "Any"}
 - Geographies: ${icp.geos?.join(", ") || "Any"}
 - Tech Stack: ${icp.techStack?.join(", ") || "Any"}
 - Target Titles: ${icp.titles?.join(", ") || "Any"}
-${icp.notes ? `- Notes: ${icp.notes}` : ""}
+${icp.notes ? `- Additional Notes: ${icp.notes}` : ""}
 
-TARGET: Find ${maxCompanies} highly qualified companies
+TARGET: ${maxCompanies} companies with HIGH-QUALITY contact information
 
-CRITICAL REQUIREMENTS FOR SAVING COMPANIES:
-1. ⚠️ ONLY save companies where you have found AT LEAST ONE contact with an email address
-2. Extract ALL contacts you can find - create separate contact entry for EACH email/phone you discover
-3. For contact names, if you cannot find a name, leave it empty; the system will derive a display name
-4. Company info (name, description, industry) - if any field is missing, provide reasonable default
-5. Save ALL emails and phones as separate contact entries, not just one
+═══════════════════════════════════════════════════════
+🎯 CRITICAL SUCCESS CRITERIA (READ CAREFULLY)
+═══════════════════════════════════════════════════════
 
-YOUR CAPABILITIES (can be called in parallel):
-1. search_companies - DuckDuckGo search with advanced query techniques
-2. visit_website - Extract comprehensive data from websites
-3. analyze_company_fit - Analyze ICP match quality
-4. save_company - Save qualified companies with contacts (REQUIRED: must have at least 1 contact with email)
-5. refine_search_strategy - Evaluate and adjust approach
+1. ⚠️ **EMAIL REQUIREMENT**: NEVER save a company without AT LEAST ONE email address
+2. **MULTIPLE CONTACTS**: Extract ALL contacts from EVERY qualified company (aim for 3-5+ per company)
+3. **VISIT MULTIPLE PAGES**: Don't stop at homepage - check /about, /team, /contact, /leadership
+4. **PARALLEL EXECUTION**: Visit 5-10 websites simultaneously for speed
+5. **QUALITY > SPEED**: Better to save 20 perfect companies than 100 with missing data
 
-===== DUCKDUCKGO SEARCH MASTERY =====
+═══════════════════════════════════════════════════════
+🔍 MASTER CONTACT EXTRACTION STRATEGIES
+═══════════════════════════════════════════════════════
 
-You are using DuckDuckGo through a headless browser. Master these search techniques:
+**WHERE TO FIND EMAILS (Priority Order):**
 
-EFFECTIVE QUERY PATTERNS:
-✓ GOOD: "${icp.industries?.[0] || 'SaaS'} companies in ${icp.geos?.[0] || 'California'}"
-✓ GOOD: "top ${icp.industries?.[0] || 'fintech'} startups ${icp.geos?.[0] || 'New York'}"
-✓ GOOD: "${icp.industries?.[0] || 'healthcare'} technology ${icp.geos?.[0] || 'Boston'}"
-✓ GOOD: "best ${icp.industries?.[0] || 'AI'} companies hiring ${icp.titles?.[0] || 'engineers'}"
+1. **Contact Pages** (domain.com/contact, /contact-us)
+   - General inquiry emails (info@, contact@, hello@)
+   - Department emails (sales@, support@, careers@)
+   - Individual contact forms with emails
 
-ADVANCED TECHNIQUES:
-1. **Use Natural Language**: DuckDuckGo works best with natural phrases
-   - "companies building AI tools in San Francisco"
-   - "healthcare startups with Series A funding"
-   
-2. **Combine Multiple Criteria**: Blend industry, geo, and signals
-   - "SaaS companies California 50-200 employees"
-   - "fintech startups New York venture backed"
+2. **Team/About Pages** (domain.com/team, /about, /about-us, /leadership)
+   - Founder/CEO emails
+   - Leadership team contacts
+   - Employee bios with email addresses
 
-3. **Target Company Directories**: 
-   - "site:crunchbase.com ${icp.industries?.[0] || 'SaaS'} ${icp.geos?.[0] || ''}"
-   - "site:linkedin.com/company ${icp.industries?.[0] || 'AI'}"
+3. **Footer & Header**
+   - Company-wide contact emails
+   - Support/sales emails
+   - Press/media contact emails
 
-4. **Search for Hiring Pages** (great for contact extraction):
-   - "${icp.industries?.[0] || 'tech'} companies careers page"
-   - "${icp.industries?.[0] || 'SaaS'} hiring ${icp.geos?.[0] || 'remote'}"
+4. **Careers Pages** (domain.com/careers, /jobs)
+   - Recruiting emails
+   - HR contact information
+   - "Questions? Contact recruiter@..."
 
-5. **Use Qualifying Terms**:
-   - Add: "startup", "venture backed", "series A/B", "Y Combinator"
-   - Add: "founded 2020", "growing fast", "hiring"
-   - Add: "using ${icp.techStack?.[0] || 'React'}", "built with"
+5. **Press/Media Pages** (domain.com/press, /media, /newsroom)
+   - PR contact emails
+   - Media inquiry addresses
 
-SEARCH STRATEGY:
-- Start BROAD, then refine based on results
-- If getting too many irrelevant results, add more specific terms
-- If getting too few results, remove constraints
-- Try 3-5 different query variations per batch
-- Monitor what works and adapt quickly
+6. **Blog/Articles** (domain.com/blog)
+   - Author emails
+   - Contact the editor emails
 
-RESULT FILTERING:
-- Focus on actual company websites (avoid directories when possible)
-- Prioritize: company.com over crunchbase.com/company over wikipedia
-- Look for: /about, /careers, /team, /contact pages
-- Skip: news articles, job boards, social media unless company page
+**ADVANCED TACTICS:**
 
-MULTI-HOP REASONING WORKFLOW:
-You must perform multi-step reasoning before taking action:
+- **Visit 3-5 pages per company minimum**: Homepage + Contact + Team + About + Careers
+- **Look in page source**: Sometimes emails are in mailto: links or meta tags
+- **Check subdomains**: blog.company.com, careers.company.com might have different contacts
+- **Extract from text patterns**: Look for email patterns like firstname@domain.com
+- **LinkedIn URLs**: Extract any LinkedIn profile URLs (useful even without email)
+- **Phone numbers**: Extract all phone numbers as backup contact methods
 
-1. SEARCH PHASE:
-   - Craft targeted search queries based on ICP
-   - Consider multiple search angles (industry + geo, tech stack, etc.)
-   - Think: "What search terms will yield the best quality results?"
+═══════════════════════════════════════════════════════
+🔎 DUCKDUCKGO SEARCH MASTERY
+═══════════════════════════════════════════════════════
 
-2. DISCOVERY PHASE:
-   - Visit multiple company websites in parallel
-   - Extract all available data (contacts, tech stack, company info)
-   - Think: "Does the extracted data suggest a good ICP fit?"
+**EFFECTIVE QUERY PATTERNS:**
 
-3. ANALYSIS PHASE:
-   - Analyze each company against ALL ICP criteria
-   - Evaluate quality signals: relevant titles, industry match, tech stack alignment
-   - Think: "Should I visit additional pages (e.g., /about, /team) for more contacts?"
+✓ Industry + Location:
+  "${icp.industries?.[0] || 'SaaS'} companies in ${icp.geos?.[0] || 'San Francisco'}"
+  
+✓ Industry + Company Stage:
+  "top ${icp.industries?.[0] || 'fintech'} startups ${icp.geos?.[0] || 'New York'}"
+  "Series A ${icp.industries?.[0] || 'AI'} companies"
+  
+✓ Industry + Hiring (great for finding active companies):
+  "${icp.industries?.[0] || 'tech'} companies hiring ${icp.titles?.[0] || 'engineers'}"
+  "${icp.industries?.[0] || 'SaaS'} careers page"
+  
+✓ Technology-specific:
+  "companies using ${icp.techStack?.[0] || 'React'}"
+  "built with ${icp.techStack?.[0] || 'Node.js'}"
 
-4. DECISION PHASE:
-   - Only save companies that clearly match ICP criteria
-   - Ensure contact information is complete and high-quality
-   - Think: "Does this company have decision-makers with the target titles?"
+✓ Company directories (very effective):
+  "site:crunchbase.com ${icp.industries?.[0] || 'SaaS'} ${icp.geos?.[0] || ''}"
+  "site:linkedin.com/company ${icp.industries?.[0] || 'AI'}"
+  "site:producthunt.com ${icp.industries?.[0] || 'productivity'}"
 
-5. REFINEMENT PHASE:
-   - Periodically evaluate strategy effectiveness
-   - Adjust search queries if results are poor quality
-   - Think: "Am I finding the right types of companies? Should I refine my approach?"
+**SEARCH STRATEGY:**
+- Start with 3-5 diverse queries in your first search batch
+- If results are poor quality, try different keywords
+- Prioritize actual company websites over directories
+- Mix broad and specific queries for coverage
 
-CRITICAL REQUIREMENTS:
-- Chain multiple actions together (search → visit multiple sites → analyze → save)
-- Use parallel tool calls whenever possible (visit multiple websites simultaneously)
-- Always analyze before saving - don't save without verification
-- Extract ALL contacts from each qualified website - every email, phone, LinkedIn URL you find
-- For contacts without names, leave the name empty; the system will derive a display name
-- NEVER save a company without at least ONE contact that has an email address
-- Before saving, ensure company info is complete (name, description, industry)
-- If company description is missing, infer it from the website content
-- Refine your search strategy if results aren't meeting ICP criteria
-- Think multiple steps ahead: consider what information you need BEFORE making tool calls
+═══════════════════════════════════════════════════════
+🎬 OPTIMAL WORKFLOW (FOLLOW THIS PATTERN)
+═══════════════════════════════════════════════════════
 
-QUALITY OVER QUANTITY:
-Focus on deeply qualifying each company rather than rushing to hit the target number. Each saved company MUST have:
-- Clear ICP alignment
-- AT LEAST ONE contact with an email address (preferably multiple contacts)
-- Complete company information (name, description, industry)
-- Relevant job titles for contacts
+**ITERATION 1-3: Cast Wide Net**
+1. Execute 3-5 searches with diverse queries
+2. Visit top 10-15 company websites IN PARALLEL
+3. For each company, visit homepage + contact + team pages
+4. Save companies that have emails (aim for 5-10 companies per iteration)
 
-Be strategic, methodical, and intelligent in your approach.`;
+**ITERATION 4-10: Deep Qualification**
+1. If you have < 50% of target, do more searches
+2. For promising companies, visit additional pages (/about, /careers, /leadership)
+3. Extract ALL possible contacts (aim for 3-5+ per company)
+4. Save only ICP-aligned companies with decision-maker emails
+
+**ITERATION 10+: Quality Refinement**
+1. Review what's working - which search queries yielded best results?
+**EXCELLENT PERFORMANCE:**
+- 80%+ of companies have 3+ contacts
+- 90%+ of contacts have emails
+- 100% ICP alignment
+- Average 5+ contacts per company
+
+**GOOD PERFORMANCE:**
+- 60%+ of companies have 2+ contacts
+- 80%+ of contacts have emails
+- 90% ICP alignment
+- Average 3+ contacts per company
+
+**NEEDS IMPROVEMENT:**
+- < 50% of companies have 2+ contacts
+- < 70% of contacts have emails
+- < 80% ICP alignment
+
+YOUR TOOLS (use in parallel whenever possible):
+1. search_companies - DuckDuckGo search
+2. visit_website - Extract data from any URL
+3. save_company - Save qualified companies with contacts
+4. refine_search_strategy - Evaluate and adjust
+
+Remember: QUALITY > QUANTITY. Better to save 50 perfect companies with 250 contacts than 100 companies with 100 contacts.
+
+Be strategic, thorough, and relentless in finding contact information. Good luck! 🚀`;
 
   const messages: any[] = [
     { role: "system", content: systemPrompt },
@@ -962,7 +1004,8 @@ Start now by searching for companies.`
           let completionMsg = "";
           switch (toolName) {
             case "search_companies":
-              completionMsg = `✓ [${index + 1}/${toolCount}] Search complete: ${toolResult.count || 0} results in ${duration}s`;
+              const resultCount = toolResult.results?.length || toolResult.count || 0;
+              completionMsg = `✓ [${index + 1}/${toolCount}] Search complete: ${resultCount} results in ${duration}s`;
               break;
             case "visit_website":
               const visitDomain = extractDomain(toolArgs.url);

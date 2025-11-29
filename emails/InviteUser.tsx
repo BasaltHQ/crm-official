@@ -22,15 +22,15 @@ interface VercelInviteUserEmailProps {
   invitedByUsername: string;
   invitedUserPassword: string;
   userLanguage: string;
+  appUrl: string;
 }
-
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
 
 export const InviteUserEmail = ({
   username,
   invitedByUsername,
   invitedUserPassword,
   userLanguage,
+  appUrl,
 }: VercelInviteUserEmailProps) => {
   const previewText =
     userLanguage === "en"
@@ -43,11 +43,20 @@ export const InviteUserEmail = ({
       <Preview>{previewText}</Preview>
       <Tailwind>
         <Body className="bg-white my-auto mx-auto font-sans">
-          <Container className="border border-solid border-slate-300 rounded-md my-[40px] mx-auto p-[20px] w-[465px]">
+          <Container className="border border-solid border-[#eaeaea] rounded-lg my-[40px] mx-auto p-[20px] w-[465px]">
+            <Section className="mt-[32px]">
+              <Img
+                src={`${appUrl}/logo.png`}
+                width="150"
+                height="42"
+                alt="Ledger1CRM"
+                className="my-0 mx-auto"
+              />
+            </Section>
             <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
               {userLanguage === "en"
-                ? "  You have been invited to cooperate on something special"
-                : "Byl(a) jste pozván(a) ke spolupráci na něčem úžasném"}
+                ? "Join the team on Ledger1CRM"
+                : "Připojte se k týmu na Ledger1CRM"}
             </Heading>
             <Text className="text-black text-[14px] leading-[24px]">
               {userLanguage === "en"
@@ -56,61 +65,65 @@ export const InviteUserEmail = ({
             </Text>
             <Text className="text-black text-[14px] leading-[24px]">
               <strong>{invitedByUsername}</strong>
-              {/*   (
-            <Link
-                href={`mailto:${invitedByEmail}`}
-                className="text-blue-600 no-underline"
-              >
-                {invitedByEmail}
-              </Link>   )*/}
               {userLanguage === "en"
-                ? ` has invited you to the`
-                : ` Vás pozval ke spolupráci na`}
+                ? ` has invited you to the `
+                : ` Vás pozval ke spolupráci na `}
+              <strong>{process.env.NEXT_PUBLIC_APP_NAME}</strong>
+              {userLanguage === "en" ? " team." : " týmu."}
             </Text>
-            <Text>
-              <strong>{process.env.NEXT_PUBLIC_APP_NAME}</strong> app:
-              <strong>{process.env.NEXT_PUBLIC_APP_URL}</strong>.
-            </Text>
+            <Section>
+              <Row>
+                <Column align="center">
+                  <Img
+                    className="rounded-full"
+                    src={`${appUrl}/images/invite-avatar.png`}
+                    width="64"
+                    height="64"
+                    alt="User Avatar"
+                  />
+                </Column>
+              </Row>
+            </Section>
             <Text className="text-black text-[14px] leading-[24px]">
               {userLanguage === "en"
-                ? `
-              To accept this invitation, click the button below. And use this
-              password to login: `
-                : `
-              Pro přijetí této pozvánky klikněte na tlačítko níže. A použijte toto heslo pro přihlášení:
-              `}
-              <strong>{invitedUserPassword}</strong>
+                ? `To accept this invitation, click the button below. Use this password to login:`
+                : `Pro přijetí této pozvánky klikněte na tlačítko níže. Použijte toto heslo pro přihlášení:`}
             </Text>
+
+            <Section className="bg-gray-100 rounded-md p-4 text-center my-4 border border-gray-200">
+              <Text className="text-xl font-mono font-bold tracking-wider m-0">
+                {invitedUserPassword}
+              </Text>
+            </Section>
 
             <Section className="text-center mt-[32px] mb-[32px]">
               <Button
-                className="bg-slate-800 rounded-md text-white  py-3 px-4 text-[12px] font-semibold no-underline text-center"
-                href={process.env.NEXT_PUBLIC_APP_URL}
+                className="bg-[#000000] rounded-md text-white py-3 px-5 text-[14px] font-semibold no-underline text-center shadow-md"
+                href={`${appUrl}/${userLanguage}/sign-in`}
               >
-                {userLanguage === "en" ? "Join the team" : "Připojit se"}
+                {userLanguage === "en" ? "Login to Dashboard" : "Přihlásit se"}
               </Button>
             </Section>
             <Text className="text-black text-[14px] leading-[24px]">
               {userLanguage === "en"
-                ? `
-              or copy and paste this URL into your browser:`
-                : `     nebo zkopírujte a vložte tento odkaz do svého prohlížeče:`}{" "}
+                ? `or copy and paste this URL into your browser:`
+                : `nebo zkopírujte a vložte tento odkaz do svého prohlížeče:`}{" "}
               <Link
-                href={process.env.NEXT_PUBLIC_APP_URL}
+                href={`${appUrl}/${userLanguage}/sign-in`}
                 className="text-blue-600 no-underline"
               >
-                {process.env.NEXT_PUBLIC_APP_URL}
+                {`${appUrl}/${userLanguage}/sign-in`}
               </Link>
             </Text>
             <Hr className="border border-solid border-[#eaeaea] my-[26px] mx-0 w-full" />
-            <Text className="text-slate-500 text-muted-foreground text-[12px] leading-[24px]">
+            <Text className="text-[#666666] text-[12px] leading-[24px]">
               {userLanguage === "en"
                 ? `This invitation was intended for `
                 : `Toto pozvání bylo určeno pro `}
               <span className="text-black">{username}. </span>
               {userLanguage === "en"
-                ? "If you were not expecting this invitation, you can ignore this email. If you are concerned about your account's safety, please reply to this email to get in touch with us."
-                : "Pokud jste toto pozvání neočekávali, můžete tento e-mail ignorovat. Pokud se obáváte o bezpečnost svého účtu, odpovězte na tento e-mail, abyste se s námi spojili."}
+                ? "If you were not expecting this invitation, you can ignore this email."
+                : "Pokud jste toto pozvání neočekávali, můžete tento e-mail ignorovat."}
             </Text>
           </Container>
         </Body>

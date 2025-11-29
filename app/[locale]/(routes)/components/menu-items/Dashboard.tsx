@@ -11,11 +11,12 @@ type Props = {
 
 const DashboardMenu = ({ open, title }: Props) => {
   const pathname = usePathname();
-  const isPath = pathname.split("/").filter(Boolean).length === 1;
+  // Mark active when the current path ends with "/dashboard" (locale-aware, e.g., /en/dashboard)
+  const isPath = pathname.endsWith("/dashboard");
   return (
     <div className="flex flex-row items-center p-2 w-full">
       <Link
-        href={"/"}
+        href={"/dashboard"}
         className={`menu-item ${isPath ? "menu-item-active" : ""}`}
         title={title}
       >

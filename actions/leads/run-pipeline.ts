@@ -57,9 +57,21 @@ export async function runLeadGenPipeline({
       job.counters?.companiesFound || 100
     );
 
-    // SERP discovery alongside agentic mode when enabled
+    // SERP fallback: only run if agentic returned zero companies and SERP is enabled
     let serpAddedCandidates = 0;
-    if (job.providers?.serp !== false) {
+    const agentSaved = result.companiesSaved || 0;
+    const allowSerpFallback = (job.providers?.serpFallback === true) && (job.providers?.serp !== false) && agentSaved === 0;
+    if (allowSerpFallback) {
+      // Log fallback
+      await db.crm_Lead_Gen_Jobs.update({
+        where: { id: jobId },
+        data: {
+          logs: [
+            ...(job.logs || []),
+            { ts: new Date().toISOString(), msg: "Agentic found 0 companies; SERP fallback enabled -> running SERP..." }
+          ]
+        }
+      });
       try {
         const serpRes = await runSerpScraperForJob(jobId, userId);
         serpAddedCandidates = serpRes.createdCandidates || 0;
@@ -71,11 +83,22 @@ export async function runLeadGenPipeline({
           data: {
             logs: [
               ...(job.logs || []),
-              { ts: new Date().toISOString(), level: "ERROR", msg: `SERP in agentic failed: ${(error as Error)?.message || String(error)}` }
+              { ts: new Date().toISOString(), level: "ERROR", msg: `SERP fallback failed: ${(error as Error)?.message || String(error)}` }
             ]
           }
         });
       }
+    } else {
+      // Skip SERP when agentic produced results or SERP is disabled
+      await db.crm_Lead_Gen_Jobs.update({
+        where: { id: jobId },
+        data: {
+          logs: [
+            ...(job.logs || []),
+            { ts: new Date().toISOString(), msg: `Skipping SERP: agenticSaved=${agentSaved}, serpEnabled=${job.providers?.serp !== false}, serpFallback=${job.providers?.serpFallback === true}` }
+          ]
+        }
+      });
     }
 
     // Optional ToS-safe people enrichment (company site parsing)

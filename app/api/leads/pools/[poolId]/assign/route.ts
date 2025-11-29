@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { prismadb } from "@/lib/prisma";
 import { safeContactDisplayName, normalizeName } from "@/lib/scraper/normalize";
 
 /**
@@ -24,6 +25,36 @@ export async function POST(
 
     if (!assignments || !Array.isArray(assignments)) {
       return new NextResponse("Invalid assignments data", { status: 400 });
+    }
+
+    // Check if user is admin (primary DB flags)
+    const userFlags = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { is_admin: true, is_account_admin: true }
+    });
+    const isAdmin = !!(userFlags?.is_admin || userFlags?.is_account_admin);
+
+    // Verify pool ownership or admin access
+    const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
+      where: { id: poolId },
+      select: { user: true }
+    });
+
+    if (!pool) {
+      return new NextResponse("Pool not found", { status: 404 });
+    }
+
+    // Only pool owner or admin can assign leads from this pool
+    if (pool.user !== session.user.id && !isAdmin) {
+      return new NextResponse("You don't have permission to assign leads from this pool", { status: 403 });
+    }
+
+    // Validate assignments: non-admins can only assign to themselves
+    if (!isAdmin) {
+      const invalidAssignments = assignments.filter((a: any) => a.userId !== session.user.id);
+      if (invalidAssignments.length > 0) {
+        return new NextResponse("You can only assign leads to yourself. Only admins can assign to other users.", { status: 403 });
+      }
     }
 
     const results = [];

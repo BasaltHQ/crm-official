@@ -31,7 +31,30 @@ RUN addgroup --system nodejs && \
     adduser --system --ingroup nodejs nextjs
 
 RUN apt-get update -y && \
-    apt-get install -y openssl libssl-dev 
+    apt-get install -y \
+    openssl \
+    libssl-dev \
+    chromium \
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Puppeteer to use system Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium 
 
 WORKDIR /app
 #COPY --from=build_image --chown=nextjs:nodejs /app/package.json /app/package-lock.json ./

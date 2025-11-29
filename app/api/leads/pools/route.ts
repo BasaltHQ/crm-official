@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { prismadb } from "@/lib/prisma";
 
 /**
  * GET /api/leads/pools
@@ -16,8 +17,16 @@ export async function GET() {
   }
 
   try {
+    // Check if user is admin (primary DB flags)
+    const me = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { is_admin: true, is_account_admin: true },
+    });
+    const isAdmin = !!(me?.is_admin || me?.is_account_admin);
+
+    // Admins see all pools, regular users see only their own
     const pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
-      where: { user: session.user.id },
+      where: isAdmin ? {} : { user: session.user.id },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -25,6 +34,7 @@ export async function GET() {
         description: true,
         createdAt: true,
         updatedAt: true,
+        user: true, // Include user info for admins to see who owns the pool
       },
     });
 
@@ -122,14 +132,26 @@ export async function DELETE(req: Request) {
       return new NextResponse("Missing poolId", { status: 400 });
     }
 
-    // Verify ownership
+    // Verify ownership or admin
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
       select: { user: true }
     });
 
-    if (!pool || pool.user !== session.user.id) {
-      return new NextResponse("Pool not found or unauthorized", { status: 404 });
+    if (!pool) {
+      return new NextResponse("Pool not found", { status: 404 });
+    }
+
+    // Check if user is admin (primary DB flags)
+    const me = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { is_admin: true, is_account_admin: true },
+    });
+    const isAdmin = !!(me?.is_admin || me?.is_account_admin);
+
+    // Allow if owner or admin
+    if (pool.user !== session.user.id && !isAdmin) {
+      return new NextResponse("Unauthorized", { status: 403 });
     }
 
     // Delete associated data

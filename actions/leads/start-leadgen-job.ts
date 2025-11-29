@@ -19,6 +19,7 @@ export const LeadGenWizardSchema = z.object({
     .object({
       agenticAI: z.boolean().default(true).optional(), // Autonomous AI agent mode (ENABLED BY DEFAULT)
       serp: z.boolean().default(true).optional(),
+      serpFallback: z.boolean().default(false).optional(), // When agentic is enabled: allow SERP fallback only if explicitly true
       crawler: z.boolean().default(true).optional(),
       peopleEnrichment: z.boolean().default(true).optional(), // Company site team/about pages parsing (ToS-safe)
       aiQueries: z.boolean().default(true).optional(),

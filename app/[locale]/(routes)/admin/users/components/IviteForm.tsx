@@ -65,11 +65,13 @@ export function InviteForm() {
           description: "User invited successfully.",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.log(error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Something went wrong while inviting the user.",
+        description:
+          error.response?.data || "Something went wrong while inviting the user.",
       });
     } finally {
       form.reset({

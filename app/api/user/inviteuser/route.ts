@@ -35,18 +35,26 @@ export async function POST(req: Request) {
 
     const password = generateRandomPassword();
 
+    const origin = req.headers.get("origin");
+    const appUrl = origin || process.env.NEXT_PUBLIC_APP_URL;
+    console.log("InviteUser Route - appUrl:", appUrl);
+
     let message = "";
 
     switch (language) {
       case "en":
-        message = `You have been invited to ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Your username is: ${email} \n\n Your password is: ${password} \n\n Please login to ${process.env.NEXT_PUBLIC_APP_URL} \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
+        message = `You have been invited to ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Your username is: ${email} \n\n Your password is: ${password} \n\n Please login to ${appUrl} \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
         break;
       case "cz":
-        message = `Byl jste pozván do ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Vaše uživatelské jméno je: ${email} \n\n Vaše heslo je: ${password} \n\n Prosím přihlašte se na ${process.env.NEXT_PUBLIC_APP_URL} \n\n Děkujeme \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
+        message = `Byl jste pozván do ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Vaše uživatelské jméno je: ${email} \n\n Vaše heslo je: ${password} \n\n Prosím přihlašte se na ${appUrl} \n\n Děkujeme \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
         break;
       default:
-        message = `You have been invited to ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Your username is: ${email} \n\n Your password is: ${password} \n\n Please login to ${process.env.NEXT_PUBLIC_APP_URL} \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
+        message = `You have been invited to ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Your username is: ${email} \n\n Your password is: ${password} \n\n Please login to ${appUrl} \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
         break;
+    }
+
+    if (!resend) {
+      return new NextResponse("Resend API key not configured", { status: 500 });
     }
 
     //Check if user already exists in local database
@@ -86,7 +94,7 @@ export async function POST(req: Request) {
           return new NextResponse("User not created", { status: 500 });
         }
 
-        const data = await resend.emails.send({
+        const { data: emailData, error: emailError } = await resend.emails.send({
           from:
             process.env.NEXT_PUBLIC_APP_NAME +
             " <" +
@@ -100,14 +108,21 @@ export async function POST(req: Request) {
             username: user?.name!,
             invitedUserPassword: password,
             userLanguage: language,
+            appUrl: appUrl || "",
           }),
         });
 
-        console.log(data, "data");
+        if (emailError) {
+          console.log("Resend Error:", emailError);
+          return new NextResponse("Error sending email: " + emailError.message, { status: 500 });
+        }
+
+        console.log("Resend Success:", emailData);
 
         return NextResponse.json(user, { status: 200 });
       } catch (err) {
         console.log(err);
+        return new NextResponse("Error creating user or sending email", { status: 500 });
       }
     }
   } catch (error) {

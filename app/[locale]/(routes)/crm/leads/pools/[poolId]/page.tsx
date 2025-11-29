@@ -4,7 +4,7 @@ import { use } from "react";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { X, Mail, Phone, Linkedin, Building2, ExternalLink, User, CheckCircle2 } from "lucide-react";
 import { safeContactDisplayName } from "@/lib/scraper/normalize";
 
@@ -46,6 +46,11 @@ type TeamMember = {
   color: string;
 };
 
+type TeamMembersResponse = {
+  users: TeamMember[];
+  isAdmin: boolean;
+};
+
 export default function PoolDetailPage({ params }: { params: Promise<{ poolId: string }> }) {
   const { poolId } = use(params);
   const router = useRouter();
@@ -55,7 +60,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
     { refreshInterval: 10000 }
   );
 
-  const { data: teamData } = useSWR<{ users: TeamMember[] }>(
+  const { data: teamData } = useSWR<TeamMembersResponse>(
     "/api/leads/team-members",
     fetcher
   );
@@ -65,6 +70,15 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
   const [candidateAssignments, setCandidateAssignments] = useState<Record<string, string>>({});
   const [assigning, setAssigning] = useState(false);
   const [detailsModal, setDetailsModal] = useState<LeadCandidate | null>(null);
+
+  // Auto-select current user for non-admins
+  useEffect(() => {
+    if (teamData?.users && teamData.users.length > 0) {
+      if (!teamData.isAdmin) {
+        setSelectedTeamMember(teamData.users[0] || null);
+      }
+    }
+  }, [teamData]);
 
   const toggleCandidateAssignment = (candidateId: string) => {
     if (!selectedTeamMember) return;
@@ -80,6 +94,19 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
       }
       return newAssignments;
     });
+  };
+
+  const assignAllToSelected = () => {
+    if (!selectedTeamMember) return;
+    const next: Record<string, string> = {};
+    (data?.candidates || []).forEach((cand) => {
+      next[cand.id] = selectedTeamMember.id;
+    });
+    setCandidateAssignments(next);
+  };
+
+  const clearAssignments = () => {
+    setCandidateAssignments({});
   };
 
   const onConfirmAssignments = async () => {
@@ -156,41 +183,79 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
             <label className="block text-sm font-medium mb-2">
               Select Team Member for Assignment
             </label>
-            <select
-              className="w-full max-w-sm rounded border p-2 bg-background"
-              value={selectedTeamMember?.id || ""}
-              onChange={(e) => {
-                const member = teamData?.users.find((u) => u.id === e.target.value);
-                setSelectedTeamMember(member || null);
-              }}
-            >
-              <option value="">-- Select a team member --</option>
-              {teamData?.users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
-                </option>
-              ))}
-            </select>
-            {selectedTeamMember && (
-              <div className="mt-2 flex items-center gap-2 text-sm">
-                <div
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: selectedTeamMember.color }}
-                />
-                <span>
-                  Click on candidates to assign them to <strong>{selectedTeamMember.name}</strong>
-                </span>
-              </div>
+            {teamData?.isAdmin ? (
+              <>
+                <select
+                  className="w-full max-w-sm rounded border p-2 bg-background"
+                  value={selectedTeamMember?.id || ""}
+                  onChange={(e) => {
+                    const member = teamData?.users.find((u) => u.id === e.target.value);
+                    setSelectedTeamMember(member || null);
+                  }}
+                >
+                  <option value="">-- Select a team member --</option>
+                  {teamData?.users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.email})
+                    </option>
+                  ))}
+                </select>
+                {selectedTeamMember && (
+                  <div className="mt-2 flex items-center gap-2 text-sm">
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: selectedTeamMember.color }}
+                    />
+                    <span>
+                      Click on candidates to assign them to <strong>{selectedTeamMember.name}</strong>
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {selectedTeamMember && (
+                  <div className="mt-6 flex items-center gap-2 text-sm">
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: selectedTeamMember.color }}
+                    />
+                    <span>
+                      Assignments will be assigned to you: <strong>{selectedTeamMember.name}</strong>
+                    </span>
+                  </div>
+                )}
+                {!selectedTeamMember && (
+                  <div className="mt-6 text-sm text-muted-foreground">Loading your profile…</div>
+                )}
+              </>
             )}
           </div>
-          <button
-            className="rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-            onClick={onConfirmAssignments}
-            disabled={assigning || Object.keys(candidateAssignments).length === 0}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            {assigning ? "Assigning..." : `Confirm Assignments (${Object.keys(candidateAssignments).length})`}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded border px-4 py-2 hover:bg-muted disabled:opacity-50"
+              onClick={assignAllToSelected}
+              disabled={!selectedTeamMember || (data?.candidates?.length ?? 0) === 0}
+              title={teamData?.isAdmin ? "Assign all candidates to selected team member" : "Assign all candidates to you"}
+            >
+              {teamData?.isAdmin ? "Assign All to Selected" : "Assign All to Me"}
+            </button>
+            <button
+              className="rounded border px-4 py-2 hover:bg-muted disabled:opacity-50"
+              onClick={clearAssignments}
+              disabled={Object.keys(candidateAssignments).length === 0}
+            >
+              Clear
+            </button>
+            <button
+              className="rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              onClick={onConfirmAssignments}
+              disabled={assigning || Object.keys(candidateAssignments).length === 0}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              {assigning ? "Assigning..." : `Confirm Assignments (${Object.keys(candidateAssignments).length})`}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -449,8 +514,8 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                                 </a>
                                 {contact.emailStatus && contact.emailStatus !== "UNKNOWN" && (
                                   <div className={`text-xs mt-0.5 ${contact.emailStatus === "VALID" ? "text-green-600" :
-                                      contact.emailStatus === "RISKY" ? "text-orange-600" :
-                                        "text-red-600"
+                                    contact.emailStatus === "RISKY" ? "text-orange-600" :
+                                      "text-red-600"
                                     }`}>
                                     {contact.emailStatus}
                                   </div>

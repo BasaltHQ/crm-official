@@ -39,6 +39,10 @@ import { getDocumentsCount } from "@/actions/dashboard/get-documents-count";
 import { getActiveUsersCount } from "@/actions/dashboard/get-active-users-count";
 import { getOpportunitiesCount } from "@/actions/dashboard/get-opportunities-count";
 import { getExpectedRevenue } from "@/actions/crm/opportunity/get-expected-revenue";
+import { BarChartDemo } from "@/components/tremor/BarChart";
+import { getLeadsStageCounts } from "@/actions/dashboard/get-leads-stage-counts";
+import { getTeamAnalytics } from "@/actions/dashboard/get-team-analytics";
+import AbstractDashboard from "@/app/[locale]/components/AbstractDashboard";
 
 const DashboardPage = async () => {
   const session = await getServerSession(authOptions);
@@ -69,6 +73,27 @@ const DashboardPage = async () => {
   const opportunities = await getOpportunitiesCount();
   const usersTasks = await getUsersTasksCount(userId);
 
+  // Charts data for pipeline stage distribution
+  const leadsStageSummary = await getLeadsStageCounts(userId as string);
+  const myStageChartData = [
+    { name: "Identify", Number: leadsStageSummary.overall.counts.byStage.Identify },
+    { name: "Engage_AI", Number: leadsStageSummary.overall.counts.byStage.Engage_AI },
+    { name: "Engage_Human", Number: leadsStageSummary.overall.counts.byStage.Engage_Human },
+    { name: "Offering", Number: leadsStageSummary.overall.counts.byStage.Offering },
+    { name: "Finalizing", Number: leadsStageSummary.overall.counts.byStage.Finalizing },
+    { name: "Closed", Number: leadsStageSummary.overall.counts.byStage.Closed },
+  ];
+
+  const teamAnalytics = await getTeamAnalytics();
+  const teamStageChartData = [
+    { name: "Identify", Number: teamAnalytics.team.stageCounts.Identify },
+    { name: "Engage_AI", Number: teamAnalytics.team.stageCounts.Engage_AI },
+    { name: "Engage_Human", Number: teamAnalytics.team.stageCounts.Engage_Human },
+    { name: "Offering", Number: teamAnalytics.team.stageCounts.Offering },
+    { name: "Finalizing", Number: teamAnalytics.team.stageCounts.Finalizing },
+    { name: "Closed", Number: teamAnalytics.team.stageCounts.Closed },
+  ];
+
   //Find which modules are enabled
   const crmModule = modules.find((module) => module.name === "crm");
   const invoiceModule = modules.find((module) => module.name === "invoice");
@@ -84,6 +109,9 @@ const DashboardPage = async () => {
       title={dict.DashboardPage.containerTitle}
       description={dict.DashboardPage.containerDescription}
     >
+      <div className="mb-6">
+        <AbstractDashboard />
+      </div>
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <Suspense fallback={<LoadingBox />}>
           <Card>
@@ -220,6 +248,11 @@ const DashboardPage = async () => {
             <NotionsBox />
           </Suspense>
         )}
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mt-6">
+        <BarChartDemo chartData={myStageChartData} title="Pipeline Stage Distribution (Me)" />
+        <BarChartDemo chartData={teamStageChartData} title="Team Pipeline Stage Distribution" />
       </div>
     </Container>
   );

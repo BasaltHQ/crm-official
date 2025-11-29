@@ -72,7 +72,7 @@ const AvatarDropdown = ({ avatar, userId, name, email }: Props) => {
           <span>Profile settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut()}>
+        <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
           <LogOut className="w-4 h-4 inline-block mr-2 stroke-current text-gray-500" />
           <span>Sign out</span>
         </DropdownMenuItem>

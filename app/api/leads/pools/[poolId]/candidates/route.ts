@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { prismadb } from "@/lib/prisma";
 
 /**
  * GET /api/leads/pools/[poolId]/candidates
@@ -22,6 +23,21 @@ export async function GET(
   }
 
   try {
+    // Verify pool ownership or admin access
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { is_admin: true, is_account_admin: true },
+    });
+    const isAdmin = !!(user?.is_admin || user?.is_account_admin);
+
+    const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
+      where: { id: poolId },
+      select: { user: true },
+    });
+    if (!pool) return new NextResponse("Pool not found", { status: 404 });
+    if (!isAdmin && pool.user !== session.user.id) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
     const candidates = await (prismadbCrm as any).crm_Lead_Candidates.findMany({
       where: { pool: poolId },
       orderBy: { score: "desc" },

@@ -47,7 +47,7 @@ export function CommandComponent() {
         setOpen(false);
       }
       if (e.key === "k" && e.metaKey) {
-        signOut();
+        signOut({ callbackUrl: "/" });
       }
     };
 
@@ -93,7 +93,7 @@ export function CommandComponent() {
               <span>Profile settings</span>
               <CommandShortcut>Shift + ⌘ + P</CommandShortcut>
             </CommandItem>
-            <CommandItem onClick={() => signOut()}>
+            <CommandItem onClick={() => signOut({ callbackUrl: "/" })}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
               <CommandShortcut>⌘k</CommandShortcut>

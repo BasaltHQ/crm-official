@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { prismadb } from "@/lib/prisma";
 
 /**
  * GET /api/leads/team-members
@@ -14,20 +15,29 @@ export async function GET() {
   }
 
   try {
-    const users = await (prismadbCrm as any).Users.findMany({
-      where: {
-        userStatus: "ACTIVE",
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        avatar: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
+    const baseUsersQuery = {
+      where: { userStatus: "ACTIVE" },
+      select: { id: true, name: true, email: true, avatar: true },
+      orderBy: { name: "asc" as const },
+    };
+
+    // Determine admin from primary DB flags
+    const me = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { is_admin: true, is_account_admin: true },
     });
+    const isAdmin = !!(me?.is_admin || me?.is_account_admin);
+
+    let users;
+    if (isAdmin) {
+      users = await (prismadbCrm as any).Users.findMany(baseUsersQuery);
+    } else {
+      const self = await (prismadbCrm as any).Users.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, name: true, email: true, avatar: true },
+      });
+      users = self ? [self] : [];
+    }
 
     // Assign persistent colors based on user ID hash
     const colors = [
@@ -56,7 +66,7 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ users: usersWithColors }, { status: 200 });
+    return NextResponse.json({ users: usersWithColors, isAdmin }, { status: 200 });
   } catch (error) {
     console.error("[TEAM_MEMBERS_GET]", error);
     return new NextResponse("Failed to fetch team members", { status: 500 });
