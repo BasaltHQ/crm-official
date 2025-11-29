@@ -1,0 +1,51 @@
+import { NextResponse } from "next/server";
+import { exchangeCodeForTokens } from "@/lib/gmail";
+
+/**
+ * GET /api/google/callback
+ * OAuth2 redirect URI handler for Google (Gmail/Calendar).
+ * - Expects query params: ?code=...&state=base64url({ u: userId })
+ * - Exchanges code for tokens and persists them in gmail_Tokens.
+ * - Redirects back to CRM UI.
+ *
+ * Ensure your GMAIL_REDIRECT_URI env var matches this route:
+ *   e.g. https://your-crm-domain.com/api/google/callback
+ */
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const origin = url.origin;
+
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+
+  if (!code || !state) {
+    return new NextResponse("Missing code/state", { status: 400 });
+  }
+
+  try {
+    // Decode state: base64url(JSON.stringify({ u: userId }))
+    let userId: string | undefined;
+    try {
+      const decoded = Buffer.from(state, "base64url").toString("utf8");
+      const parsed = JSON.parse(decoded);
+      userId = parsed?.u as string | undefined;
+    } catch {
+      return new NextResponse("Invalid state", { status: 400 });
+    }
+
+    if (!userId) {
+      return new NextResponse("Missing user in state", { status: 400 });
+    }
+
+    await exchangeCodeForTokens(userId, code);
+
+    // Redirect back to CRM Dialer (or any integrations page) indicating success
+    const redirectOk = `${origin}/en/crm/dialer?google=connected`;
+    return NextResponse.redirect(redirectOk, { status: 302 });
+  } catch (e: any) {
+    // eslint-disable-next-line no-console
+    console.error("[GOOGLE_OAUTH_CALLBACK]", e?.message || e);
+    const redirectErr = `${origin}/en/crm/dialer?google=error`;
+    return NextResponse.redirect(redirectErr, { status: 302 });
+  }
+}

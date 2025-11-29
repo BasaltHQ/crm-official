@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "template": {
+      "containers": [
+        {
+          "name": "ledger1-gateway",
+          "image": "ledger1acr.azurecr.io/azure-realtime-gateway:20251118132518",
+          "env": [
+            { "name": "PORT", "value": "8080" },
+            { "name": "LOG_LEVEL", "value": "info" },
+            { "name": "AZURE_OPENAI_REALTIME_WS_URL", "value": "wss://skyne-m9q617jz-swedencentral.cognitiveservices.azure.com/openai/deployments/gpt-realtime/realtime" },
+            { "name": "AZURE_OPENAI_REALTIME_API_VERSION", "value": "2024-10-01-preview" },
+            { "name": "AZURE_OPENAI_REALTIME_DEPLOYMENT", "value": "gpt-realtime" },
+            { "name": "AUDIO_ENCODING", "value": "mulaw" },
+            { "name": "SAMPLE_RATE", "value": "8000" },
+            { "name": "AZURE_OPENAI_API_KEY", "secretRef": "azure-openai-api-key" },
+            { "name": "GATEWAY_SHARED_SECRET", "secretRef": "gateway-shared-secret" },
+            { "name": "FRAME_MS", "value": "20" },
+            { "name": "AZURE_IN_SAMPLE_RATE", "value": "16000" },
+            { "name": "AZURE_OUT_SAMPLE_RATE", "value": "16000" },
+            { "name": "AZURE_VOICE", "value": "alloy" }
+          ]
+        }
+      ]
+    }
+  }
+}

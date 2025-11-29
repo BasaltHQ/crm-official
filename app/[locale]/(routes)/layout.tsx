@@ -13,15 +13,15 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL! || "http://localhost:3000"
   ),
-  title: "",
-  description: "",
+  title: "Ledger1CRM Dashboard",
+  description: "Manage your sales and support with AI.",
   openGraph: {
     images: [
       {
-        url: "/images/opengraph-image.png",
+        url: "/api/og?title=Dashboard&description=Manage%20your%20business",
         width: 1200,
         height: 630,
-        alt: "",
+        alt: "Ledger1CRM Dashboard",
       },
     ],
   },
@@ -29,10 +29,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: [
       {
-        url: "/images/opengraph-image.png",
+        url: "/api/og?title=Dashboard&description=Manage%20your%20business",
         width: 1200,
         height: 630,
-        alt: "",
+        alt: "Ledger1CRM Dashboard",
       },
     ],
   },

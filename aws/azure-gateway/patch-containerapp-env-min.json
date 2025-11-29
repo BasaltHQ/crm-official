@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "template": {
+      "containers": [
+        {
+          "name": "ledger1-gateway",
+          "env": [
+            { "name": "PORT", "value": "8080" },
+            { "name": "LOG_LEVEL", "value": "info" },
+            { "name": "AZURE_OPENAI_REALTIME_WS_URL", "value": "wss://skyne-m9q617jz-swedencentral.cognitiveservices.azure.com/openai/realtime" },
+            { "name": "AZURE_OPENAI_REALTIME_API_VERSION", "value": "2024-10-01-preview" },
+            { "name": "AZURE_OPENAI_REALTIME_DEPLOYMENT", "value": "gpt-reatime" },
+            { "name": "AUDIO_ENCODING", "value": "mulaw" },
+            { "name": "SAMPLE_RATE", "value": "8000" },
+            { "name": "AZURE_OPENAI_API_KEY", "secretRef": "azure-openai-api-key" },
+            { "name": "GATEWAY_SHARED_SECRET", "secretRef": "gateway-shared-secret" }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { s3Client } from "@/lib/digital-ocean-s3";
-import {
-  BucketAlreadyExists,
-  ListBucketsCommand,
-  ListObjectsCommand,
-} from "@aws-sdk/client-s3";
+import { getS3Client } from "@/lib/digital-ocean-s3";
+import { ListObjectsCommand } from "@aws-sdk/client-s3";
 import { getServerSession } from "next-auth";
+export const dynamic = "force-dynamic";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(request: NextRequest, props: { params: Promise<{ bucketId: string }> }) {
-  const params = await props.params;
+export async function GET(request: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -24,8 +20,13 @@ export async function GET(request: NextRequest, props: { params: Promise<{ bucke
 
   const bucketParams = { Bucket: bucketId };
 
-  const data = await s3Client.send(new ListObjectsCommand(bucketParams));
-  console.log("Success", data);
-
-  return NextResponse.json({ files: data, success: true }, { status: 200 });
+  try {
+    const s3 = getS3Client();
+    const data = await s3.send(new ListObjectsCommand(bucketParams));
+    console.log("Success", data);
+    return NextResponse.json({ files: data, success: true }, { status: 200 });
+  } catch (e) {
+    const msg = (e && (e as any).message) ? (e as any).message : "DigitalOcean S3 not configured";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 }

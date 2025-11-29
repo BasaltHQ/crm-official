@@ -1,0 +1,288 @@
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'react-hot-toast';
+import CustomCCP from '@/components/voice/CustomCCP';
+
+type RolePreset = {
+  key: string;
+  label: string;
+  description: string;
+};
+
+const ROLE_PRESETS: RolePreset[] = [
+  { key: 'sales_agent', label: 'Sales Agent', description: 'Persuasive, helpful, discovery-first, objection-handling.' },
+  { key: 'solutions_architect', label: 'Solutions Architect', description: 'Technical scoping, constraints, roadmap and feasibility.' },
+  { key: 'account_manager', label: 'Account Manager', description: 'Relationship-focused, renewal-driven, service-oriented.' },
+  { key: 'support_specialist', label: 'Support Specialist', description: 'Diagnostic, troubleshooting, clear step-by-step guidance.' },
+  { key: 'custom', label: 'Custom Role', description: 'Define your own role name and behaviors.' },
+];
+
+function buildPrompt(opts: {
+  projectName: string;
+  projectContext: string;
+  projectNotes: string;
+  leadName: string;
+  leadTitle: string;
+  leadCompany: string;
+  leadEmail: string;
+  leadPhone: string;
+  roleKey: string;
+  customRoleName: string;
+  roleNotes: string;
+  language: string;
+}) {
+  const now = new Date().toLocaleString();
+  const roleName =
+    opts.roleKey === 'custom'
+      ? (opts.customRoleName || 'Custom Role')
+      : (ROLE_PRESETS.find(r => r.key === opts.roleKey)?.label || 'Agent');
+  const roleDesc =
+    opts.roleKey === 'custom'
+      ? (opts.roleNotes || '')
+      : (ROLE_PRESETS.find(r => r.key === opts.roleKey)?.description || '');
+
+  return [
+    `System Prompt — Generated ${now}`,
+    ``,
+    `Role: ${roleName}`,
+    roleDesc ? `Role Profile: ${roleDesc}` : ``,
+    opts.language ? `Primary Language: ${opts.language}` : ``,
+    ``,
+    `Project`,
+    `- Name: ${opts.projectName || '(unknown project)'}`,
+    `- Context: ${opts.projectContext || ''}`,
+    `- Notes: ${opts.projectNotes || ''}`,
+    ``,
+    `Lead`,
+    `- Name: ${opts.leadName || ''}`,
+    `- Title: ${opts.leadTitle || ''}`,
+    `- Company: ${opts.leadCompany || ''}`,
+    `- Email: ${opts.leadEmail || ''}`,
+    `- Phone: ${opts.leadPhone || ''}`,
+    ``,
+    `Operational Guidance`,
+    `- Always confirm the latest assigned language before speaking.`,
+    `- Keep responses concise and structured; use numbered/bulleted steps where helpful.`,
+    `- Ask clarifying questions to confirm understanding before proposing solutions.`,
+    `- Avoid sharing internal system details or secrets; follow company policies.`,
+    ``,
+    `Conversation Objectives`,
+    `- Build rapport and value alignment for ${opts.projectName || 'the project'}.`,
+    `- Qualify needs and constraints; offer next steps or scheduling.`,
+    `- If requested, draft a follow-up email or summary with action items.`,
+  ].filter(Boolean).join('\n');
+}
+
+export default function PromptGeneratorPanel({ embedded = false, showSoftphone = true }: { embedded?: boolean; showSoftphone?: boolean }) {
+  const [projectName, setProjectName] = useState('');
+  const [projectContext, setProjectContext] = useState('');
+  const [projectNotes, setProjectNotes] = useState('');
+  const [leadName, setLeadName] = useState('');
+  const [leadTitle, setLeadTitle] = useState('');
+  const [leadCompany, setLeadCompany] = useState('');
+  const [leadEmail, setLeadEmail] = useState('');
+  const [leadPhone, setLeadPhone] = useState('');
+  const [roleKey, setRoleKey] = useState<RolePreset['key']>('sales_agent');
+  const [customRoleName, setCustomRoleName] = useState('');
+  const [roleNotes, setRoleNotes] = useState('');
+  const [language, setLanguage] = useState('English');
+  const [wallet, setWallet] = useState('');
+  const [prompt, setPrompt] = useState('');
+
+  const generated = useMemo(
+    () =>
+      buildPrompt({
+        projectName,
+        projectContext,
+        projectNotes,
+        leadName,
+        leadTitle,
+        leadCompany,
+        leadEmail,
+        leadPhone,
+        roleKey,
+        customRoleName,
+        roleNotes,
+        language,
+      }),
+    [
+      projectName,
+      projectContext,
+      projectNotes,
+      leadName,
+      leadTitle,
+      leadCompany,
+      leadEmail,
+      leadPhone,
+      roleKey,
+      customRoleName,
+      roleNotes,
+      language,
+    ],
+  );
+
+  async function handleGenerate() {
+    try {
+      setPrompt(generated);
+      toast.success('Prompt generated');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate prompt');
+    }
+  }
+
+  async function handlePushToVoiceHub() {
+    try {
+      const w = (wallet || '').trim().toLowerCase();
+      if (!w) {
+        toast.error('Enter wallet address to push to VoiceHub');
+        return;
+      }
+      const body = { prompt: prompt || generated, meta: { projectName, leadCompany, roleKey, language } };
+      const res = await fetch('/api/crm/prompt/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-wallet': w },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || `VoiceHub push failed (${res.status})`);
+      }
+      toast.success('Prompt pushed to VoiceHub');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to push prompt');
+    }
+  }
+
+  return (
+    <div className={embedded ? "w-full px-1 py-2 space-y-4" : "max-w-6xl mx-auto px-4 py-6 space-y-6"}>
+      {!embedded && (
+        <>
+          <h1 className="text-2xl md:text-3xl font-bold">Prompt Generator</h1>
+          <p className="text-sm text-muted-foreground">
+            Build a comprehensive System Prompt using lead and project context. Choose a role preset or define your own, then generate and push to VoiceHub.
+          </p>
+        </>
+      )}
+
+      {/* Context inputs */}
+      <section className="rounded-md border bg-card p-4">
+        <h2 className="text-lg font-semibold mb-2">Project</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium">Project Name</label>
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g., Ledger1 CRM onboarding" />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Primary Language</label>
+            <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="e.g., English" />
+          </div>
+        </div>
+        <div className="mt-3">
+          <label className="text-xs font-medium">Project Context</label>
+          <Textarea rows={3} value={projectContext} onChange={(e) => setProjectContext(e.target.value)} placeholder="Background, goals, constraints..." />
+        </div>
+        <div className="mt-3">
+          <label className="text-xs font-medium">Project Notes</label>
+          <Textarea rows={3} value={projectNotes} onChange={(e) => setProjectNotes(e.target.value)} placeholder="Any additional information for the agent..." />
+        </div>
+      </section>
+
+      <section className="rounded-md border bg-card p-4">
+        <h2 className="text-lg font-semibold mb-2">Lead</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium">Lead Name</label>
+            <Input value={leadName} onChange={(e) => setLeadName(e.target.value)} placeholder="e.g., Jane Doe" />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Title</label>
+            <Input value={leadTitle} onChange={(e) => setLeadTitle(e.target.value)} placeholder="e.g., Director of Operations" />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Company</label>
+            <Input value={leadCompany} onChange={(e) => setLeadCompany(e.target.value)} placeholder="e.g., Acme Corp" />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Email</label>
+            <Input value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} placeholder="e.g., jane@acme.com" />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Phone</label>
+            <Input value={leadPhone} onChange={(e) => setLeadPhone(e.target.value)} placeholder="e.g., +15551234567" />
+          </div>
+        </div>
+      </section>
+
+      {/* Role selection */}
+      <section className="rounded-md border bg-card p-4">
+        <h2 className="text-lg font-semibold mb-2">Role</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-medium">Preset</label>
+            <select
+              className="w-full h-9 px-2 border rounded-md bg-background"
+              value={roleKey}
+              onChange={(e) => setRoleKey(e.target.value as RolePreset['key'])}
+            >
+              {ROLE_PRESETS.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <div className="microtext text-muted-foreground mt-1">
+              {(ROLE_PRESETS.find(r => r.key === roleKey)?.description) || ''}
+            </div>
+          </div>
+          {roleKey === 'custom' && (
+            <>
+              <div>
+                <label className="text-xs font-medium">Custom Role Name</label>
+                <Input value={customRoleName} onChange={(e) => setCustomRoleName(e.target.value)} placeholder="e.g., Enterprise Advisor" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-medium">Custom Role Notes</label>
+                <Textarea rows={3} value={roleNotes} onChange={(e) => setRoleNotes(e.target.value)} placeholder="Define behaviors, tone, and goals..." />
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Actions */}
+      <section className="rounded-md border bg-card p-4">
+        <div className="flex items-center gap-3">
+          <Button onClick={handleGenerate}>Generate Prompt</Button>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium">Wallet</label>
+            <Input value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="0x..." className="w-48" />
+          </div>
+          <Button variant="outline" onClick={handlePushToVoiceHub}>
+            Push to VoiceHub
+          </Button>
+        </div>
+        <div className="mt-3">
+          <label className="text-xs font-medium">Generated Prompt</label>
+          <Textarea rows={10} value={prompt || generated} onChange={(e) => setPrompt(e.target.value)} />
+        </div>
+      </section>
+
+      {showSoftphone && (
+        <>
+          {/* Connect CCP Softphone (optional visibility) */}
+          <section className="rounded-md border bg-card p-4">
+            <h2 className="text-sm font-semibold mb-2">Softphone</h2>
+            <CustomCCP title="Connect Softphone" subtitle="Custom CCP (theme-aligned)" dialerLeft />
+            <div className="microtext text-muted-foreground mt-2">
+              This uses the unified Custom CCP. The Prompt Generator works independently of the dialing backend.
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}

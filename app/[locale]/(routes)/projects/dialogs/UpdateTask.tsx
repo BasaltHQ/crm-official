@@ -36,28 +36,29 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 type Props = {
   users: any;
   boards: any;
-  boardId?: string;
-  initialData: any;
+  boardId?: string; // projectId / board id
+  initialData: any; // task
   onDone?: () => void;
 };
 
-const UpdateTaskDialog = ({
-  users,
-  boards,
-  boardId,
-  initialData,
-  onDone,
-}: Props) => {
-  const [isLoading, setIsLoading] = useState(false);
+type Opportunity = {
+  id: string;
+  title: string;
+  status?: string;
+};
 
+const UpdateTaskDialog = ({ users, boards, boardId, initialData, onDone }: Props) => {
+  const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  const [opps, setOpps] = useState<Opportunity[]>([]);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -69,6 +70,8 @@ const UpdateTaskDialog = ({
     priority: z.string().min(3).max(10),
     content: z.string().min(3).max(500),
     boardId: z.string().min(3).max(255),
+    board: z.string().min(3).max(255),
+    opportunityId: z.string().optional(),
   });
 
   type UpdatedTaskForm = z.infer<typeof formSchema>;
@@ -82,6 +85,8 @@ const UpdateTaskDialog = ({
       priority: initialData.priority,
       content: initialData.content,
       boardId: boardId,
+      board: boardId,
+      opportunityId: undefined,
     },
   });
 
@@ -89,30 +94,46 @@ const UpdateTaskDialog = ({
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    // Load project-scoped opportunities for this board
+    async function loadOpps() {
+      if (!boardId) return;
+      try {
+        const res = await fetch(`/api/projects/${encodeURIComponent(boardId)}/opportunities`, { cache: "no-store" });
+        if (res.ok) {
+          const j = await res.json();
+          setOpps((j?.opportunities || []) as Opportunity[]);
+        }
+      } catch {}
+    }
+    loadOpps();
+  }, [boardId]);
+
   if (!isMounted) {
     return null;
   }
 
   //Actions
-  console.log("BoardId:", boardId);
+  // console.log("BoardId:", boardId);
 
   const onSubmit = async (data: UpdatedTaskForm) => {
     setIsLoading(true);
     try {
-      await axios.put(
-        `/api/projects/tasks/update-task/${initialData.id}`,
-        data
-      );
-      toast({
-        title: "Success",
-        description: `Task: ${data.title}, updated successfully`,
-      });
+      // Update task core fields
+      await axios.put(`/api/projects/tasks/update-task/${initialData.id}`, data);
+
+      // If an opportunity was chosen, link it to this task
+      if (data.opportunityId && boardId) {
+        await fetch(`/api/projects/${encodeURIComponent(boardId)}/opportunities/${encodeURIComponent(data.opportunityId)}/link-task`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId: initialData.id }),
+        });
+      }
+
+      toast({ title: "Success", description: `Task: ${data.title}, updated successfully` });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error?.response?.data,
-      });
+      toast({ variant: "destructive", title: "Error", description: error?.response?.data || "Update failed" });
     } finally {
       setIsLoading(false);
       onDone && onDone();
@@ -122,26 +143,8 @@ const UpdateTaskDialog = ({
 
   return (
     <div className="flex flex-col space-y-2 w-full ">
-      {/* 
-      <pre>
-        <code>{JSON.stringify(form.formState.errors, null, 2)}</code>
-      </pre>
-      <div>
-        <pre>
-          {JSON.stringify(
-            {
-              boards,
-            },
-            null,
-            2
-          )}
-        </pre>
-      </div> */}
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="h-full w-full space-y-3"
-        >
+        <form onSubmit={form.handleSubmit(onSubmit)} className="h-full w-full space-y-3">
           <div className="flex flex-col space-y-3">
             <FormField
               control={form.control}
@@ -150,11 +153,7 @@ const UpdateTaskDialog = ({
                 <FormItem>
                   <FormLabel>Task - Id: {initialData.id}</FormLabel>
                   <FormControl>
-                    <Input
-                      disabled={isLoading}
-                      placeholder="Enter task name"
-                      {...field}
-                    />
+                    <Input disabled={isLoading} placeholder="Enter task name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -167,11 +166,7 @@ const UpdateTaskDialog = ({
                 <FormItem>
                   <FormLabel>Task description</FormLabel>
                   <FormControl>
-                    <Textarea
-                      disabled={isLoading}
-                      placeholder="Enter task description"
-                      {...field}
-                    />
+                    <Textarea disabled={isLoading} placeholder="Enter task description" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -188,16 +183,9 @@ const UpdateTaskDialog = ({
                       <FormControl>
                         <Button
                           variant={"outline"}
-                          className={cn(
-                            "w-[240px] pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
+                          className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                         >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a expected close date</span>
-                          )}
+                          {field.value ? <>{format(field.value, "PPP")}</> : <span>Pick a expected close date</span>}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
@@ -206,8 +194,7 @@ const UpdateTaskDialog = ({
                       <Calendar
                         mode="single"
                         selected={field.value}
-                        //@ts-ignore
-                        //TODO: fix this
+                        // @ts-ignore onSelect typing
                         onSelect={field.onChange}
                         disabled={(date) => date < new Date("1900-01-01")}
                         initialFocus
@@ -224,10 +211,7 @@ const UpdateTaskDialog = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigned to</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select assigned user" />
@@ -252,10 +236,7 @@ const UpdateTaskDialog = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Choose task priority</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select tasks priority" />
@@ -272,14 +253,36 @@ const UpdateTaskDialog = ({
                 </FormItem>
               )}
             />
+
+            {/* Project Opportunity link (optional) */}
+            <FormField
+              control={form.control}
+              name="opportunityId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Link project opportunity (optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={opps.length ? "Select opportunity" : "No opportunities for this project"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-56 overflow-y-auto">
+                      {opps.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
           <div className="flex w-full justify-end space-x-2 pt-2">
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <Icons.spinner className="animate-spin" />
-              ) : (
-                "Update"
-              )}
+              {isLoading ? <Icons.spinner className="animate-spin" /> : "Update"}
             </Button>
           </div>
         </form>

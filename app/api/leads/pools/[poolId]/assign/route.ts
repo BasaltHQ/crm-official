@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { safeContactDisplayName, normalizeName } from "@/lib/scraper/normalize";
 
 /**
  * POST /api/leads/pools/[poolId]/assign
@@ -58,11 +59,23 @@ export async function POST(
           continue;
         }
 
+        // Compute a safe person/company display name and split into first/last safely
+        const displayName = safeContactDisplayName(
+          contact.fullName,
+          contact.email,
+          candidate.companyName,
+          candidate.domain || candidate.homepageUrl
+        );
+        const normalized = normalizeName(displayName) || displayName;
+        const parts = normalized.split(" ").filter(Boolean);
+        const computedFirstName = parts.length >= 2 ? parts[0] : "";
+        const computedLastName = parts.length >= 2 ? parts.slice(1).join(" ") : (normalized || "Unknown");
+
         // Create new Lead
         const lead = await (prismadbCrm as any).crm_Leads.create({
           data: {
-            firstName: contact.fullName?.split(" ")[0] || "",
-            lastName: contact.fullName?.split(" ").slice(1).join(" ") || contact.fullName || "Unknown",
+            firstName: computedFirstName,
+            lastName: computedLastName,
             company: candidate.companyName || "",
             email: contact.email || "",
             phone: contact.phone || "",
@@ -99,10 +112,10 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       assigned: results.length,
-      results 
+      results
     }, { status: 200 });
   } catch (error) {
     console.error("[LEADS_POOL_ASSIGN]", error);

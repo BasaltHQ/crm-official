@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SIP Media Application (SMA) Lambda to bridge PSTN to Amazon Chime SDK Meeting
+
+Parameters:
+  ChimeRegion:
+    Type: String
+    Default: us-west-2
+  ChimeMeetingRegion:
+    Type: String
+    Default: us-west-2
+  FunctionName:
+    Type: String
+    Default: chime-sma-bridge
+  BridgeEndpointUri:
+    Type: String
+    Default: ""
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    MemorySize: 256
+    Timeout: 10
+    Tracing: PassThrough
+    Environment:
+      Variables:
+        CHIME_REGION: !Ref ChimeRegion
+        CHIME_APP_MEETING_REGION: !Ref ChimeMeetingRegion
+        CHIME_BRIDGE_ENDPOINT_URI: !Ref BridgeEndpointUri
+
+Resources:
+  ChimeSmaBridgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Handler: handler.handler
+      CodeUri: ./
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - chime:CreateMeeting
+                - chime:CreateAttendee
+                - chime:DeleteMeeting
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+      Events:
+        # NOTE: SIP media applications are linked in the Chime console; you do not attach API Gateway here.
+        # After deployment, create a SIP Media Application in the Chime SDK console and choose this Lambda as the target.
+        # This placeholder is kept empty intentionally.
+        Noop:
+          Type: Schedule
+          Properties:
+            Schedule: rate(12 hours)
+            Enabled: false
+
+Outputs:
+  FunctionArn:
+    Description: ARN of the SMA bridge Lambda function
+    Value: !GetAtt ChimeSmaBridgeFunction.Arn

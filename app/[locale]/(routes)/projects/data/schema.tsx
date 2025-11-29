@@ -10,6 +10,7 @@ export const taskSchema = z.object({
   assigned_user: z.object({
     name: z.string(),
   }),
+  brand_logo_url: z.string().optional().nullable(),
 });
 
 export type Task = z.infer<typeof taskSchema>;

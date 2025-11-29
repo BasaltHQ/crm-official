@@ -19,8 +19,8 @@ type Props = {
 const Header = ({ id, name, email, avatar, lang }: Props) => {
   return (
     <>
-      <div className="flex h-20 justify-between items-center p-5 space-x-5">
-        <div className="flex justify-center ">
+      <div className="glass rounded-xl sticky top-0 z-30 flex h-20 justify-between items-center px-4 md:px-6 lg:px-8 py-3 space-x-5">
+        <div className="flex-1 min-w-0">
           <FulltextSearch />
         </div>
         <div className="flex items-center gap-3">

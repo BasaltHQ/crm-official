@@ -17,6 +17,7 @@ const DashboardMenu = ({ open, title }: Props) => {
       <Link
         href={"/"}
         className={`menu-item ${isPath ? "menu-item-active" : ""}`}
+        title={title}
       >
         <Home className="w-6 icon" />
         <span className={open ? "" : "hidden"}>{title}</span>

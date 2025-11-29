@@ -26,52 +26,75 @@ async function getLocales(locale: string) {
   }
 }
 
-export async function generateMetadata(props: Props) {
+export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
+  const { locale } = params;
   const messages = await getLocales(locale);
-
   const t = createTranslator({ locale, messages });
 
+  const title = t("RootLayout.title");
+  const description = t("RootLayout.description");
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ledger1crm.com";
+
   return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL!),
-    title: t("RootLayout.title"),
-    description: t("RootLayout.description"),
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: title,
+      template: `%s | Ledger1CRM`,
+    },
+    description,
+    keywords: ["CRM", "AI CRM", "Sales Automation", "Next.js CRM", "Open Source CRM"],
+    authors: [{ name: "Ledger1CRM Team" }],
+    creator: "Ledger1CRM",
+    publisher: "Ledger1CRM",
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
     openGraph: {
+      title,
+      description,
+      url: siteUrl,
+      siteName: "Ledger1CRM",
+      locale: locale,
+      type: "website",
       images: [
         {
-          url: "/images/opengraph-image.png",
+          url: "/api/og",
           width: 1200,
           height: 630,
-          alt: t("RootLayout.title"),
+          alt: title,
         },
       ],
     },
     twitter: {
-      cardType: "summary_large_image",
-      image: "/images/opengraph-image.png",
-      width: 1200,
-      height: 630,
-      alt: t("RootLayout.title"),
+      card: "summary_large_image",
+      title,
+      description,
+      creator: "@ledger1crm",
+      images: ["/api/og"],
+    },
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon-16x16.png",
+      apple: "/apple-touch-icon.png",
+    },
+    manifest: "/site.webmanifest",
+    alternates: {
+      canonical: "/",
+      languages: {
+        "en-US": "/en",
+        "de-DE": "/de",
+      },
     },
   };
 }
 
 export default async function RootLayout(props: Props) {
   const params = await props.params;
-
-  const {
-    locale
-  } = params;
-
-  const {
-    children
-  } = props;
-
+  const { locale } = params;
+  const { children } = props;
   const messages = await getLocales(locale);
 
   return (
@@ -81,24 +104,6 @@ export default async function RootLayout(props: Props) {
           name="viewport"
           content="width=device-width, height=device-height, initial-scale=1"
         />
-        <meta property="og:url" content={process.env.NEXT_PUBLIC_APP_URL} />
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="Ledger1CRM" />
-        <meta
-          property="og:description"
-          content="Ledger1CRM is an open source CRM build on top of NextJS. Technology stack: NextJS with Typescrtipt, MongoDB, TailwindCSS, React, Prisma, shadCN, resend.com, react.email and more."
-        />
-        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_APP_URL}/api/og`} />
-
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta property="twitter:domain" content={new URL(process.env.NEXT_PUBLIC_APP_URL!).hostname} />
-        <meta property="twitter:url" content={process.env.NEXT_PUBLIC_APP_URL} />
-        <meta name="twitter:title" content="Ledger1CRM" />
-        <meta
-          name="twitter:description"
-          content="Ledger1CRM is an open source CRM build on top of NextJS. Technology stack: NextJS with Typescrtipt, MongoDB, TailwindCSS, React, Prisma, shadCN, resend.com, react.email and more."
-        />
-        <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_APP_URL}/api/og`} />
       </head>
       <body className={inter.className + " min-h-screen"}>
         <NextIntlClientProvider locale={locale} messages={messages}>

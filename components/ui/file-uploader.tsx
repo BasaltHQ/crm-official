@@ -1,39 +1,53 @@
 "use client";
 
-// You need to import our styles for the button to look right. Best to import in the root /layout.tsx but this is fine
-import "@uploadthing/react/styles.css";
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 
-import { UploadButton } from "@/lib/uploadthing";
-import { useToast } from "./use-toast";
-
-export default function FileUploader() {
+/**
+ * Azure Blob-based file uploader - replaces UploadThing usage.
+ * Props:
+ * - endpoint: one of "documents" | "generic" | "project"
+ * - projectId?: required when endpoint === "project"
+ */
+export default function FileUploader({ endpoint = "documents", projectId }: { endpoint?: "documents" | "generic" | "project"; projectId?: string }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  const targetUrl = endpoint === "project" && projectId
+    ? `/api/projects/${projectId}/upload-document`
+    : endpoint === "generic"
+      ? "/api/upload"
+      : "/api/documents/upload";
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!file) {
+      toast({ title: "Select a file" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(targetUrl, { method: "POST", body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Uploaded", description: "File uploaded successfully" });
+      setFile(null);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err?.message || "Unexpected error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <main className="flex  flex-col items-center justify-between p-24 border">
-      <UploadButton
-        endpoint="imageUploader"
-        onClientUploadComplete={(res) => {
-          // Do something with the response
-          console.log("Files: ", res);
-          alert("Upload Completed");
-        }}
-        onUploadError={(error: Error) => {
-          // Do something with the error.
-          alert(`ERROR! ${error.message}`);
-        }}
-      />
-      <UploadButton
-        endpoint="pdfUploader"
-        onClientUploadComplete={(res) => {
-          // Do something with the response
-          console.log("Files: ", res);
-          alert("Upload Completed");
-        }}
-        onUploadError={(error: Error) => {
-          // Do something with the error.
-          alert(`ERROR! ${error.message}`);
-        }}
-      />
-    </main>
+    <form onSubmit={onSubmit} className="space-y-3">
+      <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+      {file ? <div className="text-xs text-muted-foreground">{file.name}</div> : null}
+      <Button type="submit" disabled={loading}>{loading ? "Uploading…" : "Upload"}</Button>
+    </form>
   );
 }

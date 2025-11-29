@@ -6,6 +6,8 @@ import axios from "axios";
 import { prismadb } from "@/lib/prisma";
 import resendHelper from "@/lib/resend";
 import AiTasksReportEmail from "@/emails/AiTasksReport";
+import sendEmail from "@/lib/sendmail";
+import { render } from "@react-email/render";
 
 export async function getUserAiTasks(session: any) {
   /*
@@ -44,7 +46,7 @@ export async function getUserAiTasks(session: any) {
     where: {
       AND: [
         {
-          user: session.user.is,
+          user: session.user.id,
           taskStatus: "ACTIVE",
           dueDateAt: {
             //lte: dayjs().add(7, "day").toDate(),
@@ -141,19 +143,40 @@ export async function getUserAiTasks(session: any) {
     console.log("Error from OpenAI API");
   } else {
     try {
-      const data = await resend.emails.send({
-        from: process.env.EMAIL_FROM!,
-        to: user.email!,
-        subject: `${process.env.NEXT_PUBLIC_APP_NAME} OpenAI Project manager assistant from: ${process.env.NEXT_PUBLIC_APP_URL}`,
-        text: getAiResponse.response.message.content,
-        react: AiTasksReportEmail({
-          username: session.user.name,
-          avatar: session.user.avatar,
-          userLanguage: session.user.userLanguage,
-          data: getAiResponse.response.message.content,
-        }),
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      const hostname = new URL(baseUrl || "http://localhost").hostname;
+      let fromAddress = process.env.EMAIL_FROM || `no-reply@${hostname}`;
+      if (!fromAddress.includes("@")) {
+        fromAddress = `no-reply@${hostname}`;
+      }
+
+      const subject = `${process.env.NEXT_PUBLIC_APP_NAME} OpenAI Project manager assistant from: ${process.env.NEXT_PUBLIC_APP_URL}`;
+
+      const reactEmail = AiTasksReportEmail({
+        username: session.user.name,
+        avatar: session.user.avatar,
+        userLanguage: session.user.userLanguage,
+        data: getAiResponse.response.message.content,
       });
-      //console.log(data, "Email sent");
+
+      if (resend) {
+        await resend.emails.send({
+          from: fromAddress,
+          to: user.email!,
+          subject,
+          text: getAiResponse.response.message.content,
+          react: reactEmail,
+        });
+      } else {
+        await sendEmail({
+          from: fromAddress,
+          to: user.email!,
+          subject,
+          text: getAiResponse.response.message.content,
+          html: await render(reactEmail),
+        });
+      }
+      //console.log("AI tasks email sent");
     } catch (error) {
       console.log(error, "Error from get-user-ai-tasks");
     }

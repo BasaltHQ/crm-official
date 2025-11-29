@@ -1,0 +1,45 @@
+# Set region
+aws configure set region us-west-2
+
+# Identity
+aws sts get-caller-identity
+
+# Discover Connect instance (copy the Id)
+aws connect list-instances --region us-west-2 --output table
+
+# Contact flows (pick OUTBOUND flow; copy Id)
+aws connect list-contact-flows --instance-id <InstanceId> --region us-west-2 --output table
+# or (if supported)
+aws connect list-contact-flows --instance-id <InstanceId> --region us-west-2 --contact-flow-types OUTBOUND --output table
+
+# Queues (pick outbound queue; copy Id)
+aws connect list-queues --instance-id <InstanceId> --region us-west-2 --output table
+
+# Optional: Storage configs check
+aws connect list-instance-storage-configs --instance-id <InstanceId> --resource-type CALL_RECORDINGS --region us-west-2
+aws connect list-instance-storage-configs --instance-id <InstanceId> --resource-type CHAT_TRANSCRIPTS --region us-west-2
+aws connect list-instance-storage-configs --instance-id <InstanceId> --resource-type SCHEDULED_REPORTS --region us-west-2
+
+# Optional: Associate storage configs (replace <bucket>)
+aws connect associate-instance-storage-config --instance-id <InstanceId> --resource-type CALL_RECORDINGS --storage-config '{ "StorageType": "S3", "S3Config": { "BucketName": "<bucket>", "BucketPrefix": "connect/recordings/", "EncryptionConfig": { "EncryptionType": "KMS", "KeyId": "arn:aws:kms:us-west-2:867344432514:key/0f7ee07b-6465-476d-b43c-ee1433431a37" } } }' --region us-west-2
+aws connect associate-instance-storage-config --instance-id <InstanceId> --resource-type CHAT_TRANSCRIPTS --storage-config '{ "StorageType": "S3", "S3Config": { "BucketName": "<bucket>", "BucketPrefix": "connect/transcripts/", "EncryptionConfig": { "EncryptionType": "KMS", "KeyId": "arn:aws:kms:us-west-2:867344432514:key/0f7ee07b-6465-476d-b43c-ee1433431a37" } } }' --region us-west-2
+aws connect associate-instance-storage-config --instance-id <InstanceId> --resource-type SCHEDULED_REPORTS --storage-config '{ "StorageType": "S3", "S3Config": { "BucketName": "<bucket>", "BucketPrefix": "connect/reports/", "EncryptionConfig": { "EncryptionType": "KMS", "KeyId": "arn:aws:kms:us-west-2:867344432514:key/0f7ee07b-6465-476d-b43c-ee1433431a37" } } }' --region us-west-2
+
+# CloudWatch logs group check
+aws logs describe-log-groups --log-group-name-prefix "/aws/connect/" --region us-west-2
+
+# Populate .env.local (manually)
+# AWS_REGION=us-west-2
+# CONNECT_INSTANCE_ID=<InstanceId>
+# CONNECT_CONTACT_FLOW_ID=<ContactFlowId>
+# CONNECT_QUEUE_ID=<QueueId>
+# SES_REGION=us-west-2
+# SES_FROM_ADDRESS=<verified-sender>
+# PINPOINT_APPLICATION_ID=<pinpoint-app-id>
+# PINPOINT_ORIGINATION_NUMBER=<sms-number>
+
+# Quick call test
+aws connect start-outbound-voice-contact --instance-id <InstanceId> --contact-flow-id <ContactFlowId> --destination-phone-number "+1XXXXXXXXXX" --queue-id <QueueId> --region us-west-2
+# Copy ContactId
+aws connect describe-contact --instance-id <InstanceId> --contact-id <ContactId> --region us-west-2
+aws connect stop-contact --instance-id <InstanceId> --contact-id <ContactId> --region us-west-2

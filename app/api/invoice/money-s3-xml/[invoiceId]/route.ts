@@ -1,15 +1,15 @@
 import { authOptions } from "@/lib/auth";
-import { s3Client } from "@/lib/digital-ocean-s3";
+import { getS3Client } from "@/lib/digital-ocean-s3";
 import { prismadb } from "@/lib/prisma";
 import { fillXmlTemplate } from "@/lib/xml-generator";
 import { PutObjectAclCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 
 const fs = require("fs");
 
-export async function GET(req: Request, props: { params: Promise<{ invoiceId: string }> }) {
-  const params = await props.params;
+export async function GET(req: Request, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ status: 401, body: { error: "Unauthorized" } });
@@ -51,12 +51,18 @@ export async function GET(req: Request, props: { params: Promise<{ invoiceId: st
     Bucket: process.env.DO_BUCKET,
     Key: `xml/invoice-${invoiceId}.xml`,
     Body: buffer,
-    ContentType: "application/json",
+    ContentType: "application/xml",
     ContentDisposition: "inline",
     ACL: "public-read" as const,
   };
 
-  await s3Client.send(new PutObjectCommand(bucketParamsJSON));
+  try {
+    const s3 = getS3Client();
+    await s3.send(new PutObjectCommand(bucketParamsJSON));
+  } catch (e) {
+    const msg = (e && (e as any).message) ? (e as any).message : "DigitalOcean S3 not configured";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 
   //S3 bucket url for the invoice
   const urlMoneyS3 = `https://${process.env.DO_BUCKET}.${process.env.DO_REGION}.digitaloceanspaces.com/xml/invoice-${invoiceId}.xml`;

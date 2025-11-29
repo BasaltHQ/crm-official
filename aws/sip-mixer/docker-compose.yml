@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  asterisk:
+    image: mlan/asterisk:latest
+    container_name: sip-mixer
+    restart: unless-stopped
+    # Mapped ports for Docker Desktop on Windows
+    ports:
+      - "5060:5060/udp"            # SIP UDP
+      - "5060:5060/tcp"            # SIP TCP (optional)
+      - "8088:8088/tcp"            # HTTP/WebSocket (optional, for SIP over WS / WebRTC signaling)
+      - "10000-10100:10000-10100/udp"  # RTP media (narrowed to speed startup)
+    volumes:
+      - ./asterisk/etc:/etc/asterisk
+      - ./asterisk/var:/var/lib/asterisk
+      - ./asterisk/log:/var/log/asterisk

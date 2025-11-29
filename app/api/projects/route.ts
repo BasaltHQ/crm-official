@@ -3,10 +3,32 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return new NextResponse("Unauthenticated", { status: 401 });
+  try {
+    // Return projects (boards) accessible to the user
+    const boards = await prismadb.boards.findMany({
+      where: {
+        OR: [
+          { user: session.user.id },
+          { sharedWith: { has: session.user.id } },
+        ],
+      },
+      select: { id: true, title: true, description: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json({ projects: boards }, { status: 200 });
+  } catch (e) {
+    console.log("[PROJECTS_GET]", e);
+    return new NextResponse("Initial error", { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const body = await req.json();
-  const { title, description, visibility } = body;
+  const { title, description, visibility, brand_logo_url, brand_primary_color } = body as any;
 
   if (!session) {
     return new NextResponse("Unauthenticated", { status: 401 });
@@ -21,9 +43,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const boardsCount = await prismadb.boards.count();
+    const boardsCount = await (prismadb as any).boards.count();
 
-    const newBoard = await prismadb.boards.create({
+    const newBoard = await (prismadb as any).boards.create({
       data: {
         v: 0,
         user: session.user.id,
@@ -33,15 +55,45 @@ export async function POST(req: Request) {
         visibility: visibility,
         sharedWith: [session.user.id],
         createdBy: session.user.id,
+        // Branding (optional)
+        brand_logo_url: typeof brand_logo_url === "string" ? brand_logo_url : undefined,
+        brand_primary_color: typeof brand_primary_color === "string" ? brand_primary_color : undefined,
       },
     });
 
-    await prismadb.sections.create({
+    const newSection = await (prismadb as any).sections.create({
       data: {
         v: 0,
         board: newBoard.id,
         title: "Backlog",
         position: 0,
+      },
+    });
+
+    // Seed default Gamma link document and attach to a starter task
+    const gammaUrl = "https://gamma.app/docs/Enterprise-AI-Powered-CRM-Solution-fjlbdthvn33tu1w";
+    const gammaDoc = await (prismadb as any).documents.create({
+      data: {
+        document_name: "Project Overview (Gamma)",
+        description: "Enterprise AI-Powered CRM Solution overview",
+        document_file_mimeType: "text/html",
+        document_file_url: gammaUrl,
+        created_by_user: session.user.id,
+        visibility: "public",
+        tags: { type: "link", provider: "gamma" } as any,
+      },
+    });
+
+    await (prismadb as any).tasks.create({
+      data: {
+        v: 0,
+        title: "Project Documents",
+        content: "Default project overview link attached",
+        priority: "MEDIUM",
+        position: 0,
+        section: newSection.id,
+        documentIDs: [gammaDoc.id],
+        user: session.user.id,
       },
     });
 
@@ -55,7 +107,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   const body = await req.json();
-  const { id, title, description, visibility } = body;
+  const { id, title, description, visibility, brand_logo_url, brand_primary_color } = body as any;
 
   if (!session) {
     return new NextResponse("Unauthenticated", { status: 401 });
@@ -70,7 +122,7 @@ export async function PUT(req: Request) {
   }
 
   try {
-    await prismadb.boards.update({
+    await (prismadb as any).boards.update({
       where: {
         id,
       },
@@ -78,6 +130,9 @@ export async function PUT(req: Request) {
         title: title,
         description: description,
         visibility: visibility,
+        // Optional branding updates if provided
+        ...(typeof brand_logo_url === "string" ? { brand_logo_url } : {}),
+        ...(typeof brand_primary_color === "string" ? { brand_primary_color } : {}),
         updatedBy: session.user.id,
         updatedAt: new Date(),
       },

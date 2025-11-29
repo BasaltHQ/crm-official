@@ -6,6 +6,7 @@ import fetcher from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { X, Mail, Phone, Linkedin, Building2, ExternalLink, User, CheckCircle2 } from "lucide-react";
+import { safeContactDisplayName } from "@/lib/scraper/normalize";
 
 type ContactCandidate = {
   id: string;
@@ -110,12 +111,12 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
 
       const result = await res.json();
       alert(`Successfully assigned ${result.assigned} lead(s) to team members!`);
-      
+
       // Reset state and refresh
       setCandidateAssignments({});
       setSelectedTeamMember(null);
       mutate();
-      
+
     } catch (error: any) {
       alert(error.message || "Failed to assign candidates");
     } finally {
@@ -222,107 +223,107 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
               {(data?.candidates ?? []).map((cand) => {
                 const assignedColor = getAssignedColor(cand.id);
                 return (
-                <tr 
-                  key={cand.id} 
-                  className={`hover:bg-muted/50 cursor-pointer transition-colors ${
-                    assignedColor ? 'border-l-4' : ''
-                  }`}
-                  style={assignedColor ? { 
-                    backgroundColor: `${assignedColor}15`,
-                    borderLeftColor: assignedColor 
-                  } : {}}
-                  onClick={() => toggleCandidateAssignment(cand.id)}
-                >
-                  <td className="p-3">
-                    <div className="font-medium">{cand.companyName || "Unknown"}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-2">
-                      {cand.description || "No description"}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    {cand.homepageUrl ? (
-                      <a 
-                        href={cand.homepageUrl} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-blue-600 hover:underline text-sm flex items-center gap-1"
-                      >
-                        {cand.domain}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <span className="text-sm">{cand.domain || "—"}</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-sm">{cand.industry || "—"}</td>
-                  <td className="p-3">
-                    <div className="space-y-1">
-                      {cand.contacts.slice(0, 2).map((contact, idx) => (
-                        <div key={idx} className="text-xs">
-                          <div className="font-medium flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {contact.fullName || "Direct"}
-                          </div>
-                          {contact.email && (
-                            <div className="text-muted-foreground flex items-center gap-1 ml-4">
-                              <Mail className="w-3 h-3" />
-                              {contact.email}
-                            </div>
-                          )}
-                          {contact.phone && (
-                            <div className="text-muted-foreground flex items-center gap-1 ml-4">
-                              <Phone className="w-3 h-3" />
-                              {contact.phone}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {cand.contacts.length > 2 && (
-                        <div className="text-xs text-muted-foreground">
-                          +{cand.contacts.length - 2} more contacts
-                        </div>
-                      )}
-                      {cand.contacts.length === 0 && (
-                        <div className="text-xs text-muted-foreground">No contacts</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {Array.isArray(cand.techStack) && cand.techStack.length > 0 ? (
-                        cand.techStack.slice(0, 2).map((tech: string, idx: number) => (
-                          <span 
-                            key={idx}
-                            className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
-                          >
-                            {tech}
-                          </span>
-                        ))
+                  <tr
+                    key={cand.id}
+                    className={`hover:bg-muted/50 cursor-pointer transition-colors ${assignedColor ? 'border-l-4' : ''
+                      }`}
+                    style={assignedColor ? {
+                      backgroundColor: `${assignedColor}15`,
+                      borderLeftColor: assignedColor
+                    } : {}}
+                    onClick={() => toggleCandidateAssignment(cand.id)}
+                  >
+                    <td className="p-3">
+                      <div className="font-medium">{cand.companyName || "Unknown"}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">
+                        {cand.description || "No description"}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {cand.homepageUrl ? (
+                        <a
+                          href={cand.homepageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                        >
+                          {cand.domain}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-sm">{cand.domain || "—"}</span>
                       )}
-                      {Array.isArray(cand.techStack) && cand.techStack.length > 2 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{cand.techStack.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    <div className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                      {cand.score ?? 0}
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    <button
-                      className="rounded border px-3 py-1.5 text-xs hover:bg-muted transition-colors"
-                      onClick={() => setDetailsModal(cand)}
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              )})}
+                    </td>
+                    <td className="p-3 text-sm">{cand.industry || "—"}</td>
+                    <td className="p-3">
+                      <div className="space-y-1">
+                        {cand.contacts.slice(0, 2).map((contact, idx) => (
+                          <div key={idx} className="text-xs">
+                            <div className="font-medium flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {safeContactDisplayName(contact.fullName, contact.email, cand.companyName, cand.domain)}
+                            </div>
+                            {contact.email && (
+                              <div className="text-muted-foreground flex items-center gap-1 ml-4">
+                                <Mail className="w-3 h-3" />
+                                {contact.email}
+                              </div>
+                            )}
+                            {contact.phone && (
+                              <div className="text-muted-foreground flex items-center gap-1 ml-4">
+                                <Phone className="w-3 h-3" />
+                                {contact.phone}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {cand.contacts.length > 2 && (
+                          <div className="text-xs text-muted-foreground">
+                            +{cand.contacts.length - 2} more contacts
+                          </div>
+                        )}
+                        {cand.contacts.length === 0 && (
+                          <div className="text-xs text-muted-foreground">No contacts</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {Array.isArray(cand.techStack) && cand.techStack.length > 0 ? (
+                          cand.techStack.slice(0, 2).map((tech: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
+                            >
+                              {tech}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                        {Array.isArray(cand.techStack) && cand.techStack.length > 2 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{cand.techStack.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        {cand.score ?? 0}
+                      </div>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button
+                        className="rounded border px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                        onClick={() => setDetailsModal(cand)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -331,7 +332,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
       {/* Details Modal */}
       {detailsModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDetailsModal(null)}>
-          <div 
+          <div
             className="bg-card rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -371,7 +372,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                   <div>
                     <span className="text-muted-foreground">Website:</span>
                     {detailsModal.homepageUrl ? (
-                      <a 
+                      <a
                         href={detailsModal.homepageUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -395,7 +396,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                     <span className="text-sm text-muted-foreground">Tech Stack:</span>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {detailsModal.techStack.map((tech: string, idx: number) => (
-                        <span 
+                        <span
                           key={idx}
                           className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700"
                         >
@@ -421,7 +422,9 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                       <div key={idx} className="border rounded-lg p-4 bg-muted/30">
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <h4 className="font-semibold text-base">{contact.fullName || "Direct"}</h4>
+                            <h4 className="font-semibold text-base">
+                              {safeContactDisplayName(contact.fullName, contact.email, detailsModal.companyName, detailsModal.domain)}
+                            </h4>
                             {contact.title && (
                               <p className="text-sm text-muted-foreground">{contact.title}</p>
                             )}
@@ -438,29 +441,28 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                             <div className="flex items-center gap-2">
                               <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                               <div className="min-w-0">
-                                <a 
+                                <a
                                   href={`mailto:${contact.email}`}
                                   className="text-sm text-blue-600 hover:underline break-all"
                                 >
                                   {contact.email}
                                 </a>
                                 {contact.emailStatus && contact.emailStatus !== "UNKNOWN" && (
-                                  <div className={`text-xs mt-0.5 ${
-                                    contact.emailStatus === "VALID" ? "text-green-600" :
-                                    contact.emailStatus === "RISKY" ? "text-orange-600" :
-                                    "text-red-600"
-                                  }`}>
+                                  <div className={`text-xs mt-0.5 ${contact.emailStatus === "VALID" ? "text-green-600" :
+                                      contact.emailStatus === "RISKY" ? "text-orange-600" :
+                                        "text-red-600"
+                                    }`}>
                                     {contact.emailStatus}
                                   </div>
                                 )}
                               </div>
                             </div>
                           )}
-                          
+
                           {contact.phone && (
                             <div className="flex items-center gap-2">
                               <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                              <a 
+                              <a
                                 href={`tel:${contact.phone}`}
                                 className="text-sm text-blue-600 hover:underline"
                               >
@@ -472,7 +474,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                           {contact.linkedinUrl && (
                             <div className="flex items-center gap-2 md:col-span-2">
                               <Linkedin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                              <a 
+                              <a
                                 href={contact.linkedinUrl}
                                 target="_blank"
                                 rel="noreferrer"

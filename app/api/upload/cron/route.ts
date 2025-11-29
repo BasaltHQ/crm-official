@@ -1,139 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
-import { s3Client } from "@/lib/digital-ocean-s3";
-import { PutObjectAclCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { BlobServiceClient } from "@azure/storage-blob";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import axios from "axios";
-import { getRossumToken } from "@/lib/get-rossum-token";
+import type { DocumentSystemType } from "@prisma/client";
 
-const FormData = require("form-data");
-
-export async function POST(request: NextRequest) {
-  // Parse the request body as JSON instead of FormData
-  const { file } = await request.json();
-
-  console.log("CRON JOB - UPLOAD INVOICE");
-  console.log("File: ", file);
-
-  if (!file) {
-    console.log("Error - no file found");
-    return NextResponse.json({ success: false });
-  }
-
-  //Rossum integration
-  const rossumURL = process.env.ROSSUM_API_URL;
-  const queueId = process.env.ROSSUM_QUEUE_ID;
-  const queueUploadUrl = `${rossumURL}/uploads?queue=${queueId}`;
-
-  const token = await getRossumToken();
-
-  const buffer = Buffer.from(file.content.data, "base64");
-
-  const form = new FormData();
-  form.append("content", buffer, file.filename);
-
-  console.log("FORM form CRON JOB:", form);
-
-  const uploadInvoiceToRossum = await axios.post(queueUploadUrl, form, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  console.log("Response", uploadInvoiceToRossum.data);
-
-  const rossumTask = await axios.get(uploadInvoiceToRossum.data.url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  console.log("Rossum task: ", rossumTask.data);
-
-  const rossumUploadData = await axios.get(rossumTask.data.content.upload, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  console.log("Rossum upload data: ", rossumUploadData.data);
-
-  const rossumDocument = await axios.get(rossumUploadData.data.documents[0], {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (rossumDocument.status !== 200) {
-    throw new Error("Could not get Rossum document");
-  }
-
-  console.log("Rossum document: ", rossumDocument.data);
-
-  const invoiceFileName =
-    "invoices/" + new Date().getTime() + "-" + file.filename;
-  console.log("Invoice File Name:", invoiceFileName);
-
-  console.log("UPloading to S3(Digital Ocean)...", invoiceFileName);
+// POST /api/upload/cron
+// Used by the email ingestion job to upload attachments to Azure Blob and create a Document record.
+// Accepts JSON payload: { file: { filename, contentType, size, content } }
+// Where `content` may be serialized Buffer: { type: 'Buffer', data: number[] } or base64 string.
+export async function POST(req: NextRequest) {
   try {
-    const bucketParams = {
-      Bucket: process.env.DO_BUCKET,
-      Key: invoiceFileName,
-      Body: Buffer.from(file.content.data),
-      ContentType: file.contentType,
-      ContentDisposition: "inline",
+    const body = await req.json().catch(() => null) as any;
+    const file = body?.file;
+    if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-      ACL: "public-read" as const,
-    };
+    const filename: string = file.filename || `attachment_${Date.now()}`;
+    const contentType: string = file.contentType || "application/octet-stream";
+    const size: number | undefined = file.size;
+    let buffer: Buffer | null = null;
 
-    await s3Client.send(new PutObjectCommand(bucketParams));
-  } catch (err) {
-    console.log("Error - uploading to S3(Digital Ocean)", err);
-  }
+    // Reconstruct content buffer from common JSON-serialized forms
+    const content = file.content;
+    if (content && typeof content === "object" && content.type === "Buffer" && Array.isArray(content.data)) {
+      buffer = Buffer.from(content.data);
+    } else if (typeof content === "string") {
+      // try base64
+      try { buffer = Buffer.from(content, "base64"); } catch { /* ignore */ }
+    }
 
-  console.log("Creating Item in DB...");
-  try {
-    //S3 bucket url for the invoice
-    const url = `https://${process.env.DO_BUCKET}.${process.env.DO_REGION}.digitaloceanspaces.com/${invoiceFileName}`;
-    console.log("URL in Digital Ocean:", url);
+    if (!buffer) {
+      return NextResponse.json({ error: "Invalid or unsupported attachment content" }, { status: 400 });
+    }
 
-    const rossumAnnotationId = rossumDocument.data.annotations[0]
-      .split("/")
-      .pop();
+    const conn = process.env.BLOB_STORAGE_CONNECTION_STRING;
+    const container = process.env.BLOB_STORAGE_CONTAINER;
+    if (!conn || !container) {
+      return NextResponse.json({ error: "Azure Blob not configured" }, { status: 500 });
+    }
 
-    console.log("Annotation ID:", rossumAnnotationId);
-    //Save the data to the database
+    const fileNameSafe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const key = `uploads/cron/${Date.now()}_${fileNameSafe}`;
 
-    const admin = await prismadb.users.findMany({
-      where: {
-        is_admin: true,
-      },
+    const serviceClient = BlobServiceClient.fromConnectionString(conn);
+    const containerClient = serviceClient.getContainerClient(container);
+    const blobClient = containerClient.getBlockBlobClient(key);
+    await blobClient.uploadData(buffer, {
+      blobHTTPHeaders: { blobContentType: contentType },
     });
+    const fileUrl = blobClient.url;
 
-    await prismadb.invoices.create({
+    // Determine document system type heuristically
+    const inferredType: DocumentSystemType = (contentType?.includes("pdf")) ? "INVOICE" : "OTHER";
+
+    const doc = await prismadb.documents.create({
       data: {
-        last_updated_by: admin[0].id,
-        date_due: new Date(),
-        description: "Incoming invoice",
-        document_type: "invoice",
-        invoice_type: "Taxable document",
-        status: "new",
-        favorite: false,
-        assigned_user_id: admin[0].id,
-        invoice_file_url: url,
-        invoice_file_mimeType: file.contentType,
-        rossum_status: "importing",
-        rossum_document_url: rossumDocument.data.annotations[0],
-        rossum_document_id: rossumDocument.data.id.toString(),
-        rossum_annotation_url: rossumDocument.data.annotations[0],
-        rossum_annotation_id: rossumAnnotationId,
+        document_name: filename,
+        document_file_mimeType: contentType,
+        document_file_url: fileUrl,
+        status: "ACTIVE",
+        key,
+        size: buffer.length ?? size,
+        document_system_type: inferredType,
       },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.log("Error - storing data to DB", error);
-    return NextResponse.json({ success: false });
+    return NextResponse.json({ ok: true, document: doc }, { status: 201 });
+  } catch (e: any) {
+    console.error("[GENERIC_UPLOAD_CRON_POST]", e);
+    const debug = process.env.NODE_ENV !== "production";
+    return NextResponse.json(
+      debug ? { error: e?.message || "Internal Error", stack: e?.stack } : { error: "Internal Error" },
+      { status: 500 }
+    );
   }
 }

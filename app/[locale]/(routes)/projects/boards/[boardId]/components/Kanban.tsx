@@ -9,7 +9,7 @@ import {
   DropResult,
 } from "react-beautiful-dnd";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState, useMemo } from "react";
 import { Check, EyeIcon, Pencil, PlusCircle, PlusIcon } from "lucide-react";
 
 import {
@@ -42,6 +42,9 @@ import AlertModal from "@/components/modals/alert-modal";
 import LoadingComponent from "@/components/LoadingComponent";
 import { DialogHeader } from "@/components/ui/dialog-document-view";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 import NewSectionForm from "../forms/NewSection";
 import UpdateTaskDialog from "../../../dialogs/UpdateTask";
@@ -81,6 +84,35 @@ const Kanban = (props: any) => {
     setData(props.data);
     setIsLoading(false);
   }, [props.data]);
+
+  const [search, setSearch] = useState("");
+  const [filterAssignee, setFilterAssignee] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+
+  const filteredData = useMemo(() => {
+    const matches = (t: any) => {
+      if (filterAssignee !== "all" && t?.assigned_user?.id !== filterAssignee) return false;
+      if (filterStatus !== "all") {
+        if (filterStatus === "active" && t.taskStatus === "COMPLETE") return false;
+        if (filterStatus === "complete" && t.taskStatus !== "COMPLETE") return false;
+      }
+      if (filterPriority !== "all") {
+        const p = (t.priority || "").toLowerCase();
+        if (p !== filterPriority) return false;
+      }
+      if (search) {
+        const q = search.toLowerCase();
+        const hay = `${t.title ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    };
+    return (data || []).map((sec: any) => ({
+      ...sec,
+      tasks: (sec.tasks || []).filter(matches),
+    }));
+  }, [data, search, filterAssignee, filterStatus, filterPriority]);
 
   const onDragEnd = async ({ source, destination }: DropResult) => {
     if (!destination) return;
@@ -336,17 +368,48 @@ const Kanban = (props: any) => {
         }
 
         <div className="p-2 text-xs">
-          <p>{data?.length} Sections</p>
+          <p>{filteredData?.length} Sections</p>
+        </div>
+        {/* Kanban toolbar */}
+        <div className="mb-3 flex flex-wrap items-center gap-2 px-2">
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks" className="w-[220px]" />
+          <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              {users?.map((u: any) => (
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="complete">Complete</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Priority" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" onClick={() => { setSearch(""); setFilterAssignee("all"); setFilterStatus("all"); setFilterPriority("all"); }}>Clear</Button>
         </div>
         <div className="flex">
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="flex flex-row items-start  ">
-              {data?.map((section: any, index: any) => (
+              {filteredData?.map((section: any, index: any) => (
                 <div
                   className="flex flex-col items-center justify-center  h-full w-80 "
                   key={section.id}
                 >
-                  <Droppable key={section.id} droppableId={section.id} isDropDisabled={false}>
+                  <Droppable key={section.id} droppableId={section.id} isDropDisabled={false} isCombineEnabled={false} ignoreContainerClipping={false}>
                     {(provided) => (
                       <div
                         ref={provided.innerRef}
@@ -413,6 +476,11 @@ const Kanban = (props: any) => {
                                         ? "Untitled"
                                         : task.title}
                                     </h2>
+                                    {task?.assigned_user?.name ? (
+                                      <div className="ml-2 h-5 w-5 rounded-full bg-muted text-[10px] grid place-items-center border">
+                                        {(task.assigned_user.name || "").slice(0, 1).toUpperCase()}
+                                      </div>
+                                    ) : null}
                                     <div className="ml-1">
                                       {task?.dueDateAt &&
                                         task.taskStatus != "COMPLETE" &&
@@ -510,7 +578,7 @@ const Kanban = (props: any) => {
                                           : `text-slate-600`
                                       }
                                     >
-                                      Priorita: {task.priority}
+                                      Priority: {task.priority}
                                     </p>
                                   </div>
                                   <HoverCard>

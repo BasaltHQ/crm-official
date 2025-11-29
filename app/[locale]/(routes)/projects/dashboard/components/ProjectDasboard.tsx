@@ -129,7 +129,7 @@ const ProjectDashboardCockpit = ({
                       : `text-slate-600`
                   }
                 >
-                  Priorita: {task.priority}
+                  Priorit: {task.priority}
                 </p>
               </div>
             </CardContent>
@@ -231,7 +231,7 @@ const ProjectDashboardCockpit = ({
                       : `text-slate-600`
                   }
                 >
-                  Priorita: {task.priority}
+                  Priority: {task.priority}
                 </p>
               </div>
             </CardContent>

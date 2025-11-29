@@ -83,6 +83,7 @@ export async function POST(req: Request) {
         },
       });
 
+
       /*
       Function will send email to all admins about new user registration which is in PENDING state and need to be activated
     */
@@ -97,18 +98,10 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
+  const session: any = await getServerSession(authOptions as any);
+  if (!session || !session.user) {
     return new NextResponse("Unauthenticated", { status: 401 });
   }
-
-  try {
-    const users = await prismadb.users.findMany({});
-
-    return NextResponse.json(users);
-  } catch (error) {
-    console.log("[USERS_GET]", error);
-    return new NextResponse("Initial error", { status: 500 });
-  }
+  // Return just the current authenticated user context (lightweight for popup)
+  return NextResponse.json({ user: session.user });
 }

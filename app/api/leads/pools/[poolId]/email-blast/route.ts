@@ -27,16 +27,17 @@ type PreparedEmail = {
  * Prepares an email blast for selected contacts in the pool.
  * Returns prepared emails (no sending here; integrate with your email sending flow).
  */
+type Params = { params: Promise<{ poolId: string }> };
 export async function POST(
   req: Request,
-  context: { params: { poolId: string } }
+  { params }: Params
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const poolId = context?.params?.poolId;
+  const { poolId } = await params;
   if (!poolId) {
     return new NextResponse("Missing poolId", { status: 400 });
   }

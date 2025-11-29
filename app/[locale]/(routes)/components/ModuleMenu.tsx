@@ -30,6 +30,12 @@ const ModuleMenu = ({ modules, dict, build }: Props) => {
 
   useEffect(() => {
     setIsMounted(true);
+    try {
+      const persisted = localStorage.getItem("sidebar-open");
+      if (persisted !== null) {
+        setOpen(persisted === "true");
+      }
+    } catch (_) {}
   }, []);
 
   if (!isMounted) {
@@ -40,8 +46,9 @@ const ModuleMenu = ({ modules, dict, build }: Props) => {
     <div className="flex flex-col">
       <div
         className={` ${
-          open ? "w-72" : "w-20 "
+          open ? "w-72" : "w-24 "
         }  h-screen p-5  pt-8 relative duration-300 sidebar`}
+        data-open={open ? "true" : "false"}
       >
         <div className="flex gap-x-4 items-center">
           <button
@@ -49,7 +56,13 @@ const ModuleMenu = ({ modules, dict, build }: Props) => {
             aria-expanded={open}
             aria-controls="app-sidebar"
             className={`sidebar-toggle ${open ? "rotate-0" : ""}`}
-            onClick={() => setOpen(!open)}
+            onClick={() => {
+              const next = !open;
+              setOpen(next);
+              try {
+                localStorage.setItem("sidebar-open", String(next));
+              } catch (_) {}
+            }}
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -124,7 +137,7 @@ const ModuleMenu = ({ modules, dict, build }: Props) => {
           hidden: !open,
         })}
       >
-        <span className="text-xs text-gray-500 pb-2">
+        <span className="microtext text-gray-500 pb-2">
           build: 0.0.3-beta-{build}
         </span>
       </div>

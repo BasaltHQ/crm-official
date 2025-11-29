@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 
 import { NewOpportunityForm } from "../../opportunities/components/NewOpportunityForm";
-import { set } from "cypress/types/lodash";
+
 import { setInactiveOpportunity } from "@/actions/crm/opportunity/dashboard/set-inactive";
 import {
   HoverCard,
@@ -164,7 +164,7 @@ const CRMKanban = ({
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex w-full h-full overflow-x-auto ">
           {salesStages.map((stage: any, index: number) => (
-            <Droppable droppableId={stage.id} key={index}>
+            <Droppable droppableId={stage.id} key={index} isCombineEnabled={false} ignoreContainerClipping={false}>
               {
                 //TODO: fix problem with droppable defaultProps
               }

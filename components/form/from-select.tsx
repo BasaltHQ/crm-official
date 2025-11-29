@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { data } from "cypress/types/jquery";
 import { ScrollArea } from "../ui/scroll-area";
 
 interface FormInputProps {
@@ -28,7 +27,7 @@ interface FormInputProps {
   errors?: Record<string, string[] | undefined>;
   className?: string;
   defaultValue?: string;
-  data: any;
+  data: any[];
   onBlur?: () => void;
 }
 
@@ -90,7 +89,7 @@ export const FormSelect = forwardRef<HTMLInputElement, FormInputProps>(
             </SelectTrigger>
             <SelectContent className="w-full border h-[250px]">
               <ScrollArea className="h-[250px]">
-                {data.map((item: any, index: number) => (
+                {Array.isArray(data) && data.map((item: any, index: number) => (
                   <SelectItem key={index} value={item.id}>
                     {item.name}
                   </SelectItem>

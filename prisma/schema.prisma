@@ -94,10 +94,27 @@ model crm_Leads {
   outreach_first_message_id   String?
   outreach_open_token         String?
   outreach_notes              String?
+  pipeline_stage              PipelineStage?   @default(Identify)
+
+  // Extended outreach channel fields
+  outreach_transport          String?
+  sms_status                  String?
+  sms_sent_at                 DateTime?       @db.Date
+  last_sms_id                 String?
+  phone_verified              Boolean?        @default(false)
+  call_status                 String?
+  connect_contact_id          String?
+  call_recording_url          String?
+  call_transcript_url         String?
+  azure_realtime_session_id   String?
 
   lead_pool_maps     crm_Lead_Pools_Leads[]
   contact_candidate_maps crm_Contact_Candidate_Leads[]
   lead_activities    crm_Lead_Activities[] @relation(name: "LeadActivitiesToLead")
+
+  // Link to a Project/Board for tagging and association
+  project            String?       @db.ObjectId
+  assigned_project   Boards?       @relation(name: "LeadsAssignedProject", fields: [project], references: [id])
 }
 
 enum crm_Lead_Status {
@@ -279,10 +296,17 @@ model Boards {
   updatedAt         DateTime? @updatedAt @db.Date
   updatedBy         String?   @db.ObjectId
 
-  //Create watechers field for board. It will be array of users
+  // Branding
+  brand_logo_url     String?
+  brand_primary_color String?
+
+  //Create watchers field for board. It will be array of users
   watchers       String[] @db.ObjectId
   assigned_user  Users?   @relation(name: "assigned_user", fields: [user], references: [id])
   watchers_users Users[]  @relation(name: "watching_users", fields: [watchers], references: [id])
+  button_sets    Project_Button_Sets[] @relation(name: "BoardButtonSets")
+  project_opportunities Project_Opportunities[]
+  assigned_leads      crm_Leads[]            @relation(name: "LeadsAssignedProject")
 }
 
 model Employees {
@@ -609,6 +633,7 @@ model Users {
   crated_contacts      crm_Contacts[]        @relation(name: "created_contacts")
   notion_account       secondBrain_notions[]
   openAi_key           openAi_keys[]
+  gmail_tokens         gmail_Tokens[]
   assigned_invoices    Invoices[]
   assigned_contracts   crm_Contracts[]
   boards               Boards[]              @relation(name: "assigned_user")
@@ -617,6 +642,7 @@ model Users {
   watching_accountsIDs String[]              @db.ObjectId
   watching_accounts    crm_Accounts[]        @relation(name: "watching_accounts", fields: [watching_accountsIDs], references: [id])
   chat_sessions        chat_Sessions[]
+  button_sets_presets  Project_Button_Sets[] @relation(name: "UserButtonSets")
   lead_pools           crm_Lead_Pools[] @relation(name: "LeadPoolsAssignedUser")
   lead_gen_jobs        crm_Lead_Gen_Jobs[] @relation(name: "LeadGenJobsAssignedUser")
   lead_activities      crm_Lead_Activities[] @relation(name: "LeadActivitiesToUser")
@@ -630,6 +656,11 @@ model Users {
   outreach_prompt_default    String?
   outreach_prompt_updated_at DateTime? @db.Date
   outreach_prompt_meta       Json?
+
+  // Calendar preferences
+  calendar_selected_ids      String[]
+  default_calendar_id        String?
+  calendar_colors            Json?
 }
 
 enum Language {
@@ -665,6 +696,21 @@ model openAi_keys {
   assigned_user   Users? @relation(fields: [user], references: [id])
 }
 
+model gmail_Tokens {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?     @map("__v")
+  user          String   @db.ObjectId
+  provider      String   @default("google")
+  access_token  String
+  refresh_token String
+  scope         String?
+  expiry_date   DateTime? @db.Date
+  createdAt     DateTime? @default(now()) @db.Date
+  updatedAt     DateTime? @updatedAt @db.Date
+
+  assigned_user Users?   @relation(fields: [user], references: [id])
+}
+
 model systemServices {
   id              String  @id @default(auto()) @map("_id") @db.ObjectId
   v               Int     @map("__v")
@@ -675,6 +721,20 @@ model systemServices {
   servicePassword String?
   servicePort     String?
   description     String?
+}
+
+model oauth_Authorization_Codes {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  code            String   @unique
+  userId          String   @db.ObjectId
+  clientId        String
+  redirectUri     String
+  scope           String?
+  codeChallenge   String
+  challengeMethod String   @default("S256")
+  expiresAt       DateTime @db.Date
+  used            Boolean  @default(false)
+  createdAt       DateTime @default(now()) @db.Date
 }
 
 model gpt_models {
@@ -917,6 +977,15 @@ enum OutreachStatus {
   CLOSED
 }
 
+enum PipelineStage {
+  Identify
+  Engage_AI
+  Engage_Human
+  Offering
+  Finalizing
+  Closed
+}
+
 model crm_Lead_Activities {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   v             Int      @default(0) @map("__v")
@@ -928,4 +997,51 @@ model crm_Lead_Activities {
 
   assigned_lead crm_Leads? @relation(name: "LeadActivitiesToLead", fields: [lead], references: [id])
   assigned_user Users?     @relation(name: "LeadActivitiesToUser", fields: [user], references: [id])
+}
+
+// Button set presets per project (Boards)
+model Project_Button_Sets {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  v          Int?     @map("__v")
+  project    String   @db.ObjectId
+  owner      String?  @db.ObjectId // null => project default shared to all team members
+  name       String
+  config     Json?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime? @default(now()) @db.Date
+  updatedAt  DateTime? @updatedAt @db.Date
+
+  assigned_project Boards? @relation(name: "BoardButtonSets", fields: [project], references: [id])
+  assigned_owner   Users?  @relation(name: "UserButtonSets", fields: [owner], references: [id])
+}
+
+// Project-scoped Opportunities posted by Sales for feature buildouts and commissioned work
+enum ProjectOpportunityCategory {
+  FEATURE_BUILDOUT
+  COMMISSIONED_WORK
+  OTHER
+}
+
+enum ProjectOpportunityStatus {
+  OPEN
+  WON
+  LOST
+  ARCHIVED
+}
+
+model Project_Opportunities {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  v               Int?     @map("__v")
+  project         String   @db.ObjectId
+  title           String
+  description     String?
+  category        ProjectOpportunityCategory
+  status          ProjectOpportunityStatus @default(OPEN)
+  valueEstimate   Int?
+  createdAt       DateTime? @default(now()) @db.Date
+  createdBy       String?  @db.ObjectId
+  assignedTo      String?  @db.ObjectId
+  relatedTasksIDs String[] @db.ObjectId
+
+  assigned_project Boards? @relation(fields: [project], references: [id])
 }

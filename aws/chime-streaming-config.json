@@ -1,0 +1,7 @@
+{
+  "Disabled": false,
+  "DataRetentionInHours": 1,
+  "StreamingNotificationTargets": [
+    { "NotificationTarget": "EventBridge" }
+  ]
+}

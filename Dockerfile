@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY pnpm-lock.yaml ./
 COPY .env .env.local ./
-RUN pnpm install
+RUN pnpm install --no-frozen-lockfile
 
 FROM node:20-slim AS build_image
 WORKDIR /app
@@ -21,13 +21,11 @@ COPY . .
 RUN apt-get update -y && \
     apt-get install -y openssl libssl-dev && \
     npm install -g pnpm && \
-    pnpm prisma generate && \
-    pnpm prisma db push && \
-    pnpm prisma db seed && \
-    pnpm run build
+    pnpm prisma generate --schema prisma/schema.prisma && \
+    pnpm next build
 
 FROM node:20-slim AS production
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 RUN addgroup --system nodejs && \
     adduser --system --ingroup nodejs nextjs

@@ -1,0 +1,7 @@
+{
+  "source": ["aws.chime-sdk-voice"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["chime-sdk-voice.amazonaws.com"]
+  }
+}

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,6 +52,8 @@ export function LoginComponent() {
   const { toast } = useToast();
 
   const router = useRouter();
+  const locale = useLocale();
+  const dashboardPath = `/${locale}/dashboard`;
 
   const formSchema = z.object({
     email: z.string().min(3).max(50),
@@ -71,7 +74,7 @@ export function LoginComponent() {
     setIsLoading(true);
     try {
       await signIn("google", {
-        callbackUrl: process.env.NEXT_PUBLIC_APP_URL,
+        callbackUrl: dashboardPath,
         //callbackUrl: "/",
       });
     } catch (error) {
@@ -90,7 +93,7 @@ export function LoginComponent() {
     setIsLoading(true);
     try {
       await signIn("github", {
-        callbackUrl: process.env.NEXT_PUBLIC_APP_URL,
+        callbackUrl: dashboardPath,
         //callbackUrl: "/",
       });
     } catch (error) {
@@ -134,7 +137,7 @@ export function LoginComponent() {
         toast({
           description: "Login successful.",
         });
-        router.push("/");
+        router.replace(dashboardPath);
       }
     } catch (error: any) {
       console.log(error);

@@ -22,10 +22,10 @@ const MainPageView = async () => {
   const contracts = await getContractsWithIncludes();
   return (
     <>
+      <LeadsView crmData={crmData} data={leads} />
+      <ContactsView crmData={crmData} data={contacts} />
       <AccountsView crmData={crmData} data={accounts} />
       <OpportunitiesView crmData={crmData} data={opportunities} />
-      <ContactsView crmData={crmData} data={contacts} />
-      <LeadsView crmData={crmData} data={leads} />
       <ContractsView crmData={crmData} data={contracts} />
     </>
   );

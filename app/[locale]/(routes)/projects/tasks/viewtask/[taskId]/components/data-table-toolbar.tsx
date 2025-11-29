@@ -18,6 +18,9 @@ export function DataTableToolbar<TData>({
   table,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
+  // Guard against missing columns to avoid TanStack Table console errors
+  const statusColumn = table.getAllColumns().find((c) => c.id === "taskStatus");
+  const priorityColumn = table.getAllColumns().find((c) => c.id === "priority");
 
   return (
     <div className="flex items-center justify-between">
@@ -32,16 +35,16 @@ export function DataTableToolbar<TData>({
           }
           className="h-8 w-[150px] lg:w-[350px]"
         />
-        {table.getColumn("taskStatus") && (
+        {statusColumn && (
           <DataTableFacetedFilter
-            column={table.getColumn("taskStatus")}
+            column={statusColumn!}
             title="Status"
             options={statuses}
           />
         )}
-        {table.getColumn("priority") && (
+        {priorityColumn && (
           <DataTableFacetedFilter
-            column={table.getColumn("priority")}
+            column={priorityColumn!}
             title="Priority"
             options={priorities}
           />

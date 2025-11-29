@@ -22,6 +22,7 @@ import AlertModal from "@/components/modals/alert-modal";
 import { useToast } from "@/components/ui/use-toast";
 import axios from "axios";
 import Link from "next/link";
+import AssignProjectModal from "@/components/modals/assign-project-modal";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -33,6 +34,7 @@ export function DataTableRowActions<TData>({
   const [open, setOpen] = useState(false);
   const [openView, setOpenView] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -79,6 +81,13 @@ export function DataTableRowActions<TData>({
           loading={loading}
         />
       )}
+      {assignOpen && (
+        <AssignProjectModal
+          isOpen={assignOpen}
+          onClose={() => setAssignOpen(false)}
+          documentId={document.id}
+        />
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -92,6 +101,9 @@ export function DataTableRowActions<TData>({
         <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem onClick={() => setOpenView(true)}>
             View
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setAssignOpen(true)}>
+            Assign to Project
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setOpen(true)}>

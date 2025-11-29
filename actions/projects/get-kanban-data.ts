@@ -21,6 +21,15 @@ export const getKanbanData = async (boardId: string) => {
         orderBy: {
           position: "desc",
         },
+        include: {
+          assigned_user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+        },
       },
     },
   });

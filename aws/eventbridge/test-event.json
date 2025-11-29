@@ -1,0 +1,7 @@
+[
+  {
+    "Source": "aws.chime",
+    "DetailType": "Chime Voice Connector Test",
+    "Detail": "{\"action\":\"StreamingSessionStarted\",\"voiceConnectorId\":\"hc8xljgddzsgdqqvodadso\",\"callId\":\"test-call-id\"}"
+  }
+]

@@ -16,7 +16,7 @@ const ProjectModuleMenu = ({ open, title }: Props) => {
 
   return (
     <div className="flex flex-row items-center mx-auto p-2">
-      <Link href={"/projects"} className={`menu-item ${isPath ? "menu-item-active" : ""}`}>
+      <Link href={"/projects"} className={`menu-item ${isPath ? "menu-item-active" : ""}`} title={title}>
         <ServerIcon className="w-6 icon" />
         <span className={open ? "" : "hidden"}>{title}</span>
       </Link>

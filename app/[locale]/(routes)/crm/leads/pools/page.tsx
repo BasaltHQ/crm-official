@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import ImportLeadsDialog from "../components/ImportLeadsDialog";
+import FirstContactWizard from "@/components/modals/FirstContactWizard";
 
 type LeadPool = {
   id: string;
@@ -61,6 +62,59 @@ export default function LeadPoolsPage() {
   const { data, error, isLoading, mutate } = useSWR<PoolsResponse>("/api/leads/pools", fetcher, {
     refreshInterval: 10000,
   });
+  const { data: projectsData } = useSWR<{ projects: { id: string; title: string }[] }>("/api/projects", fetcher, { refreshInterval: 120000 });
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardLeadIds, setWizardLeadIds] = useState<string[]>([]);
+  const [loadingOutreach, setLoadingOutreach] = useState<string | null>(null);
+  const [assigningProject, setAssigningProject] = useState<string | null>(null);
+
+  // Button set presets per project (Boards)
+  const [buttonSets, setButtonSets] = useState<Record<string, { sets: any[] }>>({});
+  const [selectedButtonSet, setSelectedButtonSet] = useState<Record<string, string>>({});
+  const [savingButtonSet, setSavingButtonSet] = useState<string | null>(null);
+
+  // Auto-load button sets for pools with assigned project and preselect default
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!data?.pools) return;
+        for (const pool of data.pools) {
+          const pid = pool.icpConfig?.assignedProjectId;
+          if (!pid) continue;
+          // Skip if already loaded
+          if (buttonSets[pool.id]?.sets?.length) continue;
+          const res = await fetch(`/api/projects/${pid}/button-sets`);
+          if (!res.ok) continue;
+          const j = await res.json();
+          const sets = Array.isArray(j?.sets) ? j.sets : [];
+          setButtonSets((prev) => ({ ...prev, [pool.id]: { sets } }));
+          const def = sets.find((x: any) => x.isDefault);
+          if (!selectedButtonSet[pool.id] && !pool.icpConfig?.assignedButtonSetId) {
+            setSelectedButtonSet((prev) => ({ ...prev, [pool.id]: def?.id || "" }));
+          }
+        }
+      } catch {
+        // noop
+      }
+    })();
+  }, [data?.pools]);
+
+  const startFirstContact = async (poolId: string) => {
+    try {
+      setLoadingOutreach(poolId);
+      const res = await fetch(`/api/leads/pools/${encodeURIComponent(poolId)}/leads?mine=true`);
+      if (!res.ok) throw new Error(await res.text());
+      const j = await res.json();
+      const ids: string[] = Array.isArray(j?.leads) ? (j.leads as any[]).filter(l=>!!l.email).map(l=>l.id) : [];
+      setWizardLeadIds(ids);
+      setWizardOpen(true);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to load leads for outreach");
+    } finally {
+      setLoadingOutreach(null);
+    }
+  };
 
   const onDeletePool = async (poolId: string, poolName: string) => {
     if (!confirm(`Delete pool "${poolName}"? This will remove all candidates, contacts, and jobs. This action cannot be undone.`)) {
@@ -279,28 +333,165 @@ export default function LeadPoolsPage() {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                <button
-                  className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                  onClick={() => router.push(`/crm/leads/pools/${pool.id}`)}
-                >
-                  Work Pool
-                </button>
-                {pool.latestJob && (
+              {/* Project Assignment + Actions */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm">Project:</label>
+                  <select
+                    className="rounded border p-1 text-sm bg-background"
+                    value={pool.icpConfig?.assignedProjectId || ""}
+                    onChange={async (e) => {
+                      const projectId = e.target.value;
+                      if (!projectId) return;
+                      setAssigningProject(pool.id);
+                      try {
+                        const res = await fetch(`/api/leads/pools/${pool.id}/assign-project`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ projectId })
+                        });
+                        if (!res.ok) throw new Error(await res.text());
+
+                        // After assigning project, load its button sets and preselect default if none chosen
+                        try {
+                          const resp = await fetch(`/api/projects/${projectId}/button-sets`);
+                          if (resp.ok) {
+                            const j = await resp.json();
+                            const sets = Array.isArray(j?.sets) ? j.sets : [];
+                            setButtonSets((prev) => ({ ...prev, [pool.id]: { sets } }));
+                            const def = sets.find((x: any) => x.isDefault);
+                            setSelectedButtonSet((prev) => ({ ...prev, [pool.id]: def?.id || "" }));
+                          }
+                        } catch (_e) {
+                          // ignore
+                        }
+
+                        mutate();
+                      } catch (err) {
+                        alert("Failed to assign project");
+                      } finally {
+                        setAssigningProject(null);
+                      }
+                    }}
+                    disabled={assigningProject === pool.id}
+                  >
+                    <option value="">-- Select a project --</option>
+                    {(projectsData?.projects || []).map(p => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                  {pool.icpConfig?.assignedProjectId && (
+                    <button
+                      className="rounded border px-3 py-1 text-xs hover:bg-muted/50"
+                      onClick={() => router.push(`/documents?boardId=${pool.icpConfig.assignedProjectId}`)}
+                      title="Manage Documents for this project"
+                    >
+                      Manage Documents
+                    </button>
+                  )}
+                </div>
+
+                {/* Button Set selection & save */}
+                {pool.icpConfig?.assignedProjectId && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <label className="text-sm">Button Set:</label>
+                    <select
+                      className="rounded border p-1 text-sm bg-background"
+                      value={selectedButtonSet[pool.id] || pool.icpConfig?.assignedButtonSetId || ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedButtonSet((prev) => ({ ...prev, [pool.id]: v }));
+                      }}
+                    >
+                      <option value="">-- Select a button set --</option>
+                      {(buttonSets[pool.id]?.sets || []).map((s: any) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}{s.isDefault ? " (default)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="rounded border px-3 py-1 text-xs hover:bg-muted/50"
+                      onClick={async () => {
+                        const pid = pool.icpConfig?.assignedProjectId;
+                        if (!pid) { alert("Select a project first"); return; }
+                        try {
+                          const res = await fetch(`/api/projects/${pid}/button-sets`);
+                          if (!res.ok) throw new Error(await res.text());
+                          const j = await res.json();
+                          const sets = Array.isArray(j?.sets) ? j.sets : [];
+                          setButtonSets((prev) => ({ ...prev, [pool.id]: { sets } }));
+                          // Auto-select default if none selected
+                          if (!selectedButtonSet[pool.id]) {
+                            const def = sets.find((x: any) => x.isDefault);
+                            setSelectedButtonSet((prev) => ({ ...prev, [pool.id]: def?.id || "" }));
+                          }
+                        } catch (e) {
+                          alert("Failed to load button sets");
+                        }
+                      }}
+                    >
+                      Load Sets
+                    </button>
+                    <button
+                      className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                      onClick={async () => {
+                        const pid = pool.icpConfig?.assignedProjectId;
+                        const sid = selectedButtonSet[pool.id];
+                        if (!pid || !sid) { alert("Select a project and button set"); return; }
+                        setSavingButtonSet(pool.id);
+                        try {
+                          const res = await fetch(`/api/leads/pools/${pool.id}/assign-button-set`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ projectId: pid, buttonSetId: sid })
+                          });
+                          if (!res.ok) throw new Error(await res.text());
+                          mutate();
+                          alert("Button set assigned");
+                        } catch (e) {
+                          alert("Failed to assign button set");
+                        } finally {
+                          setSavingButtonSet(null);
+                        }
+                      }}
+                      disabled={savingButtonSet === pool.id}
+                    >
+                      {savingButtonSet === pool.id ? "Saving…" : "Save Button Set"}
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                    onClick={() => router.push(`/crm/leads/pools/${pool.id}`)}
+                  >
+                    Work Pool
+                  </button>
+                  <button
+                    className="rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
+                    onClick={() => startFirstContact(pool.id)}
+                    disabled={loadingOutreach === pool.id}
+                    title="Initiate First Contact for your assigned leads in this pool"
+                  >
+                    {loadingOutreach === pool.id ? "Preparing…" : "Initiate First Contact"}
+                  </button>
+                  {pool.latestJob && (
+                    <button
+                      className="rounded border px-3 py-2 hover:bg-muted/50"
+                      onClick={() => router.push(`/crm/leads/jobs/${pool.latestJob!.id}`)}
+                    >
+                      View Job
+                    </button>
+                  )}
                   <button
                     className="rounded border px-3 py-2 hover:bg-muted/50"
-                    onClick={() => router.push(`/crm/leads/jobs/${pool.latestJob!.id}`)}
+                    onClick={() => router.push("/crm/leads?tab=wizard")}
                   >
-                    View Job
+                    New Job
                   </button>
-                )}
-                <button
-                  className="rounded border px-3 py-2 hover:bg-muted/50"
-                  onClick={() => router.push("/crm/leads?tab=wizard")}
-                >
-                  New Job
-                </button>
+                </div>
               </div>
             </div>
           ))}
@@ -343,6 +534,12 @@ export default function LeadPoolsPage() {
           </div>
         </div>
       )}
+      {/* First Contact Wizard */}
+      <FirstContactWizard
+        isOpen={!!wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        leadIds={wizardLeadIds}
+      />
     </div>
   );
 }

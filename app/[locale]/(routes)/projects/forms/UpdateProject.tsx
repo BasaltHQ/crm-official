@@ -48,6 +48,8 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
     title: z.string().min(3).max(255),
     description: z.string().min(3).max(500),
     visibility: z.string().min(3).max(255),
+    brand_logo_url: z.string().optional(),
+    brand_primary_color: z.string().optional(),
   });
 
   type NewAccountFormValues = z.infer<typeof formSchema>;
@@ -97,6 +99,72 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
           className="h-full w-full space-y-3"
         >
           <div className="flex flex-col space-y-3">
+            {/* Project logo (optional) */}
+            <FormField
+              control={form.control}
+              name="brand_logo_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project logo (optional)</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      {field.value ? (
+                        <img src={field.value} alt="Logo preview" className="h-12 w-12 rounded object-contain" />
+                      ) : null}
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={isLoading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (!file.type.startsWith("image/")) {
+                            alert("Please select an image file");
+                            return;
+                          }
+                          if (file.size > 5 * 1024 * 1024) {
+                            alert("Max file size is 5MB");
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const dataUrl = reader.result as string;
+                            field.onChange(dataUrl);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      {field.value && (
+                        <Button type="button" variant="secondary" size="sm" onClick={() => field.onChange("")}>Clear logo</Button>
+                      )}
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Primary color */}
+            <FormField
+              control={form.control}
+              name="brand_primary_color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Primary color (optional)</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        disabled={isLoading}
+                        placeholder="#0ea5e9 or rgb(...)"
+                        {...field}
+                      />
+                      <div className="h-6 w-6 rounded border" style={{ backgroundColor: field.value || undefined }} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="title"

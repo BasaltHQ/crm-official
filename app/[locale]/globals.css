@@ -77,41 +77,45 @@
     --ring: 191 65% 58%;
 
     --radius: 0.5rem;
+    /* Microtext font stack */
+    --microtext-font: "Geist Sans", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
     /* Ledger1CRM theming variables */
-    --osiris-gradient: radial-gradient(800px circle at 20% 0%, rgba(77, 191, 217, 0.22), transparent 40%),
-      radial-gradient(600px circle at 80% 20%, rgba(77, 191, 217, 0.18), transparent 45%),
-      linear-gradient(to bottom, #eff9fd, #e6f5fb);
+    --osiris-gradient: radial-gradient(900px circle at 8% 12%, rgba(77, 191, 217, 0.22), transparent 52%),
+      radial-gradient(720px circle at 92% 18%, rgba(42, 169, 199, 0.18), transparent 58%),
+      radial-gradient(780px circle at 18% 88%, rgba(77, 191, 217, 0.16), transparent 58%),
+      linear-gradient(to bottom, #ffffff, #ffffff);
     --glass-bg: hsla(0, 0%, 100%, 0.65);
     --glass-border: hsla(191, 60%, 58%, 0.25);
     --glass-shadow: 0 8px 30px hsla(191, 65%, 46%, 0.18), inset 0 1px 0 hsla(0, 0%, 100%, 0.4);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* Unified cyber-turquoise surfaces for dark mode */
+    --background: 0 0% 0%; /* true black */
     --foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 0%;
     --popover-foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 0%;
     --card-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 198 30% 18%;
+    --input: 198 30% 18%;
 
     /* Ledger1CRM: Turquoise primary accent */
     --primary: 191 65% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 0 0% 5%;
     --secondary-foreground: 210 40% 98%;
 
     /* Use brand accent and focus ring in dark */
-    --accent: 191 45% 30%;
+    --accent: 191 60% 38%; /* brighter turquoise accent */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
@@ -120,11 +124,12 @@
     --ring: 191 65% 58%;
 
     /* Ledger1CRM dark theming variables */
-    --osiris-gradient: radial-gradient(1000px circle at 10% -10%, rgba(77, 191, 217, 0.18), transparent 35%),
-      radial-gradient(800px circle at 100% 10%, rgba(77, 191, 217, 0.15), transparent 40%),
-      linear-gradient(to bottom, #041a1a, #031616);
-    --glass-bg: hsla(191, 25%, 16%, 0.6);
-    --glass-border: hsla(191, 85%, 70%, 0.18);
+    --osiris-gradient: radial-gradient(900px circle at 8% 12%, rgba(77, 191, 217, 0.24), transparent 48%),
+      radial-gradient(720px circle at 92% 18%, rgba(42, 169, 199, 0.20), transparent 52%),
+      radial-gradient(780px circle at 18% 88%, rgba(77, 191, 217, 0.18), transparent 52%),
+      linear-gradient(to bottom, #000000, #000000);
+    --glass-bg: hsla(0, 0%, 0%, 0.55);
+    --glass-border: hsla(191, 85%, 60%, 0.25);
     --glass-shadow: 0 10px 40px hsla(191, 65%, 46%, 0.28), inset 0 1px 0 hsla(0, 0%, 100%, 0.08);
   }
 }
@@ -224,12 +229,21 @@
   background: linear-gradient(180deg, rgba(77, 191, 217, 0.6), rgba(42, 169, 199, 0.95));
 }
 .menu-item .icon {
-  opacity: 0.85;
+  width: 32px !important;
+  height: 32px !important;
+  opacity: 0.95;
+  transition: transform 180ms ease;
 }
 .menu-item-active .icon {
   opacity: 1;
   filter: drop-shadow(0 0 6px rgba(77, 191, 217, 0.55));
 }
+
+/* Normalize Sales (Coins) icon visual weight to match other module symbols */
+.coins-icon {
+  transform: none;
+}
+
 
 /* Accessible focus states for keyboard users */
 .menu-item:focus-visible,
@@ -281,6 +295,49 @@
 .menu-item:hover::after,
 .menu-item:focus-visible::after {
   opacity: 1;
+}
+
+/* Collapsed sidebar behavior: keep icons visible and centered, hide labels */
+.sidebar[data-open="false"] .menu-item {
+  justify-content: center;
+  padding: 0.5rem;
+}
+.sidebar[data-open="false"] .menu-item .icon {
+  width: 36px !important;
+  height: 36px !important;
+  opacity: 1 !important;
+  margin-inline: auto;
+  transform: scale(1.02);
+}
+
+.sidebar[data-open="false"] .menu-item span {
+  display: none;
+}
+
+/* Microtext utility for subtle helper copy */
+.microtext {
+  font-size: 0.75rem; /* text-xs */
+  letter-spacing: 0.02em;
+  opacity: 0.7;
+}
+/* Microtext font helper: applies the dedicated microtext font stack */
+.microtext-font {
+  font-family: var(--microtext-font);
+}
+
+/* Optional cyber grid backdrop utility */
+.cyber-grid {
+  position: relative;
+}
+.cyber-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(transparent 97%, rgba(77, 191, 217, 0.12) 100%),
+    linear-gradient(90deg, transparent 97%, rgba(77, 191, 217, 0.12) 100%);
+  background-size: 100% 14px, 14px 100%;
 }
 
 /* Sleek global scrollbars */

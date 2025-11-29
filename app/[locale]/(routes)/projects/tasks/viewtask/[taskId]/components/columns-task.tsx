@@ -11,6 +11,7 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import moment from "moment";
 import { DataTableRowActionsTasks } from "./data-table-row-actions-tasks";
+import LinkPreview from "@/components/LinkPreview";
 
 export const columnsTask: ColumnDef<Task>[] = [
   {
@@ -50,6 +51,20 @@ export const columnsTask: ColumnDef<Task>[] = [
         </div>
       );
     },
+  },
+
+  {
+    id: "preview",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Preview" />
+    ),
+    cell: ({ row }) => {
+      const url = (row.original as any)?.document_file_url as string | undefined;
+      if (!url || !/^https?:\/\//i.test(url)) return null;
+      return <LinkPreview href={url} />;
+    },
+    enableSorting: false,
+    enableHiding: false,
   },
 
   {

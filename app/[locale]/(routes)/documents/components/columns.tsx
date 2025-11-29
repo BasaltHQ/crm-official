@@ -10,6 +10,7 @@ import { Task } from "../data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import moment from "moment";
+import BlobLink from "@/components/BlobLink";
 
 export const columns: ColumnDef<Task>[] = [
   {
@@ -71,6 +72,20 @@ export const columns: ColumnDef<Task>[] = [
     cell: ({ row }) => (
       <div className="w-[300px]">{row.getValue("description")}</div>
     ),
+  },
+
+  {
+    id: "preview",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Preview" />
+    ),
+    cell: ({ row }) => {
+      const url = (row.original as any)?.document_file_url as string | undefined;
+      if (!url || !/^https?:\/\//i.test(url)) return null;
+      return <BlobLink href={url} />;
+    },
+    enableSorting: false,
+    enableHiding: false,
   },
 
   {

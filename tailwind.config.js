@@ -51,24 +51,24 @@ module.exports = {
         // dark mode
         "dark-tremor": {
           brand: {
-            faint: "#1b0c2d", // custom deep violet
-            muted: "#2e1065", // violet-950
-            subtle: "#4c1d95", // violet-800
-            DEFAULT: "#8b5cf6", // violet-500
-            emphasis: "#a78bfa", // violet-400
+            faint: "#062a2a", // deep teal
+            muted: "#0f2b31", // teal-950-ish
+            subtle: "#146d7a", // turquoise-700
+            DEFAULT: "#33b1c6", // turquoise-500
+            emphasis: "#7bd3e6", // turquoise-300
             inverted: "#030712", // gray-950
           },
           background: {
-            muted: "#131A2B", // custom
-            subtle: "#1f2937", // gray-800
-            DEFAULT: "#111827", // gray-900
+            muted: "#0a1e21", // deep teal surface
+            subtle: "#0f2b31", // teal-950-ish
+            DEFAULT: "#0c2024", // teal/blue-black
             emphasis: "#d1d5db", // gray-300
           },
           border: {
-            DEFAULT: "#1f2937", // gray-800
+            DEFAULT: "#13323a", // unified teal border
           },
           ring: {
-            DEFAULT: "#1f2937", // gray-800
+            DEFAULT: "#13323a", // unified teal ring
           },
           content: {
             subtle: "#4b5563", // gray-600

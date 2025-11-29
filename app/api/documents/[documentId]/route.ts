@@ -1,6 +1,6 @@
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { utapi } from "@/lib/server/uploadthings";
+
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -36,11 +36,12 @@ export async function DELETE(req: Request, props: { params: Promise<{ documentId
 
     console.log("Document deleted:", deletedDocument);
 
-    if (!document[0].key)
-      return new NextResponse("Document key not found", { status: 404 });
-
-    const utapiFile = await utapi.deleteFiles([document[0].key]);
-    console.log(utapiFile, "utapiFile");
+    // If it's a stored file, delete from storage too; otherwise skip (link-only docs)
+    const key = (document[0] as any)?.key as string | undefined;
+    if (key) {
+      const { deleteBlobIfConfigured } = await import("@/lib/azure-blob");
+      await deleteBlobIfConfigured(key);
+    }
 
     return NextResponse.json("deletedDocument");
   } catch (error) {

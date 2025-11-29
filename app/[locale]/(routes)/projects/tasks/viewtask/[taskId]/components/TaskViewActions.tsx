@@ -9,12 +9,12 @@ import { getTaskDone } from "@/app/[locale]/(routes)/projects/actions/get-task-d
 import { Badge } from "@/components/ui/badge";
 import { CheckSquare, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import UpdateTaskDialog from "@/app/[locale]/(routes)/projects/dialogs/UpdateTask";
 import { getActiveUsers } from "@/actions/get-users";
 import { useState } from "react";
 import { Icons } from "@/components/ui/icons";
-import { initial } from "cypress/types/lodash";
+
 
 const TaskViewActions = ({
   taskId,
@@ -82,8 +82,11 @@ const TaskViewActions = ({
         <Pencil className="w-4 h-4 mr-2" />
         Edit
       </Badge>
-      <Sheet open={openEdit} onOpenChange={() => setOpenEdit(false)}>
+      <Sheet open={openEdit} onOpenChange={(open) => setOpenEdit(open)}>
         <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Edit Task</SheetTitle>
+          </SheetHeader>
           <UpdateTaskDialog
             users={users}
             boards={boards}

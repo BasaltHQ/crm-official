@@ -3,10 +3,12 @@ import { Suspense } from "react";
 import SuspenseLoading from "@/components/loadings/suspense";
 
 import Container from "../../components/ui/Container";
-import LeadsView from "../components/LeadsView";
+
 import TabsContainer from "./components/TabsContainer";
 import LeadGenWizardPage from "./autogen/page";
 import LeadPoolsPage from "./pools/page";
+import SettingsTabs from "./components/SettingsTabs";
+import LeadsManagerTabs from "./components/LeadsManagerTabs";
 
 import { getAllCrmData } from "@/actions/crm/get-crm-data";
 import { getLeads } from "@/actions/crm/get-leads";
@@ -17,10 +19,12 @@ type LeadsPageProps = { searchParams?: Promise<Record<string, string | string[] 
 
 const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
   const sp = searchParams ? await searchParams : undefined;
-  const crmData = await getAllCrmData();
-  const leads = await getLeads();
   const tabParam = sp?.tab;
   const tab = typeof tabParam === "string" ? tabParam : Array.isArray(tabParam) ? tabParam[0] ?? "manager" : "manager";
+
+  // Only load heavy data when needed for the active tab
+  const crmData = tab === "manager" ? await getAllCrmData() : null;
+  const leads = tab === "manager" ? await getLeads() : null;
 
   return (
     <Container
@@ -29,12 +33,17 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
     >
       <TabsContainer
         managerSlot={
-          <Suspense fallback={<SuspenseLoading />}>
-            <LeadsView crmData={crmData} data={leads} />
-          </Suspense>
+          tab === "manager" ? (
+            <Suspense fallback={<SuspenseLoading />}>
+              <LeadsManagerTabs leads={leads as any} crmData={crmData} />
+            </Suspense>
+          ) : null
         }
-        wizardSlot={<LeadGenWizardPage />}
-        poolsSlot={<LeadPoolsPage />}
+        wizardSlot={tab === "wizard" ? <LeadGenWizardPage /> : null}
+        poolsSlot={tab === "pools" ? <LeadPoolsPage /> : null}
+        settingsSlot={tab === "settings" ? (
+          <SettingsTabs />
+        ) : null}
       />
     </Container>
   );

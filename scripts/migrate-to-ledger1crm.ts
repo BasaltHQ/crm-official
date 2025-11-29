@@ -33,7 +33,7 @@ type AnyRecord = Record<string, any>;
 function envOrThrow(name: string): string {
   const v = process.env[name];
   if (!v) {
-    throw new Error(\`Missing required env: \${name}\`);
+    throw new Error("Missing required env: " + name);
   }
   return v;
 }
@@ -181,7 +181,7 @@ function remapUserRefs(model: string, doc: AnyRecord): AnyRecord {
 async function upsertById(model: string, items: AnyRecord[]) {
   const delegate: any = (target as any)[model];
   if (!delegate || typeof delegate.upsert !== "function") {
-    throw new Error(\`Target Prisma delegate not found or unsupported for model: \${model}\`);
+    throw new Error("Target Prisma delegate not found or unsupported for model: " + model);
   }
 
   for (const item of items) {
@@ -197,7 +197,7 @@ async function upsertById(model: string, items: AnyRecord[]) {
         update: { ...(patchedRest as AnyRecord) },
       })
       .catch((e: any) => {
-        console.error(\`[ERROR] upsertById(\${model}) id=\${patchedId}:\`, e?.message ?? e);
+        console.error("[ERROR] upsertById(" + model + ") id=" + patchedId + ":", e?.message ?? e);
         throw e;
       });
   }
@@ -210,10 +210,10 @@ async function upsertById(model: string, items: AnyRecord[]) {
 async function copyModel(model: string) {
   const delegate: any = (source as any)[model];
   if (!delegate || typeof delegate.findMany !== "function") {
-    console.warn(\`[WARN] Source Prisma delegate missing for model: \${model} (skipping)\`);
+    console.warn("[WARN] Source Prisma delegate missing for model: " + model + " (skipping)");
     return;
   }
-  console.log(\`[COPY] \${model} ...\`);
+  console.log("[COPY] " + model + " ...");
 
   const BATCH = 500;
   let cursorId: string | null = null;
@@ -242,11 +242,11 @@ async function copyModel(model: string) {
     copied += batch.length;
     cursorId = batch[batch.length - 1].id;
 
-    console.log(\`[COPY] \${model} copied \${copied}\`);
+    console.log("[COPY] " + model + " copied " + copied);
     if (batch.length < BATCH) break;
   }
 
-  console.log(\`[DONE] \${model} total copied: \${copied}\`);
+  console.log("[DONE] " + model + " total copied: " + copied);
 }
 
 /**
@@ -273,7 +273,7 @@ async function reconcileUsers() {
 
   for (const u of sourceUsers) {
     if (!u.email) {
-      console.warn(\`[USERS] Skipping source user without email, id=\${u.id}\`);
+      console.warn("[USERS] Skipping source user without email, id=" + u.id);
       continue;
     }
     const existing = targetByEmail.get(u.email);
@@ -282,7 +282,7 @@ async function reconcileUsers() {
       await (target as any).Users
         .create({ data: u })
         .catch((e: any) => {
-          console.error(\`[ERROR] Users.create id=\${u.id}:\`, e?.message ?? e);
+          console.error("[ERROR] Users.create id=" + u.id + ":", e?.message ?? e);
           throw e;
         });
       targetByEmail.set(u.email, u);
@@ -316,7 +316,7 @@ async function reconcileUsers() {
             data: patch,
           })
           .catch((e: any) => {
-            console.error(\`[ERROR] Users.update id=\${existing.id}:\`, e?.message ?? e);
+            console.error("[ERROR] Users.update id=" + existing.id + ":", e?.message ?? e);
             throw e;
           });
         updated++;
@@ -328,7 +328,7 @@ async function reconcileUsers() {
     }
   }
 
-  console.log(\`[USERS] Inserted: \${inserted}, Updated: \${updated}, Mappings: \${userIdMap.size}\`);
+  console.log("[USERS] Inserted: " + inserted + ", Updated: " + updated + ", Mappings: " + userIdMap.size);
 }
 
 /**

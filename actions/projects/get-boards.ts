@@ -26,5 +26,21 @@ export const getBoards = async (userId: string) => {
       updatedAt: "desc",
     },
   });
-  return data;
+
+  // Attach brand_logo_url if available via API route
+  // Server-side fetch for brand logo via absolute pathless API (Next.js request context)
+  const withBrand = await Promise.all(
+    data.map(async (b: any) => {
+      try {
+        const res = await fetch(`/api/projects/${encodeURIComponent(b.id)}/brand`, { cache: "no-store" as any });
+        if (res && res.ok) {
+          const j = await res.json().catch(() => null);
+          return { ...b, brand_logo_url: j?.brand_logo_url ?? null };
+        }
+      } catch {}
+      return { ...b, brand_logo_url: null };
+    })
+  );
+
+  return withBrand;
 };

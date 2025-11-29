@@ -1,13 +1,13 @@
 import { authOptions } from "@/lib/auth";
-import { s3Client } from "@/lib/digital-ocean-s3";
+import { getS3Client } from "@/lib/digital-ocean-s3";
 import { prismadb } from "@/lib/prisma";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 
 //Get single invoice data
-export async function GET(request: Request, props: { params: Promise<{ invoiceId: string }> }) {
-  const params = await props.params;
+export async function GET(request: Request, { params }: any) {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -40,8 +40,7 @@ export async function GET(request: Request, props: { params: Promise<{ invoiceId
 }
 
 //Delete single invoice by invoiceId
-export async function DELETE(request: Request, props: { params: Promise<{ invoiceId: string }> }) {
-  const params = await props.params;
+export async function DELETE(request: Request, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ status: 401, body: { error: "Unauthorized" } });
@@ -70,6 +69,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
   }
 
   try {
+    const s3 = getS3Client();
     //Delete files from S3
 
     //Delete invoice file from S3
@@ -80,7 +80,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
           invoiceData?.invoice_file_url?.split("/").slice(-1)[0]
         }`,
       };
-      await s3Client.send(new DeleteObjectCommand(bucketParams));
+      await s3.send(new DeleteObjectCommand(bucketParams));
       console.log("Success - invoice deleted from S3 bucket");
     }
 
@@ -93,7 +93,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
           invoiceData?.rossum_annotation_json_url?.split("/").slice(-1)[0]
         }`,
       };
-      await s3Client.send(new DeleteObjectCommand(bucketParams));
+      await s3.send(new DeleteObjectCommand(bucketParams));
       console.log("Success - rossum annotation json deleted from S3 bucket");
     }
 
@@ -106,7 +106,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
           invoiceData?.rossum_annotation_xml_url?.split("/").slice(-1)[0]
         }`,
       };
-      await s3Client.send(new DeleteObjectCommand(bucketParams));
+      await s3.send(new DeleteObjectCommand(bucketParams));
       console.log("Success - rossum annotation xml deleted from S3 bucket");
     }
 
@@ -117,7 +117,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
         Bucket: process.env.DO_BUCKET,
         Key: `xml/${invoiceData?.money_s3_url?.split("/").slice(-1)[0]}`,
       };
-      await s3Client.send(new DeleteObjectCommand(bucketParams));
+      await s3.send(new DeleteObjectCommand(bucketParams));
       console.log("Success - money S3 xml deleted from S3 bucket");
     }
 

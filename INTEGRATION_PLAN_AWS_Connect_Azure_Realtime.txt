@@ -1,0 +1,248 @@
+Comprehensive Integration Plan: AWS Connect (email/sms/voice) + Azure OpenAI Realtime Voice
+
+Goal
+- Replace current email sending with AWS (SES via Connect-linked account), add SMS via AWS Pinpoint, and add phone calling readiness via Amazon Connect with human-supervised, AI-assisted calls using Azure OpenAI Realtime Voice.
+- Integrate this into Initiate First Contact and Leads Workspace (Engage AI tabs: Email, Phone, SMS), gating Phone/SMS by availability of phone numbers in the selected lead pool.
+- Deliver immediate Email/SMS sends; Phone calls require manual initiation and live monitoring.
+
+Current State Summary (from repo)
+- Email: nodemailer SMTP via lib/sendmail.ts and /api/outreach/send. Optionally Gmail API via lib/gmail.ts.
+- UI: components/modals/FirstContactWizard.tsx (channels show Email enabled; Phone/SMS disabled). ProcessPanel.tsx stage Engage_AI shows sent email details; Engage_Human placeholder says “Phone/SMS coming soon”.
+- Voice: Azure OpenAI Realtime Voice envs are present in .env (.env has AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_REALTIME_*). Server routes exist: /app/api/voice/azure/session and /app/api/voice/azure/answer.
+- Leads data: crm_Leads includes email and phone fields; pool metrics already compute phonesPresent/emailsPresent; activities exist via /api/leads/activities.
+
+High-Level Architecture
+- Email: Amazon SES (transactional email). Use AWS SDK v3 SESv2 SendEmail.
+- SMS: AWS Pinpoint SMS (or SNS SMS if Pinpoint not available; Pinpoint preferable for deliverability and opt-outs).
+- Voice: Amazon Connect for PSTN dial-out and contact control; manual initiation per lead. Live monitoring via Connect Streams in-browser (softphone) + live telemetry.
+- AI Assist/Voice: Azure OpenAI Realtime provides:
+  - Pre-call script generation and dynamic response suggestions (text) for human-led calls.
+  - Optional AI-led voice agent in later phase by bridging call audio streams (Connect Customer Voice Stream -> Kinesis -> media processor -> Azure Realtime; outbound audio injection via Connect prompts is limited, so AI speaking will start as web-based coaching and later become partial playback).
+- Eventing/Monitoring: Server-side events or WebSocket for call progress; activities/logging written to crm_Lead_Activities; analytics in dashboard.
+
+Channel Flows
+1) Email (Immediate)
+- UI: Enable Email checkbox by default in Initiate First Contact.
+- Backend: Replace nodemailer/Gmail sending path with SES wrapper.
+- Personalization: Keep current OpenAI prompt pipeline (/api/outreach/send uses openAiHelper); keep HTML render via emails/OutreachTemplate.
+- Send: POST /api/outreach/email (new) or refactor /api/outreach/send to internally call SES.
+- Tracking: Maintain outreach_open_token + /api/outreach/open/[token]. Update outreach_status, outreach_sent_at. Record activity type=email_sent.
+- Compliance: Respect unsubscribe based on crm_Contacts.email_unsubscribed.
+
+2) SMS (Immediate for leads with phone numbers)
+- UI: In Initiate First Contact, show SMS checkbox enabled only if selected lead pool has phone numbers.
+- Prompting: Add batch SMS prompt refinement (shorter style, 160–320 chars, link policy).
+- Backend: New route POST /api/outreach/sms
+  - Body: { leadIds: string[], promptOverride?: string, senderId?: string | phone }
+  - Generate per-lead personalized message via OpenAI (short form template).
+  - Use AWS Pinpoint SMS to send; store messageId and delivery status.
+- Data: crm_Leads.last_sms_id, sms_status, sms_sent_at. Activity type=sms_sent.
+- Opt-outs: Store sms_opt_out flag per contact; include “Reply STOP to opt out” where required.
+
+3) Phone (Manual initiation + live monitoring)
+- UI: Engage AI tab: Phone
+  - For pool/lead selection, if phone present -> “Ready to Call” state; else disabled.
+  - Controls: Call, Hang Up, Mute, Hold, Transfer, Record toggle, Monitor transcript, AI Suggestions panel.
+- Initiation: Amazon Connect StartOutboundVoiceContact
+  - Backend: POST /api/outreach/call/initiate
+    - Body: { leadId, phone, connectFlowId?, queueId?, attributes: { leadName, company, agentId } }
+    - Returns: { contactId, status }
+  - Store connect_contact_id, call_status='initiated'.
+- Agent Workspace:
+  - Use Amazon Connect Streams API to embed softphone in Leads Workspace (agent logged into Connect). Alternate: open Connect CCP in iframe.
+  - Live monitoring: subscribe to contact events (connecting, connected, hold, ended); display status in UI; write activities.
+- Azure OpenAI Realtime Assist (Phase 1 assist)
+  - Join live session via /api/voice/azure/session and browser WebRTC; capture agent mic to Azure, generate suggestions (text) in near-real-time (not speaking to customer initially).
+  - Show suggestions and dynamic script in side panel; enable “speak via TTS locally” optional to coach agent.
+- Call Summary: After call ended, POST /api/outreach/call/summary
+  - Use event logs and, if recorded/transcribed, feed transcript to OpenAI to summarize, extract next steps, sentiment, and objections.
+  - Save activity type=call_summary.
+
+Future Voice AI (Phase 2+)
+- Media Bridge: Enable Amazon Connect Customer Voice Stream to Kinesis Video Streams.
+- Media Processor Service: Ingest audio frames; transcribe via Amazon Transcribe; feed text + partial audio to Azure Realtime; generate response audio.
+- Audio Injection: Limitations exist for real-time audio injection into Connect. Start with “whisper-to-agent” and periodic prompt playback to customer (short phrases via PlayPrompt), then evaluate full-duplex injection when feasible.
+- Compliance: Human supervisor monitors, can pause AI, take over.
+
+UI Changes
+- Initiate First Contact Wizard
+  - Channels: Email, Phone, SMS with dynamic enablement based on selected leads:
+    - Email always available when emails present.
+    - Phone/SMS enabled only when at least one lead has a valid phone.
+  - Step 2: Prompt refinement per channel with separate tabs
+    - Email: long-form prompt (existing).
+    - SMS: concise prompt rules.
+    - Phone: call opening script + objection handling playbook; live assist prompt context.
+  - Step 4: “Send Now” triggers Email and SMS immediately (for eligible leads). Phone shows “Ready to Call” and does NOT auto-dial.
+
+- Leads Workspace > Engage AI tabs
+  - Email tab: show last subject/body, open status, meeting link.
+  - SMS tab: last SMS content, delivery status, opt-out indicator, quick-resend.
+  - Phone tab: softphone panel (Connect Streams), call controls, status timeline, live transcript (if available), Azure Suggestions panel, Summary after-call.
+
+Backend/API Changes
+- Email
+  - Create lib/aws/ses.ts (sendEmailSES(options)): uses SESv2 SendEmail.
+  - Refactor /api/outreach/send to use SES instead of nodemailer/Gmail; or create /api/outreach/email and deprecate old.
+- SMS
+  - Create lib/aws/pinpoint.ts (sendSmsPinpoint(options)): uses Pinpoint SMS; region + origination number/sender ID.
+  - Implement /api/outreach/sms route.
+- Phone
+  - Create lib/aws/connect.ts (startOutboundVoiceContact, describeContact, stopContact).
+  - Implement /api/outreach/call/initiate; /api/outreach/call/status/[contactId]; /api/outreach/call/summary.
+  - Add server-sent events or WebSocket endpoint for live status.
+- Azure Realtime Voice
+  - Leverage existing /api/voice/azure/session and answer; add suggestions channel.
+- Activities
+  - Ensure inserts for email_sent, sms_sent, call_initiated, call_connected, call_ended, call_summary with metadata.
+
+Data Model Changes (Prisma)
+- crm_Leads:
+  - phone_verified: boolean
+  - sms_opt_out: boolean
+  - sms_status: enum('SENT','DELIVERED','FAILED')
+  - sms_sent_at: DateTime, last_sms_id: string
+  - call_status: enum('READY','INITIATED','CONNECTING','CONNECTED','ENDED','FAILED')
+  - connect_contact_id: string
+  - call_recording_url: string | null
+  - call_transcript_url: string | null
+  - azure_realtime_session_id: string | null
+- crm_Lead_Activities.metadata additions for per-channel fields.
+- Indexes: phone, email for quick eligibility filters.
+
+Environment Variables (.env)
+- AWS credentials: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+- SES: SES_REGION, SES_FROM_ADDRESS, SES_CONFIGURATION_SET (optional)
+- Pinpoint: PINPOINT_REGION, PINPOINT_APPLICATION_ID, PINPOINT_SMS_ORIGINATION_NUMBER or SENDER_ID
+- Connect: CONNECT_INSTANCE_ID, CONNECT_CONTACT_FLOW_ID (for outbound), CONNECT_QUEUE_ID (optional), CONNECT_AGENT_USERNAME (if using Streams auth variants)
+- Azure OpenAI (already present): AZURE_OPENAI_* plus realtime configs
+- Compliance: DEFAULT_SMS_OPT_OUT_TEXT, TEST_PHONE_NUMBER (for test mode)
+
+Call Monitoring & Supervision
+- Live status bar in Phone tab with timestamps (initiated, ringing, connected, ended).
+- Controls: Mute, Hold, Transfer, End; “Pause AI” toggle; “Take over” button when AI assist mode is active.
+- Transcript (phase 2) and sentiment meter; objection detection tags.
+- Recordings: if Connect recording enabled, store link; add secured download.
+
+Prompt Refinement UX per Channel
+- Email: tone sliders (casual/formal), CTA selection, resource toggles; preview subject/body.
+- SMS: length guardrails, link policy (short links), compliance footer; preview.
+- Phone: opening lines, value props, objection responses; auto-suggest in-call via Azure Realtime.
+- A/B testing: per-channel variant creation and post-send performance metrics.
+
+Security & Compliance
+- Opt-out handling for email/sms; unsubscribe lists synced.
+- Consent tracking for SMS; timezone-aware quiet hours.
+- Audit logs for call events; PII protection; least-privileged AWS IAM policies.
+
+Phased Rollout
+- Phase 0: Configure AWS (SES, Pinpoint, Connect), secrets in .env, IAM policies.
+- Phase 1: Replace SMTP with SES; add SMS via Pinpoint; UI enables SMS for leads with phone.
+- Phase 2: Manual phone initiation via Connect; embed Streams softphone; logging + summary.
+- Phase 3: Azure Realtime Assist (text suggestions) during calls; live UI panel.
+- Phase 4: Experimental AI-led responses (partial audio prompts); evaluate media bridge feasibility.
+- Phase 5: Analytics dashboards (delivery, open, reply, call outcomes); iteratively refine prompts.
+
+Implementation Touchpoints (files)
+- Create: lib/aws/ses.ts, lib/aws/pinpoint.ts, lib/aws/connect.ts
+- Update: app/api/outreach/send/route.ts (or create app/api/outreach/email/route.ts)
+- Add: app/api/outreach/sms/route.ts
+- Add: app/api/outreach/call/initiate/route.ts, app/api/outreach/call/status/[contactId]/route.ts, app/api/outreach/call/summary/route.ts
+- UI: components/modals/FirstContactWizard.tsx (enable Phone/SMS with availability checks, add per-channel prompt tabs)
+- UI: app/[locale]/(routes)/crm/leads/components/ProcessPanel.tsx (Engage AI tabs: Email/Phone/SMS; Phone tab with Streams softphone + monitoring)
+- Voice: leverage app/api/voice/azure/session and answer; add suggestions channel.
+
+Testing Plan
+- Unit: SES/Pinpoint send wrappers; Connect initiation stubs.
+- Integration: /api/outreach/email/sms/call endpoints; activity inserts.
+- E2E: Wizard flows; eligibility gating for SMS/Phone; call monitoring states.
+- Staging: Test mode routes (send to founders@… and test number); rate limiting; error handling.
+
+Success Metrics
+- Email: delivery rate, open rate, reply rate.
+- SMS: delivery/failed, reply rate, opt-out rate.
+- Calls: connect rate, duration, outcomes; AI suggestion usage; conversion lift.
+
+Risks & Mitigations
+- Voice AI injection limitations in Connect: start with assist-only; pilot audio prompts carefully.
+- Deliverability: set up SES domain authentication (SPF/DKIM), Pinpoint registration as required.
+- Compliance: honor opt-outs; respect quiet hours; record consent.
+
+Next Steps
+- Gather required AWS resource IDs and numbers.
+- Confirm Connect instance and contact flow for outbound.
+- Approve UI designs for Engage AI tabs and wizard updates.
+- Implement Phase 1 (SES + Pinpoint) then Phase 2 (Connect) and Phase 3 (Azure Assist).
+
+
+Audio Routing Between Amazon Connect CCP and Azure OpenAI Realtime Voice
+
+Problem statement
+- How to route audio from the CCP (Amazon Connect softphone) to Azure OpenAI Realtime (WebRTC) and get audio/suggestions back to the agent and/or customer.
+
+Key constraints in Amazon Connect
+- The CCP runs its own WebRTC session between the agent’s browser and Amazon Connect; third-party code cannot intercept or inject raw audio into that session.
+- Outbound audio to the caller can be produced by:
+  - The human agent speaking via the CCP softphone.
+  - Contact Flow prompts (PlayPrompt) that play pre-recorded or Polly TTS audio.
+  - Amazon Lex bot integration within flows.
+- There is no supported API to arbitrarily inject custom real-time audio into the live call stream from browser JavaScript.
+
+Two viable topologies
+1) Assist-only, client-side parallel WebRTC (Recommended initial)
+- Path to Azure (to analyze):
+  - CCP handles the actual call (agent<->customer) over CCP’s WebRTC.
+  - In parallel, the browser captures the agent’s microphone via getUserMedia and streams it to Azure OpenAI Realtime over a separate WebRTC peer connection (components/voice/AzureSalesAgentPanel.tsx).
+  - Optionally capture remote audio (customer) is not feasible from CCP’s protected audio context. For customer-side text, rely on Connect-side transcription (Contact Lens/Transcribe) or call events.
+- Path back from Azure (to agent):
+  - Azure returns text suggestions and/or TTS audio to the browser over the Realtime connection.
+  - We render suggestions in the UI and optionally play TTS locally to the agent only (a “whisper”) via an <audio> element. This does not go to the customer.
+- Net effect:
+  - Agent sees real-time suggestions, summaries, and optional whispered audio coaching.
+  - Customer only hears the human agent and any Contact Flow prompts (no direct Azure audio injection into the call).
+- Implementation notes:
+  - Keep microphone capture for CCP and Azure on the same input device to minimize echo. Let CCP own echo cancellation; for the Azure stream, prefer disable echo cancellation and use low-gain monitor playback.
+  - Use transcript sources: Connect Contact Lens (real-time or post-call) to enrich Azure context; your app already has /app/api/leads/activities/[leadId]/transcript/route.ts hooks.
+
+2) Server-side media bridge (Advanced, experimental)
+- Path to Azure (to analyze):
+  - Enable Amazon Connect Customer Voice Stream to Kinesis Video Streams for the contact.
+  - Build a media processor service that consumes the Kinesis stream, optionally performs ASR with Amazon Transcribe (or extracts PCM frames), and forwards text/audio frames to Azure OpenAI Realtime.
+- Path back to caller/agent:
+  - Direct reinjection of arbitrary audio into the active call is not supported. Feasible options:
+    - Whisper-to-agent via browser (same as #1): send text/TTS back to the agent UI for guidance.
+    - PlayPrompt snippets to the customer via Contact Flow actions (pre-generated TTS/short responses). This is not fully-duplex conversational and has higher latency.
+    - Leverage Amazon Lex for bot-led segments inside flows; Azure can assist in generating intents/prompts but the runtime speech comes from Lex/Polly.
+- Net effect:
+  - Enables centralized processing of customer audio with lower client CPU cost and access to both channels; but still cannot inject full-duplex arbitrary AI audio to the customer stream.
+- Implementation notes:
+  - Requires Connect instance settings, Kinesis Video Streams, IAM, and potentially Contact Lens for transcripts.
+  - Handle synchronization and partial hypotheses if you need near-real-time suggestions.
+
+What is feasible today (recommendation)
+- Adopt topology #1 (assist-only) immediately:
+  - Keep the CCP for the actual call media.
+  - Run parallel Azure Realtime session in the same browser tab to get live suggestions (text) and optional TTS whisper to agent.
+  - Use Connect events + (optional) Contact Lens transcripts to improve suggestion accuracy.
+- For customer-audible AI:
+  - Start with Contact Flow prompts (pre-baked or on-demand generated and cached); don’t attempt full duplex injection.
+  - If later needed, explore Lex integration or re-architect to a SIP trunking/bot gateway, which is out-of-scope for standard CCP embedding.
+
+Code touchpoints in this repo
+- CCP embed and Streams setup: components/voice/ConnectStreamsSoftphone.tsx
+- Alternate iframe CCP: components/voice/ConnectCCP.tsx
+- Azure assist UIs: components/voice/AzureSalesAgentPanel.tsx, components/voice/AzureCoachPanel.tsx
+- Transcript API scaffold: app/api/leads/activities/[leadId]/transcript/route.ts (store segments/activities)
+- Connect call APIs: app/api/outreach/call/{initiate,status,stop}
+
+Operational checklist to make this work end-to-end
+- Ensure agent can sign into CCP (Approved origins set; or use “Open CCP in New Tab”).
+- Associate an outbound phone number with the queue to fix “Invalid outbound configuration”.
+- Start a call via UI; run Azure Sales Agent panel in parallel for suggestions.
+- Store transcript/notes and generate summary when call ends.
+
+Open items and future enhancements
+- Hook Contact Lens real-time transcripts into the UI and Azure prompt context.
+- Optional Kinesis-based media bridge for centralized processing.
+- Evaluate latency and AEC settings for dual capture; tune for minimal echo.
+- If you require AI-audible to customer, plan a dedicated contact flow with PlayPrompt segments or a bot-led segment; full-duplex AI voice injection is not supported by Streams/CCP.

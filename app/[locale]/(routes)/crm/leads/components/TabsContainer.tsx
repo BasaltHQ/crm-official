@@ -8,9 +8,10 @@ type Props = {
   managerSlot: React.ReactNode;
   wizardSlot: React.ReactNode;
   poolsSlot: React.ReactNode;
+  settingsSlot?: React.ReactNode;
 };
 
-export default function TabsContainer({ managerSlot, wizardSlot, poolsSlot }: Props) {
+export default function TabsContainer({ managerSlot, wizardSlot, poolsSlot, settingsSlot }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selected = searchParams.get("tab") || "manager";
@@ -32,11 +33,22 @@ export default function TabsContainer({ managerSlot, wizardSlot, poolsSlot }: Pr
           <TabsTrigger value="manager">Leads Manager</TabsTrigger>
           <TabsTrigger value="wizard">LeadGen Wizard</TabsTrigger>
           <TabsTrigger value="pools">Lead Pools</TabsTrigger>
+
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
       </div>
-      <TabsContent value="manager" className="overflow-auto flex-1">{managerSlot}</TabsContent>
-      <TabsContent value="wizard" className="overflow-auto flex-1">{wizardSlot}</TabsContent>
-      <TabsContent value="pools" className="overflow-auto flex-1">{poolsSlot}</TabsContent>
+      {selected === "manager" && (
+        <TabsContent value="manager" className="overflow-auto flex-1">{managerSlot}</TabsContent>
+      )}
+      {selected === "wizard" && (
+        <TabsContent value="wizard" className="overflow-auto flex-1">{wizardSlot}</TabsContent>
+      )}
+      {selected === "pools" && (
+        <TabsContent value="pools" className="overflow-auto flex-1">{poolsSlot}</TabsContent>
+      )}
+      {selected === "settings" && (
+        <TabsContent value="settings" className="overflow-auto flex-1">{settingsSlot}</TabsContent>
+      )}
     </Tabs>
   );
 }

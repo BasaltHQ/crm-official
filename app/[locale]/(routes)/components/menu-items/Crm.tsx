@@ -52,6 +52,9 @@ const CrmModuleMenu = ({ open, localizations }: Props) => {
           <DropdownMenuItem onClick={() => router.push("/crm/leads")}>
             Leads Manager
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/crm/dialer")}>
+            Dialer
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push("/crm/opportunities")}>
             {localizations.opportunities}
           </DropdownMenuItem>

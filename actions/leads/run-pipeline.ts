@@ -3,11 +3,13 @@ import { runSerpScraperForJob } from "@/lib/scraper/serp";
 import { enrichCompaniesForJob } from "@/lib/scraper/company-enrichment";
 import { calculateCompanyICPScore } from "@/lib/scraper/icp-scoring";
 import { runAgenticLeadGeneration } from "@/lib/scraper/agentic-scraper";
+import { enrichPeopleForJob } from "@/lib/scraper/people-enrichment";
 
 /**
- * Minimal stubbed pipeline to simulate scraping/enrichment.
- * Updates job status and creates sample Lead/Contact candidates and source events.
- * Replace with real providers and logic when integrating.
+ * Lead Generation Pipeline
+ * Orchestrates SERP discovery, company enrichment, ToS-safe people enrichment, and ICP scoring.
+ * Supports agentic AI mode (autonomous search/analysis/save) and standard mode (SERP + crawlers).
+ * Updates job status, counters, and logs with production-grade steps and error handling.
  */
 export async function runLeadGenPipeline({
   jobId,
@@ -39,7 +41,7 @@ export async function runLeadGenPipeline({
   // Use agentic AI mode by default (most powerful)
   // Only fall back to old SERP scraper if explicitly disabled
   const useOldSerpScraper = job.providers?.agenticAI === false;
-  
+
   if (!useOldSerpScraper) {
     // Autonomous AI agent mode - AI makes all decisions
     const pool = await db.crm_Lead_Pools.findUnique({
@@ -55,7 +57,49 @@ export async function runLeadGenPipeline({
       job.counters?.companiesFound || 100
     );
 
-    createdCandidates = result.companiesSaved;
+    // SERP discovery alongside agentic mode when enabled
+    let serpAddedCandidates = 0;
+    if (job.providers?.serp !== false) {
+      try {
+        const serpRes = await runSerpScraperForJob(jobId, userId);
+        serpAddedCandidates = serpRes.createdCandidates || 0;
+        serpEvents += serpRes.sourceEvents || 0;
+        uniqueDomains = Array.from(new Set([...(uniqueDomains || []), ...(serpRes.uniqueDomains || [])]));
+      } catch (error) {
+        await db.crm_Lead_Gen_Jobs.update({
+          where: { id: jobId },
+          data: {
+            logs: [
+              ...(job.logs || []),
+              { ts: new Date().toISOString(), level: "ERROR", msg: `SERP in agentic failed: ${(error as Error)?.message || String(error)}` }
+            ]
+          }
+        });
+      }
+    }
+
+    // Optional ToS-safe people enrichment (company site parsing)
+    let peopleContactsAdded = 0;
+    if (job.providers?.peopleEnrichment !== false) {
+      try {
+        const pe = await enrichPeopleForJob(jobId, userId);
+        peopleContactsAdded = pe.contactsAdded || 0;
+      } catch (error) {
+        // Log enrichment failure but don't fail the whole job
+        await db.crm_Lead_Gen_Jobs.update({
+          where: { id: jobId },
+          data: {
+            logs: [
+              ...(job.logs || []),
+              { ts: new Date().toISOString(), level: "ERROR", msg: `People enrichment failed: ${(error as Error)?.message || String(error)}` }
+            ]
+          }
+        });
+      }
+    }
+
+    createdCandidates = result.companiesSaved + serpAddedCandidates;
+
     // Update counters
     await db.crm_Lead_Gen_Jobs.update({
       where: { id: jobId },
@@ -64,18 +108,21 @@ export async function runLeadGenPipeline({
         finishedAt: new Date(),
         counters: {
           companiesFound: result.companiesSaved,
-          candidatesCreated: result.companiesSaved,
-          contactsCreated: result.contactsSaved,
-          agentIterations: result.iterations
+          candidatesCreated: result.companiesSaved + serpAddedCandidates,
+          contactsCreated: (result.contactsSaved || 0) + (peopleContactsAdded || 0),
+          agentIterations: result.iterations,
+          sourceEvents: (job.counters?.sourceEvents ?? 0) + serpEvents,
+          peopleContactsAdded
         },
         logs: [
           ...(job.logs || []),
-          { ts: new Date().toISOString(), msg: `🤖 Agentic AI complete: ${result.companiesSaved} companies, ${result.contactsSaved} contacts` }
+          { ts: new Date().toISOString(), msg: `🤖 Agentic AI complete: ${result.companiesSaved} companies, ${result.contactsSaved} contacts` },
+          ...(peopleContactsAdded ? [{ ts: new Date().toISOString(), msg: `People enrichment: ${peopleContactsAdded} contacts added` }] : [])
         ]
       }
     });
 
-    return { createdCandidates: result.companiesSaved, createdContacts: result.contactsSaved };
+    return { createdCandidates: result.companiesSaved + serpAddedCandidates, createdContacts: (result.contactsSaved || 0) + (peopleContactsAdded || 0) };
   }
 
   // Standard pipeline mode
@@ -106,7 +153,7 @@ export async function runLeadGenPipeline({
       const enrichmentResult = await enrichCompaniesForJob(jobId, 50, userId);
       enrichedCount = enrichmentResult.enriched;
       enrichmentFailed = enrichmentResult.failed;
-      
+
       await db.crm_Lead_Gen_Jobs.update({
         where: { id: jobId },
         data: {
@@ -129,32 +176,66 @@ export async function runLeadGenPipeline({
     }
   }
 
+  // ToS-safe people enrichment (company site parsing) when enabled
+  const peopleEnrichmentEnabled = job.providers?.peopleEnrichment !== false;
+  if (peopleEnrichmentEnabled && (createdCandidates > 0)) {
+    try {
+      const pe = await enrichPeopleForJob(jobId, userId);
+      createdContacts += pe.contactsAdded || 0;
+
+      await db.crm_Lead_Gen_Jobs.update({
+        where: { id: jobId },
+        data: {
+          logs: [
+            ...(job.logs ?? []),
+            { ts: new Date().toISOString(), msg: `People enrichment: ${pe.contactsAdded} contacts added across ${pe.companiesProcessed} companies.` },
+          ],
+          counters: {
+            ...(job.counters ?? {}),
+            peopleContactsAdded: (job.counters?.peopleContactsAdded ?? 0) + (pe.contactsAdded || 0),
+            peopleCompaniesProcessed: (job.counters?.peopleCompaniesProcessed ?? 0) + (pe.companiesProcessed || 0),
+          } as any
+        },
+      });
+    } catch (error) {
+      await db.crm_Lead_Gen_Jobs.update({
+        where: { id: jobId },
+        data: {
+          logs: [
+            ...(job.logs ?? []),
+            { ts: new Date().toISOString(), level: "ERROR", msg: `People enrichment failed: ${(error as Error)?.message || String(error)}` },
+          ],
+        },
+      });
+    }
+  }
+
   // Calculate ICP scores for all candidates
   const pool = await db.crm_Lead_Pools.findUnique({
     where: { id: job.pool },
     select: { icpConfig: true }
   });
-  
+
   if (pool?.icpConfig) {
     const candidates = await db.crm_Lead_Candidates.findMany({
       where: { pool: job.pool },
-      select: { 
-        id: true, 
-        domain: true, 
-        companyName: true, 
-        description: true, 
-        industry: true, 
-        techStack: true, 
-        score: true 
+      select: {
+        id: true,
+        domain: true,
+        companyName: true,
+        description: true,
+        industry: true,
+        techStack: true,
+        score: true
       }
     });
-    
+
     // Update each candidate with ICP score
     for (const candidate of candidates) {
       try {
         const icpScore = calculateCompanyICPScore(candidate as any, pool.icpConfig as any);
         const finalScore = Math.round((icpScore * 0.6) + ((candidate.score || 0) * 0.4)); // 60% ICP, 40% enrichment
-        
+
         await db.crm_Lead_Candidates.update({
           where: { id: candidate.id },
           data: { score: finalScore }

@@ -46,8 +46,13 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title="Name" />
     ),
     cell: ({ row }) => (
-      <Link href={`/projects/boards/${row.original.id}`}>
-        <div className="w-[300px]">{row.getValue("title")}</div>
+      <Link href={`/projects/boards/${row.original.id}`} prefetch={false}>
+        <div className="flex items-center gap-2 w-[320px]">
+          {row.original.brand_logo_url && (
+            <img src={row.original.brand_logo_url} alt="Logo" className="h-10 w-10 object-contain rounded hover:opacity-90 transition-opacity" />
+          )}
+          <span>{row.getValue("title")}</span>
+        </div>
       </Link>
     ),
   },

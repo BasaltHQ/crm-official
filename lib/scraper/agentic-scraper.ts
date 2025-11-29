@@ -15,6 +15,7 @@ import {
   normalizeEmail,
   normalizePhone,
   normalizeName,
+  safeContactDisplayName,
   generateCompanyDedupeKey,
   generatePersonDedupeKey,
   calculateCompanyConfidence
@@ -52,14 +53,14 @@ async function ddgWebSearch(query: string, count: number = 20): Promise<Array<{
 
     const results = await page.evaluate(() => {
       const extracted: Array<{ name: string; url: string; snippet: string }> = [];
-      
+
       const links = document.querySelectorAll('a[href*="http"]');
       links.forEach((link, idx) => {
         if (idx < 25) {
           const anchor = link as HTMLAnchorElement;
           const href = anchor.href;
-          if (href && !href.includes('duckduckgo.com') && 
-              (href.startsWith('http://') || href.startsWith('https://'))) {
+          if (href && !href.includes('duckduckgo.com') &&
+            (href.startsWith('http://') || href.startsWith('https://'))) {
             extracted.push({
               name: (anchor.textContent || '').trim(),
               url: href,
@@ -68,7 +69,7 @@ async function ddgWebSearch(query: string, count: number = 20): Promise<Array<{
           }
         }
       });
-      
+
       return extracted;
     });
 
@@ -349,7 +350,7 @@ Return ONLY valid JSON:
 }`;
 
     const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4";
-    
+
     const response = await openai.chat.completions.create({
       model: deployment,
       messages: [
@@ -420,7 +421,7 @@ async function executeToolCall(toolName: string, args: any, context: any): Promi
     case "save_company":
       const db: any = prismadbCrm;
       const domain = normalizeDomain(args.domain);
-      
+
       console.log("[SAVE_COMPANY] Validating company:", {
         domain,
         companyName: args.companyName,
@@ -440,11 +441,11 @@ async function executeToolCall(toolName: string, args: any, context: any): Promi
         return { success: false, error: "Cannot save company without contacts" };
       }
 
-      const contactsWithInfo = args.contacts.filter((c: any) => 
+      const contactsWithInfo = args.contacts.filter((c: any) =>
         (c.email && c.email.trim().length > 0) || (c.phone && c.phone.trim().length > 0)
       );
       console.log("[SAVE_COMPANY] Contacts with email or phone:", contactsWithInfo.length);
-      
+
       if (contactsWithInfo.length === 0) {
         console.log("[SAVE_COMPANY] Validation failed: No contact info");
         return { success: false, error: "Cannot save company without at least one email or phone number" };
@@ -460,8 +461,8 @@ async function executeToolCall(toolName: string, args: any, context: any): Promi
         console.log("[SAVE_COMPANY] Enriching missing fields with AI...");
         const enriched = await enrichCompanyDataWithAI(
           domain,
-          { 
-            title: args.companyName, 
+          {
+            title: args.companyName,
             description: args.description,
             emails: args.contacts?.map((c: any) => c.email).filter(Boolean),
             phones: args.contacts?.map((c: any) => c.phone).filter(Boolean),
@@ -538,25 +539,28 @@ async function executeToolCall(toolName: string, args: any, context: any): Promi
           for (const contact of args.contacts) {
             const email = normalizeEmail(contact.email);
             const phone = normalizePhone(contact.phone);
-            
+
             // Save contact if it has either email or phone
             if (email || phone) {
-              // Use "Direct" if no name provided
-              const contactName = contact.name && contact.name.trim().length > 0 
-                ? contact.name 
-                : "Direct";
-              
+              // Build a safe display name using email/company/domain fallbacks (avoid "Direct Direct")
+              const safeName = safeContactDisplayName(
+                contact.name,
+                email,
+                companyName,
+                domain
+              );
+
               const personDedupeKey = generatePersonDedupeKey(
-                email || phone || "", 
-                contactName, 
-                domain, 
+                email || phone || "",
+                safeName,
+                domain,
                 contact.title
               );
-              
+
               await db.crm_Contact_Candidates.create({
                 data: {
                   leadCandidate: candidate.id,
-                  fullName: normalizeName(contactName),
+                  fullName: normalizeName(safeName) || safeName,
                   title: contact.title || null,
                   email: email || null,
                   phone: phone || null,
@@ -647,7 +651,7 @@ TARGET: Find ${maxCompanies} highly qualified companies
 CRITICAL REQUIREMENTS FOR SAVING COMPANIES:
 1. ⚠️ ONLY save companies where you have found AT LEAST ONE contact with an email address
 2. Extract ALL contacts you can find - create separate contact entry for EACH email/phone you discover
-3. For contact names, if you cannot find a name, use "Direct" as the name
+3. For contact names, if you cannot find a name, leave it empty; the system will derive a display name
 4. Company info (name, description, industry) - if any field is missing, provide reasonable default
 5. Save ALL emails and phones as separate contact entries, not just one
 
@@ -736,7 +740,7 @@ CRITICAL REQUIREMENTS:
 - Use parallel tool calls whenever possible (visit multiple websites simultaneously)
 - Always analyze before saving - don't save without verification
 - Extract ALL contacts from each qualified website - every email, phone, LinkedIn URL you find
-- For contacts without names, use "Direct" as the name
+- For contacts without names, leave the name empty; the system will derive a display name
 - NEVER save a company without at least ONE contact that has an email address
 - Before saving, ensure company info is complete (name, description, industry)
 - If company description is missing, infer it from the website content
@@ -754,8 +758,8 @@ Be strategic, methodical, and intelligent in your approach.`;
 
   const messages: any[] = [
     { role: "system", content: systemPrompt },
-    { 
-      role: "user", 
+    {
+      role: "user",
       content: `Begin lead generation. Find ${maxCompanies} companies matching the ICP.
 
 WORKFLOW TO FOLLOW:
@@ -767,11 +771,11 @@ WORKFLOW TO FOLLOW:
 6. Continue this cycle (search → visit → save) until you reach ${maxCompanies} saved companies
 
 IMPORTANT: 
-- Create separate contact entry for EACH email found (use "Direct" as name if unknown)
+- Create separate contact entry for EACH email found (leave name empty if unknown)
 - Don't skip companies due to missing description/industry - provide reasonable defaults
 - The goal is to save companies WITH contacts, not to be perfectionist about company details
 
-Start now by searching for companies.` 
+Start now by searching for companies.`
     }
   ];
 
@@ -796,7 +800,7 @@ Start now by searching for companies.`
   const flushLogsToDb = async (force: boolean = false, retries: number = 5) => {
     const now = Date.now();
     const timeSinceLastUpdate = now - lastDbUpdate;
-    
+
     // Only update if forced OR enough time has passed OR buffer is large
     if (!force && timeSinceLastUpdate < DB_UPDATE_INTERVAL && logBuffer.length < 10) {
       return;
@@ -823,7 +827,7 @@ Start now by searching for companies.`
           where: { id: jobId },
           data: updateData
         });
-        
+
         // Success - clear the buffer and update timestamp
         logBuffer = [];
         lastDbUpdate = now;
@@ -861,16 +865,16 @@ Start now by searching for companies.`
       if (currentJob?.status === "PAUSED") {
         addLog("⏸️ Job paused - waiting for resume...");
         await flushLogsToDb(true);
-        
+
         // Wait and check again
         while (true) {
           await new Promise(resolve => setTimeout(resolve, 5000)); // Check every 5 seconds
-          
+
           const checkJob = await db.crm_Lead_Gen_Jobs.findUnique({
             where: { id: jobId },
             select: { status: true }
           });
-          
+
           if (checkJob?.status === "RUNNING") {
             addLog("▶️ Job resumed - continuing...");
             await flushLogsToDb(true);
@@ -915,7 +919,7 @@ Start now by searching for companies.`
       if (message.tool_calls && message.tool_calls.length > 0) {
         const toolCount = message.tool_calls.length;
         addLog(`🎬 Executing ${toolCount} tool${toolCount > 1 ? 's' : ''} in parallel...`);
-        
+
         // Execute all tool calls in parallel using Promise.all
         const toolExecutionPromises = message.tool_calls.map(async (toolCall, index) => {
           const toolName = toolCall.function.name;
@@ -1009,26 +1013,26 @@ Start now by searching for companies.`
         const saveCount = completedTools.filter(t => t.toolName === "save_company" && t.toolResult.success).length;
         const visitCount = completedTools.filter(t => t.toolName === "visit_website").length;
         const searchCount = completedTools.filter(t => t.toolName === "search_companies").length;
-        
+
         let summary = `✅ Batch complete:`;
         if (searchCount > 0) summary += ` ${searchCount} search${searchCount > 1 ? 'es' : ''}`;
         if (visitCount > 0) summary += ` ${visitCount} visit${visitCount > 1 ? 's' : ''}`;
         if (saveCount > 0) summary += ` ${saveCount} saved`;
         summary += ` | Total: ${companiesSaved}/${maxCompanies} companies (${contactsSaved} contacts)`;
-        
+
         addLog(summary);
-        
+
         // Flush logs to DB after batch completion
         await flushLogsToDb(false);
       } else if (message.content) {
         // Agent is thinking/reasoning
         console.log("Agent reasoning:", message.content);
         addLog(`💭 Agent thinking: ${message.content}`);
-        
+
         // Check if agent thinks it's done
-        if (message.content.toLowerCase().includes("complete") || 
-            message.content.toLowerCase().includes("finished") ||
-            companiesSaved >= maxCompanies) {
+        if (message.content.toLowerCase().includes("complete") ||
+          message.content.toLowerCase().includes("finished") ||
+          companiesSaved >= maxCompanies) {
           addLog("✅ Agent believes task is complete");
           await flushLogsToDb(true); // Force flush
           break;
@@ -1041,7 +1045,7 @@ Start now by searching for companies.`
 ${companiesSaved === 0 ? '⚠️ You haven\'t saved ANY companies yet!\n\n' : ''}IMMEDIATE NEXT STEP:
 1. Look at the website data you've extracted
 2. For EACH website with emails, call save_company RIGHT NOW
-3. Format: { domain, companyName, description, industry, techStack: [], contacts: [{name: "Direct", title: "Contact", email: "...", phone: "..."}] }
+3. Format: { domain, companyName, description, industry, techStack: [], contacts: [{name: "", title: "Contact", email: "...", phone: "..."}] }
 
 Don't keep searching - SAVE the companies you've already found!`;
 

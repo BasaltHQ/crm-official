@@ -1,0 +1,5 @@
+[
+  {
+    "LambdaArn": "arn:aws:lambda:us-west-2:867344432514:function:chime-sma-bridge"
+  }
+]
