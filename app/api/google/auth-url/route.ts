@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getGmailAuthUrl } from "@/lib/gmail";
+import { getGmailAuthUrl, getOAuth2ClientRedirectUri } from "@/lib/gmail";
 
 /**
  * GET /api/google/auth-url
@@ -16,7 +16,12 @@ export async function GET(_req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
     const url = getGmailAuthUrl(userId);
-    return NextResponse.json({ ok: true, url }, { status: 200 });
+    const redirectUri = getOAuth2ClientRedirectUri();
+    
+    // Log for debugging
+    console.log("[GOOGLE_AUTH_URL] Generated OAuth URL with redirect_uri:", redirectUri);
+    
+    return NextResponse.json({ ok: true, url, redirectUri }, { status: 200 });
   } catch (e: any) {
     // eslint-disable-next-line no-console
     console.error("[GOOGLE_AUTH_URL_GET]", e?.message || e);

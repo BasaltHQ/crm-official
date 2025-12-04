@@ -13,6 +13,18 @@ type Props = {
     params: Promise<{ competitor: string }>;
 };
 
+function getBaseUrl(): string {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!envUrl) {
+        return "https://crm.ledger1.ai";
+    }
+    // Ensure URL has protocol
+    if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
+        return `https://${envUrl}`;
+    }
+    return envUrl;
+}
+
 export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params;
     const competitor = competitors.find((c) => c.slug === params.competitor);
@@ -20,12 +32,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
     const title = `Ledger1CRM vs ${competitor.name} | The Best Alternative`;
     const description = `Compare Ledger1CRM vs ${competitor.name}. See why businesses are switching for better AI features, lower costs, and superior support.`;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const ogUrl = new URL(`${baseUrl}/api/og`);
-    ogUrl.searchParams.set("title", `Ledger1CRM vs ${competitor.name}`);
-    ogUrl.searchParams.set("description", "The Smarter, AI-Native Alternative");
-    ogUrl.searchParams.set("type", "competitor");
-    ogUrl.searchParams.set("badge", "Better Alternative");
+    const baseUrl = getBaseUrl();
+    
+    let ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(`Ledger1CRM vs ${competitor.name}`)}&description=${encodeURIComponent("The Smarter, AI-Native Alternative")}&type=competitor&badge=${encodeURIComponent("Better Alternative")}`;
 
     return {
         title,
@@ -35,10 +44,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
             title,
             description,
             type: "website",
-            url: `${process.env.NEXT_PUBLIC_APP_URL}/compare/${params.competitor}`,
+            url: `${baseUrl}/compare/${params.competitor}`,
             images: [
                 {
-                    url: ogUrl.toString(),
+                    url: ogImageUrl,
                     width: 1200,
                     height: 630,
                     alt: `Ledger1CRM vs ${competitor.name}`,
@@ -49,7 +58,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
             card: "summary_large_image",
             title,
             description,
-            images: [ogUrl.toString()],
+            images: [ogImageUrl],
         },
     };
 }

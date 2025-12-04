@@ -13,6 +13,18 @@ type Props = {
     params: Promise<{ city: string }>;
 };
 
+function getBaseUrl(): string {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!envUrl) {
+        return "https://crm.ledger1.ai";
+    }
+    // Ensure URL has protocol
+    if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
+        return `https://${envUrl}`;
+    }
+    return envUrl;
+}
+
 export async function generateMetadata(props: Props): Promise<Metadata> {
     const params = await props.params;
     const location = locations.find((l) => l.slug === params.city);
@@ -20,12 +32,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
     const title = `Top Rated AI CRM in ${location.name} | Ledger1CRM`;
     const description = `Join the fastest growing businesses in ${location.name} using Ledger1CRM. Local support, global compliance, and state-of-the-art AI.`;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const ogUrl = new URL(`${baseUrl}/api/og`);
-    ogUrl.searchParams.set("title", `Ledger1CRM in ${location.name}`);
-    ogUrl.searchParams.set("description", `Empowering Businesses in ${location.name}`);
-    ogUrl.searchParams.set("type", "location");
-    ogUrl.searchParams.set("badge", "Local Favorite");
+    const baseUrl = getBaseUrl();
+    
+    let ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(`Ledger1CRM in ${location.name}`)}&description=${encodeURIComponent(`Empowering Businesses in ${location.name}`)}&type=location&badge=${encodeURIComponent("Local Favorite")}`;
 
     return {
         title,
@@ -35,10 +44,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
             title,
             description,
             type: "website",
-            url: `${process.env.NEXT_PUBLIC_APP_URL}/location/${params.city}`,
+            url: `${baseUrl}/location/${params.city}`,
             images: [
                 {
-                    url: ogUrl.toString(),
+                    url: ogImageUrl,
                     width: 1200,
                     height: 630,
                     alt: `AI CRM in ${location.name}`,
@@ -49,7 +58,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
             card: "summary_large_image",
             title,
             description,
-            images: [ogUrl.toString()],
+            images: [ogImageUrl],
         },
     };
 }
