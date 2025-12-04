@@ -24,6 +24,7 @@ import {
     BarChart3,
     Users,
     Layers,
+    Mail,
 } from "lucide-react";
 import GeometricBackground from "./components/GeometricBackground";
 import AbstractDashboard from "./components/AbstractDashboard";
@@ -143,6 +144,11 @@ export default function LandingPage() {
                                 description="Stops you from chasing cold leads. Our AI scans the web, curates personalized emails based on deep company research, and fills your pipeline automatically."
                             />
                             <FeatureCard
+                                icon={<Mail className="h-12 w-12 text-blue-400" />}
+                                title="Smart Email Intelligence"
+                                description="Your inbox, supercharged. AI prioritizes urgent threads, drafts context-aware replies, and ensures you never miss a critical message again."
+                            />
+                            <FeatureCard
                                 icon={<Bot className="h-12 w-12 text-cyan-400" />}
                                 title="AI Sales Agents"
                                 description="Your 24/7 Sales Team. Capable of handling Inbound and Outbound calls, SMS, and Chat. They qualify leads and book appointments while you sleep."
@@ -161,11 +167,6 @@ export default function LandingPage() {
                                 icon={<TrendingUp className="h-12 w-12 text-emerald-400" />}
                                 title="Pipeline Automation"
                                 description="Forecast with certainty. AI predicts revenue and automates follow-ups so no deal slips through the cracks."
-                            />
-                            <FeatureCard
-                                icon={<Layers className="h-12 w-12 text-blue-400" />}
-                                title="Built on NextCRM"
-                                description="Solid foundation. Built on the robust NextCRM architecture for reliability and extensibility."
                             />
                         </div>
                     </div>
