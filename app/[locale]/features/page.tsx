@@ -1,6 +1,9 @@
 import React from "react";
 import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
+import LeadGenDashboard from "../components/LeadGenDashboard";
+import AgentInterface from "../components/AgentInterface";
+import AnalyticsGraph from "../components/AnalyticsGraph";
 import { Zap, Mail, Bot, Globe, MessageSquare, TrendingUp, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -109,10 +112,8 @@ export default function FeaturesPage() {
                                 </ul>
                             </div>
                             <div className="flex-1 w-full">
-                                <div className="aspect-square md:aspect-[4/3] bg-gradient-to-br from-yellow-900/20 to-orange-900/20 rounded-3xl border border-white/10 flex items-center justify-center relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F1A] via-transparent to-transparent" />
-                                    <span className="text-white/20 font-bold text-2xl relative z-10">Lead Gen Dashboard</span>
+                                <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden">
+                                    <LeadGenDashboard />
                                 </div>
                             </div>
                         </div>
@@ -154,10 +155,8 @@ export default function FeaturesPage() {
                                 </ul>
                             </div>
                             <div className="flex-1 w-full">
-                                <div className="aspect-square md:aspect-[4/3] bg-gradient-to-br from-cyan-900/20 to-blue-900/20 rounded-3xl border border-white/10 flex items-center justify-center relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F1A] via-transparent to-transparent" />
-                                    <span className="text-white/20 font-bold text-2xl relative z-10">Agent Interface</span>
+                                <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden">
+                                    <AgentInterface />
                                 </div>
                             </div>
                         </div>
@@ -199,10 +198,8 @@ export default function FeaturesPage() {
                                 </ul>
                             </div>
                             <div className="flex-1 w-full">
-                                <div className="aspect-square md:aspect-[4/3] bg-gradient-to-br from-emerald-900/20 to-green-900/20 rounded-3xl border border-white/10 flex items-center justify-center relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F1A] via-transparent to-transparent" />
-                                    <span className="text-white/20 font-bold text-2xl relative z-10">Analytics Graph</span>
+                                <div className="aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden">
+                                    <AnalyticsGraph />
                                 </div>
                             </div>
                         </div>

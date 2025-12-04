@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MapPin, Globe2, CheckCircle, Shield, LineChart, PlugZap } from "lucide-react";
+import { ArrowRight, MapPin, Globe2, CheckCircle, Shield, LineChart, PlugZap, Bot, Target, Zap, Clock, TrendingUp, Lock, HeartHandshake, Workflow, Building, Users } from "lucide-react";
 import GeometricBackground from "@/app/[locale]/components/GeometricBackground";
 import locations from "@/data/locations.json";
 import MarketingHeader from "@/app/[locale]/components/MarketingHeader";
@@ -60,99 +60,14 @@ export async function generateStaticParams() {
     }));
 }
 
-/**
- * Static base content rendered consistently across all location pages,
- * regardless of the SEO landing variant. Location data is used only for hero/context.
- */
 const STATIC = {
-    features: {
-        core: [
-            "Unified contacts, accounts, deals, tasks, and documents",
-            "Omnichannel capture (web forms, email, phone, chat)",
-            "Predictive lead scoring and intent detection",
-            "Automated follow-up sequences and reminders",
-            "Custom pipelines and multi-stage approval flows",
-            "Advanced search, filters, saved views, and bulk actions",
-            "Role-based access control, teams, and workspaces",
-            "Open API and Webhooks for extensibility"
-        ],
-        analytics: [
-            "KPI dashboards for pipeline, conversion, and cycle times",
-            "Forecasting by segment, team, and region",
-            "Attribution and campaign ROI tracking",
-            "Cohort analysis and churn risk insights"
-        ],
-        ai_agents: [
-            "Inbound triage agent for new inquiries",
-            "Outbound nurture agent for cold/warm leads",
-            "Retention agent for at-risk accounts",
-            "Scheduling agent for meetings and demos",
-            "Support agent for FAQs and knowledge base"
-        ]
-    },
-    playbooks: [
-        "Lead intake → auto-qualification → owner assignment",
-        "Account discovery → opportunity creation → multi-stage approvals",
-        "Deal movement → signature → close checklist",
-        "Post-close nurture → referral program → expansions"
-    ],
-    integrations: {
-        email_calendar: ["Gmail", "Outlook 365", "Google Calendar", "iCal"],
-        communications: ["Twilio/Voice", "WhatsApp", "SMS", "Slack"],
-        documents: ["Google Drive", "Dropbox", "DocuSign", "Adobe Sign"],
-        marketing: ["HubSpot forms", "Meta Lead Ads", "Google Ads"],
-        data: ["Snowflake", "BigQuery", "S3", "CSV import/export"]
-    },
-    compliance: {
-        regions: ["GDPR (EU/UK)", "CCPA/CPRA (US)", "PIPEDA (CA)", "LGPD (BR)", "PDPA (SG/MY)", "POPIA (ZA)"],
-        capabilities: [
-            "Consent tracking and audit trails",
-            "Data subject rights tooling (export/delete/rectify)",
-            "Encryption at rest and in transit",
-            "Configurable retention policies",
-            "Access controls and approvals"
-        ]
-    },
-    security: {
-        certifications: ["SOC 2 Type II (patterns)", "ISO 27001 aligned practices"],
-        controls: [
-            "RBAC and SSO/SAML/OIDC",
-            "Field-level permissions",
-            "API keys with scoped tokens",
-            "IP allowlists and session policies"
-        ]
-    },
-    onboarding: [
-        "Discovery and requirements mapping",
-        "Data import (CSV/API) and field mapping",
-        "Workflow and pipeline configuration",
-        "Integration setup (email/calendar/voice)",
-        "AI agent tuning and go-live"
-    ],
-    support_sla: {
-        standard: "Business hours support, 24–48h response, knowledge base access",
-        premium: "24/7 support, 1–4h response, dedicated CSM, quarterly reviews"
-    },
     faqs: [
-        { q: "Can we self-host?", a: "Yes. Kubernetes/Helm supported. Cloud hosting also available." },
-        { q: "Is there an API?", a: "Yes. REST and Webhooks with scoped tokens and rate limits." },
-        { q: "Do you offer templates?", a: "Yes. Email, messaging, pipelines, and dashboards templates are included." },
-        { q: "How does AI train?", a: "AI uses organization-specific signals; no cross-tenant data mixing." }
+        { q: "Can we self-host?", a: "Ledger1CRM is a cloud-native SaaS platform designed for maximum reliability and automatic updates. For organizations with specific compliance requirements, we offer dedicated region hosting options that provide the security benefits of cloud infrastructure with data residency controls." },
+        { q: "Is there an API?", a: "Absolutely. Our REST API and Webhooks let you connect Ledger1CRM to virtually any system in your stack. Every integration uses scoped tokens with configurable rate limits, giving you enterprise-grade security without sacrificing flexibility." },
+        { q: "Do you offer local currency and time zone support?", a: "Yes. Ledger1CRM supports multiple currencies, date formats, and time zones out of the box. Your team can work in their local context while the system handles conversions for reporting and collaboration." },
+        { q: "How does AI train on our data?", a: "Your data stays yours. Our AI learns from your organization's patterns and signals, but we never mix data across tenants. Each AI agent adapts specifically to your business, improving over time based on your unique workflows and customer interactions." }
     ]
 };
-
-function BulletList({ items }: { items: string[] }) {
-    return (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-            {items.map((it, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">{it}</span>
-                </li>
-            ))}
-        </ul>
-    );
-}
 
 export default async function LocationPage(props: Props) {
     const params = await props.params;
@@ -165,8 +80,9 @@ export default async function LocationPage(props: Props) {
     const primaryCta = (location?.ctas && location.ctas[0]) || { label: `Get Started in ${location?.name ?? ""}`, url: "https://calendar.google.com/appointments/schedules/AcZssZ2Vduqr0QBnEAM50SeixE8a7kXuKt62zEFjQCQ8_xvoO6iF3hluVQHpaM6RYWMGB110_zM3MUF0" };
 
     return (
-        <div className="min-h-screen bg-background text-foreground font-sans">
+        <div className="min-h-screen bg-[#0F0F1A] text-white font-sans selection:bg-primary/30">
             <MarketingHeader />
+            
             {/* Hero */}
             <section className="relative w-full py-20 md:py-32 overflow-hidden">
                 <GeometricBackground />
@@ -178,12 +94,12 @@ export default async function LocationPage(props: Props) {
                     <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-white via-white/90 to-white/50 drop-shadow-2xl mb-6">
                         {location.hero_title}
                     </h1>
-                    <p className="mx-auto max-w-[800px] text-muted-foreground md:text-xl leading-relaxed mb-8">
+                    <p className="mx-auto max-w-[800px] text-gray-400 md:text-xl leading-relaxed mb-8">
                         {location.description}
                     </p>
                     <div className="flex justify-center gap-4">
                         <Link href={primaryCta.url} target="_blank">
-                            <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                            <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]">
                                 {primaryCta.label} <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </Link>
@@ -201,115 +117,339 @@ export default async function LocationPage(props: Props) {
                 </div>
             </section>
 
-            {/* Local Context Section */}
+            {/* Why Local Businesses Choose Us */}
             <section className="py-24 bg-black/40 backdrop-blur-sm">
-                <div className="container px-4 md:px-6 text-center">
-                    <div className="mx-auto max-w-3xl space-y-8">
-                        <Globe2 className="w-16 h-16 text-primary mx-auto opacity-50" />
-                        <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
-                            Why {location.name} Businesses Choose Us
-                        </h2>
-                        <p className="text-muted-foreground text-xl leading-relaxed">
-                            &quot;{location.context}&quot;
-                        </p>
-                        <p className="text-muted-foreground">
-                            We understand the unique challenges of the {location.name} market. Whether it&apos;s local compliance, currency support, or time-zone specific AI agents, Ledger1CRM is built to help you dominate locally and scale globally.
-                        </p>
+                <div className="container px-4 md:px-6">
+                    <div className="max-w-5xl mx-auto">
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Globe2 className="w-6 h-6 text-primary" />
+                                    <span className="text-primary font-medium">Local Expertise</span>
+                                </div>
+                                <h2 className="text-3xl font-bold mb-6">
+                                    Why {location.name} Businesses Choose Us
+                                </h2>
+                                <p className="text-gray-400 text-lg leading-relaxed mb-6">
+                                    &quot;{location.context}&quot;
+                                </p>
+                                <p className="text-gray-400 leading-relaxed">
+                                    We understand the unique challenges of the {location.name} market. Whether it&apos;s local compliance 
+                                    requirements, currency support, or time-zone optimized AI agents, Ledger1CRM is built to help 
+                                    you dominate locally while scaling globally.
+                                </p>
+                            </div>
+                            <div className="space-y-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="bg-primary/10 p-3 rounded-xl shrink-0">
+                                        <Building className="text-primary w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold mb-1">Local Market Understanding</h3>
+                                        <p className="text-gray-400 text-sm">Our team knows the {location.name} business landscape—the opportunities, the challenges, and what it takes to succeed here.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <div className="bg-primary/10 p-3 rounded-xl shrink-0">
+                                        <Clock className="text-primary w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold mb-1">Time Zone Optimized</h3>
+                                        <p className="text-gray-400 text-sm">AI agents work during your business hours, and support is available when you need it—not on someone else&apos;s schedule.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <div className="bg-primary/10 p-3 rounded-xl shrink-0">
+                                        <Shield className="text-primary w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold mb-1">Regional Compliance</h3>
+                                        <p className="text-gray-400 text-sm">Data residency options and compliance tooling ensure you meet local regulations without extra work.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* Features & Analytics */}
+            {/* AI Agents Section */}
             <section className="py-20">
                 <div className="container px-4 md:px-6">
-                    <div className="grid lg:grid-cols-3 gap-10">
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <PlugZap className="w-6 h-6 text-primary" />
-                                <h3 className="text-2xl font-semibold">Core Features</h3>
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl font-bold mb-4">AI That Works While You Sleep</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Your AI agents don&apos;t take breaks, don&apos;t need coffee, and never forget to follow up. 
+                            They handle the repetitive work so your {location.name} team can focus on building relationships.
+                        </p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+                        <div className="bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-2xl p-6 hover:border-primary/30 transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4">
+                                <Target className="w-6 h-6 text-blue-400" />
                             </div>
-                            <BulletList items={STATIC.features.core} />
+                            <h3 className="font-semibold mb-2">Inbound Triage</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed">
+                                Instantly qualifies new inquiries, routes hot leads to the right rep, and schedules follow-ups—all without human intervention.
+                            </p>
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <LineChart className="w-6 h-6 text-primary" />
-                                <h3 className="text-2xl font-semibold">Analytics</h3>
+                        
+                        <div className="bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-2xl p-6 hover:border-primary/30 transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-4">
+                                <TrendingUp className="w-6 h-6 text-green-400" />
                             </div>
-                            <BulletList items={STATIC.features.analytics} />
+                            <h3 className="font-semibold mb-2">Outbound Nurture</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed">
+                                Keeps leads engaged with personalized outreach, adapting messaging based on engagement signals and moving prospects through your pipeline.
+                            </p>
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Shield className="w-6 h-6 text-primary" />
-                                <h3 className="text-2xl font-semibold">AI Agents</h3>
+                        
+                        <div className="bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-2xl p-6 hover:border-primary/30 transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4">
+                                <HeartHandshake className="w-6 h-6 text-amber-400" />
                             </div>
-                            <BulletList items={STATIC.features.ai_agents} />
+                            <h3 className="font-semibold mb-2">Retention Agent</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed">
+                                Monitors account health and proactively reaches out to at-risk customers before they churn. Surfaces expansion opportunities automatically.
+                            </p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-2xl p-6 hover:border-primary/30 transition-all">
+                            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
+                                <Clock className="w-6 h-6 text-purple-400" />
+                            </div>
+                            <h3 className="font-semibold mb-2">Scheduling Agent</h3>
+                            <p className="text-gray-400 text-sm leading-relaxed">
+                                Handles meeting scheduling so your team never has to. Syncs with calendars, respects availability, and sends reminders that reduce no-shows.
+                            </p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Automation Playbooks */}
-            <section className="py-20 bg-muted/30">
+            {/* Analytics & Insights */}
+            <section className="py-20 bg-black/20 border-y border-white/5">
                 <div className="container px-4 md:px-6">
-                    <h2 className="text-3xl font-bold mb-6">Automation Playbooks</h2>
-                    <BulletList items={STATIC.playbooks} />
+                    <div className="max-w-5xl mx-auto">
+                        <div className="text-center mb-12">
+                            <div className="flex items-center gap-2 justify-center mb-4">
+                                <LineChart className="w-6 h-6 text-primary" />
+                                <span className="text-primary font-medium">Analytics & Insights</span>
+                            </div>
+                            <h2 className="text-3xl font-bold mb-4">See the Full Picture of Your Business</h2>
+                            <p className="text-gray-400 max-w-2xl mx-auto">
+                                Dashboards that tell you something useful—not vanity metrics, but actionable insights 
+                                that help you make better decisions for your {location.name} operations.
+                            </p>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <div className="flex items-start gap-3">
+                                    <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium mb-1">Pipeline Health at a Glance</h4>
+                                        <p className="text-sm text-gray-400">See conversion rates, deal velocity, and bottlenecks across every stage of your sales process.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium mb-1">AI-Powered Forecasting</h4>
+                                        <p className="text-sm text-gray-400">Predict revenue with confidence using models trained on your historical data and market patterns.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-6">
+                                <div className="flex items-start gap-3">
+                                    <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium mb-1">Attribution That Works</h4>
+                                        <p className="text-sm text-gray-400">Finally understand which channels and campaigns actually drive revenue—not just clicks and impressions.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium mb-1">Churn Risk Indicators</h4>
+                                        <p className="text-sm text-gray-400">Identify at-risk accounts before it&apos;s too late with engagement-based health scoring.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Workflow Automation */}
+            <section className="py-20">
+                <div className="container px-4 md:px-6">
+                    <div className="text-center mb-12">
+                        <div className="flex items-center gap-2 justify-center mb-4">
+                            <Workflow className="w-6 h-6 text-primary" />
+                            <span className="text-primary font-medium">Automation</span>
+                        </div>
+                        <h2 className="text-3xl font-bold mb-4">Workflows That Run Themselves</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Stop manually moving deals through stages and chasing follow-ups. Ledger1CRM automates the 
+                            repetitive work so your team can focus on what humans do best—building relationships.
+                        </p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                        <div className="bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-2xl p-8">
+                            <h3 className="text-xl font-semibold mb-4">Lead-to-Customer Journey</h3>
+                            <p className="text-gray-400 mb-6">
+                                From first touch to closed deal, every step can be automated while still feeling personal.
+                            </p>
+                            <div className="space-y-4">
+                                {[
+                                    { step: "New lead comes in", action: "Auto-qualify → route to right rep → create task" },
+                                    { step: "Discovery call completed", action: "Generate opportunity → send follow-up → schedule next" },
+                                    { step: "Proposal sent", action: "Track opens → alert on engagement → auto-nudge" },
+                                    { step: "Deal won", action: "Create project → trigger onboarding → notify team" }
+                                ].map((item, idx) => (
+                                    <div key={idx} className="flex gap-4 items-start">
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-bold shrink-0">
+                                            {idx + 1}
+                                        </span>
+                                        <div>
+                                            <div className="font-medium text-sm">{item.step}</div>
+                                            <div className="text-xs text-gray-500">{item.action}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-b from-white/5 to-transparent border border-white/10 rounded-2xl p-8">
+                            <h3 className="text-xl font-semibold mb-4">Customer Success Playbooks</h3>
+                            <p className="text-gray-400 mb-6">
+                                Keep customers engaged and growing with automated touchpoints and health monitoring.
+                            </p>
+                            <div className="space-y-4">
+                                {[
+                                    { step: "Onboarding kickoff", action: "Welcome sequence → training links → success check-in" },
+                                    { step: "Usage milestone hit", action: "Celebration email → case study invite → referral ask" },
+                                    { step: "Engagement drops", action: "Health alert → proactive outreach → save offer" },
+                                    { step: "Renewal approaching", action: "Review summary → upsell opportunity → renewal process" }
+                                ].map((item, idx) => (
+                                    <div key={idx} className="flex gap-4 items-start">
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-bold shrink-0">
+                                            {idx + 1}
+                                        </span>
+                                        <div>
+                                            <div className="font-medium text-sm">{item.step}</div>
+                                            <div className="text-xs text-gray-500">{item.action}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             {/* Integrations */}
-            <section className="py-20">
+            <section className="py-20 bg-white/5">
                 <div className="container px-4 md:px-6">
-                    <h2 className="text-3xl font-bold mb-10">Integrations</h2>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <div className="rounded-lg border p-6">
-                            <h3 className="font-semibold mb-3">Email & Calendar</h3>
-                            <BulletList items={STATIC.integrations.email_calendar} />
+                    <div className="text-center mb-12">
+                        <div className="flex items-center gap-2 justify-center mb-4">
+                            <PlugZap className="w-6 h-6 text-primary" />
+                            <span className="text-primary font-medium">Integrations</span>
                         </div>
-                        <div className="rounded-lg border p-6">
-                            <h3 className="font-semibold mb-3">Communications</h3>
-                            <BulletList items={STATIC.integrations.communications} />
-                        </div>
-                        <div className="rounded-lg border p-6">
-                            <h3 className="font-semibold mb-3">Documents</h3>
-                            <BulletList items={STATIC.integrations.documents} />
-                        </div>
-                        <div className="rounded-lg border p-6">
-                            <h3 className="font-semibold mb-3">Marketing</h3>
-                            <BulletList items={STATIC.integrations.marketing} />
-                        </div>
-                        <div className="rounded-lg border p-6">
-                            <h3 className="font-semibold mb-3">Data Platforms</h3>
-                            <BulletList items={STATIC.integrations.data} />
-                        </div>
+                        <h2 className="text-3xl font-bold mb-4">Works With Your Existing Stack</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Your CRM should be the hub, not a silo. Ledger1CRM integrates seamlessly with the tools 
+                            your {location.name} team relies on every day.
+                        </p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
+                        {[
+                            { title: "Email & Calendar", items: ["Gmail", "Outlook 365", "Google Calendar", "iCal"], icon: "📧" },
+                            { title: "Communications", items: ["Twilio Voice", "WhatsApp", "SMS", "Slack"], icon: "💬" },
+                            { title: "Documents", items: ["Google Drive", "Dropbox", "DocuSign", "Adobe Sign"], icon: "📄" },
+                            { title: "Marketing", items: ["HubSpot Forms", "Meta Lead Ads", "Google Ads"], icon: "📊" },
+                            { title: "Data", items: ["Snowflake", "BigQuery", "S3", "CSV"], icon: "🗄️" },
+                        ].map((category) => (
+                            <div key={category.title} className="rounded-2xl border border-white/10 bg-[#0F0F1A] p-6 hover:border-primary/30 transition-colors">
+                                <div className="text-2xl mb-3">{category.icon}</div>
+                                <h3 className="font-semibold mb-4 text-primary">{category.title}</h3>
+                                <ul className="space-y-2">
+                                    {category.items.map((item) => (
+                                        <li key={item} className="text-sm text-gray-400">{item}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
 
-            {/* Compliance & Security */}
-            <section className="py-20 bg-muted/30">
+            {/* Security & Compliance */}
+            <section className="py-20">
                 <div className="container px-4 md:px-6">
-                    <div className="grid md:grid-cols-2 gap-8">
-                        <div className="rounded-lg border p-6">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Shield className="w-6 h-6 text-primary" />
-                                <h3 className="text-2xl font-semibold">Compliance</h3>
-                            </div>
-                            <BulletList items={STATIC.compliance.regions} />
-                            <div className="mt-6">
-                                <h4 className="font-semibold mb-2">Capabilities</h4>
-                                <BulletList items={STATIC.compliance.capabilities} />
-                            </div>
+                    <div className="max-w-5xl mx-auto">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl font-bold mb-4">Enterprise-Grade Security</h2>
+                            <p className="text-gray-400 max-w-2xl mx-auto">
+                                Your customer data is your most valuable asset. We protect it with the same rigor 
+                                as the world&apos;s largest enterprises, with compliance built in from day one.
+                            </p>
                         </div>
-                        <div className="rounded-lg border p-6">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Shield className="w-6 h-6 text-primary" />
-                                <h3 className="text-2xl font-semibold">Security</h3>
+                        
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="rounded-2xl border border-white/10 bg-[#0F0F1A] p-8">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                        <Globe2 className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <h3 className="text-xl font-semibold">Global Compliance</h3>
+                                </div>
+                                <p className="text-gray-400 mb-6">
+                                    Whether you&apos;re serving customers locally in {location.name} or expanding globally, 
+                                    Ledger1CRM helps you stay compliant with data protection regulations wherever you operate.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {["GDPR", "CCPA", "PIPEDA", "LGPD", "PDPA", "POPIA"].map((cert) => (
+                                        <span key={cert} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm text-gray-300">
+                                            {cert}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
-                            <h4 className="font-semibold mb-2">Certifications</h4>
-                            <BulletList items={STATIC.security.certifications} />
-                            <div className="mt-6">
-                                <h4 className="font-semibold mb-2">Controls</h4>
-                                <BulletList items={STATIC.security.controls} />
+                            
+                            <div className="rounded-2xl border border-white/10 bg-[#0F0F1A] p-8">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                        <Lock className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <h3 className="text-xl font-semibold">Security Controls</h3>
+                                </div>
+                                <p className="text-gray-400 mb-6">
+                                    From SSO to field-level permissions, we give you granular control over who can 
+                                    access what—without making security a bottleneck.
+                                </p>
+                                <ul className="space-y-3">
+                                    <li className="flex items-center gap-2 text-sm text-gray-300">
+                                        <CheckCircle className="w-4 h-4 text-primary" />
+                                        SSO with SAML and OIDC support
+                                    </li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-300">
+                                        <CheckCircle className="w-4 h-4 text-primary" />
+                                        Role-based access control (RBAC)
+                                    </li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-300">
+                                        <CheckCircle className="w-4 h-4 text-primary" />
+                                        Encryption at rest and in transit
+                                    </li>
+                                    <li className="flex items-center gap-2 text-sm text-gray-300">
+                                        <CheckCircle className="w-4 h-4 text-primary" />
+                                        API keys with scoped tokens
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -317,46 +457,98 @@ export default async function LocationPage(props: Props) {
             </section>
 
             {/* Onboarding */}
-            <section className="py-20">
+            <section className="py-20 bg-white/5">
                 <div className="container px-4 md:px-6">
-                    <h2 className="text-3xl font-bold mb-6">Onboarding Process</h2>
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {STATIC.onboarding.map((step, idx) => (
-                            <li key={idx} className="rounded-lg border p-4 flex items-start gap-3">
-                                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">{idx + 1}</span>
-                                <span className="text-muted-foreground">{step}</span>
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="max-w-5xl mx-auto">
+                        <div className="grid lg:grid-cols-2 gap-12 items-center">
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Zap className="w-6 h-6 text-primary" />
+                                    <span className="text-primary font-medium">Quick Setup</span>
+                                </div>
+                                <h2 className="text-3xl font-bold mb-6">
+                                    Up and Running in Days, Not Months
+                                </h2>
+                                <p className="text-gray-400 leading-relaxed mb-6">
+                                    We&apos;ve streamlined the onboarding process to get your {location.name} team productive fast. 
+                                    Most teams complete setup in under a week—including data migration, integration setup, and team training.
+                                </p>
+                                <p className="text-gray-400 leading-relaxed">
+                                    Our implementation specialists will help you configure Ledger1CRM to match exactly 
+                                    how your team works, with support during your local business hours.
+                                </p>
+                            </div>
+                            <div className="space-y-4">
+                                {[
+                                    { step: 1, title: "Discovery & Planning", desc: "We map your current processes and design the ideal setup." },
+                                    { step: 2, title: "Data Migration", desc: "Import your contacts, deals, and history with field-level mapping." },
+                                    { step: 3, title: "Configuration", desc: "Set up pipelines, automations, and AI agents for your workflows." },
+                                    { step: 4, title: "Integration Setup", desc: "Connect your email, calendar, and other essential tools." },
+                                    { step: 5, title: "Team Training", desc: "Get your team comfortable and productive with hands-on sessions." },
+                                ].map((item) => (
+                                    <div key={item.step} className="flex gap-4 p-4 rounded-xl border border-white/10 bg-[#0F0F1A] hover:border-primary/30 transition-colors">
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+                                            {item.step}
+                                        </span>
+                                        <div>
+                                            <h4 className="font-semibold text-white mb-1">{item.title}</h4>
+                                            <p className="text-sm text-gray-400">{item.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            {/* Support & SLA */}
-            <section className="py-20 bg-muted/30">
+            {/* Support */}
+            <section className="py-20">
                 <div className="container px-4 md:px-6">
-                    <h2 className="text-3xl font-bold mb-6">Support & SLA</h2>
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div className="rounded-lg border p-6">
-                            <h3 className="text-xl font-semibold mb-2">Standard</h3>
-                            <p className="text-muted-foreground">{STATIC.support_sla.standard}</p>
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold mb-4">Support That Has Your Back</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Every customer gets real support from real humans—available during {location.name} business hours. 
+                            Choose the level that fits your needs.
+                        </p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                        <div className="rounded-2xl border border-white/10 bg-[#0F0F1A] p-8">
+                            <h3 className="text-xl font-semibold mb-2 text-primary">Standard Support</h3>
+                            <p className="text-gray-400 leading-relaxed">
+                                Business hours coverage with 24-48 hour response times. Full access to our knowledge base, 
+                                video tutorials, and community forums. Perfect for teams who are comfortable self-serving 
+                                most questions.
+                            </p>
                         </div>
-                        <div className="rounded-lg border p-6">
-                            <h3 className="text-xl font-semibold mb-2">Premium</h3>
-                            <p className="text-muted-foreground">{STATIC.support_sla.premium}</p>
+                        <div className="rounded-2xl border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent p-8">
+                            <h3 className="text-xl font-semibold mb-2 text-primary">Premium Support</h3>
+                            <p className="text-gray-400 leading-relaxed">
+                                24/7 coverage with 1-4 hour response times. Your dedicated Customer Success Manager 
+                                conducts quarterly business reviews and proactive optimization sessions. Ideal for 
+                                teams where CRM uptime is business-critical.
+                            </p>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* FAQs */}
-            <section className="py-20">
+            <section className="py-20 bg-white/5">
                 <div className="container px-4 md:px-6">
-                    <h2 className="text-3xl font-bold mb-10">Frequently Asked Questions</h2>
-                    <div className="grid md:grid-cols-2 gap-8">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold mb-4">Common Questions</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Got questions about using Ledger1CRM in {location.name}? Here are answers to what we hear most often.
+                        </p>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                         {STATIC.faqs.map((faq, idx) => (
-                            <div key={idx} className="rounded-lg border p-6">
-                                <h3 className="font-semibold mb-2">{faq.q}</h3>
-                                <p className="text-muted-foreground">{faq.a}</p>
+                            <div key={idx} className="rounded-2xl border border-white/10 bg-[#0F0F1A] p-6">
+                                <h3 className="font-semibold mb-3 text-white">{faq.q}</h3>
+                                <p className="text-gray-400 leading-relaxed">{faq.a}</p>
                             </div>
                         ))}
                     </div>
@@ -364,15 +556,16 @@ export default async function LocationPage(props: Props) {
             </section>
 
             {/* Final CTA */}
-            <section className="py-20 bg-black/40 backdrop-blur-sm">
+            <section className="py-20 bg-black/20 border-t border-white/5">
                 <div className="container px-4 md:px-6 text-center">
-                    <h2 className="text-3xl font-bold mb-6">Ready to Get Started?</h2>
-                    <p className="text-muted-foreground mb-8">
-                        Ledger1CRM helps {location.name} businesses grow with AI-native workflows, world-class security, and flexible integrations.
+                    <h2 className="text-3xl font-bold mb-6">Ready to Grow Your {location.name} Business?</h2>
+                    <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
+                        Join the {location.name} businesses who&apos;ve already made the switch to AI-native CRM. 
+                        See exactly how Ledger1CRM can help you close more deals and keep customers longer.
                     </p>
                     <div className="flex justify-center">
                         <Link href={primaryCta.url} target="_blank">
-                            <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                            <Button size="lg" className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]">
                                 {primaryCta.label} <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </Link>

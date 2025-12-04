@@ -1,6 +1,7 @@
 import React from "react";
 import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
+import TeamVisualization from "../components/TeamVisualization";
 import Image from "next/image";
 
 export const metadata = {
@@ -50,10 +51,7 @@ export default function AboutPage() {
                                 </div>
                             </div>
                             <div className="relative h-[400px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                                {/* Placeholder for office/team image */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/50 to-teal-900/50 flex items-center justify-center">
-                                    <span className="text-white/20 text-4xl font-bold">Office Image</span>
-                                </div>
+                                <TeamVisualization />
                             </div>
                         </div>
                     </div>
