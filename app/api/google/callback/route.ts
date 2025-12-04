@@ -39,13 +39,13 @@ export async function GET(req: Request) {
 
     await exchangeCodeForTokens(userId, code);
 
-    // Redirect back to CRM Dialer (or any integrations page) indicating success
-    const redirectOk = `${origin}/en/crm/dialer?google=connected`;
+    // Redirect back to CRM Leads page indicating success
+    const redirectOk = `${origin}/en/crm/leads?google=connected`;
     return NextResponse.redirect(redirectOk, { status: 302 });
   } catch (e: any) {
     // eslint-disable-next-line no-console
     console.error("[GOOGLE_OAUTH_CALLBACK]", e?.message || e);
-    const redirectErr = `${origin}/en/crm/dialer?google=error`;
+    const redirectErr = `${origin}/en/crm/leads?google=error`;
     return NextResponse.redirect(redirectErr, { status: 302 });
   }
 }

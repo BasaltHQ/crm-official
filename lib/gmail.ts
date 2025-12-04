@@ -26,7 +26,26 @@ function requireEnv(name: string): string {
 export function getOAuth2Client() {
   const clientId = requireEnv("GMAIL_CLIENT_ID");
   const clientSecret = requireEnv("GMAIL_CLIENT_SECRET");
-  const redirectUri = requireEnv("GMAIL_REDIRECT_URI");
+
+  // Resolve redirect URI with a safety override:
+  // If explicit GMAIL_REDIRECT_URI points to localhost but a non-local NEXTAUTH_URL/NEXT_PUBLIC_APP_URL is set,
+  // prefer the non-local base to avoid redirecting users to localhost in production.
+  const explicit = (process.env.GMAIL_REDIRECT_URI || "").trim();
+  const base = ((process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "").trim()).replace(/\/$/, "");
+  const isExplicitLocal = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(explicit);
+  const isBaseNonLocal = !!base && !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(base);
+
+  const redirectUri =
+    (!explicit || (isExplicitLocal && isBaseNonLocal))
+      ? (base ? `${base}/api/google/callback` : "")
+      : explicit;
+
+  if (!redirectUri) {
+    throw new Error(
+      "Missing GMAIL_REDIRECT_URI and unable to derive from base URL (NEXTAUTH_URL/NEXT_PUBLIC_APP_URL)."
+    );
+  }
+
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 }
 

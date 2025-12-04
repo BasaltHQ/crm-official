@@ -228,72 +228,396 @@ const agentTools = [
 ];
 
 /**
- * Visit website and extract comprehensive data
+ * Discover sitemap URLs from a domain
+ */
+async function discoverSitemap(domain: string, page: any): Promise<string[]> {
+  const sitemapUrls: string[] = [];
+  const baseUrl = `https://${domain}`;
+  
+  try {
+    // Try common sitemap locations
+    const sitemapLocations = [
+      `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/sitemap_index.xml`,
+      `${baseUrl}/sitemap/sitemap.xml`,
+    ];
+    
+    // First check robots.txt for sitemap references
+    try {
+      await page.goto(`${baseUrl}/robots.txt`, { waitUntil: "domcontentloaded", timeout: 10000 });
+      const robotsContent = await page.content();
+      const sitemapMatches = robotsContent.match(/Sitemap:\s*(https?:\/\/[^\s]+)/gi);
+      if (sitemapMatches) {
+        sitemapMatches.forEach((match: string) => {
+          const url = match.replace(/Sitemap:\s*/i, '').trim();
+          if (!sitemapLocations.includes(url)) {
+            sitemapLocations.unshift(url); // Add to front as priority
+          }
+        });
+      }
+    } catch (e) {
+      // robots.txt not found, continue
+    }
+    
+    // Try to fetch sitemap
+    for (const sitemapUrl of sitemapLocations) {
+      try {
+        await page.goto(sitemapUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
+        const content = await page.content();
+        
+        // Parse XML sitemap
+        const locMatches = content.match(/<loc>([^<]+)<\/loc>/gi);
+        if (locMatches && locMatches.length > 0) {
+          locMatches.forEach((match: string) => {
+            const url = match.replace(/<\/?loc>/gi, '').trim();
+            if (url.startsWith('http') && !url.endsWith('.xml')) {
+              sitemapUrls.push(url);
+            }
+          });
+          break; // Found valid sitemap
+        }
+      } catch (e) {
+        // Sitemap not found at this location
+      }
+    }
+  } catch (e) {
+    console.log(`Sitemap discovery failed for ${domain}:`, e);
+  }
+  
+  return sitemapUrls.slice(0, 100); // Limit to 100 URLs
+}
+
+/**
+ * Get high-value internal page URLs using heuristics
+ */
+function getHighValuePageUrls(domain: string, sitemapUrls: string[]): string[] {
+  const baseUrl = `https://${domain}`;
+  const highValuePaths = [
+    '/about', '/about-us', '/aboutus', '/about/',
+    '/team', '/our-team', '/leadership', '/people', '/staff',
+    '/contact', '/contact-us', '/contactus', '/contact/',
+    '/careers', '/jobs', '/join-us', '/work-with-us',
+    '/company', '/company/about', '/company/team',
+  ];
+  
+  const urls: string[] = [];
+  
+  // Add high-value paths from heuristics
+  for (const path of highValuePaths) {
+    urls.push(`${baseUrl}${path}`);
+  }
+  
+  // Add relevant URLs from sitemap
+  if (sitemapUrls.length > 0) {
+    const relevantSitemapUrls = sitemapUrls.filter(url => {
+      const lowerUrl = url.toLowerCase();
+      return (
+        lowerUrl.includes('/about') ||
+        lowerUrl.includes('/team') ||
+        lowerUrl.includes('/contact') ||
+        lowerUrl.includes('/careers') ||
+        lowerUrl.includes('/leadership') ||
+        lowerUrl.includes('/people') ||
+        lowerUrl.includes('/staff') ||
+        lowerUrl.includes('/company')
+      );
+    });
+    urls.push(...relevantSitemapUrls);
+  }
+  
+  // Deduplicate
+  return Array.from(new Set(urls));
+}
+
+/**
+ * Dismiss common overlays, cookie banners, and popups
+ */
+async function dismissOverlays(page: any): Promise<void> {
+  try {
+    await page.evaluate(() => {
+      // Common cookie/consent selectors
+      const dismissSelectors = [
+        '[class*="cookie"] button',
+        '[class*="consent"] button',
+        '[class*="popup"] button[class*="close"]',
+        '[class*="modal"] button[class*="close"]',
+        '[class*="overlay"] button[class*="close"]',
+        '[aria-label*="close"]',
+        '[aria-label*="dismiss"]',
+        '[aria-label*="accept"]',
+        'button[class*="accept"]',
+        'button[class*="agree"]',
+        '#onetrust-accept-btn-handler',
+        '.cc-btn.cc-dismiss',
+        '.gdpr-accept',
+        '.cookie-accept',
+      ];
+      
+      for (const selector of dismissSelectors) {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach((el: any) => {
+            if (el && typeof el.click === 'function') {
+              el.click();
+            }
+          });
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
+      // Remove overlay elements that might block content
+      const overlaySelectors = [
+        '[class*="cookie-banner"]',
+        '[class*="cookie-notice"]',
+        '[class*="gdpr"]',
+        '[id*="cookie"]',
+        '[class*="overlay"][style*="fixed"]',
+      ];
+      
+      for (const selector of overlaySelectors) {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach((el: any) => {
+            if (el && el.parentNode) {
+              el.parentNode.removeChild(el);
+            }
+          });
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+    });
+  } catch (e) {
+    // Overlay dismissal failed, continue anyway
+  }
+}
+
+/**
+ * Extract page data (emails, phones, social links, tech stack)
+ */
+async function extractPageData(page: any): Promise<{
+  title: string;
+  description: string;
+  emails: string[];
+  phones: string[];
+  socialLinks: { [key: string]: string };
+  techStack: string[];
+  internalLinks: string[];
+}> {
+  return page.evaluate(() => {
+    const result: any = {
+      title: document.title,
+      description: "",
+      emails: [],
+      phones: [],
+      socialLinks: {},
+      techStack: [],
+      internalLinks: []
+    };
+    
+    // Meta description
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) result.description = metaDesc.getAttribute('content') || "";
+    
+    // Extract all emails - check both text and mailto links
+    const emailPattern = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+    const bodyText = document.body.textContent || '';
+    const emailMatches: string[] = [];
+    const bodyEmailMatches = bodyText.match(emailPattern);
+    if (bodyEmailMatches) {
+      for (const e of bodyEmailMatches) {
+        emailMatches.push(e);
+      }
+    }
+    
+    // Also get emails from mailto links
+    const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
+    mailtoLinks.forEach((a) => {
+      const href = (a as HTMLAnchorElement).href;
+      const email = href.replace('mailto:', '').split('?')[0];
+      if (email && email.includes('@')) {
+        emailMatches.push(email);
+      }
+    });
+    
+    // Filter out common non-person emails
+    const filteredEmails = Array.from(new Set(emailMatches)).filter(email => {
+      const lower = email.toLowerCase();
+      // Keep info@, contact@, sales@ etc but filter obvious junk
+      return !lower.includes('example.com') &&
+             !lower.includes('domain.com') &&
+             !lower.includes('email.com') &&
+             !lower.includes('@sentry') &&
+             !lower.includes('@wix') &&
+             !lower.includes('@squarespace') &&
+             !lower.endsWith('.png') &&
+             !lower.endsWith('.jpg');
+    });
+    result.emails = filteredEmails.slice(0, 20);
+    
+    // Extract phones - more comprehensive patterns
+    const phonePatterns = [
+      /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+      /\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g,
+    ];
+    const allPhones: string[] = [];
+    for (const pattern of phonePatterns) {
+      const matches = bodyText.match(pattern);
+      if (matches) {
+        for (const m of matches) {
+          allPhones.push(m);
+        }
+      }
+    }
+    result.phones = Array.from(new Set(allPhones)).slice(0, 10);
+    
+    // Tech stack detection - expanded
+    const html = document.documentElement.outerHTML.toLowerCase();
+    const techIndicators: { [key: string]: string[] } = {
+      'React': ['react', '_reactroot', '__react'],
+      'Vue.js': ['vue', '__vue__'],
+      'Angular': ['ng-app', 'ng-version', 'angular'],
+      'WordPress': ['wp-content', 'wordpress'],
+      'Shopify': ['shopify', 'cdn.shopify'],
+      'Next.js': ['__next', '_next/static'],
+      'Gatsby': ['gatsby', '___gatsby'],
+      'Laravel': ['laravel'],
+      'Ruby on Rails': ['rails', 'turbolinks'],
+      'Django': ['csrfmiddlewaretoken', 'django'],
+      'HubSpot': ['hubspot', 'hs-script'],
+      'Salesforce': ['salesforce', 'pardot'],
+      'Marketo': ['marketo', 'munchkin'],
+      'Intercom': ['intercom'],
+      'Zendesk': ['zendesk'],
+      'Drift': ['drift'],
+    };
+    
+    Object.entries(techIndicators).forEach(([tech, indicators]) => {
+      for (const indicator of indicators) {
+        if (html.includes(indicator)) {
+          result.techStack.push(tech);
+          break;
+        }
+      }
+    });
+    
+    // Social links - expanded
+    const socialPatterns = [
+      { name: 'linkedin', pattern: /linkedin\.com/i },
+      { name: 'twitter', pattern: /twitter\.com|x\.com/i },
+      { name: 'facebook', pattern: /facebook\.com/i },
+      { name: 'instagram', pattern: /instagram\.com/i },
+      { name: 'youtube', pattern: /youtube\.com/i },
+      { name: 'github', pattern: /github\.com/i },
+    ];
+    
+    document.querySelectorAll('a[href]').forEach((a) => {
+      const href = (a as HTMLAnchorElement).href;
+      for (const social of socialPatterns) {
+        if (social.pattern.test(href) && !result.socialLinks[social.name]) {
+          result.socialLinks[social.name] = href;
+        }
+      }
+    });
+    
+    // Internal links for potential deep crawling
+    const currentHost = window.location.hostname;
+    document.querySelectorAll('a[href]').forEach((a) => {
+      const href = (a as HTMLAnchorElement).href;
+      try {
+        const linkUrl = new URL(href);
+        if (linkUrl.hostname === currentHost && 
+            !href.includes('#') && 
+            !href.match(/\.(pdf|jpg|png|gif|css|js)$/i)) {
+          result.internalLinks.push(href);
+        }
+      } catch (e) {
+        // Invalid URL
+      }
+    });
+    result.internalLinks = Array.from(new Set(result.internalLinks)).slice(0, 50);
+    
+    return result;
+  });
+}
+
+/**
+ * Visit website with deep crawling - visits multiple pages for maximum contact extraction
  */
 async function visitWebsiteForAgent(url: string): Promise<any> {
   const browser = await launchBrowser();
   try {
     const page = await newPageWithDefaults(browser);
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    const data = await page.evaluate(() => {
-      const result: any = {
-        title: document.title,
-        description: "",
-        contacts: [],
-        socialLinks: {},
-        techStack: [],
-        emails: [],
-        phones: []
-      };
-
-      // Meta description
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) result.description = metaDesc.getAttribute('content');
-
-      // Extract all emails
-      const emailPattern = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
-      const bodyText = document.body.textContent || '';
-      const emailMatches = bodyText.match(emailPattern);
-      if (emailMatches) {
-        result.emails = Array.from(new Set(emailMatches)).slice(0, 10);
+    const domain = extractDomain(url);
+    
+    // Aggregate data from all pages
+    const aggregatedData: any = {
+      title: "",
+      description: "",
+      contacts: [],
+      socialLinks: {},
+      techStack: [],
+      emails: [],
+      phones: [],
+      pagesVisited: [],
+      errors: []
+    };
+    
+    // Step 1: Visit homepage
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await dismissOverlays(page);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const homeData = await extractPageData(page);
+      aggregatedData.title = homeData.title;
+      aggregatedData.description = homeData.description;
+      aggregatedData.emails.push(...homeData.emails);
+      aggregatedData.phones.push(...homeData.phones);
+      aggregatedData.techStack.push(...homeData.techStack);
+      Object.assign(aggregatedData.socialLinks, homeData.socialLinks);
+      aggregatedData.pagesVisited.push(url);
+    } catch (e) {
+      aggregatedData.errors.push(`Homepage: ${(e as Error).message}`);
+    }
+    
+    // Step 2: Discover sitemap
+    const sitemapUrls = await discoverSitemap(domain, page);
+    
+    // Step 3: Get high-value page URLs
+    const highValueUrls = getHighValuePageUrls(domain, sitemapUrls);
+    
+    // Step 4: Visit high-value pages (limit to 5 for performance)
+    const pagesToVisit = highValueUrls
+      .filter(u => !aggregatedData.pagesVisited.includes(u))
+      .slice(0, 5);
+    
+    for (const pageUrl of pagesToVisit) {
+      try {
+        await page.goto(pageUrl, { waitUntil: "domcontentloaded", timeout: 12000 });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await dismissOverlays(page);
+        
+        const pageData = await extractPageData(page);
+        aggregatedData.emails.push(...pageData.emails);
+        aggregatedData.phones.push(...pageData.phones);
+        aggregatedData.techStack.push(...pageData.techStack);
+        Object.assign(aggregatedData.socialLinks, pageData.socialLinks);
+        aggregatedData.pagesVisited.push(pageUrl);
+      } catch (e) {
+        // Page failed to load, continue to next
+        aggregatedData.errors.push(`${pageUrl}: ${(e as Error).message}`);
       }
-
-      // Extract phones
-      const phonePattern = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
-      const phoneMatches = bodyText.match(phonePattern);
-      if (phoneMatches) {
-        result.phones = Array.from(new Set(phoneMatches)).slice(0, 5);
-      }
-
-      // Tech stack detection
-      const html = document.documentElement.outerHTML.toLowerCase();
-      const techIndicators: { [key: string]: string } = {
-        'React': 'react',
-        'Vue.js': 'vue',
-        'Angular': 'ng-app',
-        'WordPress': 'wp-content',
-        'Shopify': 'shopify',
-        'Next.js': '__next'
-      };
-
-      Object.entries(techIndicators).forEach(([tech, indicator]) => {
-        if (html.includes(indicator)) result.techStack.push(tech);
-      });
-
-      // Social links
-      document.querySelectorAll('a[href*="linkedin.com"], a[href*="twitter.com"], a[href*="facebook.com"]').forEach((a) => {
-        const href = (a as HTMLAnchorElement).href;
-        if (href.includes('linkedin.com')) result.socialLinks.linkedin = href;
-        else if (href.includes('twitter.com')) result.socialLinks.twitter = href;
-        else if (href.includes('facebook.com')) result.socialLinks.facebook = href;
-      });
-
-      return result;
-    });
-
-    return data;
+    }
+    
+    // Deduplicate results
+    aggregatedData.emails = Array.from(new Set(aggregatedData.emails as string[]));
+    aggregatedData.phones = Array.from(new Set(aggregatedData.phones as string[]));
+    aggregatedData.techStack = Array.from(new Set(aggregatedData.techStack as string[]));
+    
+    return aggregatedData;
   } catch (error) {
     return { error: (error as Error).message };
   } finally {
