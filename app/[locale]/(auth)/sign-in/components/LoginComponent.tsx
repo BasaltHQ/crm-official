@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 
@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -54,6 +54,15 @@ export function LoginComponent() {
   const router = useRouter();
   const locale = useLocale();
   const dashboardPath = `/${locale}/dashboard`;
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("loggedOut")) {
+      toast({
+        description: "You have been logged out.",
+      });
+    }
+  }, [searchParams, toast]);
 
   const formSchema = z.object({
     email: z.string().min(3).max(50),

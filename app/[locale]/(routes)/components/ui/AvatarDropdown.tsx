@@ -15,6 +15,7 @@ import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import useAvatarStore from "@/store/useAvatarStore";
+import { useLocale } from "next-intl";
 
 type Props = {
   avatar: string;
@@ -25,6 +26,7 @@ type Props = {
 
 const AvatarDropdown = ({ avatar, userId, name, email }: Props) => {
   const router = useRouter();
+  const locale = useLocale();
   const setAvatar = useAvatarStore((state) => state.setAvatar);
   const getAvatar = useAvatarStore((state) => state.avatar);
   const [newAvatar, setNewAvatar] = useState(getAvatar);
@@ -72,7 +74,7 @@ const AvatarDropdown = ({ avatar, userId, name, email }: Props) => {
           <span>Profile settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
+        <DropdownMenuItem onClick={() => signOut({ callbackUrl: `/${locale}/sign-in?loggedOut=true` })}>
           <LogOut className="w-4 h-4 inline-block mr-2 stroke-current text-gray-500" />
           <span>Sign out</span>
         </DropdownMenuItem>

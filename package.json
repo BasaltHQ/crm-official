@@ -137,6 +137,7 @@
       "canvas",
       "cypress",
       "prisma",
+      "protobufjs",
       "puppeteer",
       "sharp"
     ]
