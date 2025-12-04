@@ -30,7 +30,7 @@ export default function FeaturesPage() {
                             Discover how our AI-driven tools can transform your sales and support workflows.
                         </p>
                         <div className="flex justify-center gap-4">
-                            <Link href="/dashboard">
+                            <Link href="/pricing">
                                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]">
                                     Get Started
                                 </Button>
@@ -202,6 +202,16 @@ export default function FeaturesPage() {
                                     <AnalyticsGraph />
                                 </div>
                             </div>
+                        </div>
+                        <div className="text-center mt-[74px]">
+                            <p className="text-xl text-gray-400 mb-6">
+                                Ready to unlock these capabilities?
+                            </p>
+                            <Link href="/pricing">
+                                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all">
+                                    Compare Plans
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </section>

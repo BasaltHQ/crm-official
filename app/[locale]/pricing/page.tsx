@@ -200,6 +200,40 @@ export default function PricingPage() {
                         </motion.div>
                     </AnimatePresence>
                 </section>
+                {/* Optional Add-ons */}
+                <section className="container mx-auto px-4 max-w-5xl mb-24">
+                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/10 via-cyan-500/10 to-primary/10 border border-primary/30 p-1">
+                        <div className="bg-[#0A0A12] rounded-3xl p-8 md:p-10 backdrop-blur-xl">
+                            <h3 className="text-2xl md:text-3xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
+                                Power Up with Add-ons
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                                <div className="flex items-start space-x-4 bg-white/5 p-6 rounded-2xl border border-white/10 hover:border-primary/50 transition-all group">
+                                    <div className="bg-gradient-to-br from-primary/30 to-cyan-500/30 p-3 rounded-xl group-hover:scale-110 transition-transform">
+                                        <Check className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-semibold mb-2 text-white group-hover:text-primary transition-colors">VoiceHub AI Calling</h4>
+                                        <p className="text-gray-400 text-sm leading-relaxed">
+                                            Billed per minute. Scale your outreach with unlimited AI agents available 24/7.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start space-x-4 bg-white/5 p-6 rounded-2xl border border-white/10 hover:border-primary/50 transition-all group">
+                                    <div className="bg-gradient-to-br from-primary/30 to-cyan-500/30 p-3 rounded-xl group-hover:scale-110 transition-transform">
+                                        <Check className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-semibold mb-2 text-white group-hover:text-primary transition-colors">SMS Campaigns</h4>
+                                        <p className="text-gray-400 text-sm leading-relaxed">
+                                            Available as an add-on. Reach your customers directly on their phones with high-converting SMS sequences.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 {/* Feature Comparison Table */}
                 <section className="container mx-auto px-4 max-w-7xl mb-24">
@@ -221,33 +255,90 @@ export default function PricingPage() {
                     </AnimatePresence>
                 </section>
 
-                {/* Add-on Box */}
-                <section className="container mx-auto px-4 max-w-4xl">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-8 md:p-12 backdrop-blur-sm">
-                        <h3 className="text-2xl font-bold mb-6 text-center">Optional Add-ons</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="flex items-start space-x-4">
-                                <div className="bg-primary/20 p-3 rounded-lg">
-                                    <Check className="h-6 w-6 text-primary" />
+
+
+                {/* Get in Touch CTA */}
+                <section className="container mx-auto px-4 max-w-4xl mb-24">
+                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-purple-500/10 to-pink-500/10 border border-primary/30 p-1">
+                        <div className="bg-[#0A0A12] rounded-3xl p-8 md:p-12 backdrop-blur-xl">
+                            <div className="text-center mb-10">
+                                <h2 className="text-3xl md:text-4xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary via-purple-400 to-pink-400">
+                                    Have Questions? Let's Talk
+                                </h2>
+                                <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                                    Our team is here to help you find the perfect plan for your business. Get in touch and we'll respond within 24 hours.
+                                </p>
+                            </div>
+
+                            <form className="space-y-6 max-w-2xl mx-auto">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+                                            Full Name *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="name"
+                                            name="name"
+                                            required
+                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                                            placeholder="John Doe"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                                            Work Email *
+                                        </label>
+                                        <input
+                                            type="email"
+                                            id="email"
+                                            name="email"
+                                            required
+                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                                            placeholder="john@company.com"
+                                        />
+                                    </div>
                                 </div>
+
                                 <div>
-                                    <h4 className="text-lg font-semibold mb-2">VoiceHub AI Calling</h4>
-                                    <p className="text-gray-400 text-sm">
-                                        Billed per minute. Scale your outreach with unlimited AI agents available 24/7.
+                                    <label htmlFor="company" className="block text-sm font-medium text-gray-300 mb-2">
+                                        Company Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="company"
+                                        name="company"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                                        placeholder="Your Company"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-2">
+                                        How can we help? *
+                                    </label>
+                                    <textarea
+                                        id="message"
+                                        name="message"
+                                        required
+                                        rows={4}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all resize-none"
+                                        placeholder="Tell us about your needs..."
+                                    />
+                                </div>
+
+                                <div className="text-center pt-4">
+                                    <Button
+                                        type="submit"
+                                        className="bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 text-white px-10 py-6 text-lg rounded-full shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] transition-all duration-300 font-semibold"
+                                    >
+                                        Send Message
+                                    </Button>
+                                    <p className="text-gray-500 text-sm mt-4">
+                                        We'll get back to you within 24 hours
                                     </p>
                                 </div>
-                            </div>
-                            <div className="flex items-start space-x-4">
-                                <div className="bg-primary/20 p-3 rounded-lg">
-                                    <Check className="h-6 w-6 text-primary" />
-                                </div>
-                                <div>
-                                    <h4 className="text-lg font-semibold mb-2">SMS Campaigns</h4>
-                                    <p className="text-gray-400 text-sm">
-                                        Available as an add-on. Reach your customers directly on their phones with high-converting SMS sequences.
-                                    </p>
-                                </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
                 </section>
