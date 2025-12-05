@@ -33,7 +33,7 @@ export default function SupportPage() {
                             title="Documentation"
                             description="Browse our comprehensive guides and tutorials to find answers instantly."
                             actionText="Visit Knowledge Base"
-                            href="#"
+                            href="/docs"
                         />
 
                         {/* Community */}

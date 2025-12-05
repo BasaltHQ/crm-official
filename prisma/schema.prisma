@@ -1045,3 +1045,103 @@ model Project_Opportunities {
 
   assigned_project Boards? @relation(fields: [project], references: [id])
 }
+
+model FooterSection {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  order     Int          @default(0)
+  isBase    Boolean      @default(false)
+  links     FooterLink[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model FooterLink {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  text            String
+  url             String
+  order           Int           @default(0)
+  sectionId       String        @db.ObjectId
+  section         FooterSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model FooterSetting {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  tagline         String   @default("Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.")
+  copyrightText   String   @default("© 2025 Ledger AI. All rights reserved.")
+  socialXUrl      String   @default("https://x.com/Ledger1AI")
+  socialDiscordUrl String   @default("https://discord.gg/vARPqF84Zt")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model BlogPost {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  category    String?
+  author      String?
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model JobPosting {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  department   String
+  location     String
+  type         String   @default("Full-time")
+  description  String
+  requirements String?
+  applyLink    String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model DocArticle {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String   @unique
+  category    String
+  content     String
+  videoUrl    String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SocialSettings {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  // Primary Socials
+  xTwitterUrl       String?  @default("")
+  discordUrl        String?  @default("")
+  linkedinUrl       String?  @default("")
+  instagramUrl      String?  @default("")
+  facebookUrl       String?  @default("")
+  youtubeUrl        String?  @default("")
+  tiktokUrl         String?  @default("")
+  githubUrl         String?  @default("")
+  telegramUrl       String?  @default("")
+  redditUrl         String?  @default("")
+  threadsUrl        String?  @default("")
+  mastodonUrl       String?  @default("")
+  // Contact Info
+  emailSupport      String?  @default("")
+  emailSales        String?  @default("")
+  phoneNumber       String?  @default("")
+  // App Stores
+  appStoreUrl       String?  @default("")
+  playStoreUrl      String?  @default("")
+  // Newsletter/CTA
+  newsletterEnabled Boolean  @default(true)
+  ctaText           String?  @default("Stay Updated")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

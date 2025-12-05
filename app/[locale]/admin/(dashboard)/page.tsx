@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getUser } from "@/actions/get-user";
 
 import { Button } from "@/components/ui/button";
-import Container from "../components/ui/Container";
+import Container from "@/app/[locale]/(routes)/components/ui/Container";
 
 import GptCard from "./_components/GptCard";
 import ResendCard from "./_components/ResendCard";
@@ -32,10 +32,10 @@ const AdminPage = async () => {
     >
       <div className="space-x-2">
         <Button asChild>
-          <Link href="/admin/users">Users administration</Link>
+          <Link href="/cms/users">Users administration</Link>
         </Button>
         <Button asChild>
-          <Link href="/admin/modules">Modules administration</Link>
+          <Link href="/cms/modules">Modules administration</Link>
         </Button>
       </div>
       <div className="flex flex-row flex-wrap space-y-2 md:space-y-0 gap-2">

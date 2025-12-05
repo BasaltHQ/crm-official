@@ -89,6 +89,74 @@ async function main() {
     console.log("GPT Models already seeded");
   }
 
+  // Seed Footer Data
+  const footerSetting = await prisma.footerSetting.findFirst();
+  if (!footerSetting) {
+    await prisma.footerSetting.create({
+      data: {
+        tagline: "Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.",
+        copyrightText: "© 2025 Ledger AI. All rights reserved.",
+        socialXUrl: "https://x.com/Ledger1AI",
+        socialDiscordUrl: "https://discord.gg/vARPqF84Zt",
+      },
+    });
+    console.log("Footer Settings seeded successfully");
+  } else {
+    console.log("Footer Settings already seeded");
+  }
+
+  const footerSections = await prisma.footerSection.findMany();
+  if (footerSections.length === 0) {
+    // Product Section
+    const productSection = await prisma.footerSection.create({
+      data: {
+        title: "Product",
+        order: 1,
+        links: {
+          create: [
+            { text: "Features", url: "/features", order: 1 },
+            { text: "Pricing", url: "/pricing", order: 2 },
+          ],
+        },
+      },
+    });
+
+    // Company Section
+    const companySection = await prisma.footerSection.create({
+      data: {
+        title: "Company",
+        order: 2,
+        links: {
+          create: [
+            { text: "About Us", url: "/about", order: 1 },
+            { text: "Blog", url: "/blog", order: 2 },
+            { text: "Careers", url: "/careers", order: 3 },
+            { text: "Contact", url: "/support", order: 4 },
+          ],
+        },
+      },
+    });
+
+    // Legal Section
+    const legalSection = await prisma.footerSection.create({
+      data: {
+        title: "Legal",
+        order: 3,
+        links: {
+          create: [
+            { text: "Privacy Policy", url: "/privacy", order: 1 },
+            { text: "Terms of Service", url: "/terms", order: 2 },
+            { text: "Cookie Policy", url: "/cookies", order: 3 },
+          ],
+        },
+      },
+    });
+
+    console.log("Footer Sections and Links seeded successfully");
+  } else {
+    console.log("Footer Sections and Links already seeded");
+  }
+
   console.log("-------- Seed DB completed --------");
 }
 

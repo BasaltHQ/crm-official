@@ -4,13 +4,25 @@ import MarketingFooter from "../components/MarketingFooter";
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, DollarSign, Heart, Coffee, Laptop } from "lucide-react";
 import Link from "next/link";
+import { prismadb } from "@/lib/prisma";
 
 export const metadata = {
     title: "Careers - Ledger1CRM",
     description: "Join the team building the future of AI CRM.",
 };
 
-export default function CareersPage() {
+export default async function CareersPage() {
+    const jobs = await prismadb.jobPosting.findMany({
+        where: { active: true },
+        orderBy: { createdAt: "desc" },
+    });
+
+    // Group jobs by department
+    const jobsByDept = jobs.reduce((acc: any, job: any) => {
+        (acc[job.department] = acc[job.department] || []).push(job);
+        return acc;
+    }, {});
+
     return (
         <div className="min-h-screen bg-[#0F0F1A] text-white font-sans selection:bg-primary/30">
             <MarketingHeader />
@@ -77,64 +89,31 @@ export default function CareersPage() {
                     <div className="container mx-auto px-4 max-w-4xl">
                         <h2 className="text-3xl font-bold mb-12 text-center">Open Positions</h2>
 
-                        <div className="space-y-6">
-                            {/* Engineering */}
-                            <div className="mb-8">
-                                <h3 className="text-xl font-bold mb-4 text-primary">Engineering</h3>
-                                <div className="space-y-4">
-                                    <JobCard
-                                        title="Senior Full Stack Engineer"
-                                        department="Engineering"
-                                        location="Remote (US/EU)"
-                                        type="Full-time"
-                                    />
-                                    <JobCard
-                                        title="AI Research Scientist"
-                                        department="AI Lab"
-                                        location="Remote (Global)"
-                                        type="Full-time"
-                                    />
-                                    <JobCard
-                                        title="DevOps Engineer"
-                                        department="Infrastructure"
-                                        location="Remote (US)"
-                                        type="Full-time"
-                                    />
-                                </div>
+                        {jobs.length === 0 ? (
+                            <div className="text-center text-gray-500">
+                                No open positions at the moment. Please check back later!
                             </div>
-
-                            {/* Product */}
-                            <div className="mb-8">
-                                <h3 className="text-xl font-bold mb-4 text-purple-400">Product & Design</h3>
-                                <div className="space-y-4">
-                                    <JobCard
-                                        title="Senior Product Designer"
-                                        department="Design"
-                                        location="Remote (Global)"
-                                        type="Full-time"
-                                    />
-                                    <JobCard
-                                        title="Product Manager"
-                                        department="Product"
-                                        location="Remote (US/EU)"
-                                        type="Full-time"
-                                    />
-                                </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {Object.entries(jobsByDept).map(([dept, deptJobs]: [string, any]) => (
+                                    <div key={dept} className="mb-8">
+                                        <h3 className="text-xl font-bold mb-4 text-primary">{dept}</h3>
+                                        <div className="space-y-4">
+                                            {deptJobs.map((job: any) => (
+                                                <JobCard
+                                                    key={job.id}
+                                                    title={job.title}
+                                                    department={job.department}
+                                                    location={job.location}
+                                                    type={job.type}
+                                                    applyLink={job.applyLink}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-
-                            {/* Sales */}
-                            <div>
-                                <h3 className="text-xl font-bold mb-4 text-green-400">Sales & Marketing</h3>
-                                <div className="space-y-4">
-                                    <JobCard
-                                        title="Account Executive"
-                                        department="Sales"
-                                        location="Remote (US)"
-                                        type="Full-time"
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </section>
             </main>
@@ -154,7 +133,7 @@ function CultureCard({ icon, title, description }: { icon: React.ReactNode; titl
     );
 }
 
-function JobCard({ title, department, location, type }: { title: string; department: string; location: string; type: string }) {
+function JobCard({ title, department, location, type, applyLink }: any) {
     return (
         <div className="bg-white/5 border border-white/10 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between hover:border-primary/30 transition-colors group cursor-pointer">
             <div className="mb-4 md:mb-0">
@@ -164,9 +143,12 @@ function JobCard({ title, department, location, type }: { title: string; departm
                     <span className="flex items-center"><Clock className="h-4 w-4 mr-1" /> {type}</span>
                 </div>
             </div>
-            <Button variant="outline" className="border-white/20 hover:bg-white/10 text-white">
-                Apply Now
-            </Button>
+            <Link href={applyLink || "#"}>
+                <Button variant="outline" className="border-white/20 hover:bg-white/10 text-white">
+                    Apply Now
+                </Button>
+            </Link>
         </div>
     );
 }
+
