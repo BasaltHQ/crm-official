@@ -1,0 +1,63 @@
+import { NextResponse } from "next/server";
+import { prismadb } from "@/lib/prisma";
+
+export async function GET(
+    req: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        if (!params.id) return new NextResponse("Doc ID is required", { status: 400 });
+
+        const doc = await prismadb.docArticle.findUnique({
+            where: { id: params.id },
+        });
+
+        return NextResponse.json(doc);
+    } catch (error) {
+        console.log("[DOC_GET]", error);
+        return new NextResponse("Internal Error", { status: 500 });
+    }
+}
+
+export async function PATCH(
+    req: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const body = await req.json();
+        const { title, slug, category, order, content, videoUrl } = body;
+
+        const doc = await prismadb.docArticle.update({
+            where: { id: params.id },
+            data: {
+                title,
+                slug,
+                category,
+                order,
+                content,
+                videoUrl,
+            },
+        });
+
+        return NextResponse.json(doc);
+    } catch (error) {
+        console.log("[DOC_PATCH]", error);
+        return new NextResponse("Internal Error", { status: 500 });
+    }
+}
+
+export async function DELETE(
+    req: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const doc = await prismadb.docArticle.delete({
+            where: { id: params.id },
+        });
+
+        return NextResponse.json(doc);
+    } catch (error) {
+        console.log("[DOC_DELETE]", error);
+        return new NextResponse("Internal Error", { status: 500 });
+    }
+}

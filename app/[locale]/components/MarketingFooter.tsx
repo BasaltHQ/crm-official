@@ -93,7 +93,7 @@ interface SocialLink {
 export default async function MarketingFooter() {
     const footerSettings = await prismadb.footerSetting.findFirst();
     const socialSettings = await prismadb.socialSettings.findFirst();
-    const sections = await prismadb.footerSection.findMany({
+    const dbSections = await prismadb.footerSection.findMany({
         include: {
             links: {
                 orderBy: { order: "asc" },
@@ -101,6 +101,36 @@ export default async function MarketingFooter() {
         },
         orderBy: { order: "asc" },
     });
+
+    // Ensure Documentation link exists in Support section
+    const sections = dbSections.map((section) => {
+        if (section.title === "Support") {
+            const hasDocs = section.links.some((link) => link.url === "/docs");
+            if (!hasDocs) {
+                return {
+                    ...section,
+                    links: [
+                        ...section.links,
+                        { id: "docs-static", text: "Documentation", url: "/docs", order: 999 },
+                    ],
+                };
+            }
+        }
+        return section;
+    });
+
+    // If no sections found (e.g. fresh DB), add a default Support section
+    if (sections.length === 0) {
+        sections.push({
+            id: "default-support",
+            title: "Support",
+            order: 1,
+            // @ts-ignore - simplified structure for fallback
+            links: [
+                { id: "docs-static", text: "Documentation", url: "/docs", order: 1 }
+            ]
+        } as any);
+    }
 
     const tagline = footerSettings?.tagline || "Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.";
     const copyrightText = footerSettings?.copyrightText || "© 2025 Ledger AI. All rights reserved.";

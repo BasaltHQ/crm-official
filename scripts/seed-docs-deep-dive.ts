@@ -1,0 +1,417 @@
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const docs = [
+    {
+        title: "Introduction to Ledger1CRM",
+        slug: "overview",
+        category: "Overview & Getting Started",
+        order: 1,
+        content: "# Introduction to Ledger1CRM\n\n" +
+            "Welcome to **Ledger1CRM**, the all-in-one Artificial Intelligence-assisted Enterprise Resource Planning (ERP) platform designed specifically to empower Main Street businesses with the sophisticated technology typically reserved for Fortune 500 companies.\n\n" +
+            "## Making Enterprise Tech Accessible\n\n" +
+            "In today's fast-paced digital economy, data is the new oil. However, most small to medium-sized businesses (SMBs) struggle with fragmented systems—using one tool for email, one for invoicing, another for project management, and spreadsheets for everything else. This fragmentation leads to:\n" +
+            "*   **Data Silos**: Information locked in different apps.\n" +
+            "*   **Inefficiency**: Constant context switching.\n" +
+            "*   **Lost Revenue**: Leads falling through the cracks.\n\n" +
+            "**Ledger1CRM solves this** by unifying your entire business operation into a single, intelligent OS.\n\n" +
+            "## Core Capabilities\n\n" +
+            "Ledger1CRM is not just a CRM; it's a complete business engine.\n\n" +
+            "### 1. Sales Intelligence\n" +
+            "Stop guessing. Our AI analyzes your interactions to predict which leads are most likely to convert.\n" +
+            "*   **Pipeline Management**: Visual Kanban boards for deals.\n" +
+            "*   **Automated Scoring**: AI-driven lead scoring based on interaction depth.\n\n" +
+            "### 2. Operational Efficiency\n" +
+            "*   **Project Boards**: Manage tasks, files, and team collaboration in one place.\n" +
+            "*   **Invoicing**: Generate contracts and invoices instantly from closed deals.\n\n" +
+            "### 3. AI-First Design\n" +
+            "We didn't just bolt AI on top; we built the platform around it.\n" +
+            "*   **VoiceHub**: Deploy AI agents that can talk to your customers on the phone.\n" +
+            "*   **Smart Chat**: An omnipresent assistant that knows your business context.\n\n" +
+            "## Navigation Overview\n\n" +
+            "*   **Dashboard**: Your command center with high-level KPIs.\n" +
+            "*   **CRM**: Contacts, Companies, and Deals.\n" +
+            "*   **Projects**: Task management and deliverables.\n" +
+            "*   **VoiceHub**: AI voice agent configuration.\n" +
+            "*   **Documents**: Central file storage and contract management.\n" +
+            "*   **Settings**: System configuration, integrations, and user management.\n\n" +
+            "## Need Help?\n\n" +
+            "Our support team is available 24/7.\n" +
+            "*   **Docs**: You are here!\n" +
+            "*   **Email**: support@ledger1.ai\n" +
+            "*   **Discord**: Join our community for real-time help."
+    },
+    {
+        title: "Initial Setup & Configuration",
+        slug: "setup",
+        category: "Overview & Getting Started",
+        order: 2,
+        content: "# Initial Setup & Configuration\n\n" +
+            "Configure your workspace to match your business processes. Spending a few minutes here will save you hours later.\n\n" +
+            "## 1. Company Profile\n\n" +
+            "Navigate to **Settings > My Account**. This information is critical as it appears on official documents like Invoices and Quotes.\n" +
+            "*   **Company Name**: Legal business name.\n" +
+            "*   **Tax/VAT ID**: Required for compliant invoicing.\n" +
+            "*   **Address**: Global headquarters.\n" +
+            "*   **Currency**: Your primary operating currency (e.g., USD, EUR).\n\n" +
+            "## 2. Branding (White Labeling)\n\n" +
+            "Ledger1CRM allows you to brand the client-facing experience.\n" +
+            "*   **Logo**: Upload a high-resolution PNG (transparent background recommended).\n" +
+            "*   **Colors**: Set your primary brand color. This affects button styles on Invoices and Portals.\n\n" +
+            "## 3. Integrations\n\n" +
+            "Connect your ecosystem in **Settings > Integrations**.\n\n" +
+            "### Google Workspace\n" +
+            "Connect your Google Account to enable:\n" +
+            "*   **Email Sync**: Two-way sync of email threads attached to contacts.\n" +
+            "*   **Calendar**: View and edit your Google Calendar directly in the CRM.\n\n" +
+            "### OpenAI (Optional)\n" +
+            "By default, Ledger1CRM uses a shared pool of AI credits. For heavy usage, input your own API Key:\n" +
+            "1.  Go to [platform.openai.com](https://platform.openai.com).\n" +
+            "2.  Generate a new Secret Key.\n" +
+            "3.  Paste it into **Settings > Integrations > OpenAI**.\n\n" +
+            "## 4. User Management\n\n" +
+            "Invite your team in **Admin > Users**.\n" +
+            "*   **Roles**:\n" +
+            "    *   **Admin**: Full access to all settings and data.\n" +
+            "    *   **Manager**: Can view all data but cannot change system settings.\n" +
+            "    *   **Sales**: Can only view their own leads and opportunities (if \"Private\" mode is on).\n" +
+            "*   **Invitation**: Users receive an email with a secure link to set their password.\n\n" +
+            "## 5. Module Selection\n\n" +
+            "Keep your interface clean by enabling only what you use in **Settings > Modules**.\n" +
+            "*   *Recommended for Sales Teams*: CRM, VoiceHub, Inbox.\n" +
+            "*   *Recommended for Agencies*: CRM, Projects, Invoicing."
+    },
+    {
+        title: "Contacts & Accounts Deep Dive",
+        slug: "contacts-deep-dive",
+        category: "CRM Core",
+        order: 3,
+        content: "# Contacts & Accounts: The Relationship Engine\n\n" +
+            "Manage your business ecosystem with granular control over people and organizations.\n\n" +
+            "## The Data Model\n\n" +
+            "Ledger1CRM uses a B2B data model:\n" +
+            "*   **Accounts**: Organizations, Companies, or Households. This is the parent entity.\n" +
+            "*   **Contacts**: Individuals. A contact can be standalone or linked to an Account.\n\n" +
+            "## Managing Accounts\n\n" +
+            "### Creating an Account\n" +
+            "1.  Click **+ New** in the top nav or **New Account** in the Accounts list.\n" +
+            "2.  **Enrichment**: Enter a domain (e.g., `tesla.com`), and our AI will attempt to auto-fill details like Industry, Revenue, and Address.\n\n" +
+            "### The Account View\n" +
+            "The 360-degree view gives you everything you need to know:\n" +
+            "*   **Header**: Key stats (Total Revenue, Open Deals).\n" +
+            "*   **Timeline**: A chronological history of every email, call, note, and task.\n" +
+            "*   **Related Lists**: Linked Contacts, Opportunities, and Invoices.\n\n" +
+            "## Managing Contacts\n\n" +
+            "### Segmentation\n" +
+            "Don't just stare at a list. Use **Smart Views** to segment your audience.\n" +
+            "*   *Example*: \"CEOs in California\" -> Filter by `Job Title contains CEO` AND `Location contains CA`.\n" +
+            "*   **Save View**: Save detailed filters as a dedicated tab for quick access.\n\n" +
+            "### Activity Logging\n" +
+            "*   **Email**: Send emails directly from the contact card. Templates are available for standard responses.\n" +
+            "*   **Calls**: If using VoiceHub, call logs and recordings appear automatically.\n" +
+            "*   **Notes**: Use `@mentions` to notify team members in a note (e.g., \"@Sarah check this out\").\n\n" +
+            "## Importing Data\n\n" +
+            "Migrating from Salesforce or HubSpot?\n" +
+            "1.  Go to **Settings > Import**.\n" +
+            "2.  Upload a **CSV** file.\n" +
+            "3.  **Map Fields**: Match your CSV columns to Ledger1CRM fields.\n" +
+            "4.  **Review**: The system will flag duplicates before finalizing the import."
+    },
+    {
+        title: "Leads & Pipeline Management",
+        slug: "leads-pipeline",
+        category: "CRM Core",
+        order: 4,
+        content: "# Leads & Pipeline: Accelerating Revenue\n\n" +
+            "Turn cold prospects into loyal customers using our visual pipeline and AI tools.\n\n" +
+            "## Lead vs. Opportunity\n\n" +
+            "It is crucial to understand the distinction:\n" +
+            "*   **Lead**: Unqualified potential. A name on a list. They might not be interested yet.\n" +
+            "*   **Opportunity (Deal)**: A qualified prospect with a defined value and timeline. They are actively engaged in a buying cycle.\n\n" +
+            "## Lead Management\n\n" +
+            "### Best Practices\n" +
+            "1.  **Speed to Lead**: Use the **Lead Inbox** to see new inquiries immediately.\n" +
+            "2.  **Qualification**: Use the BANT framework (Budget, Authority, Need, Timeline) in your notes.\n" +
+            "3.  **Conversion**: Once a lead is qualified, click **Convert**. This performs three actions:\n" +
+            "    *   Creates a **Contact**.\n" +
+            "    *   Creates an **Account**.\n" +
+            "    *   (Optional) Creates an **Opportunity**.\n\n" +
+            "## Opportunity Pipeline\n\n" +
+            "### Kanban View\n" +
+            "The drag-and-drop interface allows you to move deals across stages:\n" +
+            "*   **Identify**: Initial discovery.\n" +
+            "*   **Engagement (AI/Human)**: Active conversation.\n" +
+            "*   **Offering**: Proposal sent.\n" +
+            "*   **Negotiation**: Finalizing terms.\n" +
+            "*   **Closed Won/Lost**: The endgame.\n\n" +
+            "### Forecasting\n" +
+            "Ledger1CRM calculates **Expected Revenue** automatically:\n" +
+            "`Deal Value * Stage Probability = Expected Revenue`\n" +
+            "*   *Example*: A $10,000 deal in \"Negotiation\" (90% probability) adds $9,000 to your forecast.\n\n" +
+            "### Stalled Deals\n" +
+            "The system highlights deals that haven't had activity in 14+ days with a **warning icon**. Filter by \"Stagnant\" to proactively rescue these deals."
+    },
+    {
+        title: "Invoices, Contracts & Payments",
+        slug: "invoices-payments",
+        category: "Sales & Growth",
+        order: 5,
+        content: "# Invoices, Contracts, and Payments\n\n" +
+            "Close the loop by turning signed deals into cash in the bank.\n\n" +
+            "## The Billing Workflow\n\n" +
+            "1.  **Deal Closed**: You mark an Opportunity as \"Won\".\n" +
+            "2.  **Generate Contract**: Create a contract from the deal using a template.\n" +
+            "3.  **Generate Invoice**: Convert the accepted proposal into an invoice.\n" +
+            "4.  **Payment**: Client pays via PortalPay.\n\n" +
+            "## Invoicing Power User Features\n\n" +
+            "### Recurring Invoices\n" +
+            "Perfect for SaaS and Retainers.\n" +
+            "*   Set the **Interval** (Monthly, Yearly).\n" +
+            "*   Set **Auto-Send**: Automatically email the invoice to the billing contact on the renewal date.\n\n" +
+            "### Global Tax Support\n" +
+            "*   Configure Tax Rates in Settings.\n" +
+            "*   Apply multiple taxes (e.g., State + Local) to line items.\n" +
+            "*   **Multi-Currency**: Issue invoices in EUR while your base currency is USD. the system handles the exchange rate recording.\n\n" +
+            "## Contracts & E-Signatures\n\n" +
+            "Stop paying for DocuSign. Ledger1CRM has it built-in.\n" +
+            "1.  **Upload PDF** or generate from HTML template.\n" +
+            "2.  **Place Fields**: Drag and drop Signature, Date, and Text fields.\n" +
+            "3.  **Send**: Recipient receives a secure link.\n" +
+            "4.  **Audit Trail**: Once signed, a certificate of completion is attached to the Contract record.\n\n" +
+            "## PortalPay\n\n" +
+            "Give your clients a professional portal to manage their relationship with you.\n" +
+            "*   **History**: Clients can download past invoices.\n" +
+            "*   **Payment**: Accepts Credit Cards (Stripe) and Crypto (ETH/USDC).\n" +
+            "*   **Profile**: Clients can update their own billing address and contact info."
+    },
+    {
+        title: "Outreach & Campaigns",
+        slug: "outreach-campaigns",
+        category: "Sales & Growth",
+        order: 6,
+        content: "# Outreach & Campaigns: Automated Growth\n\n" +
+            "Scale your sales development with multi-channel sequences and AI personalization.\n\n" +
+            "## Understanding Sequences\n\n" +
+            "A **Sequence** is a series of automated steps executed over time.\n" +
+            "*   *Day 1*: Send Email 1.\n" +
+            "*   *Day 3*: If no reply, send Email 2.\n" +
+            "*   *Day 5*: Create \"Call Task\" for sales rep.\n\n" +
+            "## AI Personalization\n\n" +
+            "Generic templates get ignored. Our AI engine personalizes every email.\n" +
+            "*   **Icebreakers**: The AI scrapes the prospect's LinkedIn profile and company news to write a unique opening sentence.\n" +
+            "*   **Context Injection**: References their industry challenges dynamically.\n\n" +
+            "### Setting Up a Campaign\n" +
+            "1.  **Audience**: Select a Lead List or Segment.\n" +
+            "2.  **Steps**: Build your workflow.\n" +
+            "3.  **Schedule**: Set sending windows (e.g., \"Mon-Fri, 9am-5pm EST\").\n" +
+            "4.  **Launch**: The system drip-feeds emails to avoid spam filters.\n\n" +
+            "## Deliverability Protection\n\n" +
+            "We protect your domain reputation.\n" +
+            "*   **Ramp-Up**: Gradually increases sending volume for new accounts.\n" +
+            "*   **Unsubscribe**: Automatically handles one-click unsubscribe headers.\n" +
+            "*   **Bounce Handling**: Pauses sending to a contact if an email bounces.\n\n" +
+            "## Analytics\n\n" +
+            "Track the metrics that matter:\n" +
+            "*   **Open Rate**: Subject line effectiveness.\n" +
+            "*   **Reply Rate**: Pitch effectiveness.\n" +
+            "*   **Meeting Rate**: The ultimate goal."
+    },
+    {
+        title: "VoiceHub: AI Voice Agents",
+        slug: "voice-hub",
+        category: "Sales & Growth",
+        order: 7,
+        content: "# VoiceHub: The Future of Telephony\n\n" +
+            "VoiceHub allows you to deploy \"Digital Employees\"—AI agents capable of holding complex, natural voice conversations over the phone.\n\n" +
+            "## Capabilities\n\n" +
+            "*   **Inbound Routing**: Replace \"Press 1 for Sales\" with \"How can I help you?\". The AI routes the call or solves the problem itself.\n" +
+            "*   **Outbound Power Dialing**: Have the AI call leads to qualify them. If a human answers and shows interest, the AI can transfer the call to you.\n" +
+            "*   **24/7 Availability**: Your AI agent never sleeps, takes breaks, or gets tired.\n\n" +
+            "## Creating an Agent\n\n" +
+            "### 1. Persona & Voice\n" +
+            "*   Choose a voice from our library of 100+ realistic neural voices.\n" +
+            "*   Adjust **Stability** and **Similarity** to control emotional range.\n\n" +
+            "### 2. The System Prompt\n" +
+            "This is the \"brain\" of the agent.\n" +
+            "*   **Role**: \"You are Sarah, a helpful support agent for Acme Corp.\"\n" +
+            "*   **Goal**: \"Your goal is to schedule a demo.\"\n" +
+            "*   **Knowledge**: \"Here is our pricing: Basic is $10, Pro is $20...\"\n\n" +
+            "### 3. Functions (Tools)\n" +
+            "Give the agent capability to *do* things, not just talk.\n" +
+            "*   **Calendar**: Allow the agent to check your availability and book slots.\n" +
+            "*   **CRM**: Allow the agent to update lead status during the call.\n\n" +
+            "## Compliance\n\n" +
+            "*   **Recording**: Options to auto-announce \"This call is recorded\".\n" +
+            "*   **Do Not Call**: Automatically checks lists before dialing."
+    },
+    {
+        title: "Tasks & Project Management",
+        slug: "tasks-projects",
+        category: "Productivity",
+        order: 8,
+        content: "# Tasks & Project Management\n\n" +
+            "Stop paying for Monday.com or Trello. Ledger1CRM includes a robust Project Management suite integrated with your client data.\n\n" +
+            "## Boards\n\n" +
+            "Boards are the top-level containers for work.\n" +
+            "*   **Views**: Switch between **Kanban** (Columns), **List** (Excel-style), and **Gantt** (Timeline).\n" +
+            "*   **Permissions**: Public (Team), Private, or Shared (External Clients).\n\n" +
+            "## Task Anatomy\n\n" +
+            "A task is more than a checkbox.\n" +
+            "*   **Assignees**: Multiple users can own a task.\n" +
+            "*   **Due Dates**: Supports Start Date, Due Date, and Reminders.\n" +
+            "*   **Checklists**: Break tasks into sub-steps.\n" +
+            "*   **Dependencies**: Blocking and blocking-by relationships.\n\n" +
+            "## Client Collaboration\n\n" +
+            "You can invite your clients to a specific Board as **Guests**.\n" +
+            "*   They see *only* that board.\n" +
+            "*   They can comment approvals and upload design assets.\n" +
+            "*   This keeps communication out of email and in the context of the work.\n\n" +
+            "## Automation\n\n" +
+            "*   \"When Task is moved to 'Done', email the Manager.\"\n" +
+            "*   \"When Task is Overdue, increase Priority to High.\""
+    },
+    {
+        title: "Email & Calendar Integration",
+        slug: "email-calendar",
+        category: "Productivity",
+        order: 9,
+        content: "# Email & Calendar Integration\n\n" +
+            "The **Unified Inbox** brings all your communications into one place, linked to your CRM data.\n\n" +
+            "## The Unified Inbox\n\n" +
+            "Navigate to **Inbox** to see all your email accounts.\n" +
+            "*   **Threads**: Emails are threaded naturally.\n" +
+            "*   **Sidebar Context**: When you open an email, the sidebar shows the sender's CRM profile, recent deals, and active tasks.\n" +
+            "*   **Snooze**: Snooze emails to come back to the top of your inbox later.\n\n" +
+            "## Calendar Sync\n\n" +
+            "*   **Bi-Directional**: Create an event in Ledger1, it shows in Google. Edit in Google, it updates in Ledger1.\n" +
+            "*   **Meeting Notes**: Click on any meeting to open a collaborative notepad. Notes are automatically attached to the attendees' contact records.\n\n" +
+            "## Scheduling Links\n\n" +
+            "Replace Calendly with built-in efficient scheduling.\n" +
+            "1.  **Create Event Type**: \"30 Min Demo\".\n" +
+            "2.  **Set Availability**: Define your working hours.\n" +
+            "3.  **Share Link**: `ledger1.ai/meet/yourname/demo`\n" +
+            "4.  **Booking Flow**: When a client books, it creates a Zoom link, sends invites, creates a Contact if they are new, and logs the activity."
+    },
+    {
+        title: "AI Chat Assistant",
+        slug: "ai-assistant",
+        category: "AI & Automation",
+        order: 10,
+        content: "# AI Chat Assistant: Your Co-Pilot\n\n" +
+            "Ledger1CRM features a persistent AI Chat interface accessible via `Cmd+K` or the chat icon.\n\n" +
+            "## Context Awareness\n\n" +
+            "Unlike ChatGPT, our AI knows your business data.\n" +
+            "*   *Context*: If you are on a Contact page, the AI implicitly knows you are talking about that person.\n" +
+            "    *   **User**: \"Draft an intro email.\"\n" +
+            "    *   **AI**: \"Drafting email to John Doe at Acme Corp...\"\n\n" +
+            "## RAG (Retrieval Augmented Generation)\n\n" +
+            "The AI can search your entire database.\n" +
+            "*   **Query**: \"Show me all deals over $10k closing this month.\"\n" +
+            "*   **Response**: The AI queries the database and presents a formatted table of results.\n\n" +
+            "## Actions\n\n" +
+            "The AI can perform actions for you.\n" +
+            "*   \"Create a task to call Mike tomorrow at 2pm.\"\n" +
+            "*   \"Update the status of the Tesla deal to Negotiation.\"\n" +
+            "*   \"Summarize the last 5 calls with Susan.\"\n\n" +
+            "## Configuration\n\n" +
+            "*   **Model Selection**: Choose between speed (3.5-Turbo) or intelligence (GPT-4 / Claude 3).\n" +
+            "*   **System Prompt**: Customize the AI's tone and strictness in Settings."
+    },
+    {
+        title: "Automated Lead Generation",
+        slug: "lead-gen",
+        category: "AI & Automation",
+        order: 11,
+        content: "# Automated Lead Generation\n\n" +
+            "Fill your pipeline while you sleep. The Lead Gen module is an automated scraper and enrichment engine.\n\n" +
+            "## How it Works\n\n" +
+            "1.  **Define Target**: Set criteria (e.g., \"Architecture Firms\", \"London\", \"10-50 Employees\").\n" +
+            "2.  **Sources**: The engine scours multiple data sources including Google Maps, LinkedIn, and Corporate Registries.\n" +
+            "3.  **Extraction**: It extracts Name, Website, and Phone.\n" +
+            "4.  **Enrichment**: It visits their website and social profiles to find Decision Makers (CEO, Founder).\n" +
+            "5.  **Verification**: It guesses email patterns (e.g., `first.last@company.com`) and pings the server to verify existence.\n\n" +
+            "## Job Management\n\n" +
+            "*   **Queuing**: Large jobs run in the background. You will be notified when complete.\n" +
+            "*   **Review Mode**: Scraped leads land in a \"Candidate\" pool. You must manually review and \"Approve\" them to move them to your main CRM. This keeps your database clean.\n\n" +
+            "## Cost & Credits\n\n" +
+            "Lead Gen consumes **Credits**.\n" +
+            "*   Basic Scrape: 1 Credit\n" +
+            "*   Email Enrichment: 5 Credits\n" +
+            "*   Mobile Number Decode: 10 Credits"
+    },
+    {
+        title: "API Reference for Developers",
+        slug: "api-reference",
+        category: "API Reference",
+        order: 12,
+        content: "# API Reference\n\n" +
+            "Ledger1CRM is built on an API-first architecture. Everything you can do in the UI, you can do via the API.\n\n" +
+            "## Authentication\n\n" +
+            "We use **Bearer Token** authentication.\n" +
+            "1.  Generate an API Key in **Settings > Developer**.\n" +
+            "2.  Include it in the header: `Authorization: Bearer sk_live_...`\n\n" +
+            "## Base URL\n\n" +
+            "`https://api.ledger1crm.com/v1`\n\n" +
+            "## Rate Limits\n\n" +
+            "*   **Standard**: 100 requests / minute.\n" +
+            "*   **Enterprise**: 1,000 requests / minute.\n" +
+            "*   Headers `X-RateLimit-Remaining` and `X-RateLimit-Reset` are included in responses.\n\n" +
+            "## Core Endpoints\n\n" +
+            "### Contacts\n" +
+            "```http\n" +
+            "GET /contacts\n" +
+            "POST /contacts\n" +
+            "GET /contacts/{id}\n" +
+            "PATCH /contacts/{id}\n" +
+            "DELETE /contacts/{id}\n" +
+            "```\n" +
+            "*Query Parameters*: `?limit=20&page=1&email=test@example.com`\n\n" +
+            "### Deals\n" +
+            "```http\n" +
+            "GET /opportunities\n" +
+            "POST /opportunities\n" +
+            "```\n\n" +
+            "### Webhooks\n\n" +
+            "Subscribe to events to trigger real-time workflows.\n" +
+            "*   **Events**: `contact.created`, `deal.updated`, `invoice.paid`.\n" +
+            "*   **Security**: Validate signatures using the `X-Signature` header.\n\n" +
+            "## SDKs\n\n" +
+            "Official libraries are available:\n" +
+            "*   **Node.js**: `npm install @ledger1/sdk`\n" +
+            "*   **Python**: `pip install ledger1-crm`"
+    }
+];
+
+async function main() {
+    console.log("Start seeding documentation...");
+
+    // Clear existing docs
+    await prisma.docArticle.deleteMany({});
+    console.log("Cleared existing articles.");
+
+    // Insert new docs
+    for (const doc of docs) {
+        await prisma.docArticle.create({
+            data: {
+                title: doc.title,
+                slug: doc.slug,
+                category: doc.category,
+                order: doc.order,
+                content: doc.content.trim(),
+            }
+        });
+        console.log(`Created article: ${doc.title}`);
+    }
+
+    console.log("Seeding finished.");
+}
+
+main()
+    .catch((e) => {
+        console.error(e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

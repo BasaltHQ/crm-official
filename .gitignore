@@ -6,6 +6,7 @@
 .pnp.js
 # Remove .md files
 *.md
+!app/[locale]/docs/content/*.md
 
 #jsons
 /jsons
