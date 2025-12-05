@@ -9,11 +9,11 @@ export async function generateBlogPost(topic: string) {
 
     const client = new AzureOpenAI({
         apiKey: process.env.AZURE_OPENAI_API_KEY,
-        apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-04-01-preview",
+        apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2025-01-01-preview",
         endpoint: process.env.AZURE_OPENAI_ENDPOINT,
     });
 
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-5-nano";
+    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-5";
 
     const prompt = `
     You are an expert content writer for a CRM company called Ledger1CRM.

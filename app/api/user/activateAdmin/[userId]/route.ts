@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/actions/audit";
 
 export async function POST(req: Request, props: { params: Promise<{ userId: string }> }) {
   const params = await props.params;
@@ -20,6 +21,12 @@ export async function POST(req: Request, props: { params: Promise<{ userId: stri
         is_admin: true,
       },
     });
+
+    await logActivity(
+      "Activated Admin",
+      "User Management",
+      `Granted admin to ${user.email}`
+    );
 
     return NextResponse.json(user);
   } catch (error) {

@@ -5,13 +5,13 @@ import { z } from "zod";
 export const adminUserSchema = z.object({
   //TODO: fix all the types and nullable
   id: z.string(),
-  created_on: z.date(),
-  lastLoginAt: z.date().nullable().optional(),
+  created_on: z.union([z.string(), z.date()]),
+  lastLoginAt: z.union([z.string(), z.date()]).nullable().optional(),
   is_admin: z.boolean(),
   name: z.string().nullable().optional(),
   email: z.string(),
-  userStatus: z.string(),
-  userLanguage: z.string(),
+  userStatus: z.string().optional(),
+  userLanguage: z.string().optional(),
 });
 
 export type AdminUser = z.infer<typeof adminUserSchema>;

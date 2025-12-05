@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { prismadb } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/actions/audit";
 
 export async function GET(req: Request, props: { params: Promise<{ userId: string }> }) {
   const params = await props.params;
@@ -40,6 +41,12 @@ export async function DELETE(req: Request, props: { params: Promise<{ userId: st
         id: params.userId,
       },
     });
+
+    await logActivity(
+      "Deleted User",
+      "User Management",
+      `Deleted user ${user.email} (${user.name})`
+    );
 
     return NextResponse.json(user);
   } catch (error) {

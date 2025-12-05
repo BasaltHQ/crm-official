@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/actions/audit";
 
 // GET - Fetch social settings (public)
 export async function GET() {
@@ -49,6 +50,12 @@ export async function PUT(req: Request) {
                 data: updateData
             });
         }
+
+        await logActivity(
+            "Updated Social Links",
+            "Social Media",
+            "Updated social media URLs"
+        );
 
         return NextResponse.json(settings);
     } catch (error) {

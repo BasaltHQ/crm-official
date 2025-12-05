@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { FileText, Briefcase, BookOpen, Globe, Share2, Users, ArrowRight, CheckCircle2 } from "lucide-react";
+import Changelog from "./components/Changelog";
 
 export default async function CMSDashboardPage() {
   const session = await getServerSession(authOptions);
@@ -72,7 +73,7 @@ export default async function CMSDashboardPage() {
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {contentSections.map((section) => (
           <Link
             key={section.href}
@@ -93,6 +94,11 @@ export default async function CMSDashboardPage() {
             </p>
           </Link>
         ))}
+      </div>
+
+      {/* Activity Log - Full Width */}
+      <div className="w-full">
+        <Changelog />
       </div>
     </div>
   );

@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
             } else {
                 toast.success("Logged in successfully");
                 // Use locale-aware redirect
-                router.push(`/${locale}/admin`);
+                router.push(`/${locale}/cms`);
                 router.refresh();
             }
         } catch (error) {

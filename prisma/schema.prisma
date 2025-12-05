@@ -646,6 +646,7 @@ model Users {
   lead_pools           crm_Lead_Pools[] @relation(name: "LeadPoolsAssignedUser")
   lead_gen_jobs        crm_Lead_Gen_Jobs[] @relation(name: "LeadGenJobsAssignedUser")
   lead_activities      crm_Lead_Activities[] @relation(name: "LeadActivitiesToUser")
+  system_activities    SystemActivity[]      @relation(name: "UserSystemActivities")
 
   // Outreach, signature, resources, and prompt settings
   meeting_link               String?
@@ -1144,4 +1145,15 @@ model SocialSettings {
   ctaText           String?  @default("Stay Updated")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model SystemActivity {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  action    String
+  resource  String
+  details   String?
+  createdAt DateTime @default(now()) @db.Date
+
+  user      Users    @relation(name: "UserSystemActivities", fields: [userId], references: [id])
 }

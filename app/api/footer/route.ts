@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 // Base section titles that should always exist
 const BASE_SECTIONS = ["Products", "Company", "Legal"];
@@ -122,6 +123,13 @@ export async function PUT(req: Request) {
                 }
             }
         }
+
+        // Log Activity
+        await logActivity(
+            "Updated Footer",
+            "Footer Settings",
+            "Modified footer sections or global settings"
+        );
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { generateRandomPassword } from "@/lib/utils";
+import { logActivity } from "@/actions/audit";
 
 import { hash } from "bcryptjs";
 
@@ -118,6 +119,12 @@ export async function POST(req: Request) {
         }
 
         console.log("Resend Success:", emailData);
+
+        await logActivity(
+          "Invited User",
+          "User Management",
+          `Invited user ${email}`
+        );
 
         return NextResponse.json(user, { status: 200 });
       } catch (err) {

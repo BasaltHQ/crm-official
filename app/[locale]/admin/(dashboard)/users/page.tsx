@@ -1,6 +1,6 @@
 import { getUsers } from "@/actions/get-users";
 import React from "react";
-import Container from "../../components/ui/Container";
+import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import { InviteForm } from "./components/IviteForm";
 import { Separator } from "@/components/ui/separator";
 

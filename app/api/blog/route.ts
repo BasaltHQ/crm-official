@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 export async function GET(req: Request) {
     try {
@@ -39,6 +40,12 @@ export async function POST(req: Request) {
             },
         });
 
+        await logActivity(
+            "Created Blog Post",
+            "Blog",
+            `Created post "${title}"`
+        );
+
         return NextResponse.json(post);
     } catch (error) {
         console.error("[BLOG_POST]", error);
@@ -63,6 +70,12 @@ export async function PUT(req: Request) {
             },
         });
 
+        await logActivity(
+            "Updated Blog Post",
+            "Blog",
+            `Updated post "${title}"`
+        );
+
         return NextResponse.json(post);
     } catch (error) {
         console.error("[BLOG_PUT]", error);
@@ -77,9 +90,17 @@ export async function DELETE(req: Request) {
 
         if (!id) return new NextResponse("ID required", { status: 400 });
 
+        const post = await prismadb.blogPost.findUnique({ where: { id } });
+
         await prismadb.blogPost.delete({
             where: { id },
         });
+
+        await logActivity(
+            "Deleted Blog Post",
+            "Blog",
+            `Deleted post "${post?.title || id}"`
+        );
 
         return NextResponse.json({ success: true });
     } catch (error) {

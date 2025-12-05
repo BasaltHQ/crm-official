@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 export async function GET(req: Request) {
     try {
@@ -30,6 +31,12 @@ export async function POST(req: Request) {
             },
         });
 
+        await logActivity(
+            "Created Job",
+            "Careers",
+            `Posted new job: ${title}`
+        );
+
         return NextResponse.json(job);
     } catch (error) {
         console.error("[CAREERS_POST]", error);
@@ -56,6 +63,12 @@ export async function PUT(req: Request) {
             },
         });
 
+        await logActivity(
+            "Updated Job",
+            "Careers",
+            `Updated job: ${title}`
+        );
+
         return NextResponse.json(job);
     } catch (error) {
         console.error("[CAREERS_PUT]", error);
@@ -70,9 +83,17 @@ export async function DELETE(req: Request) {
 
         if (!id) return new NextResponse("ID required", { status: 400 });
 
+        const job = await prismadb.jobPosting.findUnique({ where: { id } });
+
         await prismadb.jobPosting.delete({
             where: { id },
         });
+
+        await logActivity(
+            "Deleted Job",
+            "Careers",
+            `Deleted job: ${job?.title || id}`
+        );
 
         return NextResponse.json({ success: true });
     } catch (error) {

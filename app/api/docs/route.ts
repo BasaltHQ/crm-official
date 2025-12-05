@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 export async function GET(req: Request) {
     try {
@@ -39,6 +40,12 @@ export async function POST(req: Request) {
             },
         });
 
+        await logActivity(
+            "Created Document",
+            "Documentation",
+            `Created article: ${title}`
+        );
+
         return NextResponse.json(doc);
     } catch (error) {
         console.error("[DOCS_POST]", error);
@@ -63,6 +70,12 @@ export async function PUT(req: Request) {
             },
         });
 
+        await logActivity(
+            "Updated Document",
+            "Documentation",
+            `Updated article: ${title}`
+        );
+
         return NextResponse.json(doc);
     } catch (error) {
         console.error("[DOCS_PUT]", error);
@@ -77,9 +90,17 @@ export async function DELETE(req: Request) {
 
         if (!id) return new NextResponse("ID required", { status: 400 });
 
+        const doc = await prismadb.docArticle.findUnique({ where: { id } });
+
         await prismadb.docArticle.delete({
             where: { id },
         });
+
+        await logActivity(
+            "Deleted Document",
+            "Documentation",
+            `Deleted article: ${doc?.title || id}`
+        );
 
         return NextResponse.json({ success: true });
     } catch (error) {
