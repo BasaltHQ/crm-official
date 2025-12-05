@@ -172,6 +172,113 @@ export default function LandingPage() {
                     </div>
                 </section>
 
+                {/* VoiceHub Section */}
+                <section id="voicehub" className="w-full py-24 md:py-32 bg-[#020617] relative overflow-hidden text-white border-y border-white/10">
+                    {/* Background Effects */}
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950" />
+                    <div className="absolute inset-0 bg-[url('https://voice.ledger1.ai/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+
+                    <div className="container px-4 md:px-6 relative z-10">
+                        {/* Header */}
+                        <div className="flex flex-col items-center text-center space-y-8 mb-20 animate-in fade-in slide-in-from-bottom-5 duration-1000 ease-out">
+                            <div className="inline-flex items-center rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5 text-sm font-medium text-cyan-400 backdrop-blur-sm shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                                <span className="relative flex h-2 w-2 mr-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                                </span>
+                                Live on Mainnet
+                            </div>
+
+                            <h2 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-500/50 drop-shadow-2xl">
+                                VoiceHub – Real-Time AI<br />
+                                Voice Conversations on <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Ethereum</span>
+                            </h2>
+
+                            <p className="max-w-[800px] text-lg md:text-xl text-slate-400 font-light leading-relaxed">
+                                Professional-grade, ultra-low latency voice AI powered by Azure OpenAI.
+                                <span className="block mt-2">Pay per second with ETH. No subscriptions.</span>
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-6 pt-4">
+                                <Link href="/voicehub">
+                                    <Button size="lg" className="h-14 px-10 text-lg rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:shadow-[0_0_60px_rgba(6,182,212,0.6)] transition-all duration-300">
+                                        Explore VoiceHub
+                                        <ArrowRight className="ml-2 h-5 w-5" />
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+
+                        {/* Highlights */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+                            {[
+                                { title: "Enterprise Security", icon: ShieldCheck, desc: "Bank-grade encryption & privacy preservation", color: "text-emerald-400", border: "hover:border-emerald-500/50" },
+                                { title: "Azure OpenAI", icon: Sparkles, desc: "Powered by GPT-4o & cutting-edge TTS models", color: "text-cyan-400", border: "hover:border-cyan-500/50" },
+                                { title: "Pay-Per-Use ETH Billing", icon: Zap, desc: "Stream payments in real-time. Zero commitment.", color: "text-purple-400", border: "hover:border-purple-500/50" }
+                            ].map((card, i) => (
+                                <div key={i} className={`p-8 rounded-3xl bg-slate-900/50 border border-slate-800 backdrop-blur-xl hover:bg-slate-800/50 transition-all duration-500 group ${card.border}`}>
+                                    <card.icon className={`h-10 w-10 mb-4 ${card.color}`} />
+                                    <h3 className="text-xl font-bold text-white mb-2">{card.title}</h3>
+                                    <p className="text-slate-400 leading-relaxed">{card.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Stats Counter */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 py-10 border-y border-white/5 bg-white/[0.02] mb-20">
+                            {[
+                                { value: "<100ms", label: "Latency" },
+                                { value: "1M+", label: "Minutes Processed" },
+                                { value: "100+", label: "Languages" },
+                                { value: "50K+", label: "Creators" },
+                                { value: "99.9%", label: "Uptime" },
+                                { value: "10K+", label: "Integrations" },
+                            ].map((stat, i) => (
+                                <div key={i} className="text-center group">
+                                    <div className="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-500 mb-1 group-hover:from-cyan-400 group-hover:to-blue-500 transition-all duration-300">
+                                        {stat.value}
+                                    </div>
+                                    <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold">{stat.label}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Workflow */}
+                        <div className="space-y-12">
+                            <div className="text-center">
+                                <h3 className="text-2xl font-bold text-white mb-4">How It Works</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative">
+                                <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-slate-700 to-transparent -translate-y-1/2 z-0" />
+                                {[
+                                    { step: "01", title: "Connect", desc: "Link your Ethereum wallet" },
+                                    { step: "02", title: "Configure", desc: "Select voice & personality" },
+                                    { step: "03", title: "Engage", desc: "Start real-time conversation" },
+                                    { step: "04", title: "Analyze", desc: "Get insights & transcripts" }
+                                ].map((item, i) => (
+                                    <div key={i} className="relative z-10 flex flex-col items-center text-center">
+                                        <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xl font-bold text-white mb-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] group hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] transition-all duration-300">
+                                            {item.step}
+                                        </div>
+                                        <h4 className="text-lg font-semibold text-white mb-1">{item.title}</h4>
+                                        <p className="text-sm text-slate-400">{item.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Image Branding */}
+                        <div className="mt-20 flex justify-center opacity-80 hover:opacity-100 transition-opacity duration-500">
+                            <img
+                                src="https://voice.ledger1.ai/vhlogo.png"
+                                alt="VoiceHub Logo"
+                                loading="lazy"
+                                className="h-12 md:h-16 w-auto"
+                            />
+                        </div>
+                    </div>
+                </section>
+
                 {/* Enterprise Grade Section */}
                 <section id="enterprise" className="w-full py-24 md:py-32 bg-black/40 backdrop-blur-sm border-y border-white/5">
                     <div className="container px-4 md:px-6">
