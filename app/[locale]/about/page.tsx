@@ -3,6 +3,7 @@ import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
 import TeamVisualization from "../components/TeamVisualization";
 import Image from "next/image";
+import TeamMember from "../components/TeamMember";
 
 export const metadata = {
     title: "About Us - Ledger1CRM",
@@ -37,7 +38,7 @@ export default function AboutPage() {
                                 <h2 className="text-3xl font-bold mb-6">Our Story</h2>
                                 <div className="space-y-4 text-gray-300 leading-relaxed">
                                     <p>
-                                        Ledger1CRM started in 2023 with a simple observation: CRM software had become bloated, expensive, and surprisingly dumb.
+                                        Ledger1CRM started in 2025 with a simple observation: CRM software had become bloated, expensive, and surprisingly dumb.
                                         Sales teams were spending more time entering data than closing deals.
                                     </p>
                                     <p>
@@ -82,11 +83,55 @@ export default function AboutPage() {
                 <section className="py-20 bg-white/5">
                     <div className="container mx-auto px-4">
                         <h2 className="text-3xl font-bold mb-12 text-center">Meet the Team</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-                            <TeamMember name="Sarah Chen" role="CEO & Co-Founder" />
-                            <TeamMember name="David Miller" role="CTO & Co-Founder" />
-                            <TeamMember name="Elena Rodriguez" role="Head of Product" />
-                            <TeamMember name="Michael Chang" role="Head of Engineering" />
+
+                        {/* Row 1: 4 columns */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto mb-8">
+                            <TeamMember
+                                name="Krishna Patel"
+                                role="Chairman (Founder)"
+                                imageSrc="/images/team/member1.jpg"
+                                linkedin="#"
+                                twitter="#"
+                            />
+                            <TeamMember
+                                name="Eric Turner"
+                                role="Chief Technology Officer (CTO)"
+                                imageSrc="/images/team/member2.jpg"
+                                linkedin="#"
+                                twitter="#"
+                            />
+                            <TeamMember
+                                name="Patrick Gorrell"
+                                role="Chief Executive Officer (CEO)"
+                                imageSrc="/images/team/member3.jpg"
+                                linkedin="#"
+                                twitter="#"
+                            />
+                            <TeamMember
+                                name="Michael Milton"
+                                role="Chief Marketing Officer (CMO)"
+                                imageSrc="/images/team/member4.jpg"
+                                linkedin="#"
+                                twitter="#"
+                            />
+                        </div>
+
+                        {/* Row 2: 2 columns centered */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-3xl mx-auto">
+                            <TeamMember
+                                name="Member 5"
+                                role="SVP, AI Research"
+                                imageSrc="/images/team/member5.jpg"
+                                linkedin="#"
+                                twitter="#"
+                            />
+                            <TeamMember
+                                name="Shahir Monjour"
+                                role="SVP, Engineering"
+                                imageSrc="/images/team/member6.jpg"
+                                linkedin="#"
+                                twitter="#"
+                            />
                         </div>
                     </div>
                 </section>
@@ -102,18 +147,6 @@ function ValueCard({ title, description }: { title: string; description: string 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:border-primary/30 transition-colors">
             <h3 className="text-xl font-bold mb-4 text-primary">{title}</h3>
             <p className="text-gray-400 leading-relaxed">{description}</p>
-        </div>
-    );
-}
-
-function TeamMember({ name, role }: { name: string; role: string }) {
-    return (
-        <div className="text-center group">
-            <div className="w-32 h-32 mx-auto rounded-full bg-gray-800 mb-4 overflow-hidden border-2 border-white/10 group-hover:border-primary transition-colors relative">
-                <div className="absolute inset-0 flex items-center justify-center text-gray-600 text-xs">Photo</div>
-            </div>
-            <h3 className="text-lg font-bold text-white">{name}</h3>
-            <p className="text-primary text-sm">{role}</p>
         </div>
     );
 }
