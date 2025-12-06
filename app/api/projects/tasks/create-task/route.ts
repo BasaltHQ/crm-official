@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 import NewTaskFromCRMEmail from "@/emails/NewTaskFromCRM";
 import NewTaskFromProject from "@/emails/NewTaskFromProject";
@@ -64,9 +65,13 @@ export async function POST(req: Request) {
       contentUpdated = content + "\n\n" + notionUrl;
     }
 
-    const task = await prismadb.tasks.create({
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
+    const task = await (prismadb.tasks as any).create({
       data: {
         v: 0,
+        team_id: teamId, // Assign team
         priority: priority,
         title: title,
         content: contentUpdated,

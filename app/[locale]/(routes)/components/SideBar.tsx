@@ -31,6 +31,8 @@ const SideBar = async ({ build }: { build: number }) => {
 
   const subscriptionPlan = (user as any)?.assigned_team?.subscription_plan || "FREE";
 
-  return <ModuleMenu modules={modules} dict={dict} build={build} subscriptionPlan={subscriptionPlan} />;
+  const isPartnerAdmin = (user as any).is_admin || (user as any).assigned_team?.slug === "ledger1";
+
+  return <ModuleMenu modules={modules} dict={dict} build={build} subscriptionPlan={subscriptionPlan} isPartnerAdmin={isPartnerAdmin} />;
 };
 export default SideBar;

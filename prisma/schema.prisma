@@ -55,6 +55,9 @@ model crm_Accounts {
   watchers             String[]             @db.ObjectId
   watching_users       Users[]              @relation(name: "watching_accounts", fields: [watchers], references: [id])
   lead_candidates     crm_Lead_Candidates[] @relation(name: "LeadCandidatesAssignedAccounts")
+
+  team_id              String?              @db.ObjectId
+  assigned_team        Team?                @relation(fields: [team_id], references: [id])
 }
 
 model crm_Leads {
@@ -115,6 +118,9 @@ model crm_Leads {
   // Link to a Project/Board for tagging and association
   project            String?       @db.ObjectId
   assigned_project   Boards?       @relation(name: "LeadsAssignedProject", fields: [project], references: [id])
+
+  team_id            String?       @db.ObjectId
+  assigned_team      Team?         @relation(fields: [team_id], references: [id])
 }
 
 enum crm_Lead_Status {
@@ -163,6 +169,9 @@ model crm_Opportunities {
   documents            Documents[]                     @relation(fields: [connected_documents], references: [id])
   connected_contacts   String[]                        @db.ObjectId
   contacts             crm_Contacts[]                  @relation(fields: [connected_contacts], references: [id])
+
+  team_id              String?                         @db.ObjectId
+  assigned_team        Team?                           @relation(fields: [team_id], references: [id])
 }
 
 enum crm_Opportunity_Status {
@@ -241,6 +250,9 @@ model crm_Contacts {
   assigned_accounts      crm_Accounts?       @relation(fields: [accountsIDs], references: [id])
   documentsIDs           String[]            @db.ObjectId
   assigned_documents     Documents[]         @relation(fields: [documentsIDs], references: [id])
+
+  team_id                String?             @db.ObjectId
+  assigned_team          Team?               @relation(fields: [team_id], references: [id])
 }
 
 enum crm_Contact_Type {
@@ -271,6 +283,9 @@ model crm_Contracts {
   type                String?
   assigned_account    crm_Accounts?        @relation(fields: [account], references: [id])
   assigned_to_user    Users?               @relation(fields: [assigned_to], references: [id])
+
+  team_id             String?              @db.ObjectId
+  assigned_team       Team?                @relation(fields: [team_id], references: [id])
 }
 
 enum crm_Contracts_Status {
@@ -307,6 +322,9 @@ model Boards {
   button_sets    Project_Button_Sets[] @relation(name: "BoardButtonSets")
   project_opportunities Project_Opportunities[]
   assigned_leads      crm_Leads[]            @relation(name: "LeadsAssignedProject")
+
+  team_id             String?                @db.ObjectId
+  assigned_team       Team?                  @relation(fields: [team_id], references: [id])
 }
 
 model Employees {
@@ -317,6 +335,9 @@ model Employees {
   name   String
   salary Int
   status String
+
+  team_id String? @db.ObjectId
+  assigned_team Team? @relation(fields: [team_id], references: [id])
 }
 
 model ImageUpload {
@@ -434,6 +455,9 @@ model Invoices {
   accounts                      crm_Accounts?   @relation(fields: [assigned_account_id], references: [id])
   connected_documents           String[]        @db.ObjectId
   documents                     Documents[]     @relation(fields: [connected_documents], references: [id])
+
+  team_id                       String?         @db.ObjectId
+  assigned_team                 Team?           @relation(fields: [team_id], references: [id])
 }
 
 model invoice_States {
@@ -482,6 +506,9 @@ model Documents {
   assigned_to_user       Users?              @relation(name: "assigned_to_user", fields: [assigned_user], references: [id])
   documents_type         Documents_Types?    @relation(fields: [document_type], references: [id])
   document_system_type   DocumentSystemType? @default(OTHER)
+
+  team_id                String?             @db.ObjectId
+  assigned_team          Team?               @relation(fields: [team_id], references: [id])
 }
 
 enum DocumentSystemType {
@@ -545,6 +572,9 @@ model Tasks {
   assigned_section Sections?       @relation(fields: [section], references: [id])
   //Staus
   taskStatus       taskStatus?     @default(ACTIVE)
+
+  team_id          String?         @db.ObjectId
+  assigned_team    Team?           @relation(fields: [team_id], references: [id])
 }
 
 model crm_Accounts_Tasks {
@@ -569,6 +599,9 @@ model crm_Accounts_Tasks {
   crm_accounts  crm_Accounts?   @relation(fields: [account], references: [id])
   //Staus
   taskStatus    taskStatus?     @default(ACTIVE)
+
+  team_id       String?         @db.ObjectId
+  assigned_team Team?           @relation(fields: [team_id], references: [id])
 }
 
 model tasksComments {
@@ -681,6 +714,21 @@ model Team {
   // Relations
   members     Users[]
   subscription_plan SubscriptionPlan @default(FREE)
+  
+  // Data Ownership
+  accounts    crm_Accounts[]
+  leads       crm_Leads[]
+  opportunities crm_Opportunities[]
+  contacts    crm_Contacts[]
+  contracts   crm_Contracts[]
+  boards      Boards[]
+  invoices    Invoices[]
+  documents   Documents[]
+  tasks       Tasks[]
+  
+  lead_pools          crm_Lead_Pools[]
+  employees           Employees[]
+  accounts_tasks      crm_Accounts_Tasks[]
 }
 
 enum SubscriptionPlan {
@@ -847,6 +895,9 @@ model crm_Lead_Pools {
   candidates    crm_Lead_Candidates[]
   lead_maps     crm_Lead_Pools_Leads[]
   assigned_user Users?            @relation(name: "LeadPoolsAssignedUser", fields: [user], references: [id])
+
+  team_id       String?           @db.ObjectId
+  assigned_team Team?             @relation(fields: [team_id], references: [id])
 }
 
 model crm_Lead_Gen_Jobs {

@@ -1,19 +1,22 @@
 import { prismadb } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 export const getBoards = async (userId: string) => {
-  if (!userId) {
-    return null;
-  }
-  const data = await prismadb.boards.findMany({
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return [];
+
+  const teamInfo = await getCurrentUserTeamId();
+  if (!teamInfo?.teamId) return [];
+
+  const data = await (prismadb.boards as any).findMany({
     where: {
-      OR: [
-        {
-          user: userId,
-        },
-        {
-          visibility: "public",
-        },
-      ],
+      team_id: teamInfo.teamId,
+      // Keep visibility logic if needed, but within team scope?
+      // "Items ... stay with the team and is not visible by anyone else"
+      // So public boards should only be public WITHIN the team.
+      // So AND team_id.
     },
     include: {
       assigned_user: {
@@ -37,7 +40,7 @@ export const getBoards = async (userId: string) => {
           const j = await res.json().catch(() => null);
           return { ...b, brand_logo_url: j?.brand_logo_url ?? null };
         }
-      } catch {}
+      } catch { }
       return { ...b, brand_logo_url: null };
     })
   );

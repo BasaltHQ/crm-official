@@ -23,7 +23,7 @@ const PartnersPage = async () => {
         return redirect("/");
     }
 
-    const isInternalTeam = user.assigned_team?.slug === "internal";
+    const isInternalTeam = user.assigned_team?.slug === "ledger1";
     const isAdmin = user.is_admin;
 
     if (!isAdmin && !isInternalTeam) {

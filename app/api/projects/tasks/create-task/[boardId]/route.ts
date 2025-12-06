@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 import NewTaskFromProject from "@/emails/NewTaskFromProject";
 import resendHelper from "@/lib/resend";
@@ -40,9 +41,13 @@ export async function POST(req: Request, props: { params: Promise<{ boardId: str
         },
       });
 
-      await prismadb.tasks.create({
+      const teamInfo = await getCurrentUserTeamId();
+      const teamId = teamInfo?.teamId;
+
+      await (prismadb.tasks as any).create({
         data: {
           v: 0,
+          team_id: teamId, // Assign team
           priority: "normal",
           title: "New task",
           content: "",
@@ -79,9 +84,13 @@ export async function POST(req: Request, props: { params: Promise<{ boardId: str
         },
       });
 
-      const task = await prismadb.tasks.create({
+      const teamInfo = await getCurrentUserTeamId();
+      const teamId = teamInfo?.teamId;
+
+      const task = await (prismadb.tasks as any).create({
         data: {
           v: 0,
+          team_id: teamId, // Assign team
           priority: priority,
           title: title,
           content: content,

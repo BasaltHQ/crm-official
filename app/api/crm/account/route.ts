@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 //Create new account route
 export async function POST(req: Request) {
@@ -10,6 +11,9 @@ export async function POST(req: Request) {
     return new NextResponse("Unauthenticated", { status: 401 });
   }
   try {
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
     const body = await req.json();
     const {
       name,
@@ -37,9 +41,10 @@ export async function POST(req: Request) {
       industry,
     } = body;
 
-    const newAccount = await prismadb.crm_Accounts.create({
+    const newAccount = await (prismadb.crm_Accounts as any).create({
       data: {
         v: 0,
+        team_id: teamId,
         createdBy: session.user.id,
         updatedBy: session.user.id,
         name,
@@ -110,7 +115,7 @@ export async function PUT(req: Request) {
       industry,
     } = body;
 
-    const newAccount = await prismadb.crm_Accounts.update({
+    const newAccount = await (prismadb.crm_Accounts as any).update({
       where: {
         id,
       },
@@ -157,7 +162,24 @@ export async function GET(req: Request) {
     return new NextResponse("Unauthenticated", { status: 401 });
   }
   try {
-    const accounts = await prismadb.crm_Accounts.findMany({});
+    const teamInfo = await getCurrentUserTeamId();
+    // If no team, return empty? 
+    // Or allow seeing all if System Admin? For now default to strict team isolation.
+    const where: any = {};
+    if (teamInfo?.teamId) {
+      where.team_id = teamInfo.teamId;
+    } else {
+      // Fallback: If no team, maybe return nothing?
+      // Or if admin?
+      // Let's return nothing if no team to be safe.
+      // Unless admin... let's stick to team_id check.
+      // If team_id is missing on user, they see nothing.
+      return NextResponse.json([], { status: 200 });
+    }
+
+    const accounts = await (prismadb.crm_Accounts as any).findMany({
+      where
+    });
 
     return NextResponse.json(accounts, { status: 200 });
   } catch (error) {

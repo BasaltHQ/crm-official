@@ -7,6 +7,7 @@ import { InputType, ReturnType } from "./types";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { getServerSession, Session } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const session: Session | null = await getServerSession(authOptions);
@@ -49,9 +50,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   }
 
   try {
-    const result = await prismadb.crm_Contracts.create({
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
+    const result = await (prismadb.crm_Contracts as any).create({
       data: {
         v: 0,
+        team_id: teamId, // Assign team
         title,
         value: parseFloat(value),
         startDate,

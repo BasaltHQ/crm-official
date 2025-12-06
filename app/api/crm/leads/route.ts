@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import sendEmail from "@/lib/sendmail";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 //Create a new lead route
 export async function POST(req: Request) {
@@ -35,9 +36,13 @@ export async function POST(req: Request) {
 
     //console.log(req.body, "req.body");
 
-    const newLead = await prismadb.crm_Leads.create({
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
+    const newLead = await (prismadb.crm_Leads as any).create({
       data: {
         v: 1,
+        team_id: teamId, // Assign team
         createdBy: userId,
         updatedBy: userId,
         firstName: first_name,

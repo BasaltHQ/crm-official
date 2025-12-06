@@ -3,6 +3,7 @@
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { checkLimit } from "@/lib/subscription";
+import bcrypt from "bcrypt";
 
 export const updateMemberRole = async (userId: string, role: string) => {
     try {
@@ -83,3 +84,30 @@ export const addMember = async (teamId: string, userId: string) => {
         return { error: "Failed to add member" };
     }
 }
+
+export const changePassword = async (userId: string, newPassword: string) => {
+    try {
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        await (prismadb.users as any).update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("[CHANGE_PASSWORD]", error);
+        return { error: "Failed to update password" };
+    }
+};
+
+export const toggleUserStatus = async (userId: string, status: "ACTIVE" | "INACTIVE") => {
+    try {
+        await (prismadb.users as any).update({
+            where: { id: userId },
+            data: { userStatus: status },
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("[TOGGLE_USER_STATUS]", error);
+        return { error: "Failed to update status" };
+    }
+};

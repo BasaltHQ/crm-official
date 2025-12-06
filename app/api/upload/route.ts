@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { BlobServiceClient } from "@azure/storage-blob";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 // POST /api/upload
 // Generic Azure Blob upload endpoint used by Invoice FileInput and other generic uploads.
@@ -48,11 +49,15 @@ export async function POST(req: NextRequest) {
     console.log("[GENERIC_UPLOAD_POST] Uploaded blob URL:", fileUrl);
 
     // Create Document record (generic)
-    const doc = await prismadb.documents.create({
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
+    const doc = await (prismadb.documents as any).create({
       data: {
         document_name: file.name || fileNameSafe,
         document_file_mimeType: file.type || "application/octet-stream",
         document_file_url: fileUrl,
+        team_id: teamId, // Assign team
         status: "ACTIVE",
         assigned_user: session.user.id,
         key,

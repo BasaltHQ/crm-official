@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import sendEmail from "@/lib/sendmail";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 //Create route
 export async function POST(req: Request) {
@@ -43,19 +44,23 @@ export async function POST(req: Request) {
       type,
     } = body;
 
-    const newContact = await prismadb.crm_Contacts.create({
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
+    const newContact = await (prismadb.crm_Contacts as any).create({
       data: {
         v: 0,
+        team_id: teamId, // Assign team
         createdBy: userId,
         updatedBy: userId,
         ...(assigned_account !== null && assigned_account !== undefined
           ? {
-              assigned_accounts: {
-                connect: {
-                  id: assigned_account,
-                },
+            assigned_accounts: {
+              connect: {
+                id: assigned_account,
               },
-            }
+            },
+          }
           : {}),
         assigned_to_user: {
           connect: {
@@ -167,12 +172,12 @@ export async function PUT(req: Request) {
         //Update assigned_accountsIDs only if assigned_account is not empty
         ...(assigned_account !== null && assigned_account !== undefined
           ? {
-              assigned_accounts: {
-                connect: {
-                  id: assigned_account,
-                },
+            assigned_accounts: {
+              connect: {
+                id: assigned_account,
               },
-            }
+            },
+          }
           : {}),
         assigned_to_user: {
           connect: {

@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import sendEmail from "@/lib/sendmail";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -10,6 +11,9 @@ export async function POST(req: Request) {
     return new NextResponse("Unauthenticated", { status: 401 });
   }
   try {
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
     const body = await req.json();
     const userId = session.user.id;
 
@@ -35,8 +39,10 @@ export async function POST(req: Request) {
 
     //console.log(req.body, "req.body");
 
-    const newOpportunity = await prismadb.crm_Opportunities.create({
+    const newOpportunity = await (prismadb.crm_Opportunities as any).create({
       data: {
+        v: 0,
+        team_id: teamId,
         account: account,
         assigned_to: assigned_to,
         budget: Number(budget),
@@ -120,7 +126,7 @@ export async function PUT(req: Request) {
 
     //console.log(req.body, "req.body");
 
-    const updatedOpportunity = await prismadb.crm_Opportunities.update({
+    const updatedOpportunity = await (prismadb.crm_Opportunities as any).update({
       where: { id },
       data: {
         account: account,
@@ -141,31 +147,6 @@ export async function PUT(req: Request) {
       },
     });
 
-    /* if (assigned_to !== userId) {
-      const notifyRecipient = await prismadb.users.findFirst({
-        where: {
-          id: assigned_to,
-        },
-      });
-
-      if (!notifyRecipient) {
-        return new NextResponse("No user found", { status: 400 });
-      }
-
-      await sendEmail({
-        from: process.env.EMAIL_FROM as string,
-        to: notifyRecipient.email || "info@softbase.cz",
-        subject:
-          notifyRecipient.userLanguage === "en"
-            ? `New opportunity ${name} has been added to the system and assigned to you.`
-            : `Nová příležitost ${name} byla přidána do systému a přidělena vám.`,
-        text:
-          notifyRecipient.userLanguage === "en"
-            ? `New opportunity ${name} has been added to the system and assigned to you. You can click here for detail: ${process.env.NEXT_PUBLIC_APP_URL}/crm/opportunities/${newOpportunity.id}`
-            : `Nová příležitost ${name} byla přidána do systému a přidělena vám. Detaily naleznete zde: ${process.env.NEXT_PUBLIC_APP_URL}/crm/opportunities/${newOpportunity.id}`,
-      });
-    } */
-
     return NextResponse.json({ updatedOpportunity }, { status: 200 });
   } catch (error) {
     console.log("[UPDATED_OPPORTUNITY_PUT]", error);
@@ -180,13 +161,36 @@ export async function GET(req: Request) {
   }
 
   try {
-    const users = await prismadb.users.findMany({});
-    const accounts = await prismadb.crm_Accounts.findMany({});
-    const contacts = await prismadb.crm_Contacts.findMany({});
+    const teamInfo = await getCurrentUserTeamId();
+    const where: any = {};
+    if (teamInfo?.teamId) {
+      where.team_id = teamInfo.teamId;
+    } else {
+      return NextResponse.json({
+        users: [],
+        accounts: [],
+        contacts: [],
+        saleTypes: [],
+        saleStages: [],
+        campaigns: [], // Potentially needs team_id too
+        industries: []
+      }, { status: 200 });
+    }
+
+    const users = await (prismadb.users as any).findMany({
+      where: { team_id: teamInfo.teamId }
+    });
+    const accounts = await (prismadb.crm_Accounts as any).findMany({
+      where: where
+    });
+    const contacts = await (prismadb.crm_Contacts as any).findMany({
+      where: where
+    });
     const saleTypes = await prismadb.crm_Opportunities_Type.findMany({});
     const saleStages = await prismadb.crm_Opportunities_Sales_Stages.findMany(
       {}
     );
+    // Assuming campaigns are global for now, or need update. If global, no where.
     const campaigns = await prismadb.crm_campaigns.findMany({});
     const industries = await prismadb.crm_Industry_Type.findMany({});
 

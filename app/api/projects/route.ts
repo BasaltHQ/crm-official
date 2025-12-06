@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -43,12 +44,16 @@ export async function POST(req: Request) {
   }
 
   try {
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
     const boardsCount = await (prismadb as any).boards.count();
 
     const newBoard = await (prismadb as any).boards.create({
       data: {
         v: 0,
         user: session.user.id,
+        team_id: teamId, // Assign team
         title: title,
         description: description,
         position: boardsCount > 0 ? boardsCount : 0,
@@ -79,6 +84,7 @@ export async function POST(req: Request) {
         document_file_mimeType: "text/html",
         document_file_url: gammaUrl,
         created_by_user: session.user.id,
+        team_id: teamId, // Assign team to document
         visibility: "public",
         tags: { type: "link", provider: "gamma" } as any,
       },
@@ -94,6 +100,7 @@ export async function POST(req: Request) {
         section: newSection.id,
         documentIDs: [gammaDoc.id],
         user: session.user.id,
+        team_id: teamId, // Assign team to task
       },
     });
 

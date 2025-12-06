@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { z } from "zod";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 type CandidateInput = {
   dedupeKey: string;
@@ -159,11 +160,15 @@ export async function POST(req: Request) {
       }
       targetPoolId = pool.id;
     } else {
+      const teamInfo = await getCurrentUserTeamId();
+      const teamId = teamInfo?.teamId;
+
       const created = await (prismadbCrm as any).crm_Lead_Pools.create({
         data: {
           name: newPool!.name,
           description: newPool?.description,
           user: session.user.id,
+          team_id: teamId, // Assign team
           status: "ACTIVE",
         },
         select: { id: true },

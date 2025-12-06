@@ -26,11 +26,12 @@ type Props = {
   dict: any;
   build: number;
   subscriptionPlan: string;
+  isPartnerAdmin: boolean;
 };
 
 const AnyMenu = Menu as any;
 
-const ModuleMenu = ({ modules, dict, build, subscriptionPlan }: Props) => {
+const ModuleMenu = ({ modules, dict, build, subscriptionPlan, isPartnerAdmin }: Props) => {
   const [open, setOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -135,7 +136,7 @@ const ModuleMenu = ({ modules, dict, build, subscriptionPlan }: Props) => {
             <ChatGPTModuleMenu open={open} />
           ) : null}
           <AdministrationMenu open={open} title={dict.ModuleMenu.settings} />
-          <PartnerMenu open={open} />
+          {isPartnerAdmin && <PartnerMenu open={open} />}
         </div>
       </div>
       <div
