@@ -1113,6 +1113,7 @@ model DocArticle {
   category    String
   content     String
   videoUrl    String?
+  resources   Json?
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

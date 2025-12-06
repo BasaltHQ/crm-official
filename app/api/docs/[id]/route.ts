@@ -25,7 +25,7 @@ export async function PATCH(
 ) {
     try {
         const body = await req.json();
-        const { title, slug, category, order, content, videoUrl } = body;
+        const { title, slug, category, order, content, videoUrl, resources } = body;
 
         const doc = await prismadb.docArticle.update({
             where: { id: params.id },
@@ -36,6 +36,7 @@ export async function PATCH(
                 order,
                 content,
                 videoUrl,
+                resources,
             },
         });
 

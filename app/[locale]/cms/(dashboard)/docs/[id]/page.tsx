@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "react-hot-toast";
-import { Loader2, Trash, Save, ExternalLink, Eye } from "lucide-react";
+import { Loader2, Trash, Save, ExternalLink, Eye, Plus, X } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-
 import { Sparkles } from "lucide-react";
 
-export default function DocEditorPage({ params }: { params: { id: string, locale: string } }) {
+export default function DocEditorPage({ params }: { params: Promise<{ id: string, locale: string }> }) {
+    const { id } = use(params);
+
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
@@ -28,6 +29,7 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
         order: 0,
         videoUrl: "",
         content: "",
+        resources: [] as { label: string, url: string }[],
     });
 
     useEffect(() => {
@@ -37,42 +39,38 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
                 const response = await axios.get('/api/docs/categories');
                 setExistingCategories(response.data);
 
-                if (params.id !== "new") {
-                    const docResponse = await axios.get(`/api/docs/${params.id}`);
-                    setFormData(docResponse.data);
+                if (id !== "new") {
+                    const docResponse = await axios.get(`/api/docs/${id}`);
+                    const data = docResponse.data;
+                    // Ensure resources is initialized
+                    if (!data.resources) data.resources = [];
+                    setFormData(data);
                 }
             } catch (error) {
                 console.error(error);
-                if (params.id !== "new") toast.error("Failed to fetch article");
+                if (id !== "new") toast.error("Failed to fetch article");
             } finally {
                 setFetching(false);
             }
         };
 
         init();
-    }, [params.id]);
+    }, [id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            if (params.id === "new") {
+            if (id === "new") {
                 await axios.post("/api/docs", formData);
                 toast.success("Created successfully");
             } else {
-                await axios.patch(`/api/docs/${params.id}`, formData);
+                await axios.patch(`/api/docs/${id}`, formData);
                 toast.success("Saved changes");
             }
-            router.refresh(); // Refresh so sidebar updates if title/category changed
-            // params.locale might not be available in client component props automatically without layout passing it, 
-            // but we can infer it or just use simple router push which handles relative paths?? 
-            // Better to use window.location or just assumption. For now assume push handled by relative if not starting with /
-            // Actually router.push('/' + params.locale + '/cms/docs') if we had it.
-            // Let's use window.location.pathname split to get locale if needed, OR just hard refresh.
-            // Simplest: router.push(window.location.pathname.split('/').slice(0, 3).join('/') + '/docs');
             router.refresh();
-            if (params.id === "new") {
+            if (id === "new") {
                 const newPath = window.location.pathname.replace('/new', '');
                 router.push(newPath);
             }
@@ -87,7 +85,7 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
         if (!confirm("Are you sure?")) return;
         setLoading(true);
         try {
-            await axios.delete(`/api/docs/${params.id}`);
+            await axios.delete(`/api/docs/${id}`);
             toast.success("Deleted");
             router.push("/cms/docs");
             router.refresh();
@@ -115,7 +113,7 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
                     />
                 </div>
                 <div className="flex items-center gap-2">
-                    {params.id !== "new" && (
+                    {id !== "new" && (
                         <Button type="button" variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive hover:bg-destructive/10">
                             <Trash className="h-4 w-4" />
                         </Button>
@@ -126,9 +124,13 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
                         AI Assist
                     </Button>
                     <Separator orientation="vertical" className="h-6 mx-2" />
-                    <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                    <Button
+                        type="submit"
+                        disabled={loading}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 border border-blue-500/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save
+                        Save Article
                     </Button>
                 </div>
             </div>
@@ -166,29 +168,32 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
                 </div>
 
                 {/* Settings Sidebar Column */}
-                <div className="bg-muted/10 p-6 space-y-6 overflow-y-auto h-full border-l shadow-inner-lg">
-                    <div className="space-y-4">
-                        <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Properties</h3>
+                <div className="bg-muted/10 p-6 space-y-8 overflow-y-auto h-full border-l shadow-inner-lg">
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Properties</h3>
+                        </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-xs">Category</Label>
+                        <div className="space-y-3">
+                            <Label className="text-xs font-semibold">Category</Label>
                             <Input
                                 list="categories-list"
                                 value={formData.category}
                                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                 required
                                 className="bg-background"
-                                placeholder="Select or type new category..."
+                                placeholder="Select or type new..."
                             />
                             <datalist id="categories-list">
                                 {existingCategories.map((cat) => (
                                     <option key={cat} value={cat} />
                                 ))}
                             </datalist>
+                            <p className="text-[10px] text-muted-foreground">Type to create a new category.</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-xs">URL Slug</Label>
+                        <div className="space-y-3">
+                            <Label className="text-xs font-semibold">URL Slug</Label>
                             <Input
                                 value={formData.slug}
                                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
@@ -199,8 +204,8 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
                             <p className="text-[10px] text-muted-foreground truncate">/docs/{formData.slug || '...'}</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-xs">Sort Order</Label>
+                        <div className="space-y-3">
+                            <Label className="text-xs font-semibold">Sort Order</Label>
                             <Input
                                 type="number"
                                 value={formData.order}
@@ -210,14 +215,98 @@ export default function DocEditorPage({ params }: { params: { id: string, locale
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-xs">Video Embed</Label>
+                        <div className="space-y-3">
+                            <Label className="text-xs font-semibold">Video Embed</Label>
                             <Input
                                 value={formData.videoUrl || ""}
                                 onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
                                 className="bg-background text-xs"
                                 placeholder="Youtube URL"
                             />
+                        </div>
+
+                        <Separator />
+
+                        {/* Resources Section */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Linked Resources</Label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setFormData({
+                                        ...formData,
+                                        resources: [...(formData.resources || []), { label: "", url: "" }]
+                                    })}
+                                    className="h-6 w-6 p-0 hover:bg-muted"
+                                >
+                                    <Plus className="h-3 w-3" />
+                                </Button>
+                            </div>
+                            <div className="space-y-3">
+                                {formData.resources && formData.resources.length > 0 ? (
+                                    formData.resources.map((res, idx) => (
+                                        <div key={idx} className="p-3 bg-background/50 rounded-md border space-y-2 group relative">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    const newRes = formData.resources.filter((_, i) => i !== idx);
+                                                    setFormData({ ...formData, resources: newRes });
+                                                }}
+                                                className="absolute top-1 right-1 h-5 w-5 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </Button>
+
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Label</Label>
+                                                <Input
+                                                    placeholder="e.g. Documentation"
+                                                    value={res.label}
+                                                    onChange={(e) => {
+                                                        const newRes = [...formData.resources];
+                                                        newRes[idx].label = e.target.value;
+                                                        setFormData({ ...formData, resources: newRes });
+                                                    }}
+                                                    className="h-7 text-xs bg-background"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">URL</Label>
+                                                <Input
+                                                    placeholder="https://..."
+                                                    value={res.url}
+                                                    onChange={(e) => {
+                                                        const newRes = [...formData.resources];
+                                                        newRes[idx].url = e.target.value;
+                                                        setFormData({ ...formData, resources: newRes });
+                                                    }}
+                                                    className="h-7 text-xs bg-background font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center p-4 border border-dashed rounded-md bg-muted/20">
+                                        <p className="text-[10px] text-muted-foreground">No resources linked.</p>
+                                        <Button
+                                            type="button"
+                                            variant="link"
+                                            size="sm"
+                                            className="text-[10px] h-auto p-0 mt-1"
+                                            onClick={() => setFormData({
+                                                ...formData,
+                                                resources: [...(formData.resources || []), { label: "", url: "" }]
+                                            })}
+                                        >
+                                            Add one now
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
