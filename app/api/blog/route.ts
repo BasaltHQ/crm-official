@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prismadb } from "@/lib/prisma";
 import { logActivity } from "@/actions/audit";
 
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { title, slug, content, excerpt, category, coverImage } = body;
+        const { title, slug, content, excerpt, category, coverImage, author, publishedAt } = body;
 
         const post = await prismadb.blogPost.create({
             data: {
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
                 excerpt,
                 category,
                 coverImage,
+                author,
+                publishedAt: publishedAt ? new Date(publishedAt) : undefined,
             },
         });
 
@@ -46,6 +49,7 @@ export async function POST(req: Request) {
             `Created post "${title}"`
         );
 
+        revalidatePath('/blog');
         return NextResponse.json(post);
     } catch (error) {
         console.error("[BLOG_POST]", error);
@@ -56,7 +60,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
     try {
         const body = await req.json();
-        const { id, title, slug, content, excerpt, category, coverImage } = body;
+        const { id, title, slug, content, excerpt, category, coverImage, author, publishedAt } = body;
 
         const post = await prismadb.blogPost.update({
             where: { id },
@@ -67,6 +71,8 @@ export async function PUT(req: Request) {
                 excerpt,
                 category,
                 coverImage,
+                author,
+                publishedAt: publishedAt ? new Date(publishedAt) : undefined,
             },
         });
 
@@ -76,6 +82,7 @@ export async function PUT(req: Request) {
             `Updated post "${title}"`
         );
 
+        revalidatePath('/blog');
         return NextResponse.json(post);
     } catch (error) {
         console.error("[BLOG_PUT]", error);
@@ -102,6 +109,7 @@ export async function DELETE(req: Request) {
             `Deleted post "${post?.title || id}"`
         );
 
+        revalidatePath('/blog');
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[BLOG_DELETE]", error);

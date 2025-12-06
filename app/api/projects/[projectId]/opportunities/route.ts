@@ -88,3 +88,4 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
     return new NextResponse("Internal Error", { status: 500 });
 
   }
+}

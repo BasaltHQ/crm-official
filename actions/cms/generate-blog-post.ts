@@ -36,7 +36,7 @@ export async function generateBlogPost(topic: string) {
                 { role: "system", content: "You are a helpful AI assistant that generates blog content in JSON format." },
                 { role: "user", content: prompt },
             ],
-            temperature: 0.7,
+            temperature: 1,
             response_format: { type: "json_object" },
         });
 

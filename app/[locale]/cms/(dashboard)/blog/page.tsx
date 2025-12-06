@@ -14,6 +14,7 @@ interface BlogPost {
     excerpt: string;
     category: string;
     coverImage: string;
+    author?: string;
     publishedAt: string;
 }
 
@@ -250,6 +251,23 @@ export default function BlogAdminPage() {
                             className="w-full p-2 border rounded bg-background"
                             value={editingPost.coverImage || ""}
                             onChange={(e) => setEditingPost({ ...editingPost, coverImage: e.target.value })}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Author</label>
+                        <input
+                            className="w-full p-2 border rounded bg-background"
+                            value={editingPost.author || ""}
+                            onChange={(e) => setEditingPost({ ...editingPost, author: e.target.value })}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Publish Date</label>
+                        <input
+                            type="datetime-local"
+                            className="w-full p-2 border rounded bg-background"
+                            value={editingPost.publishedAt ? new Date(editingPost.publishedAt).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => setEditingPost({ ...editingPost, publishedAt: new Date(e.target.value).toISOString() })}
                         />
                     </div>
                 </div>
