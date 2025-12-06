@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 export async function GET(
     req: Request,
@@ -36,9 +37,12 @@ export async function PATCH(
                 order,
                 content,
                 videoUrl,
+
                 resources,
-            },
+            } as any,
         });
+
+        await logActivity("Updated Documentation", "Documentation", `Updated article: ${doc.title}`);
 
         return NextResponse.json(doc);
     } catch (error) {

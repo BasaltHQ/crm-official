@@ -23,10 +23,10 @@ import MarketingFooter from "../[locale]/components/MarketingFooter";
 
 export const metadata: Metadata = {
     title: 'VoiceHub - Real-Time AI Voice Conversations',
-    description: 'Professional-grade, ultra-low latency voice AI powered by Azure OpenAI. Pay per second with ETH.',
+    description: 'Professional-grade, ultra-low latency voice AI powered by the world\'s most advanced real-time models. Pay per second with ETH.',
     openGraph: {
         title: 'VoiceHub - Real-Time AI Voice Conversations',
-        description: 'Professional-grade, ultra-low latency voice AI powered by Azure OpenAI. Pay per second with ETH.',
+        description: 'Professional-grade, ultra-low latency voice AI powered by the world\'s most advanced real-time models. Pay per second with ETH.',
         images: ['https://voice.ledger1.ai/vhlogo.png'],
     },
 };
@@ -73,7 +73,7 @@ export default async function VoiceHubPage() {
                             transition={{ duration: 0.6, delay: 0.1 }}
                             className="text-lg text-slate-400 max-w-xl leading-relaxed"
                         >
-                            Professional-grade, ultra-low latency voice AI powered by Azure OpenAI.
+                            Professional-grade, ultra-low latency voice AI powered by the world's most advanced real-time models.
                             Pay per second with ETH. No subscriptions, just pure performance.
                         </Motion.p>
 
@@ -102,7 +102,7 @@ export default async function VoiceHubPage() {
                         >
                             {[
                                 { icon: Shield, label: "Enterprise Security" },
-                                { icon: Cpu, label: "Azure OpenAI" },
+                                { icon: Cpu, label: "Next-Gen Voice AI" },
                                 { icon: Zap, label: "Pay-Per-Use ETH" },
                             ].map((item, i) => (
                                 <div key={i} className="flex flex-col items-center sm:items-start p-4 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">

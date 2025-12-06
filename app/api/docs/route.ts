@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 export async function POST(req: Request) {
     try {
@@ -14,9 +15,12 @@ export async function POST(req: Request) {
                 order,
                 content,
                 videoUrl,
+
                 resources,
-            },
+            } as any,
         });
+
+        await logActivity("Created Documentation", "Documentation", `Created article: ${title}`);
 
         return NextResponse.json(doc);
     } catch (error) {

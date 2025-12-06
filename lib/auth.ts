@@ -6,6 +6,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { newUserNotify } from "./new-user-notify";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { logActivityInternal } from "@/actions/audit";
 
 function getGoogleCredentials(): { clientId: string; clientSecret: string } {
   const clientId = process.env.GOOGLE_ID;
@@ -101,8 +102,12 @@ export const authOptions: NextAuthOptions = {
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
         });
+
+        // Log the login activity
+        await logActivityInternal(user.id, "User Login", "Auth", "User logged in successfully");
       } catch (_err) {
         // swallow to avoid deadlocks during concurrent sign-ins
+        console.error("Error in signIn event:", _err);
       }
     },
   },

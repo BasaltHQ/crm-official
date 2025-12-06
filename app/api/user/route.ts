@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hash } from "bcryptjs";
 import { newUserNotify } from "@/lib/new-user-notify";
+import { logActivityInternal } from "@/actions/audit";
 
 export async function POST(req: Request) {
   try {
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
           password: await hash(password, 12),
         },
       });
+      await logActivityInternal(user.id, "User Register", "Auth", `First user registered as Admin: ${user.email}`);
       return NextResponse.json(user);
     } else {
       //There is at least one user in the system, so create user with no admin rights and set userStatus to PENDING
@@ -88,6 +90,8 @@ export async function POST(req: Request) {
       Function will send email to all admins about new user registration which is in PENDING state and need to be activated
     */
       newUserNotify(user);
+
+      await logActivityInternal(user.id, "User Register", "Auth", `User registered: ${user.email}`);
 
       return NextResponse.json(user);
     }

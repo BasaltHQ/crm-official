@@ -195,7 +195,7 @@ export default function LandingPage() {
                             </h2>
 
                             <p className="max-w-[800px] text-lg md:text-xl text-slate-400 font-light leading-relaxed">
-                                Professional-grade, ultra-low latency voice AI powered by Azure OpenAI.
+                                Professional-grade, ultra-low latency voice AI powered by the world's most advanced real-time models.
                                 <span className="block mt-2">Pay per second with ETH. No subscriptions.</span>
                             </p>
 
@@ -213,7 +213,7 @@ export default function LandingPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
                             {[
                                 { title: "Enterprise Security", icon: ShieldCheck, desc: "Bank-grade encryption & privacy preservation", color: "text-emerald-400", border: "hover:border-emerald-500/50" },
-                                { title: "Azure OpenAI", icon: Sparkles, desc: "Powered by GPT-4o & cutting-edge TTS models", color: "text-cyan-400", border: "hover:border-cyan-500/50" },
+                                { title: "Next-Gen Voice AI", icon: Sparkles, desc: "Powered by state-of-the-art LLMs & cutting-edge TTS models", color: "text-cyan-400", border: "hover:border-cyan-500/50" },
                                 { title: "Pay-Per-Use ETH Billing", icon: Zap, desc: "Stream payments in real-time. Zero commitment.", color: "text-purple-400", border: "hover:border-purple-500/50" }
                             ].map((card, i) => (
                                 <div key={i} className={`p-8 rounded-3xl bg-slate-900/50 border border-slate-800 backdrop-blur-xl hover:bg-slate-800/50 transition-all duration-500 group ${card.border}`}>

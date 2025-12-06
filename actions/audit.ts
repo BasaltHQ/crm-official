@@ -4,6 +4,26 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+export async function logActivityInternal(
+    userId: string,
+    action: string,
+    resource: string,
+    details?: string
+) {
+    try {
+        await prismadb.systemActivity.create({
+            data: {
+                userId,
+                action,
+                resource,
+                details,
+            },
+        });
+    } catch (error) {
+        console.error("Failed to log activity:", error);
+    }
+}
+
 export async function logActivity(
     action: string,
     resource: string,
@@ -13,14 +33,7 @@ export async function logActivity(
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) return;
 
-        await prismadb.systemActivity.create({
-            data: {
-                userId: session.user.id,
-                action,
-                resource,
-                details,
-            },
-        });
+        await logActivityInternal(session.user.id, action, resource, details);
     } catch (error) {
         console.error("Failed to log activity:", error);
     }

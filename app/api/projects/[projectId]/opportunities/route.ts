@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 // GET /api/projects/[projectId]/opportunities
 // List project-scoped opportunities
@@ -58,7 +59,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
     // Access check
     const project = await prismadb.boards.findUnique({
       where: { id: projectId },
-      select: { id: true, user: true, sharedWith: true },
+      select: { id: true, user: true, sharedWith: true, title: true },
     });
     if (!project) return new NextResponse("Project not found", { status: 404 });
     const canAccess = project.user === session.user.id || (project.sharedWith || []).includes(session.user.id);
@@ -79,9 +80,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
       },
     });
 
+    await logActivity("Created Feature/Opportunity", "Features", `Created in project ${project.title}: ${title}`);
+
     return NextResponse.json({ ok: true, opportunity: created }, { status: 200 });
   } catch (e) {
     console.error("[PROJECT_OPPORTUNITIES_POST]", e);
     return new NextResponse("Internal Error", { status: 500 });
+
   }
-}
