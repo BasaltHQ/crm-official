@@ -32,10 +32,10 @@ const AdminPage = async () => {
     >
       <div className="space-x-2">
         <Button asChild>
-          <Link href="/cms/users">Users administration</Link>
+          <Link href="/admin/users">Users administration</Link>
         </Button>
         <Button asChild>
-          <Link href="/cms/modules">Modules administration</Link>
+          <Link href="/admin/modules">Modules administration</Link>
         </Button>
       </div>
       <div className="flex flex-row flex-wrap space-y-2 md:space-y-0 gap-2">

@@ -12,9 +12,10 @@ import { prismadb } from "@/lib/prisma";
  *   brand_primary_color?: string
  * }
  */
-export async function GET(_req: Request, { params }: any) {
+export async function GET(_req: Request, props: { params: Promise<{ projectId: string }> }) {
     try {
-        const { projectId } = await params;
+        const params = await props.params;
+        const { projectId } = params;
         if (!projectId) {
             return new NextResponse("Missing projectId", { status: 400 });
         }

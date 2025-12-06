@@ -10,9 +10,9 @@ export default async function AdminDashboardLayout({
     params,
 }: {
     children: React.ReactNode;
-    params: { locale: string };
+    params: Promise<{ locale: string }>;
 }) {
-    const { locale } = params;
+    const { locale } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session) {

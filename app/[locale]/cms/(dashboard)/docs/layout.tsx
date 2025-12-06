@@ -6,8 +6,9 @@ export default async function CMSDocsLayout({
     params
 }: {
     children: React.ReactNode;
-    params: { locale: string };
+    params: Promise<{ locale: string }>;
 }) {
+    const { locale } = await params;
     const docs = await prismadb.docArticle.findMany({
         orderBy: [
             { category: "asc" },
@@ -26,7 +27,7 @@ export default async function CMSDocsLayout({
         <div className="flex flex-1 h-full overflow-hidden">
             {/* Persistent Sidebar */}
             <aside className="w-80 flex-shrink-0 h-full border-r border-border overflow-hidden hidden lg:block">
-                <AdminDocsSidebar docs={docs} locale={params.locale} />
+                <AdminDocsSidebar docs={docs} locale={locale} />
             </aside>
 
             {/* Main Content Area */}

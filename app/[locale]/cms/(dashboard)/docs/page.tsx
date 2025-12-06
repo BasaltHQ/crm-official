@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Layers, Zap, Clock } from "lucide-react";
 import Link from "next/link";
 
-export default async function CMSDocsOverviewPage({ params }: { params: { locale: string } }) {
+export default async function CMSDocsOverviewPage(props: { params: Promise<{ locale: string }> }) {
+    const params = await props.params;
     const docs = await prismadb.docArticle.findMany();
     const totalDocs = docs.length;
     const categories = new Set(docs.map(d => d.category)).size;

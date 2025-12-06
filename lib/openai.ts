@@ -1,5 +1,7 @@
 import OpenAI, { AzureOpenAI } from "openai";
 import { prismadb } from "./prisma";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createAzure } from "@ai-sdk/azure";
 
 // Azure/OpenAI helper returns a configured OpenAI client.
 // Prefers Azure OpenAI when required env vars are present, otherwise falls back to direct OpenAI API key.
@@ -51,4 +53,29 @@ export async function openAiHelper(userId: string) {
   });
 
   return openai;
+}
+
+export async function getAiSdkModel(userId: string) {
+  // Prefer Azure OpenAI
+  const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
+  const azureApiKey = process.env.AZURE_OPENAI_API_KEY;
+  const azureDeployment = process.env.AZURE_OPENAI_DEPLOYMENT; // Model name for Azure
+
+  if (azureEndpoint && azureApiKey && azureDeployment) {
+    const azure = createAzure({
+      apiKey: azureApiKey,
+      baseURL: azureEndpoint, // createAzure uses baseURL or resourceName
+    });
+    return azure(azureDeployment);
+  }
+
+  // Fallback: OpenAI
+  const openAiKey = await prismadb.systemServices.findFirst({ where: { name: "openAiKey" } });
+  const userOpenAiKey = await prismadb.openAi_keys.findFirst({ where: { user: userId } });
+  const apiKey = openAiKey?.serviceKey || userOpenAiKey?.api_key || process.env.OPENAI_API_KEY;
+
+  if (!apiKey) return null;
+
+  const openai = createOpenAI({ apiKey });
+  return openai("gpt-4o"); // Default model, or passed as arg?
 }

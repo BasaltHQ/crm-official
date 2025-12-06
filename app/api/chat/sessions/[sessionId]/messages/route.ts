@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbChat } from "@/lib/prisma-chat";
 const db: any = prismadbChat;
-import { openAiHelper } from "@/lib/openai";
-import { OpenAIStream, StreamingTextResponse } from "ai";
+import { getAiSdkModel } from "@/lib/openai";
+import { streamText } from "ai";
 
 type Params = {
   params: { sessionId: string };
@@ -120,26 +120,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
     }
 
     // Call Azure OpenAI (or fallback OpenAI) with streaming
-    const openai = await openAiHelper(auth.user.id);
-    if (!openai) {
-      const errorResponse = new Response("No openai key found", { status: 500 });
-      const stream = OpenAIStream(errorResponse);
-      return new StreamingTextResponse(stream);
+    const model = await getAiSdkModel(auth.user.id);
+    if (!model) {
+      return new NextResponse("No openai key found", { status: 500 });
     }
 
-    const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const azureDeployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-    const modelToUse = azureEndpoint && azureDeployment ? azureDeployment : "gpt-3.5-turbo";
-
-    const response = await openai.chat.completions.create({
-      model: modelToUse,
-      stream: true,
+    const result = await streamText({
+      model,
       messages: modelMessages,
       temperature: 1.0,
-    });
-
-    const stream = OpenAIStream(response, {
-      onCompletion: async (completion: string) => {
+      onFinish: async ({ text: completion }) => {
         try {
           if (!chatSession.isTemporary) {
             await db.chat_Messages.create({
@@ -163,7 +153,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
       },
     });
 
-    return new StreamingTextResponse(stream);
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("[CHAT_MESSAGES_POST]", error);
     return new NextResponse("Failed to process message", { status: 500 });

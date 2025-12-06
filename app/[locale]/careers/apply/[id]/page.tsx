@@ -4,7 +4,8 @@ import { prismadb } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { ApplicationForm } from "./_components/ApplicationForm"; // Client form
 
-export default async function ApplyPage({ params }: { params: { id: string } }) {
+export default async function ApplyPage(props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const job = await prismadb.jobPosting.findUnique({
         where: { id: params.id },
     });

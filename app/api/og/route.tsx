@@ -1,24 +1,23 @@
 import { ImageResponse } from "next/og";
 import {
-  LuLayoutDashboard,
-  LuCoins,
-  LuFolderKanban,
-  LuMail,
-  LuBrainCircuit,
-  LuUsers,
-  LuFileText,
-  LuBarChart3,
-  LuSettings,
-  LuSearch,
-  LuBell,
-  LuPlus,
-  LuTrendingUp,
-  LuCheckCircle,
-  LuMapPin,
-  LuBuilding2
-} from "react-icons/lu";
+  LayoutDashboard,
+  Coins,
+  FolderKanban,
+  Mail,
+  BrainCircuit,
+  Users,
+  FileText,
+  BarChart3,
+  Settings,
+  Search,
+  Bell,
+  Plus,
+  TrendingUp,
+  MapPin,
+  Building2
+} from "lucide-react";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
@@ -60,21 +59,21 @@ export async function GET(request: Request) {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
                   <div style={{ display: "flex", fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>Feature Comparison</div>
-                  <LuTrendingUp size={18} color="#22d3ee" />
+                  <TrendingUp size={18} color="#22d3ee" />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <LuCheckCircle size={16} color="#10b981" />
+                    <div style={{ width: 16, height: 16, background: "#10b981", borderRadius: "50%" }} />
                     <div style={{ display: "flex", fontSize: 13, color: "white" }}>AI Automation</div>
                     <div style={{ display: "flex", marginLeft: "auto", fontSize: 13, color: "#22d3ee", fontWeight: 700 }}>2x Faster</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <LuCheckCircle size={16} color="#10b981" />
+                    <div style={{ width: 16, height: 16, background: "#10b981", borderRadius: "50%" }} />
                     <div style={{ display: "flex", fontSize: 13, color: "white" }}>Cost Efficiency</div>
                     <div style={{ display: "flex", marginLeft: "auto", fontSize: 13, color: "#22d3ee", fontWeight: 700 }}>60% Less</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <LuCheckCircle size={16} color="#10b981" />
+                    <div style={{ width: 16, height: 16, background: "#10b981", borderRadius: "50%" }} />
                     <div style={{ display: "flex", fontSize: 13, color: "white" }}>Setup Time</div>
                     <div style={{ display: "flex", marginLeft: "auto", fontSize: 13, color: "#22d3ee", fontWeight: 700 }}>5 Minutes</div>
                   </div>
@@ -122,7 +121,7 @@ export async function GET(request: Request) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-                  <LuBuilding2 size={18} color="#a78bfa" />
+                  <Building2 size={18} color="#a78bfa" />
                   <div style={{ display: "flex", fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>Industry Impact</div>
                 </div>
                 <div style={{ display: "flex", fontSize: 32, color: "white", fontWeight: 700, marginBottom: "10px" }}>89%</div>
@@ -185,7 +184,7 @@ export async function GET(request: Request) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-                  <LuMapPin size={18} color="#34d399" />
+                  <MapPin size={18} color="#34d399" />
                   <div style={{ display: "flex", fontSize: 14, color: "#94a3b8", fontWeight: 600 }}>Local Growth</div>
                 </div>
                 <div style={{ display: "flex", fontSize: 32, color: "white", fontWeight: 700, marginBottom: "8px" }}>1,247</div>
@@ -371,18 +370,18 @@ export async function GET(request: Request) {
                 <div style={{ display: "flex", width: "20px", height: "20px", background: "white", borderRadius: "4px" }} />
               </div>
 
-              <LuLayoutDashboard size={24} color="#94a3b8" />
-              <LuCoins size={24} color="#22d3ee" style={{ filter: "drop-shadow(0 0 8px rgba(34,211,238,0.5))" }} />
-              <LuFolderKanban size={24} color="#94a3b8" />
-              <LuMail size={24} color="#94a3b8" />
-              <LuBrainCircuit size={24} color="#94a3b8" />
-              <LuUsers size={24} color="#94a3b8" />
-              <LuFileText size={24} color="#94a3b8" />
-              <LuBarChart3 size={24} color="#94a3b8" />
+              <LayoutDashboard size={24} color="#94a3b8" />
+              <Coins size={24} color="#22d3ee" style={{ filter: "drop-shadow(0 0 8px rgba(34,211,238,0.5))" }} />
+              <FolderKanban size={24} color="#94a3b8" />
+              <Mail size={24} color="#94a3b8" />
+              <BrainCircuit size={24} color="#94a3b8" />
+              <Users size={24} color="#94a3b8" />
+              <FileText size={24} color="#94a3b8" />
+              <BarChart3 size={24} color="#94a3b8" />
             </div>
 
             <div style={{ display: "flex", marginTop: "auto", marginBottom: "30px" }}>
-              <LuSettings size={24} color="#475569" />
+              <Settings size={24} color="#475569" />
             </div>
           </div>
 
@@ -404,17 +403,17 @@ export async function GET(request: Request) {
             >
               {/* Search Bar */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.05)", padding: "8px 16px", borderRadius: "8px", width: "300px" }}>
-                <LuSearch size={18} color="#64748b" />
+                <Search size={18} color="#64748b" />
                 <div style={{ display: "flex", height: "8px", width: "100px", background: "#334155", borderRadius: "4px" }} />
               </div>
 
               {/* Right Header Icons */}
               <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#22d3ee", padding: "6px 12px", borderRadius: "6px" }}>
-                  <LuPlus size={16} color="black" />
+                  <Plus size={16} color="black" />
                   <div style={{ display: "flex", fontSize: 12, fontWeight: 700, color: "black" }}>NEW</div>
                 </div>
-                <LuBell size={20} color="#94a3b8" />
+                <Bell size={20} color="#94a3b8" />
                 <div style={{ display: "flex", width: "32px", height: "32px", borderRadius: "50%", background: "#334155", border: "2px solid #1e293b" }} />
               </div>
             </div>

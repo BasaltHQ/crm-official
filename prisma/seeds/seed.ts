@@ -13,7 +13,9 @@ const crmOpportunitySaleStagesData = require("../initial-data/crm_Opportunities_
 const crmCampaignsData = require("../initial-data/crm_campaigns.json");
 const crmIndustryTypeData = require("../initial-data/crm_Industry_Type.json");
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL,
+});
 
 async function main() {
   // Your seeding logic here using Prisma Client

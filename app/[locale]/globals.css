@@ -6,6 +6,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -15,6 +16,7 @@
   from {
     opacity: 1;
   }
+
   to {
     opacity: 0;
   }
@@ -34,6 +36,7 @@
   from {
     transform: translateX(0%);
   }
+
   to {
     transform: translateX(100%);
   }
@@ -92,7 +95,8 @@
 
   .dark {
     /* Unified cyber-turquoise surfaces for dark mode */
-    --background: 0 0% 0%; /* true black */
+    --background: 0 0% 0%;
+    /* true black */
     --foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
@@ -115,7 +119,8 @@
     --secondary-foreground: 210 40% 98%;
 
     /* Use brand accent and focus ring in dark */
-    --accent: 191 60% 38%; /* brighter turquoise accent */
+    --accent: 191 60% 38%;
+    /* brighter turquoise accent */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
@@ -138,6 +143,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     /* Ledger1CRM: liquid glass morphism global gradient background */
@@ -177,11 +183,13 @@
   backdrop-filter: blur(18px) saturate(170%);
   -webkit-backdrop-filter: blur(18px) saturate(170%);
 }
+
 .sidebar-toggle:hover {
   transform: scale(1.05);
   border-color: hsla(191, 65%, 58%, 0.35);
   box-shadow: 0 14px 48px hsla(191, 65%, 46%, 0.35), inset 0 1px 0 hsla(0, 0%, 100%, 0.12);
 }
+
 .sidebar-toggle:active {
   transform: scale(0.98);
 }
@@ -203,6 +211,7 @@
   color: hsl(var(--foreground));
   opacity: 0.94;
 }
+
 .menu-item:hover {
   transform: none;
   border-color: hsla(191, 65%, 58%, 0.35);
@@ -217,6 +226,7 @@
   box-shadow: 0 14px 50px hsla(191, 65%, 46%, 0.45), inset 0 1px 0 hsla(0, 0%, 100%, 0.18);
   transform: none;
 }
+
 .menu-item-active::before {
   content: "";
   position: absolute;
@@ -228,12 +238,14 @@
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(77, 191, 217, 0.6), rgba(42, 169, 199, 0.95));
 }
+
 .menu-item .icon {
   width: 32px !important;
   height: 32px !important;
   opacity: 0.95;
   transition: transform 180ms ease;
 }
+
 .menu-item-active .icon {
   opacity: 1;
   filter: drop-shadow(0 0 6px rgba(77, 191, 217, 0.55));
@@ -276,6 +288,7 @@
   margin-right: 0 !important;
   align-self: stretch;
 }
+
 .sidebar-list .menu-item {
   width: 100%;
   justify-content: flex-start;
@@ -292,6 +305,7 @@
   transition: opacity 220ms ease;
   pointer-events: none;
 }
+
 .menu-item:hover::after,
 .menu-item:focus-visible::after {
   opacity: 1;
@@ -302,6 +316,7 @@
   justify-content: center;
   padding: 0.5rem;
 }
+
 .sidebar[data-open="false"] .menu-item .icon {
   width: 36px !important;
   height: 36px !important;
@@ -316,10 +331,12 @@
 
 /* Microtext utility for subtle helper copy */
 .microtext {
-  font-size: 0.75rem; /* text-xs */
+  font-size: 0.75rem;
+  /* text-xs */
   letter-spacing: 0.02em;
   opacity: 0.7;
 }
+
 /* Microtext font helper: applies the dedicated microtext font stack */
 .microtext-font {
   font-family: var(--microtext-font);
@@ -329,6 +346,7 @@
 .cyber-grid {
   position: relative;
 }
+
 .cyber-grid::before {
   content: "";
   position: absolute;
@@ -342,12 +360,15 @@
 
 /* Sleek global scrollbars */
 :root {
-  --scrollbar-thumb: rgba(100, 116, 139, 0.45); /* slate-500 */
+  --scrollbar-thumb: rgba(100, 116, 139, 0.45);
+  /* slate-500 */
   --scrollbar-thumb-hover: rgba(100, 116, 139, 0.7);
   --scrollbar-track: transparent;
 }
+
 .dark {
-  --scrollbar-thumb: rgba(148, 163, 184, 0.35); /* slate-400 */
+  --scrollbar-thumb: rgba(148, 163, 184, 0.35);
+  /* slate-400 */
   --scrollbar-thumb-hover: rgba(148, 163, 184, 0.55);
   --scrollbar-track: transparent;
 }
@@ -363,18 +384,22 @@
   width: 8px;
   height: 8px;
 }
+
 *::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
 }
+
 *::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover);
 }
+
 *::-webkit-scrollbar-corner {
   background: transparent;
 }

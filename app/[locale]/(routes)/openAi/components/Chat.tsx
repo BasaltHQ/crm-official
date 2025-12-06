@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import * as Switch from "@radix-ui/react-switch";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
 import { toast } from "sonner";
 import { Loader, Plus, Trash2, Pencil, Check, X, RefreshCw, Menu, Send, Square } from "lucide-react";
 
@@ -357,9 +357,8 @@ export default function ChatApp() {
           {sessions.map((s) => (
             <div
               key={s.id}
-              className={`p-2 rounded mb-2 cursor-pointer ${
-                s.id === activeSessionId ? "bg-accent/20 border border-accent" : "hover:bg-muted"
-              }`}
+              className={`p-2 rounded mb-2 cursor-pointer ${s.id === activeSessionId ? "bg-accent/20 border border-accent" : "hover:bg-muted"
+                }`}
               onClick={() => setActiveSessionId(s.id)}
             >
               <div className="flex items-center justify-between">
@@ -465,35 +464,34 @@ export default function ChatApp() {
               </span>
             )}
           </div>
-  <div className="flex items-center gap-4">
-    {/* Context window tracker */}
-    <div className="w-40 sm:w-64">
-      <div className="flex items-center justify-between text-[11px] sm:text-xs mb-1">
-        <span className="text-muted-foreground">Context</span>
-        <span className="font-medium">
-          {usedTokens.toLocaleString()} / {MAX_TOKENS.toLocaleString()} ({percentUsed}%)
-        </span>
-      </div>
-      <div className="h-2 rounded bg-muted overflow-hidden">
-        <div
-          className={`h-2 rounded transition-all ${
-            percentUsed >= 90 ? "bg-red-500" : percentUsed >= 75 ? "bg-yellow-500" : "bg-blue-600"
-          }`}
-          style={{ width: `${Math.min(100, percentUsed)}%` }}
-        />
-      </div>
-    </div>
+          <div className="flex items-center gap-4">
+            {/* Context window tracker */}
+            <div className="w-40 sm:w-64">
+              <div className="flex items-center justify-between text-[11px] sm:text-xs mb-1">
+                <span className="text-muted-foreground">Context</span>
+                <span className="font-medium">
+                  {usedTokens.toLocaleString()} / {MAX_TOKENS.toLocaleString()} ({percentUsed}%)
+                </span>
+              </div>
+              <div className="h-2 rounded bg-muted overflow-hidden">
+                <div
+                  className={`h-2 rounded transition-all ${percentUsed >= 90 ? "bg-red-500" : percentUsed >= 75 ? "bg-yellow-500" : "bg-blue-600"
+                    }`}
+                  style={{ width: `${Math.min(100, percentUsed)}%` }}
+                />
+              </div>
+            </div>
 
-    {/* Refresh messages */}
-    <button
-      className="p-2 rounded hover:bg-muted"
-      onClick={() => loadMessages(activeSessionId)}
-      disabled={!activeSessionId}
-      title="Refresh messages"
-    >
-      <RefreshCw className={`w-4 h-4 ${loadingMessages ? "animate-spin" : ""}`} />
-    </button>
-  </div>
+            {/* Refresh messages */}
+            <button
+              className="p-2 rounded hover:bg-muted"
+              onClick={() => loadMessages(activeSessionId)}
+              disabled={!activeSessionId}
+              title="Refresh messages"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingMessages ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
 
         {/* Messages list */}
@@ -510,11 +508,10 @@ export default function ChatApp() {
           {messages.map((m) => (
             <div
               key={m.id}
-              className={`rounded-xl p-3 ${
-                m.role === "user"
+              className={`rounded-xl p-3 ${m.role === "user"
                   ? "border bg-primary/10 border-primary/40 backdrop-blur-md shadow"
                   : "glass"
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs px-2 py-1 rounded bg-muted">

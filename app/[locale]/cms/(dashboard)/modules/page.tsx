@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { columns } from "./components/Columns";
 import { DataTable } from "./components/data-table";
-import Container from "../../components/ui/Container";
+import Container from "@/app/[locale]/(routes)/components/ui/Container";
 
 import { authOptions } from "@/lib/auth";
 import { getModules } from "@/actions/get-modules";

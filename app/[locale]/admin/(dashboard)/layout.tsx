@@ -10,9 +10,9 @@ export default async function AdminDashboardLayout({
     params,
 }: {
     children: React.ReactNode;
-    params: { locale: string };
+    params: Promise<{ locale: string }>;
 }) {
-    const { locale } = params;
+    const { locale } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -36,18 +36,18 @@ export default async function AdminDashboardLayout({
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <NavLink href={`/${locale}/cms`} icon={<LayoutDashboard />} label="Dashboard" />
+                    <NavLink href={`/${locale}/admin`} icon={<LayoutDashboard />} label="Dashboard" />
 
                     <div className="pt-4 pb-2 px-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Content</div>
-                    <NavLink href={`/${locale}/cms/blog`} icon={<FileText />} label="Blog" />
-                    <NavLink href={`/${locale}/cms/careers`} icon={<Briefcase />} label="Careers" />
-                    <NavLink href={`/${locale}/cms/docs`} icon={<BookOpen />} label="Documentation" />
-                    <NavLink href={`/${locale}/cms/footer`} icon={<Globe />} label="Footer" />
-                    <NavLink href={`/${locale}/cms/social`} icon={<Share2 />} label="Social Media" />
+                    <NavLink href={`/${locale}/admin/blog`} icon={<FileText />} label="Blog" />
+                    <NavLink href={`/${locale}/admin/careers`} icon={<Briefcase />} label="Careers" />
+                    <NavLink href={`/${locale}/admin/docs`} icon={<BookOpen />} label="Documentation" />
+                    <NavLink href={`/${locale}/admin/footer`} icon={<Globe />} label="Footer" />
+                    <NavLink href={`/${locale}/admin/social`} icon={<Share2 />} label="Social Media" />
 
                     <div className="pt-4 pb-2 px-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">System</div>
-                    <NavLink href={`/${locale}/cms/users`} icon={<Users />} label="Users" />
-                    <NavLink href={`/${locale}/cms/settings`} icon={<Settings />} label="Settings" />
+                    <NavLink href={`/${locale}/admin/users`} icon={<Users />} label="Users" />
+                    <NavLink href={`/${locale}/admin/settings`} icon={<Settings />} label="Settings" />
                 </nav>
 
                 <div className="p-4 border-t border-gray-200 dark:border-slate-800">

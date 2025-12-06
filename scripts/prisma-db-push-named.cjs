@@ -13,6 +13,7 @@ Configure via env (optional):
 */
 
 const { spawnSync } = require("child_process");
+require("dotenv").config();
 
 function withDbName(raw, dbName) {
   try {

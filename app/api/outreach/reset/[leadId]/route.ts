@@ -8,7 +8,8 @@ import { prismadb } from "@/lib/prisma";
  * Resets a single lead's outreach state back to IDLE and pipeline stage to Identify.
  * Does NOT delete notes or activities; inserts a reset activity for traceability.
  */
-export async function POST(_: Request, { params }: { params: { leadId: string } }) {
+export async function POST(_: Request, props: { params: Promise<{ leadId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
