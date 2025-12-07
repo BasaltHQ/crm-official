@@ -19,8 +19,8 @@ export default function AdminSettingsPage() {
     return (
         <div className="p-8 max-w-5xl mx-auto space-y-8">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold">Settings</h1>
-                <p className="text-gray-500 mt-1">Manage your profile and system preferences.</p>
+                <h1 className="text-3xl font-bold text-white">Settings</h1>
+                <p className="text-slate-400 mt-1">Manage your profile and system preferences.</p>
             </div>
 
             <Tabs defaultValue="profile" className="w-full">
@@ -65,32 +65,32 @@ function ProfileSettings() {
     }
 
     return (
-        <div className="bg-white dark:bg-slate-950 border rounded-lg p-6 max-w-2xl">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg p-6 max-w-2xl">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
                 <User className="h-5 w-5 text-blue-500" /> Your Profile
             </h2>
             <form onSubmit={handleUpdate} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium mb-1">Display Name</label>
+                    <label className="block text-sm font-medium mb-1 text-slate-300">Display Name</label>
                     <input
-                        className="w-full p-2 border rounded-md dark:bg-slate-900"
+                        className="w-full p-2 border rounded-md bg-slate-900 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                         placeholder="Enter your name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Leave empty to keep current name</p>
+                    <p className="text-xs text-slate-500 mt-1">Leave empty to keep current name</p>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium mb-1">New Password</label>
+                    <label className="block text-sm font-medium mb-1 text-slate-300">New Password</label>
                     <input
                         type="password"
-                        className="w-full p-2 border rounded-md dark:bg-slate-900"
+                        className="w-full p-2 border rounded-md bg-slate-900 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Leave empty to keep current password. Min 6 chars.</p>
+                    <p className="text-xs text-slate-500 mt-1">Leave empty to keep current password. Min 6 chars.</p>
                 </div>
 
                 <button
@@ -169,10 +169,10 @@ function TeamSettings() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <h2 className="text-xl font-semibold flex items-center gap-2 text-white">
                         <Shield className="h-5 w-5 text-blue-500" /> Admin Users
                     </h2>
-                    <p className="text-sm text-gray-500">Manage who has access to this CMS.</p>
+                    <p className="text-sm text-slate-400">Manage who has access to this CMS.</p>
                 </div>
 
                 <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
@@ -187,28 +187,28 @@ function TeamSettings() {
                         </DialogHeader>
                         <form onSubmit={handleAddUser} className="space-y-4 pt-4">
                             <div>
-                                <label className="text-sm font-medium">Name</label>
+                                <label className="text-sm font-medium text-slate-300">Name</label>
                                 <input
-                                    className="w-full p-2 border rounded bg-background"
+                                    className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500"
                                     value={newUser.name}
                                     onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label className="text-sm font-medium">Email</label>
+                                <label className="text-sm font-medium text-slate-300">Email</label>
                                 <input
                                     type="email"
-                                    className="w-full p-2 border rounded bg-background"
+                                    className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500"
                                     value={newUser.email}
                                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="text-sm font-medium">Password</label>
+                                <label className="text-sm font-medium text-slate-300">Password</label>
                                 <input
                                     type="password"
-                                    className="w-full p-2 border rounded bg-background"
+                                    className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500"
                                     value={newUser.password}
                                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                                     required
@@ -228,26 +228,26 @@ function TeamSettings() {
                 </Dialog>
             </div>
 
-            <div className="bg-white dark:bg-slate-950 border rounded-lg overflow-hidden">
-                <div className="divide-y">
+            <div className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden">
+                <div className="divide-y divide-white/10">
                     {loading ? (
-                        <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-gray-400" /></div>
+                        <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-slate-400" /></div>
                     ) : users.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">No admin users found.</div>
+                        <div className="p-8 text-center text-slate-500">No admin users found.</div>
                     ) : (
                         users.map((user) => (
-                            <div key={user.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors">
+                            <div key={user.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
-                                        <User className="h-5 w-5 text-gray-500" />
+                                    <div className="h-10 w-10 bg-slate-800 rounded-full flex items-center justify-center">
+                                        <User className="h-5 w-5 text-slate-500" />
                                     </div>
                                     <div>
-                                        <div className="font-medium">{user.name || "Unnamed"}</div>
-                                        <div className="text-sm text-gray-500">{user.email}</div>
+                                        <div className="font-medium text-white">{user.name || "Unnamed"}</div>
+                                        <div className="text-sm text-slate-500">{user.email}</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Active</span>
+                                    <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-1 rounded-full">Active</span>
                                     <button
                                         onClick={() => handleRemoveAdmin(user.id)}
                                         className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded transition-colors"

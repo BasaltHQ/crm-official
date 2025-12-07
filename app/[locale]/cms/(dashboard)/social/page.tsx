@@ -102,8 +102,8 @@ export default function SocialAdminPage() {
         <div className="p-8 max-w-5xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">Social Media Settings</h1>
-                    <p className="text-gray-500 mt-1">Manage all your social links in one place.</p>
+                    <h1 className="text-3xl font-bold text-white">Social Media Settings</h1>
+                    <p className="text-slate-400 mt-1">Manage all your social links in one place.</p>
                 </div>
                 <button
                     onClick={handleSave}
@@ -116,8 +116,8 @@ export default function SocialAdminPage() {
             </div>
 
             {/* Primary Social Platforms */}
-            <div className="bg-white dark:bg-slate-950 border rounded-lg overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 dark:bg-slate-900 font-medium">
+            <div className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden">
+                <div className="p-4 border-b border-white/10 bg-white/5 font-medium text-white">
                     Primary Social Platforms
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -131,8 +131,8 @@ export default function SocialAdminPage() {
             </div>
 
             {/* Secondary Social Platforms */}
-            <div className="bg-white dark:bg-slate-950 border rounded-lg overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 dark:bg-slate-900 font-medium">
+            <div className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden">
+                <div className="p-4 border-b border-white/10 bg-white/5 font-medium text-white">
                     More Platforms
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -146,8 +146,8 @@ export default function SocialAdminPage() {
             </div>
 
             {/* Contact & App Stores */}
-            <div className="bg-white dark:bg-slate-950 border rounded-lg overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 dark:bg-slate-900 font-medium">
+            <div className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden">
+                <div className="p-4 border-b border-white/10 bg-white/5 font-medium text-white">
                     Contact & Downloads
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -160,8 +160,8 @@ export default function SocialAdminPage() {
             </div>
 
             {/* Newsletter Settings */}
-            <div className="bg-white dark:bg-slate-950 border rounded-lg overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 dark:bg-slate-900 font-medium">
+            <div className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden">
+                <div className="p-4 border-b border-white/10 bg-white/5 font-medium text-white">
                     Newsletter & CTA
                 </div>
                 <div className="p-6 space-y-4">
@@ -176,9 +176,9 @@ export default function SocialAdminPage() {
                         <label htmlFor="newsletter" className="font-medium">Enable Newsletter Signup</label>
                     </div>
                     <div>
-                        <label className="text-sm font-medium text-gray-600 block mb-1">CTA Button Text</label>
+                        <label className="text-sm font-medium text-slate-300 block mb-1">CTA Button Text</label>
                         <input
-                            className="w-full max-w-md p-2 border rounded bg-background"
+                            className="w-full max-w-md p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500"
                             value={settings.ctaText}
                             onChange={e => updateField("ctaText", e.target.value)}
                             placeholder="Stay Updated"
@@ -199,19 +199,19 @@ function SocialInput({ icon, label, value, onChange, placeholder }: {
 }) {
     return (
         <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <span className="text-lg">{icon}</span> {label}
+            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <span className="text-lg text-slate-200">{icon}</span> {label}
             </label>
             <div className="flex gap-2">
                 <input
-                    className="flex-1 p-2 border rounded bg-background text-sm"
+                    className="flex-1 p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500 text-sm focus:border-blue-500 transition-colors"
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     placeholder={placeholder}
                 />
                 {value && (
-                    <a href={value} target="_blank" rel="noopener noreferrer" className="p-2 border rounded hover:bg-gray-100 dark:hover:bg-slate-800">
-                        <ExternalLink className="h-4 w-4 text-gray-500" />
+                    <a href={value} target="_blank" rel="noopener noreferrer" className="p-2 border border-white/10 rounded hover:bg-white/10 text-white">
+                        <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-white" />
                     </a>
                 )}
             </div>

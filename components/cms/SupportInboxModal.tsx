@@ -59,7 +59,7 @@ export function SupportInboxModal({ isOpen, onClose }: SupportInboxModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-4xl h-[600px] bg-[#0F1115] border border-cyan-500/20 text-cyan-50 p-0 overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] rounded-2xl flex flex-col">
+            <DialogContent className="max-w-4xl h-[600px] bg-[#0F1115]/80 backdrop-blur-xl border border-cyan-500/20 text-cyan-50 p-0 overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] rounded-2xl flex flex-col">
                 <DialogTitle className="sr-only">Support Inbox</DialogTitle>
 
                 {/* Header */}
@@ -107,7 +107,7 @@ export function SupportInboxModal({ isOpen, onClose }: SupportInboxModalProps) {
                     </div>
 
                     {/* Ticket Detail */}
-                    <div className="flex-1 overflow-y-auto p-6 bg-[#0F1115]">
+                    <div className="flex-1 overflow-y-auto p-6 bg-transparent">
                         {selectedTicket ? (
                             <div className="space-y-6">
                                 <div className="flex justify-between items-start">

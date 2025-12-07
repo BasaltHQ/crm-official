@@ -1,9 +1,8 @@
 "use client";
 
-import { FileText, Briefcase, BookOpen, Globe, Share2, Users, ArrowRight, Zap, Activity, Radio, Mail } from "lucide-react";
+import { FileText, Briefcase, BookOpen, Globe, Share2, Users, ArrowRight, Activity, Mail, Image as ImageIcon, Settings } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { ActiveUsersModal } from "@/components/cms/ActiveUsersModal";
 import { SystemStatusModal } from "@/components/cms/SystemStatusModal";
 import { SupportInboxModal } from "@/components/cms/SupportInboxModal";
 import { cn } from "@/lib/utils";
@@ -37,14 +36,13 @@ const items = [
         type: "link"
     },
     {
-        title: "Active Users",
-        description: "View online team members",
-        action: "active_users",
-        icon: Radio,
-        gradient: "from-green-500/20 via-green-500/5 to-transparent border-green-500/20 hover:border-green-500/50",
-        iconColor: "text-green-400",
-        type: "modal",
-        badge: "Live"
+        title: "Media Library",
+        description: "Manage images & files",
+        href: "/cms/media",
+        icon: ImageIcon,
+        gradient: "from-orange-500/20 via-orange-500/5 to-transparent border-orange-500/20 hover:border-orange-500/50",
+        iconColor: "text-orange-400",
+        type: "link"
     },
     {
         title: "System Status",
@@ -74,10 +72,10 @@ const items = [
         type: "link"
     },
     {
-        title: "Admin Users",
-        description: "Manage access controls",
-        href: "/cms/users",
-        icon: Users,
+        title: "Settings",
+        description: "System & User Settings",
+        href: "/cms/settings",
+        icon: Settings,
         gradient: "from-slate-500/20 via-slate-500/5 to-transparent border-slate-500/20 hover:border-slate-500/50",
         iconColor: "text-slate-400",
         type: "link"
@@ -104,14 +102,13 @@ export default function DashboardGrid() {
                     const CardContent = (
                         <div className="relative h-full">
                             <div className={cn(
-                                "h-full p-6 rounded-2xl bg-[#0A0A0B] border transition-all duration-300 relative overflow-hidden group backdrop-blur-sm",
-                                item.gradient
+                                "h-full p-6 rounded-2xl bg-[#0A0A0B] border border-white/5 hover:border-white/10 transition-all duration-300 relative overflow-hidden group hover:shadow-2xl hover:shadow-black/50",
                             )}>
                                 {/* Gradient Blob Background */}
                                 <div className={cn("absolute -right-20 -top-20 h-40 w-40 rounded-full blur-3xl opacity-20 transition-opacity group-hover:opacity-40", item.iconColor.replace("text-", "bg-"))} />
 
                                 <div className="flex items-start justify-between relative z-10">
-                                    <div className={cn("p-3 rounded-xl bg-white/5 border border-white/5 shadow-inner", item.iconColor)}>
+                                    <div className={cn("p-3 rounded-xl bg-slate-800 border border-white/5 shadow-inner", item.iconColor)}>
                                         <item.icon className="h-6 w-6" />
                                     </div>
                                     {item.badge && (
@@ -153,10 +150,7 @@ export default function DashboardGrid() {
                 })}
             </div>
 
-            <ActiveUsersModal
-                isOpen={activeModal === "active_users"}
-                onClose={() => setActiveModal(null)}
-            />
+            {/* Active Users Modal removed from grid */}
 
             <SystemStatusModal
                 isOpen={activeModal === "system_status"}

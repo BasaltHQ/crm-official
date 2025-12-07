@@ -18,7 +18,10 @@ declare module "next-auth" {
       avatar?: string | null | undefined;
       isAdmin: boolean;
       userLanguage: string;
+      userLanguage: string;
       userStatus: string;
+      role?: string;
+      permissions?: string[];
     };
   }
 }

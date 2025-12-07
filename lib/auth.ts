@@ -2,6 +2,7 @@ import { prismadb } from "@/lib/prisma";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
+import TwitterProvider from "next-auth/providers/twitter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { newUserNotify } from "./new-user-notify";
@@ -39,6 +40,12 @@ export const authOptions: NextAuthOptions = {
       name: "github",
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+    }),
+
+    TwitterProvider({
+      clientId: process.env.TWITTER_ID!,
+      clientSecret: process.env.TWITTER_SECRET!,
+      version: "2.0",
     }),
 
     CredentialsProvider({
@@ -180,6 +187,15 @@ export const authOptions: NextAuthOptions = {
         session.user.userLanguage = user.userLanguage;
         session.user.userStatus = user.userStatus;
         session.user.lastLoginAt = user.lastLoginAt;
+
+        // Fetch role and permissions if available
+        if (user.roleId) {
+          const role = await prismadb.role.findUnique({ where: { id: user.roleId } });
+          if (role) {
+            session.user.role = role.name;
+            session.user.permissions = role.permissions;
+          }
+        }
       }
 
       //console.log(session, "session");

@@ -46,7 +46,7 @@ export function SystemStatusModal({ isOpen, onClose }: SystemStatusModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-2xl bg-[#0F1115] border border-cyan-500/20 text-cyan-50 p-0 overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] rounded-2xl">
+            <DialogContent className="max-w-2xl bg-[#0F1115]/80 backdrop-blur-xl border border-cyan-500/20 text-cyan-50 p-0 overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] rounded-2xl">
                 <DialogTitle className="sr-only">System Status Board</DialogTitle>
                 {/* Header with sci-fi look */}
                 <div className="bg-cyan-950/30 border-b border-cyan-500/20 p-6 flex justify-between items-center relative overflow-hidden">

@@ -54,10 +54,10 @@ export default function Changelog() {
 
     const getActionColor = (action: string) => {
         const lower = action.toLowerCase();
-        if (lower.includes("create") || lower.includes("add") || lower.includes("upload") || lower.includes("invite")) return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-        if (lower.includes("update") || lower.includes("edit") || lower.includes("modify")) return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-        if (lower.includes("delete") || lower.includes("remove")) return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-        return "bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-400";
+        if (lower.includes("create") || lower.includes("add") || lower.includes("upload") || lower.includes("invite")) return "bg-green-900/30 text-green-400";
+        if (lower.includes("update") || lower.includes("edit") || lower.includes("modify")) return "bg-blue-900/30 text-blue-400";
+        if (lower.includes("delete") || lower.includes("remove")) return "bg-red-900/30 text-red-400";
+        return "bg-slate-800 text-gray-400";
     };
 
     if (loading) {
@@ -80,36 +80,36 @@ export default function Changelog() {
     }
 
     return (
-        <Card className="h-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-sm rounded-xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-800 flex-shrink-0 bg-gray-50/50 dark:bg-slate-900/50">
+        <Card className="h-full bg-[#0F1115] border border-white/5 shadow-2xl rounded-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-white/5 flex-shrink-0 bg-[#0F1115]">
                 <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <ActivityIcon className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shadow-lg border border-blue-500/20">
+                        <ActivityIcon className="h-5 w-5 text-blue-400" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Activity Log</h2>
-                        <p className="text-xs text-gray-500 font-medium">Last 14 Days</p>
+                        <h2 className="text-lg font-bold text-white leading-tight">Activity Log</h2>
+                        <p className="text-xs text-slate-500 font-medium">Last 14 Days</p>
                     </div>
                 </div>
                 <button
                     onClick={() => window.open('/api/cms/activity/export', '_blank')}
-                    className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-white transition-colors"
                     title="Export to CSV"
                 >
                     <Download className="h-4 w-4" />
                 </button>
             </div>
 
-            <ScrollArea className="flex-1 bg-white dark:bg-slate-900">
+            <ScrollArea className="flex-1 bg-transparent">
                 <div className="relative p-6 space-y-6">
                     {activities.length === 0 ? (
-                        <div className="text-sm text-gray-500 text-center py-12 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+                        <div className="text-sm text-slate-500 text-center py-12 bg-white/5 rounded-xl border border-dashed border-white/5">
                             No recent activity recorded.
                         </div>
                     ) : (
                         <>
-                            {/* Vertical Timeline Line - Centered on Avatar (w-10 = 40px -> center 20px) + Padding (24px) = 44px */}
-                            <div className="absolute left-[43px] top-6 bottom-6 w-[2px] bg-gray-100 dark:bg-slate-800" />
+                            {/* Vertical Timeline Line */}
+                            <div className="absolute left-[43px] top-6 bottom-6 w-[1px] bg-white/5" />
 
                             <TooltipProvider>
                                 {activities.map((activity) => (
@@ -120,10 +120,10 @@ export default function Changelog() {
                                                 <img
                                                     src={activity.user.avatar}
                                                     alt={activity.user.name || "User"}
-                                                    className="h-10 w-10 rounded-full object-cover border-4 border-white dark:border-slate-900 shadow-sm"
+                                                    className="h-10 w-10 rounded-full object-cover border-4 border-slate-900 shadow-sm"
                                                 />
                                             ) : (
-                                                <div className="h-10 w-10 rounded-full bg-white dark:bg-slate-900 border-4 border-white dark:border-slate-900 ring-1 ring-gray-100 dark:ring-slate-800 flex items-center justify-center shadow-sm">
+                                                <div className="h-10 w-10 rounded-full bg-slate-800 border-4 border-slate-950 ring-1 ring-white/10 flex items-center justify-center shadow-sm">
                                                     <span className="font-bold text-xs text-gray-500">
                                                         {(activity.user.name?.[0] || "U").toUpperCase()}
                                                     </span>
@@ -132,7 +132,7 @@ export default function Changelog() {
 
                                             {/* Action Indicator Badge */}
                                             <div className={cn(
-                                                "absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center",
+                                                "absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-slate-900 flex items-center justify-center",
                                                 getActionColor(activity.action).replace("text-", "bg-").replace("/30", "")
                                             )}>
                                             </div>
@@ -142,20 +142,22 @@ export default function Changelog() {
                                             <TooltipTrigger asChild>
                                                 <div className="flex-1 min-w-0 pt-1 cursor-pointer">
                                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                                        <p className="text-sm font-semibold text-gray-200 truncate">
                                                             {activity.user.name || "Unknown User"}
                                                         </p>
-                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap font-medium bg-gray-50 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-gray-100 dark:border-slate-700">
+                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap font-medium bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
                                                             {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
                                                         </span>
                                                     </div>
 
-                                                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors">
-                                                        <span className={cn("inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase mr-1.5", getActionColor(activity.action))}>
-                                                            {activity.action}
-                                                        </span>
-                                                        {activity.resource}
-                                                    </p>
+                                                    <div className="mt-1">
+                                                        <p className="text-xs text-gray-400 leading-relaxed group-hover:text-gray-200 transition-colors">
+                                                            <span className={cn("inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase mr-1.5", getActionColor(activity.action))}>
+                                                                {activity.action}
+                                                            </span>
+                                                            {activity.resource}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="right" className="p-3 bg-slate-900 text-white border-slate-800 max-w-xs shadow-xl">
@@ -179,6 +181,6 @@ export default function Changelog() {
                     )}
                 </div>
             </ScrollArea>
-        </Card>
+        </Card >
     );
 }

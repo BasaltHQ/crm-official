@@ -1,11 +1,13 @@
+
 "use client";
 
 import { useState } from "react";
 import {
     Bold, Italic, List, ListOrdered, Link as LinkIcon,
-    Heading1, Heading2, Quote, Code, Eye, Edit2
+    Heading1, Heading2, Quote, Code, Eye, Edit2, Image as ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CustomMarkdownRenderer } from "@/components/ui/custom-markdown-renderer";
 
 interface MarkdownEditorProps {
     value: string;
@@ -49,6 +51,7 @@ export function MarkdownEditor({ value, onChange, className }: MarkdownEditorPro
                 <ToolbarButton onClick={() => insertText("> ")} icon={<Quote className="h-4 w-4" />} title="Quote" disabled={isPreview} />
                 <ToolbarButton onClick={() => insertText("```\n", "\n```")} icon={<Code className="h-4 w-4" />} title="Code Block" disabled={isPreview} />
                 <ToolbarButton onClick={() => insertText("[", "](url)")} icon={<LinkIcon className="h-4 w-4" />} title="Link" disabled={isPreview} />
+                <ToolbarButton onClick={() => insertText("![", "](url)")} icon={<ImageIcon className="h-4 w-4" />} title="Image" disabled={isPreview} />
                 <ToolbarButton onClick={() => insertText("- ")} icon={<List className="h-4 w-4" />} title="Bullet List" disabled={isPreview} />
                 <ToolbarButton onClick={() => insertText("1. ")} icon={<ListOrdered className="h-4 w-4" />} title="Ordered List" disabled={isPreview} />
             </div>
@@ -56,8 +59,8 @@ export function MarkdownEditor({ value, onChange, className }: MarkdownEditorPro
             {/* Editor / Preview */}
             <div className="min-h-[300px]">
                 {isPreview ? (
-                    <div className="p-4 prose dark:prose-invert max-w-none">
-                        <BasicMarkdownPreview content={value} />
+                    <div className="p-4 prose dark:prose-invert max-w-none bg-[#0A0A0B] rounded-lg">
+                        <CustomMarkdownRenderer content={value} />
                     </div>
                 ) : (
                     <textarea
@@ -91,22 +94,4 @@ function ToolbarButton({ onClick, icon, title, active, disabled }: any) {
     );
 }
 
-function BasicMarkdownPreview({ content }: { content: string }) {
-    // Very basic regex-based markdown parser for preview
-    // In a real app, use react-markdown
-    const lines = content.split('\n');
-    return (
-        <div className="space-y-2">
-            {lines.map((line, i) => {
-                if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold">{line.substring(2)}</h1>;
-                if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold">{line.substring(3)}</h2>;
-                if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold">{line.substring(4)}</h3>;
-                if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-gray-300 pl-4 italic">{line.substring(2)}</blockquote>;
-                if (line.startsWith('- ')) return <li key={i} className="ml-4 list-disc">{line.substring(2)}</li>;
-                if (line.startsWith('1. ')) return <li key={i} className="ml-4 list-decimal">{line.substring(3)}</li>;
-                if (line.trim() === '') return <br key={i} />;
-                return <p key={i}>{line}</p>;
-            })}
-        </div>
-    );
-}
+
