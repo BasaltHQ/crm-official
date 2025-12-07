@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { logActivity } from "@/actions/audit";
 
 export async function POST(req: Request) {
     try {
@@ -33,6 +34,8 @@ export async function POST(req: Request) {
             },
         });
 
+        await logActivity("Uploaded Media", "Media", `Uploaded ${filename}`);
+
         return NextResponse.json(mediaItem);
     } catch (error) {
         console.error("[MEDIA_POST]", error);
@@ -49,6 +52,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") || "";
+        const onlyPublic = searchParams.get("public") === "true";
         const limit = parseInt(searchParams.get("limit") || "50");
         const page = parseInt(searchParams.get("page") || "1");
         const skip = (page - 1) * limit;
@@ -60,6 +64,11 @@ export async function GET(req: Request) {
                 { title: { contains: search, mode: "insensitive" } },
                 { description: { contains: search, mode: "insensitive" } },
             ];
+        }
+
+        // Public filter
+        if (onlyPublic) {
+            where.isPublic = true;
         }
 
         const [items, total] = await Promise.all([
@@ -87,21 +96,29 @@ export async function PUT(req: Request) {
         }
 
         const body = await req.json();
-        const { id, title, caption, altText, description } = body;
+        const { id, title, caption, altText, description, isPublic } = body;
 
         if (!id) {
             return new NextResponse("ID required", { status: 400 });
         }
 
+        const dataToUpdate: any = {
+            title,
+            caption,
+            altText,
+            description,
+        };
+
+        if (typeof isPublic !== "undefined") {
+            dataToUpdate.isPublic = isPublic;
+        }
+
         const mediaItem = await (prismadb as any).mediaItem.update({
             where: { id },
-            data: {
-                title,
-                caption,
-                altText,
-                description,
-            },
+            data: dataToUpdate,
         });
+
+        await logActivity("Updated Media", "Media", `Updated metadata for ${id}`);
 
         return NextResponse.json(mediaItem);
     } catch (error) {
@@ -127,6 +144,8 @@ export async function DELETE(req: Request) {
         await (prismadb as any).mediaItem.delete({
             where: { id },
         });
+
+        await logActivity("Deleted Media", "Media", `Deleted asset ${id}`);
 
         return new NextResponse("Deleted", { status: 200 });
     } catch (error) {

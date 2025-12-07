@@ -932,7 +932,7 @@ model crm_Lead_Pools {
   v             Int?              @map("__v")
   name          String
   description   String?
-  user         String             @db.ObjectId
+  user          String            @db.ObjectId
   createdAt     DateTime?         @default(now()) @db.Date
   updatedAt     DateTime?         @updatedAt @db.Date
   status        String?           @default("ACTIVE")
@@ -1346,6 +1346,7 @@ model MediaItem {
   caption     String?
   altText     String?
   description String?
+  thumbnail   String?
   
   isPublic    Boolean  @default(true)
 

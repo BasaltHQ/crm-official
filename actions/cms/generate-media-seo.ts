@@ -38,7 +38,7 @@ export async function generateMediaSEO(filename: string, existingContext?: strin
                 { role: "system", content: "You are a helpful AI assistant that generates metadata in JSON format." },
                 { role: "user", content: prompt },
             ],
-            temperature: 0.7,
+            temperature: 1.0,
             response_format: { type: "json_object" },
         });
 
