@@ -89,7 +89,7 @@ export default function CareersAdminPage() {
         }
     };
 
-    const handleAiGenerate = async (topic: string) => {
+    const handleAiGenerate = async (topic: string, includeImage: boolean) => {
         try {
             setIsGenerating(true);
             const generatedData = await generateCareerPost(topic);
@@ -160,7 +160,7 @@ export default function CareersAdminPage() {
                 />
 
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">{editingJob.id ? "Edit Position" : "New Position"}</h1>
+                    <h1 className="text-2xl font-bold text-white">{editingJob.id ? "Edit Position" : "New Position"}</h1>
                     <div className="flex gap-2">
                         <button
                             onClick={() => openAiModal("create")}
@@ -174,7 +174,7 @@ export default function CareersAdminPage() {
                         >
                             <Sparkles className="h-4 w-4" /> Revise AI
                         </button>
-                        <button onClick={() => setEditingJob(null)} className="px-4 py-2 border rounded hover:bg-gray-100 dark:hover:bg-slate-800">Cancel</button>
+                        <button onClick={() => setEditingJob(null)} className="px-4 py-2 border border-white/10 rounded hover:bg-white/10 text-slate-300">Cancel</button>
                         <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2">
                             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
                         </button>
@@ -183,33 +183,33 @@ export default function CareersAdminPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Title</label>
+                        <label className="text-sm font-medium text-slate-300">Title</label>
                         <input
-                            className="w-full p-2 border rounded bg-background"
+                            className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                             value={editingJob.title || ""}
                             onChange={(e) => setEditingJob({ ...editingJob, title: e.target.value })}
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Department</label>
+                        <label className="text-sm font-medium text-slate-300">Department</label>
                         <input
-                            className="w-full p-2 border rounded bg-background"
+                            className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                             value={editingJob.department || ""}
                             onChange={(e) => setEditingJob({ ...editingJob, department: e.target.value })}
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Location</label>
+                        <label className="text-sm font-medium text-slate-300">Location</label>
                         <input
-                            className="w-full p-2 border rounded bg-background"
+                            className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                             value={editingJob.location || ""}
                             onChange={(e) => setEditingJob({ ...editingJob, location: e.target.value })}
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Type</label>
+                        <label className="text-sm font-medium text-slate-300">Type</label>
                         <select
-                            className="w-full p-2 border rounded bg-background"
+                            className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white focus:border-blue-500 transition-colors"
                             value={editingJob.type || "Full-time"}
                             onChange={(e) => setEditingJob({ ...editingJob, type: e.target.value })}
                         >
@@ -219,9 +219,9 @@ export default function CareersAdminPage() {
                         </select>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Apply Link / Email</label>
+                        <label className="text-sm font-medium text-slate-300">Apply Link / Email</label>
                         <input
-                            className="w-full p-2 border rounded bg-background"
+                            className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 transition-colors"
                             value={editingJob.applyLink || ""}
                             onChange={(e) => setEditingJob({ ...editingJob, applyLink: e.target.value })}
                         />
@@ -232,15 +232,16 @@ export default function CareersAdminPage() {
                             id="active"
                             checked={editingJob.active ?? true}
                             onChange={(e) => setEditingJob({ ...editingJob, active: e.target.checked })}
+                            className="rounded border-slate-600 bg-slate-800 text-blue-600"
                         />
-                        <label htmlFor="active" className="text-sm font-medium">Active</label>
+                        <label htmlFor="active" className="text-sm font-medium text-slate-300">Active</label>
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Summary</label>
+                    <label className="text-sm font-medium text-slate-300">Summary</label>
                     <textarea
-                        className="w-full p-2 border rounded bg-background h-24"
+                        className="w-full p-2 border rounded bg-slate-900 border-white/10 text-white placeholder:text-slate-500 h-24 focus:border-blue-500 transition-colors"
                         value={editingJob.summary || ""}
                         onChange={(e) => setEditingJob({ ...editingJob, summary: e.target.value })}
                     />
@@ -263,14 +264,14 @@ export default function CareersAdminPage() {
                         className="min-h-[200px]"
                     />
                 </div>
-            </div>
+            </div >
         );
     }
 
     return (
         <div className="p-8 max-w-6xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Careers Management</h1>
+                <h1 className="text-3xl font-bold text-white">Careers Management</h1>
                 <button
                     onClick={() => setEditingJob({ active: true })}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
@@ -281,26 +282,26 @@ export default function CareersAdminPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {jobs.map((job) => (
-                    <div key={job.id} className="bg-white dark:bg-slate-950 border rounded-lg p-6 space-y-4 hover:border-blue-500 transition-colors">
+                    <div key={job.id} className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg p-6 space-y-4 hover:border-blue-500 transition-colors shadow-lg">
                         <div className="flex justify-between items-start">
                             <div>
-                                <h3 className="text-xl font-bold">{job.title}</h3>
-                                <p className="text-sm text-gray-500">{job.department} • {job.location}</p>
+                                <h3 className="text-xl font-bold text-white">{job.title}</h3>
+                                <p className="text-sm text-slate-400">{job.department} • {job.location}</p>
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={() => setEditingJob(job)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded">
-                                    <Edit className="h-4 w-4 text-gray-500" />
+                                <button onClick={() => setEditingJob(job)} className="p-1 hover:bg-white/10 rounded">
+                                    <Edit className="h-4 w-4 text-slate-400 hover:text-white" />
                                 </button>
-                                <button onClick={() => handleDelete(job.id)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded">
+                                <button onClick={() => handleDelete(job.id)} className="p-1 hover:bg-white/10 rounded">
                                     <Trash className="h-4 w-4 text-red-500" />
                                 </button>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className={`text - xs px - 2 py - 1 rounded - full ${job.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"} `}>
+                            <span className={`text-xs px-2 py-1 rounded-full ${job.active ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-slate-800 text-slate-400"} `}>
                                 {job.active ? "Active" : "Inactive"}
                             </span>
-                            <span className="text-xs text-gray-400">{job.type}</span>
+                            <span className="text-xs text-slate-500">{job.type}</span>
                         </div>
                     </div>
                 ))}

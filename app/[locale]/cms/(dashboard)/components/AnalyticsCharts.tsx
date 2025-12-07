@@ -14,15 +14,15 @@ export default function AnalyticsCharts({ chartdata, topPages, kpiData, cities }
         <div className="space-y-6">
             <Grid numItems={1} numItemsSm={2} numItemsLg={3} className="gap-6">
                 {kpiData.map((item) => (
-                    <Card key={item.title} decoration="top" decorationColor="emerald" className="bg-white dark:bg-[#0F1115] ring-1 ring-gray-200 dark:ring-white/10 shadow-sm">
-                        <Text className="dark:text-gray-400">{item.title}</Text>
+                    <Card key={item.title} decoration="top" decorationColor="emerald" className="bg-[#0F1115] ring-1 ring-white/10 shadow-sm border-none">
+                        <Text className="text-gray-400">{item.title}</Text>
                         <Flex justifyContent="start" alignItems="baseline" className="truncate space-x-3">
-                            <Metric className="dark:text-white">{item.metric}</Metric>
+                            <Metric className="text-white">{item.metric}</Metric>
                             <BadgeDelta deltaType={item.deltaType as any}>{item.delta}</BadgeDelta>
                         </Flex>
                         <Flex justifyContent="start" className="space-x-2 mt-4">
-                            <Text className="truncate dark:text-gray-500">
-                                Previous: <Bold className="dark:text-gray-400">{item.metricPrev}</Bold>
+                            <Text className="truncate text-gray-500">
+                                Previous: <Bold className="text-gray-400">{item.metricPrev}</Bold>
                             </Text>
                         </Flex>
                     </Card>
@@ -30,9 +30,9 @@ export default function AnalyticsCharts({ chartdata, topPages, kpiData, cities }
             </Grid>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 bg-white dark:bg-[#0F1115] ring-1 ring-gray-200 dark:ring-white/10 shadow-sm">
-                    <Title className="dark:text-white">Traffic Trends</Title>
-                    <Text className="dark:text-gray-400">Daily unique visitors & page views</Text>
+                <Card className="lg:col-span-2 bg-[#0F1115] ring-1 ring-white/10 shadow-sm border-none">
+                    <Title className="text-white">Traffic Trends</Title>
+                    <Text className="text-gray-400">Daily unique visitors & page views</Text>
                     <AreaChart
                         className="h-72 mt-4"
                         data={chartdata}
@@ -45,15 +45,15 @@ export default function AnalyticsCharts({ chartdata, topPages, kpiData, cities }
                 </Card>
 
                 <div className="space-y-6">
-                    <Card className="bg-white dark:bg-[#0F1115] ring-1 ring-gray-200 dark:ring-white/10 shadow-sm">
-                        <Title className="dark:text-white">Top Pages</Title>
-                        <Text className="dark:text-gray-400">Most visited URLs this month</Text>
+                    <Card className="bg-[#0F1115] ring-1 ring-white/10 shadow-sm border-none">
+                        <Title className="text-white">Top Pages</Title>
+                        <Text className="text-gray-400">Most visited URLs this month</Text>
                         <BarList data={topPages} className="mt-4 stroke-emerald-500" color="emerald" />
                     </Card>
 
-                    <Card className="bg-white dark:bg-[#0F1115] ring-1 ring-gray-200 dark:ring-white/10 shadow-sm">
-                        <Title className="dark:text-white">Geographics</Title>
-                        <Text className="dark:text-gray-400">Visitors by City</Text>
+                    <Card className="bg-[#0F1115] ring-1 ring-white/10 shadow-sm border-none">
+                        <Title className="text-white">Geographics</Title>
+                        <Text className="text-gray-400">Visitors by City</Text>
                         <div className="mt-6">
                             <DonutChart
                                 data={cities}

@@ -15,6 +15,9 @@ import { ToastProvider } from "@/app/providers/ToastProvider";
 import NextTopLoader from "nextjs-toploader";
 import { AnalyticsTracker } from "@/components/analytics/AnalyticsTracker";
 import SuspensionCheck from "@/components/SuspensionCheck";
+import { SessionProvider } from "@/app/providers/SessionProvider";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -128,6 +131,7 @@ export default async function RootLayout(props: Props) {
   setRequestLocale(locale);
 
   const messages = await getLocales(locale);
+  const session = await getServerSession(authOptions);
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -141,16 +145,18 @@ export default async function RootLayout(props: Props) {
         <NextTopLoader color="#2563EB" showSpinner={false} />
         <AnalyticsTracker />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            {children}
-            {/* Team Suspension Check */}
-            <SuspensionCheck />
-            <ToastProvider />
-          </ThemeProvider>
+          <SessionProvider session={session}>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              {children}
+              {/* Team Suspension Check */}
+              <SuspensionCheck />
+              <ToastProvider />
+            </ThemeProvider>
+          </SessionProvider>
         </NextIntlClientProvider>
         <Toaster />
         <SonnerToaster />
       </body>
-    </html>
+    </html >
   );
 }

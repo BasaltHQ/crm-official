@@ -56,6 +56,25 @@ export function CustomMarkdownRenderer({ content }: CustomMarkdownRendererProps)
                     );
                 }
 
+                // Images
+                if (trimmed.startsWith('![')) {
+                    const match = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+                    if (match) {
+                        const [_, alt, src] = match;
+                        return (
+                            <div key={i} className="my-8 rounded-xl overflow-hidden border border-white/10 bg-black/20">
+                                <img
+                                    src={src}
+                                    alt={alt}
+                                    className="w-full h-auto rounded-t-xl"
+                                    loading="lazy"
+                                />
+                                {alt && <div className="p-2 text-center text-xs text-slate-500 bg-white/5">{alt}</div>}
+                            </div>
+                        );
+                    }
+                }
+
                 return <p key={i} className="leading-relaxed text-slate-300">{parseInline(trimmed)}</p>;
             })}
         </div>

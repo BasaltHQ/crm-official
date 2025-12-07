@@ -638,6 +638,15 @@ enum ActiveStatus {
   PENDING
 }
 
+
+model Role {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  permissions String[]
+  description String?
+  users       Users[]
+}
+
 model Users {
   id                   String                @id @default(auto()) @map("_id") @db.ObjectId
   v                    Int                   @default(0) @map("__v")
@@ -645,7 +654,9 @@ model Users {
   avatar               String?
   email                String                @unique
   is_account_admin     Boolean               @default(false)
-  is_admin             Boolean               @default(false)
+  is_admin             Boolean               @default(false) // Deprecated in favor of role
+  roleId               String?               @db.ObjectId
+  assigned_role        Role?                 @relation(fields: [roleId], references: [id])
   created_on           DateTime              @default(now()) @db.Date
   lastLoginAt          DateTime?             @db.Date
   name                 String?
@@ -971,7 +982,7 @@ model crm_Lead_Pools {
   v             Int?              @map("__v")
   name          String
   description   String?
-  user         String             @db.ObjectId
+  user          String            @db.ObjectId
   createdAt     DateTime?         @default(now()) @db.Date
   updatedAt     DateTime?         @updatedAt @db.Date
   status        String?           @default("ACTIVE")
@@ -1369,4 +1380,28 @@ model PageView {
   city      String?
   country   String?
   createdAt DateTime @default(now()) @db.Date
+}
+
+model MediaItem {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  url         String
+  filename    String
+  mimeType    String
+  size        Int
+  width       Int?
+  height      Int?
+  
+  // SEO & Metadata
+  title       String?
+  caption     String?
+  altText     String?
+  description String?
+  thumbnail   String?
+  
+  isPublic    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      String?  @db.ObjectId // Uploader
 }

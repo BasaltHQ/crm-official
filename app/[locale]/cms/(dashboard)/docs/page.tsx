@@ -16,44 +16,44 @@ export default async function CMSDocsOverviewPage(props: { params: Promise<{ loc
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <div>
-                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">Documentation Center</h1>
-                <p className="text-muted-foreground mt-2 text-lg">Manage your entire knowledge base from one unified interface.</p>
+                <h1 className="text-4xl font-bold tracking-tight text-white">Documentation Center</h1>
+                <p className="text-slate-400 mt-2 text-lg">Manage your entire knowledge base from one unified interface.</p>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/20 shadow-sm">
+                <Card className="bg-slate-950/50 backdrop-blur-xl border-white/10 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Articles</CardTitle>
-                        <BookOpen className="h-4 w-4 text-primary" />
+                        <CardTitle className="text-sm font-medium text-slate-200">Total Articles</CardTitle>
+                        <BookOpen className="h-4 w-4 text-blue-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{totalDocs}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <div className="text-3xl font-bold text-white">{totalDocs}</div>
+                        <p className="text-xs text-slate-400 mt-1">
                             Published to public site
                         </p>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/20 shadow-sm">
+                <Card className="bg-slate-950/50 backdrop-blur-xl border-white/10 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Categories</CardTitle>
-                        <Layers className="h-4 w-4 text-emerald-500" />
+                        <CardTitle className="text-sm font-medium text-slate-200">Active Categories</CardTitle>
+                        <Layers className="h-4 w-4 text-emerald-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{categories}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <div className="text-3xl font-bold text-white">{categories}</div>
+                        <p className="text-xs text-slate-400 mt-1">
                             Organized topics
                         </p>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/20 shadow-sm">
+                <Card className="bg-slate-950/50 backdrop-blur-xl border-white/10 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">API Endpoints</CardTitle>
-                        <Zap className="h-4 w-4 text-orange-500" />
+                        <CardTitle className="text-sm font-medium text-slate-200">API Endpoints</CardTitle>
+                        <Zap className="h-4 w-4 text-orange-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">12</div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <div className="text-3xl font-bold text-white">12</div>
+                        <p className="text-xs text-slate-400 mt-1">
                             Documented routes
                         </p>
                     </CardContent>
@@ -63,8 +63,8 @@ export default async function CMSDocsOverviewPage(props: { params: Promise<{ loc
             {/* Recent Activity */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <h2 className="text-xl font-semibold">Recently Updated</h2>
+                    <Clock className="h-5 w-5 text-slate-400" />
+                    <h2 className="text-xl font-semibold text-white">Recently Updated</h2>
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                     {recentDocs.map((doc) => (
@@ -73,12 +73,12 @@ export default async function CMSDocsOverviewPage(props: { params: Promise<{ loc
                             href={`/${params.locale}/cms/docs/${doc.id}`}
                             className="block"
                         >
-                            <div className="flex items-center justify-between p-4 bg-card border rounded-lg hover:shadow-md transition-shadow cursor-pointer hover:border-primary/50">
+                            <div className="flex items-center justify-between p-4 bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg hover:border-blue-500/50 hover:shadow-lg transition-all cursor-pointer">
                                 <div>
-                                    <h4 className="font-semibold text-foreground">{doc.title}</h4>
-                                    <p className="text-sm text-muted-foreground">{doc.category} • {doc.slug}</p>
+                                    <h4 className="font-semibold text-white">{doc.title}</h4>
+                                    <p className="text-sm text-slate-400">{doc.category} • {doc.slug}</p>
                                 </div>
-                                <div className="text-sm text-muted-foreground font-mono">
+                                <div className="text-sm text-slate-500 font-mono">
                                     {new Date(doc.updatedAt).toLocaleDateString()}
                                 </div>
                             </div>

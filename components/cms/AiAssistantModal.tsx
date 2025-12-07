@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, Loader2, FileText, Wand2, X } from "lucide-react";
+import { Sparkles, Loader2, FileText, Wand2, X, Image as ImageIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ interface AiAssistantModalProps {
     mode: "create" | "revise";
     type: "blog" | "docs" | "career";
     isGenerating: boolean;
-    onGenerate?: (topic: string) => void;
+    onGenerate?: (topic: string, includeImage: boolean) => void;
     onRevise?: (instruction: string) => void;
 }
 
@@ -26,6 +26,7 @@ export function AiAssistantModal({
     onRevise
 }: AiAssistantModalProps) {
     const [input, setInput] = useState("");
+    const [includeImage, setIncludeImage] = useState(false);
 
     // Reset input when modal opens/closes
     useEffect(() => {
@@ -35,7 +36,7 @@ export function AiAssistantModal({
     const handleAction = () => {
         if (!input.trim()) return;
         if (mode === "create" && onGenerate) {
-            onGenerate(input);
+            onGenerate(input, includeImage);
         } else if (mode === "revise" && onRevise) {
             onRevise(input);
         }
@@ -107,6 +108,22 @@ export function AiAssistantModal({
                                     }}
                                 />
                             </div>
+
+                            {mode === "create" && (
+                                <div className="flex items-center gap-2 px-1">
+                                    <input
+                                        type="checkbox"
+                                        id="includeImage"
+                                        className="rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-blue-500/50 focus:ring-offset-0"
+                                        checked={includeImage}
+                                        onChange={(e) => setIncludeImage(e.target.checked)}
+                                    />
+                                    <label htmlFor="includeImage" className="text-sm text-slate-400 flex items-center gap-2 cursor-pointer select-none">
+                                        <ImageIcon className="h-4 w-4 text-purple-400" />
+                                        Generate Cover Image with Nano Banana
+                                    </label>
+                                </div>
+                            )}
 
                             <div className="flex justify-end gap-3 pt-2">
                                 <Button

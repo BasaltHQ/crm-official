@@ -15,7 +15,7 @@ export default async function AnalyticsDashboard() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Analytics Overview</h2>
+                <h2 className="text-xl font-bold brand-gradient-text">Analytics Overview</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Real-Time Traffic Performance</p>
             </div>
 
