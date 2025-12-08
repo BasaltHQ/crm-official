@@ -6,7 +6,9 @@ import sendEmail from "@/lib/sendmail";
 import { sendEmailSES } from "@/lib/aws/ses";
 import { render } from "@react-email/render";
 import OutreachTemplate, { type ResourceLink } from "@/emails/OutreachTemplate";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel } from "@/lib/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { sendViaGmail } from "@/lib/gmail";
 import React from "react";
 import { ensureContactForLead } from "@/actions/crm/lead-conversions";
@@ -208,19 +210,19 @@ export async function POST(req: Request) {
 
     // A subtle compliance: skip contacts with unsubscribed email if we can match them
     // (Best effort, optional)
-const leadEmails = leads.map((l: any) => l.email).filter(Boolean) as string[];
+    const leadEmails = leads.map((l: any) => l.email).filter(Boolean) as string[];
     const unsubscribedContacts = await prismadb.crm_Contacts.findMany({
       where: { email: { in: leadEmails } },
       select: { email: true, email_unsubscribed: true },
     });
-const unsubSet = new Set(
+    const unsubSet = new Set(
       unsubscribedContacts.filter((c: any) => c.email_unsubscribed).map((c: any) => (c.email || "").toLowerCase()),
     );
 
     // Prepare OpenAI client
-    const openai = await openAiHelper(session.user.id);
-    if (!openai) {
-      return new NextResponse("OpenAI client not configured", { status: 500 });
+    const model = await getAiSdkModel(session.user.id);
+    if (!model) {
+      return new NextResponse("AI model not configured", { status: 500 });
     }
 
     // Base URL for links/pixel
@@ -294,33 +296,25 @@ const unsubSet = new Set(
       let subject = "Exploring Partnership Opportunities";
       let bodyText = "Hello,\n\nI'd like to explore how PortalPay could align with your investment thesis.\n\nThanks.";
       try {
-        // Types vary between AzureOpenAI and OpenAI; use optional chaining safely
-        const completion: any = await (openai as any).chat.completions.create({
-          model: process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-4o-mini",
+        const { object } = await generateObject({
+          model,
+          schema: z.object({
+            subject: z.string(),
+            body: z.string(),
+          }),
           messages: [
             { role: "system", content: systemInstruction() },
             { role: "user", content: userPrompt },
           ],
-          response_format: { type: "json_object" },
         });
 
-        const content = completion?.choices?.[0]?.message?.content || "";
-        try {
-          const parsed = JSON.parse(content);
-          if (typeof parsed?.subject === "string") subject = parsed.subject.trim() || subject;
-          if (typeof parsed?.body === "string") bodyText = parsed.body.trim() || bodyText;
-        } catch {
-          // Fallback: try to parse as lines
-          const stripped = String(content || "");
-          const subjMatch = stripped.match(/"subject"\s*:\s*"([^"]+)/i);
-          const bodyMatch = stripped.match(/"body"\s*:\s*"([\s\S]+)"/i);
-          if (subjMatch?.[1]) subject = subjMatch[1].trim();
-          if (bodyMatch?.[1]) bodyText = bodyMatch[1].trim();
-        }
+        subject = object.subject || subject;
+        bodyText = object.body || bodyText;
+
       } catch (err: any) {
         // Keep defaults on failure
         // eslint-disable-next-line no-console
-        console.error("[OUTREACH_SEND][OPENAI_ERROR]", err?.message || err);
+        console.error("[OUTREACH_SEND][AI_ERROR]", err?.message || err);
       }
 
       // Render HTML template
@@ -387,7 +381,7 @@ const unsubSet = new Set(
           where: { id: lead.id },
           data: updateData,
         });
-        await ensureContactForLead(lead.id).catch(() => {});
+        await ensureContactForLead(lead.id).catch(() => { });
 
         // Insert activity
         await prismadb.crm_Lead_Activities.create({

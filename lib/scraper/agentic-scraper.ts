@@ -7,7 +7,10 @@
  * - Refine search strategy based on results
  */
 
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel, isReasoningModel } from "@/lib/openai";
+import { z } from "zod";
+import { generateObject, generateText } from "ai";
+
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { launchBrowser, newPageWithDefaults, closeBrowser } from "@/lib/browser";
 import {
@@ -97,135 +100,56 @@ function extractDomain(url: string): string {
 /**
  * AI Agent Tools - These are callable by the AI
  */
-const agentTools = [
-  {
-    type: "function",
-    function: {
-      name: "search_companies",
-      description: "Search for companies using Bing Search API. Returns company websites matching the query.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query to find companies (e.g., 'SaaS companies in San Francisco')"
-          },
-          count: {
-            type: "number",
-            description: "Number of results to return (1-50)",
-            default: 20
-          }
-        },
-        required: ["query"]
-      }
-    }
+/**
+ * AI Agent Tools Definition
+ */
+const toolsDefinition = {
+  search_companies: {
+    description: "Search for companies using Bing Search API. Returns company websites matching the query.",
+    parameters: z.object({
+      query: z.string().describe("The search query to find companies (e.g., 'SaaS companies in San Francisco')"),
+      count: z.number().default(20).describe("Number of results to return (1-50)"),
+    }),
   },
-  {
-    type: "function",
-    function: {
-      name: "visit_website",
-      description: "Visit a company website and extract all available information including company details and contact information.",
-      parameters: {
-        type: "object",
-        properties: {
-          url: {
-            type: "string",
-            description: "The URL to visit"
-          }
-        },
-        required: ["url"]
-      }
-    }
+  visit_website: {
+    description: "Visit a company website and extract all available information including company details and contact information.",
+    parameters: z.object({
+      url: z.string().describe("The URL to visit"),
+    }),
   },
-  {
-    type: "function",
-    function: {
-      name: "analyze_company_fit",
-      description: "Analyze if a company matches the ICP criteria and should be added to the pool.",
-      parameters: {
-        type: "object",
-        properties: {
-          domain: {
-            type: "string",
-            description: "Company domain"
-          },
-          companyData: {
-            type: "object",
-            description: "Company information extracted from website"
-          }
-        },
-        required: ["domain", "companyData"]
-      }
-    }
+  analyze_company_fit: {
+    description: "Analyze if a company matches the ICP criteria and should be added to the pool.",
+    parameters: z.object({
+      domain: z.string().describe("Company domain"),
+      companyData: z.any().describe("Company information extracted from website"),
+    }),
   },
-  {
-    type: "function",
-    function: {
-      name: "save_company",
-      description: "Save a qualified company to the lead pool with extracted data.",
-      parameters: {
-        type: "object",
-        properties: {
-          domain: {
-            type: "string"
-          },
-          companyName: {
-            type: "string"
-          },
-          description: {
-            type: "string"
-          },
-          industry: {
-            type: "string"
-          },
-          techStack: {
-            type: "array",
-            items: { type: "string" }
-          },
-          contacts: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                title: { type: "string" },
-                email: { type: "string" },
-                phone: { type: "string" },
-                linkedin: { type: "string" }
-              }
-            }
-          }
-        },
-        required: ["domain"]
-      }
-    }
+  save_company: {
+    description: "Save a qualified company to the lead pool with extracted data.",
+    parameters: z.object({
+      domain: z.string(),
+      companyName: z.string(),
+      description: z.string(),
+      industry: z.string(),
+      techStack: z.array(z.string()).optional(),
+      contacts: z.array(z.object({
+        name: z.string(),
+        title: z.string(),
+        email: z.string(),
+        phone: z.string(),
+        linkedin: z.string().optional()
+      })),
+    }),
   },
-  {
-    type: "function",
-    function: {
-      name: "refine_search_strategy",
-      description: "Based on results so far, decide if search strategy should be adjusted.",
-      parameters: {
-        type: "object",
-        properties: {
-          currentResults: {
-            type: "number",
-            description: "Number of qualified companies found so far"
-          },
-          targetResults: {
-            type: "number",
-            description: "Target number of companies"
-          },
-          reasoning: {
-            type: "string",
-            description: "Why the strategy should or shouldn't change"
-          }
-        },
-        required: ["currentResults", "targetResults", "reasoning"]
-      }
-    }
-  }
-];
+  refine_search_strategy: {
+    description: "Based on results so far, decide if search strategy should be adjusted.",
+    parameters: z.object({
+      currentResults: z.number().describe("Number of qualified companies found so far"),
+      targetResults: z.number().describe("Target number of companies"),
+      reasoning: z.string().describe("Why the strategy should or shouldn't change"),
+    }),
+  },
+};
 
 /**
  * Discover sitemap URLs from a domain
@@ -233,7 +157,7 @@ const agentTools = [
 async function discoverSitemap(domain: string, page: any): Promise<string[]> {
   const sitemapUrls: string[] = [];
   const baseUrl = `https://${domain}`;
-  
+
   try {
     // Try common sitemap locations
     const sitemapLocations = [
@@ -241,7 +165,7 @@ async function discoverSitemap(domain: string, page: any): Promise<string[]> {
       `${baseUrl}/sitemap_index.xml`,
       `${baseUrl}/sitemap/sitemap.xml`,
     ];
-    
+
     // First check robots.txt for sitemap references
     try {
       await page.goto(`${baseUrl}/robots.txt`, { waitUntil: "domcontentloaded", timeout: 10000 });
@@ -258,13 +182,13 @@ async function discoverSitemap(domain: string, page: any): Promise<string[]> {
     } catch (e) {
       // robots.txt not found, continue
     }
-    
+
     // Try to fetch sitemap
     for (const sitemapUrl of sitemapLocations) {
       try {
         await page.goto(sitemapUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
         const content = await page.content();
-        
+
         // Parse XML sitemap
         const locMatches = content.match(/<loc>([^<]+)<\/loc>/gi);
         if (locMatches && locMatches.length > 0) {
@@ -283,7 +207,7 @@ async function discoverSitemap(domain: string, page: any): Promise<string[]> {
   } catch (e) {
     console.log(`Sitemap discovery failed for ${domain}:`, e);
   }
-  
+
   return sitemapUrls.slice(0, 100); // Limit to 100 URLs
 }
 
@@ -299,14 +223,14 @@ function getHighValuePageUrls(domain: string, sitemapUrls: string[]): string[] {
     '/careers', '/jobs', '/join-us', '/work-with-us',
     '/company', '/company/about', '/company/team',
   ];
-  
+
   const urls: string[] = [];
-  
+
   // Add high-value paths from heuristics
   for (const path of highValuePaths) {
     urls.push(`${baseUrl}${path}`);
   }
-  
+
   // Add relevant URLs from sitemap
   if (sitemapUrls.length > 0) {
     const relevantSitemapUrls = sitemapUrls.filter(url => {
@@ -324,7 +248,7 @@ function getHighValuePageUrls(domain: string, sitemapUrls: string[]): string[] {
     });
     urls.push(...relevantSitemapUrls);
   }
-  
+
   // Deduplicate
   return Array.from(new Set(urls));
 }
@@ -352,7 +276,7 @@ async function dismissOverlays(page: any): Promise<void> {
         '.gdpr-accept',
         '.cookie-accept',
       ];
-      
+
       for (const selector of dismissSelectors) {
         try {
           const elements = document.querySelectorAll(selector);
@@ -365,7 +289,7 @@ async function dismissOverlays(page: any): Promise<void> {
           // Ignore errors
         }
       }
-      
+
       // Remove overlay elements that might block content
       const overlaySelectors = [
         '[class*="cookie-banner"]',
@@ -374,7 +298,7 @@ async function dismissOverlays(page: any): Promise<void> {
         '[id*="cookie"]',
         '[class*="overlay"][style*="fixed"]',
       ];
-      
+
       for (const selector of overlaySelectors) {
         try {
           const elements = document.querySelectorAll(selector);
@@ -415,11 +339,11 @@ async function extractPageData(page: any): Promise<{
       techStack: [],
       internalLinks: []
     };
-    
+
     // Meta description
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) result.description = metaDesc.getAttribute('content') || "";
-    
+
     // Extract all emails - check both text and mailto links
     const emailPattern = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
     const bodyText = document.body.textContent || '';
@@ -430,7 +354,7 @@ async function extractPageData(page: any): Promise<{
         emailMatches.push(e);
       }
     }
-    
+
     // Also get emails from mailto links
     const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
     mailtoLinks.forEach((a) => {
@@ -440,22 +364,22 @@ async function extractPageData(page: any): Promise<{
         emailMatches.push(email);
       }
     });
-    
+
     // Filter out common non-person emails
     const filteredEmails = Array.from(new Set(emailMatches)).filter(email => {
       const lower = email.toLowerCase();
       // Keep info@, contact@, sales@ etc but filter obvious junk
       return !lower.includes('example.com') &&
-             !lower.includes('domain.com') &&
-             !lower.includes('email.com') &&
-             !lower.includes('@sentry') &&
-             !lower.includes('@wix') &&
-             !lower.includes('@squarespace') &&
-             !lower.endsWith('.png') &&
-             !lower.endsWith('.jpg');
+        !lower.includes('domain.com') &&
+        !lower.includes('email.com') &&
+        !lower.includes('@sentry') &&
+        !lower.includes('@wix') &&
+        !lower.includes('@squarespace') &&
+        !lower.endsWith('.png') &&
+        !lower.endsWith('.jpg');
     });
     result.emails = filteredEmails.slice(0, 20);
-    
+
     // Extract phones - more comprehensive patterns
     const phonePatterns = [
       /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
@@ -471,7 +395,7 @@ async function extractPageData(page: any): Promise<{
       }
     }
     result.phones = Array.from(new Set(allPhones)).slice(0, 10);
-    
+
     // Tech stack detection - expanded
     const html = document.documentElement.outerHTML.toLowerCase();
     const techIndicators: { [key: string]: string[] } = {
@@ -492,7 +416,7 @@ async function extractPageData(page: any): Promise<{
       'Zendesk': ['zendesk'],
       'Drift': ['drift'],
     };
-    
+
     Object.entries(techIndicators).forEach(([tech, indicators]) => {
       for (const indicator of indicators) {
         if (html.includes(indicator)) {
@@ -501,7 +425,7 @@ async function extractPageData(page: any): Promise<{
         }
       }
     });
-    
+
     // Social links - expanded
     const socialPatterns = [
       { name: 'linkedin', pattern: /linkedin\.com/i },
@@ -511,7 +435,7 @@ async function extractPageData(page: any): Promise<{
       { name: 'youtube', pattern: /youtube\.com/i },
       { name: 'github', pattern: /github\.com/i },
     ];
-    
+
     document.querySelectorAll('a[href]').forEach((a) => {
       const href = (a as HTMLAnchorElement).href;
       for (const social of socialPatterns) {
@@ -520,16 +444,16 @@ async function extractPageData(page: any): Promise<{
         }
       }
     });
-    
+
     // Internal links for potential deep crawling
     const currentHost = window.location.hostname;
     document.querySelectorAll('a[href]').forEach((a) => {
       const href = (a as HTMLAnchorElement).href;
       try {
         const linkUrl = new URL(href);
-        if (linkUrl.hostname === currentHost && 
-            !href.includes('#') && 
-            !href.match(/\.(pdf|jpg|png|gif|css|js)$/i)) {
+        if (linkUrl.hostname === currentHost &&
+          !href.includes('#') &&
+          !href.match(/\.(pdf|jpg|png|gif|css|js)$/i)) {
           result.internalLinks.push(href);
         }
       } catch (e) {
@@ -537,7 +461,7 @@ async function extractPageData(page: any): Promise<{
       }
     });
     result.internalLinks = Array.from(new Set(result.internalLinks)).slice(0, 50);
-    
+
     return result;
   });
 }
@@ -550,7 +474,7 @@ async function visitWebsiteForAgent(url: string): Promise<any> {
   try {
     const page = await newPageWithDefaults(browser);
     const domain = extractDomain(url);
-    
+
     // Aggregate data from all pages
     const aggregatedData: any = {
       title: "",
@@ -563,14 +487,14 @@ async function visitWebsiteForAgent(url: string): Promise<any> {
       pagesVisited: [],
       errors: []
     };
-    
+
     // Step 1: Visit homepage
     try {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
       await new Promise(resolve => setTimeout(resolve, 1500));
       await dismissOverlays(page);
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       const homeData = await extractPageData(page);
       aggregatedData.title = homeData.title;
       aggregatedData.description = homeData.description;
@@ -582,24 +506,24 @@ async function visitWebsiteForAgent(url: string): Promise<any> {
     } catch (e) {
       aggregatedData.errors.push(`Homepage: ${(e as Error).message}`);
     }
-    
+
     // Step 2: Discover sitemap
     const sitemapUrls = await discoverSitemap(domain, page);
-    
+
     // Step 3: Get high-value page URLs
     const highValueUrls = getHighValuePageUrls(domain, sitemapUrls);
-    
+
     // Step 4: Visit high-value pages (limit to 5 for performance)
     const pagesToVisit = highValueUrls
       .filter(u => !aggregatedData.pagesVisited.includes(u))
       .slice(0, 5);
-    
+
     for (const pageUrl of pagesToVisit) {
       try {
         await page.goto(pageUrl, { waitUntil: "domcontentloaded", timeout: 12000 });
         await new Promise(resolve => setTimeout(resolve, 1000));
         await dismissOverlays(page);
-        
+
         const pageData = await extractPageData(page);
         aggregatedData.emails.push(...pageData.emails);
         aggregatedData.phones.push(...pageData.phones);
@@ -611,12 +535,12 @@ async function visitWebsiteForAgent(url: string): Promise<any> {
         aggregatedData.errors.push(`${pageUrl}: ${(e as Error).message}`);
       }
     }
-    
+
     // Deduplicate results
     aggregatedData.emails = Array.from(new Set(aggregatedData.emails as string[]));
     aggregatedData.phones = Array.from(new Set(aggregatedData.phones as string[]));
     aggregatedData.techStack = Array.from(new Set(aggregatedData.techStack as string[]));
-    
+
     return aggregatedData;
   } catch (error) {
     return { error: (error as Error).message };
@@ -624,6 +548,11 @@ async function visitWebsiteForAgent(url: string): Promise<any> {
     await closeBrowser(browser);
   }
 }
+
+/**
+ * Use AI to enrich missing company fields
+ */
+// Imports moved to top
 
 /**
  * Use AI to enrich missing company fields
@@ -639,8 +568,8 @@ async function enrichCompanyDataWithAI(
   industry: string;
 }> {
   try {
-    const openai = await openAiHelper(userId);
-    if (!openai) {
+    const model = await getAiSdkModel(userId);
+    if (!model) {
       return {
         companyName: domain,
         description: `Business website: ${domain}`,
@@ -662,45 +591,24 @@ TARGET ICP:
 - Geographies: ${icp.geos?.join(", ") || "Any"}
 
 Based on this information, provide:
-1. companyName: The business name (extract from domain/title, make it professional)
-2. description: A clear 1-2 sentence description of what this business does
-3. industry: The primary industry (match to ICP industries if possible, otherwise be specific)
+1. companyName: The business name
+2. description: A clear 1-2 sentence description
+3. industry: The primary industry`;
 
-Return ONLY valid JSON:
-{
-  "companyName": "Professional Business Name",
-  "description": "Clear description of what they do and their focus",
-  "industry": "Specific Industry Category"
-}`;
-
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4";
-
-    const response = await openai.chat.completions.create({
-      model: deployment,
+    const { object } = await generateObject({
+      model,
+      schema: z.object({
+        companyName: z.string(),
+        description: z.string(),
+        industry: z.string(),
+      }),
       messages: [
-        {
-          role: "system",
-          content: "You are an expert at analyzing company websites and extracting structured business information. Return valid JSON."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
+        { role: "system", content: "You are an expert at analyzing company websites." },
+        { role: "user", content: prompt },
       ],
-      // temperature: 0.3,
-      // max_tokens: 300,
-      response_format: { type: "json_object" }
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (content) {
-      const parsed = JSON.parse(content);
-      return {
-        companyName: parsed.companyName || domain,
-        description: parsed.description || `Business website: ${domain}`,
-        industry: parsed.industry || (icp.industries?.[0] || "General Business")
-      };
-    }
+    return object;
   } catch (error) {
     console.error("AI enrichment failed:", error);
   }
@@ -972,13 +880,12 @@ export async function runAgenticLeadGeneration(
   contactsSaved: number;
   iterations: number;
 }> {
-  const openai = await openAiHelper(userId);
-  if (!openai) {
-    throw new Error("OpenAI not configured");
+  const model = await getAiSdkModel(userId);
+  if (!model) {
+    throw new Error("AI model not configured");
   }
 
   const db: any = prismadbCrm;
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4";
 
   // Initial prompt for the agent
   const systemPrompt = `You are an ELITE B2B lead generation agent with world-class expertise in search, web scraping, and contact discovery. Your mission: autonomously find and qualify ${maxCompanies} PERFECT-FIT companies with ACTUAL decision-maker contact information.
@@ -1122,6 +1029,7 @@ Remember: QUALITY > QUANTITY. Better to save 50 perfect companies with 250 conta
 
 Be strategic, thorough, and relentless in finding contact information. Good luck! 🚀`;
 
+  // Start with explicit System and User messages for the context using AI SDK CoreMessage format
   const messages: any[] = [
     { role: "system", content: systemPrompt },
     {
@@ -1270,26 +1178,29 @@ Start now by searching for companies.`
     }
 
     try {
-      const response = await openai.chat.completions.create({
-        model: deployment,
+      // Use generateText from AI SDK
+      // We pass the full history (messages) so it knows what happened
+      // We also pass the tools definition
+      const { text, toolCalls, response } = await generateText({
+        model,
         messages,
-        tools: agentTools as any,
-        tool_choice: "auto",
-        temperature: 1
+        tools: toolsDefinition as any,
+        maxSteps: 1, // We handle steps manually in the loop
+        temperature: isReasoningModel(model.modelId) ? undefined : 1,
       });
 
-      const message = response.choices[0].message;
-      messages.push(message);
+      // Append the assistant's response (text + tool calls) to history
+      messages.push(...response.messages);
 
       // Check if agent wants to use tools
-      if (message.tool_calls && message.tool_calls.length > 0) {
-        const toolCount = message.tool_calls.length;
+      if (toolCalls && toolCalls.length > 0) {
+        const toolCount = toolCalls.length;
         addLog(`🎬 Executing ${toolCount} tool${toolCount > 1 ? 's' : ''} in parallel...`);
 
         // Execute all tool calls in parallel using Promise.all
-        const toolExecutionPromises = message.tool_calls.map(async (toolCall, index) => {
-          const toolName = toolCall.function.name;
-          const toolArgs = JSON.parse(toolCall.function.arguments);
+        const toolExecutionPromises = toolCalls.map(async (toolCall: any, index: number) => {
+          const toolName = toolCall.toolName;
+          const toolArgs = toolCall.args;
 
           console.log(`Agent calling: ${toolName}`, toolArgs);
 
@@ -1297,20 +1208,20 @@ Start now by searching for companies.`
           let logMsg = "";
           switch (toolName) {
             case "search_companies":
-              logMsg = `🔍 [${index + 1}/${toolCount}] Searching: "${toolArgs.query}"`;
+              logMsg = `🔍 [${index + 1}/${toolCount}] Searching: "${(toolArgs as any).query}"`;
               break;
             case "visit_website":
-              const urlDomain = extractDomain(toolArgs.url);
-              logMsg = `🌐 [${index + 1}/${toolCount}] Visiting: ${urlDomain || toolArgs.url}`;
+              const urlDomain = extractDomain((toolArgs as any).url);
+              logMsg = `🌐 [${index + 1}/${toolCount}] Visiting: ${urlDomain || (toolArgs as any).url}`;
               break;
             case "analyze_company_fit":
-              logMsg = `🔬 [${index + 1}/${toolCount}] Analyzing: ${toolArgs.domain}`;
+              logMsg = `🔬 [${index + 1}/${toolCount}] Analyzing: ${(toolArgs as any).domain}`;
               break;
             case "save_company":
-              logMsg = `💾 [${index + 1}/${toolCount}] Saving: ${toolArgs.companyName || toolArgs.domain}`;
+              logMsg = `💾 [${index + 1}/${toolCount}] Saving: ${(toolArgs as any).companyName || (toolArgs as any).domain}`;
               break;
             case "refine_search_strategy":
-              logMsg = `🎯 [${index + 1}/${toolCount}] Strategy: ${toolArgs.reasoning.substring(0, 100)}...`;
+              logMsg = `🎯 [${index + 1}/${toolCount}] Strategy: ${(toolArgs as any).reasoning.substring(0, 100)}...`;
               break;
             default:
               logMsg = `🤖 [${index + 1}/${toolCount}] ${toolName}`;
@@ -1332,17 +1243,16 @@ Start now by searching for companies.`
               completionMsg = `✓ [${index + 1}/${toolCount}] Search complete: ${resultCount} results in ${duration}s`;
               break;
             case "visit_website":
-              const visitDomain = extractDomain(toolArgs.url);
+              const visitDomain = extractDomain((toolArgs as any).url);
               const emails = toolResult.data?.emails?.length || 0;
               completionMsg = `✓ [${index + 1}/${toolCount}] ${visitDomain}: ${emails} emails, ${toolResult.data?.phones?.length || 0} phones (${duration}s)`;
               break;
             case "save_company":
               if (toolResult.success) {
-                completionMsg = `✓ [${index + 1}/${toolCount}] ✅ SAVED: ${toolArgs.companyName || toolArgs.domain} with ${toolResult.contactsCreated} contacts (${duration}s)`;
+                completionMsg = `✓ [${index + 1}/${toolCount}] ✅ SAVED: ${(toolArgs as any).companyName || (toolArgs as any).domain} with ${toolResult.contactsCreated} contacts (${duration}s)`;
               } else {
-                completionMsg = `✗ [${index + 1}/${toolCount}] ❌ FAILED: ${toolArgs.companyName || toolArgs.domain} - ${toolResult.error} (${duration}s)`;
-                // Also log to console for debugging
-                console.error("[SAVE_FAILED]", toolArgs.companyName, toolResult.error);
+                completionMsg = `✗ [${index + 1}/${toolCount}] ❌ FAILED: ${(toolArgs as any).companyName || (toolArgs as any).domain} - ${toolResult.error} (${duration}s)`;
+                console.error("[SAVE_FAILED]", (toolArgs as any).companyName, toolResult.error);
               }
               break;
             default:
@@ -1352,7 +1262,6 @@ Start now by searching for companies.`
 
           return {
             toolCall,
-            toolName,
             toolResult
           };
         });
@@ -1361,28 +1270,33 @@ Start now by searching for companies.`
         const completedTools = await Promise.all(toolExecutionPromises);
 
         // Process results and add to conversation
-        for (const { toolCall, toolName, toolResult } of completedTools) {
-          // Track saves
-          if (toolName === "save_company" && toolResult.success) {
+        // For Vercel AI SDK, we append 'tool' messages
+        const toolMessages = completedTools.map(({ toolCall, toolResult }) => ({
+          role: "tool",
+          content: [{
+            type: "tool-result",
+            toolCallId: toolCall.toolCallId,
+            toolName: toolCall.toolName,
+            result: toolResult,
+          }],
+        }));
+        messages.push(...toolMessages);
+
+        // Track saves for stats
+        for (const { toolCall, toolResult } of completedTools) {
+          if (toolCall.toolName === "save_company" && toolResult.success) {
             companiesSaved++;
             contactsSaved += toolResult.contactsCreated || 0;
           }
-
-          // Add tool result to conversation
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify(toolResult)
-          });
         }
 
         // Log summary with updated counters
-        const saveCount = completedTools.filter(t => t.toolName === "save_company" && t.toolResult.success).length;
-        const visitCount = completedTools.filter(t => t.toolName === "visit_website").length;
-        const searchCount = completedTools.filter(t => t.toolName === "search_companies").length;
+        const saveCount = completedTools.filter((t: any) => t.toolCall.toolName === "save_company" && t.toolResult.success).length;
+        const visitCount = completedTools.filter((t: any) => t.toolCall.toolName === "visit_website").length;
+        const searchCount = completedTools.filter((t: any) => t.toolCall.toolName === "search_companies").length;
 
         let summary = `✅ Batch complete:`;
-        if (searchCount > 0) summary += ` ${searchCount} search${searchCount > 1 ? 'es' : ''}`;
+        if (searchCount > 0) summary += ` ${searchCount} search${searchCount > 1 ? 's' : ''}`;
         if (visitCount > 0) summary += ` ${visitCount} visit${visitCount > 1 ? 's' : ''}`;
         if (saveCount > 0) summary += ` ${saveCount} saved`;
         summary += ` | Total: ${companiesSaved}/${maxCompanies} companies (${contactsSaved} contacts)`;
@@ -1391,14 +1305,14 @@ Start now by searching for companies.`
 
         // Flush logs to DB after batch completion
         await flushLogsToDb(false);
-      } else if (message.content) {
-        // Agent is thinking/reasoning
-        console.log("Agent reasoning:", message.content);
-        addLog(`💭 Agent thinking: ${message.content}`);
+      } else if (text) {
+        // Agent is thinking/reasoning (text response without tools)
+        console.log("Agent reasoning:", text);
+        addLog(`💭 Agent thinking: ${text}`);
 
-        // Check if agent thinks it's done
-        if (message.content.toLowerCase().includes("complete") ||
-          message.content.toLowerCase().includes("finished") ||
+        // Check if agent thinks it's complete
+        if (text.toLowerCase().includes("complete") ||
+          text.toLowerCase().includes("finished") ||
           companiesSaved >= maxCompanies) {
           addLog("✅ Agent believes task is complete");
           await flushLogsToDb(true); // Force flush

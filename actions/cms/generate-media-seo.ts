@@ -1,19 +1,14 @@
 "use server";
 
-import { AzureOpenAI } from "openai";
+import { getAiSdkModel, isReasoningModel } from "@/lib/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 
 export async function generateMediaSEO(filename: string, existingContext?: string) {
-    if (!process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_ENDPOINT) {
-        throw new Error("Azure OpenAI credentials not configured");
+    const model = await getAiSdkModel("system");
+    if (!model) {
+        throw new Error("AI model not configured");
     }
-
-    const client = new AzureOpenAI({
-        apiKey: process.env.AZURE_OPENAI_API_KEY,
-        apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2025-01-01-preview",
-        endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-    });
-
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-5";
 
     const prompt = `
     You are an expert SEO Content Generator.
@@ -22,32 +17,30 @@ export async function generateMediaSEO(filename: string, existingContext?: strin
     Filename: "${filename}"
     Context: "${existingContext || 'No description provided'}"
     
-    Return the response as a **valid JSON object** with the following fields:
+    Fields required:
     - title: A clean, descriptive title for the image (capitalized, no extension).
     - altText: A descriptive alt text optimized for accessibility and SEO.
     - caption: A short, engaging caption suitable for a blog or gallery.
     - description: A longer description of what the image likely represents or how it could be used.
-
-    **IMPORTANT**: Return ONLY the raw JSON string.
   `;
 
     try {
-        const response = await client.chat.completions.create({
-            model: deployment,
+        const { object } = await generateObject({
+            model,
+            schema: z.object({
+                title: z.string().describe("A clean, descriptive title for the image."),
+                altText: z.string().describe("Descriptive alt text optimized for accessibility and SEO."),
+                caption: z.string().describe("A short, engaging caption."),
+                description: z.string().describe("A longer description of the image."),
+            }),
             messages: [
-                { role: "system", content: "You are a helpful AI assistant that generates metadata in JSON format." },
+                { role: "system", content: "You are a helpful AI assistant that generates metadata." },
                 { role: "user", content: prompt },
             ],
-            temperature: 1.0,
-            response_format: { type: "json_object" },
+            temperature: isReasoningModel(model.modelId) ? undefined : 1.0,
         });
 
-        const content = response.choices[0].message.content;
-        if (!content) {
-            throw new Error("No content generated");
-        }
-
-        return JSON.parse(content);
+        return object;
     } catch (error) {
         console.error("Error generating media SEO:", error);
         throw new Error("Failed to generate metadata");

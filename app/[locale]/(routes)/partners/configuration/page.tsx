@@ -13,7 +13,10 @@ export default async function PartnerAiConfigPage() {
 
     if (!session || !session.user?.email) redirect("/sign-in");
 
-    const user = await prismadb.users.findUnique({ where: { email: session.user.email } });
+    const user = await prismadb.users.findUnique({
+        where: { email: session.user.email },
+        include: { assigned_team: true }
+    });
 
     // Strict check for Ledger1 team or Admin
     // (Reusing logic from PartnersPage)

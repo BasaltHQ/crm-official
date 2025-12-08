@@ -92,7 +92,14 @@ export async function DELETE(_req: Request, { params }: Params) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    // Delete messages first (Mongo won't cascade)
+    // 1. Break parent-child relationships (self-referential constraint)
+    // We must unlink children before we can delete the parents bc of NoAction/NoAction
+    await db.chat_Messages.updateMany({
+      where: { session: sessionId },
+      data: { parent: null },
+    });
+
+    // 2. Delete all messages
     await db.chat_Messages.deleteMany({
       where: { session: sessionId },
     });
@@ -105,6 +112,6 @@ export async function DELETE(_req: Request, { params }: Params) {
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[CHAT_SESSION_DELETE]", error);
-    return new NextResponse("Failed to delete session", { status: 500 });
+    return NextResponse.json({ error: `Failed to delete session: ${(error as Error).message}` }, { status: 500 });
   }
 }

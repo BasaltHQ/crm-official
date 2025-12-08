@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel } from "@/lib/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { sendSmsPinpoint } from "@/lib/aws/pinpoint";
 import { ensureContactForLead } from "@/actions/crm/lead-conversions";
 
@@ -103,8 +105,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ sent: 0, results: [], message: "No leads to process" });
     }
 
-    const openai = await openAiHelper(session.user.id);
-    if (!openai) return new NextResponse("OpenAI client not configured", { status: 500 });
+    const model = await getAiSdkModel(session.user.id);
+    if (!model) return new NextResponse("AI model not configured", { status: 500 });
 
     const senderId = body.senderId?.trim() || undefined;
     const testMode = !!body.test;
@@ -128,24 +130,20 @@ export async function POST(req: Request) {
 
       let smsBody = "Hi there — quick intro to PortalPay: crypto checkout, instant settlement, lower fees. Can I send a link for details?";
       try {
-        const completion: any = await (openai as any).chat.completions.create({
-          model: process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-4o-mini",
+        const { object } = await generateObject({
+          model,
+          schema: z.object({
+            body: z.string(),
+          }),
           messages: [
             { role: "system", content: systemInstructionSms() },
             { role: "user", content: userPrompt },
           ],
-          response_format: { type: "json_object" },
         });
-        const content = completion?.choices?.[0]?.message?.content || "";
-        try {
-          const parsed = JSON.parse(content);
-          if (typeof parsed?.body === "string") smsBody = sanitizeSmsBody(parsed.body);
-        } catch {
-          smsBody = sanitizeSmsBody(String(content || smsBody));
-        }
+        smsBody = sanitizeSmsBody(object.body || smsBody);
       } catch (err: any) {
         // keep default
-        console.error("[SMS][OPENAI_ERROR]", err?.message || err);
+        console.error("[SMS][AI_ERROR]", err?.message || err);
       }
 
       // Compliance footer (basic)
@@ -172,7 +170,7 @@ export async function POST(req: Request) {
             } as any,
           },
         });
-        await ensureContactForLead(lead.id).catch(() => {});
+        await ensureContactForLead(lead.id).catch(() => { });
 
         results.push({ leadId: lead.id, status: "sent", to: toNumber, body: finalBody, messageId: msgId });
       } catch (err: any) {

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import * as Switch from "@radix-ui/react-switch";
-import { useChat } from "@ai-sdk/react";
 import { toast } from "sonner";
-import { Loader, Plus, Trash2, Pencil, Check, X, RefreshCw, Menu, Send, Square } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, RefreshCw, Menu } from "lucide-react";
+import ChatBoard from "./ChatBoard";
 
 type ChatSession = {
   id: string;
@@ -18,22 +18,10 @@ type ChatSession = {
 type ChatMessage = {
   id: string;
   session: string;
-  parent?: string | null;
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
-  model?: string | null;
-  deployment?: string | null;
 };
-
-const MAX_TOKENS = 275000;
-
-function estimateTokens(text: string): number {
-  if (!text) return 0;
-  const c = text.trim().length;
-  // Rough estimate: ~4 characters per token
-  return Math.ceil(c / 4);
-}
 
 export default function ChatApp() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -45,62 +33,7 @@ export default function ChatApp() {
   const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState<string>("");
-  const [editParentId, setEditParentId] = useState<string | undefined>(undefined);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [pendingAssistantId, setPendingAssistantId] = useState<string | null>(null);
-
-  // Streaming chat hook bound to active session's message endpoint
-  const apiEndpoint = useMemo(() => {
-    return activeSessionId ? `/api/chat/sessions/${activeSessionId}/messages` : undefined;
-  }, [activeSessionId]);
-
-  const {
-    messages: streamingMessages,
-    input,
-    setInput,
-    handleSubmit,
-    isLoading,
-    stop,
-    data,
-    error,
-    setMessages: setStreamingMessages,
-  } = useChat({
-    api: apiEndpoint,
-    body: { parentId: editParentId },
-    // Stream response into a placeholder assistant bubble, then keep it as the final bubble
-    onFinish: async () => {
-      setEditParentId(undefined);
-      const final = streamingMessages[streamingMessages.length - 1];
-      if (final?.content && final?.role === "assistant") {
-        if (pendingAssistantId) {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === pendingAssistantId ? { ...m, content: final.content } : m))
-          );
-          setPendingAssistantId(null);
-        } else if (activeSessionId) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `tmp-${Date.now()}`,
-              session: activeSessionId,
-              role: "assistant",
-              content: final.content,
-              createdAt: new Date().toISOString(),
-            } as any,
-          ]);
-        }
-      }
-    },
-    onError: (err: unknown) => {
-      console.error("[CHAT_STREAM_ERROR]", err);
-      toast.error("Streaming error");
-    },
-  });
-
-  useEffect(() => {
-    // Clear client-side useChat state when switching sessions to avoid mixing streams
-    setStreamingMessages([]);
-  }, [activeSessionId, setStreamingMessages]);
 
   async function loadSessions() {
     try {
@@ -142,7 +75,8 @@ export default function ChatApp() {
       setCreatingTitle("");
       setCreatingTemporary(false);
       toast.success("Session created");
-      await loadMessages(created.id);
+      // New session has no messages
+      setMessages([]);
     } catch (e) {
       console.error("[CREATE_SESSION]", e);
       toast.error("Failed to create session");
@@ -172,7 +106,15 @@ export default function ChatApp() {
     try {
       const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) {
-        throw new Error(`Failed to delete session: ${res.status}`);
+        let errorMessage = `Failed to delete session: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          if (errorData.error) errorMessage = errorData.error;
+        } catch {
+          const errorText = await res.text();
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
       }
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       if (activeSessionId === sessionId) {
@@ -180,9 +122,9 @@ export default function ChatApp() {
         setMessages([]);
       }
       toast.success("Session deleted");
-    } catch (e) {
+    } catch (e: any) {
       console.error("[DELETE_SESSION]", e);
-      toast.error("Failed to delete session");
+      toast.error(e.message || "Failed to delete session");
     }
   }
 
@@ -235,77 +177,17 @@ export default function ChatApp() {
   useEffect(() => {
     if (activeSessionId) {
       loadMessages(activeSessionId);
+    } else {
+      setMessages([]);
     }
   }, [activeSessionId]);
 
-  // Compose submit handler to pass through to useChat while validating active session
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    if (!activeSessionId) {
-      e.preventDefault();
-      toast.error("Select or create a session first");
-      return;
-    }
-    // Immediately append the user's message to the visible thread for a smooth UX
-    if (input.trim().length > 0) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `tmp-user-${Date.now()}`,
-          session: activeSessionId,
-          role: "user",
-          content: input,
-          createdAt: new Date().toISOString(),
-        } as any,
-      ]);
-      // Create a placeholder assistant bubble that will be filled as streaming progresses
-      const tempId = `tmp-assistant-${Date.now()}`;
-      setPendingAssistantId(tempId);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: tempId,
-          session: activeSessionId,
-          role: "assistant",
-          content: "",
-          createdAt: new Date().toISOString(),
-        } as any,
-      ]);
-    }
-    // Clear the composer immediately for a smooth UX
-    setInput("");
-    handleSubmit(e);
-  }
-
-  const usedTokens = useMemo(() => {
-    const messageTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
-    const streamingTokens =
-      isLoading && streamingMessages.length > 0
-        ? estimateTokens(streamingMessages[streamingMessages.length - 1]?.content || "")
-        : 0;
-    const inputTokens = estimateTokens(input);
-    return messageTokens + streamingTokens + inputTokens;
-  }, [messages, isLoading, streamingMessages, input]);
-
-  const percentUsed = useMemo(() => {
-    return Math.min(100, Math.round((usedTokens / MAX_TOKENS) * 100));
-  }, [usedTokens]);
-
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
-
-
-  const listRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    // Auto-scroll to bottom on new messages or streaming updates
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [messages, isLoading, streamingMessages]);
-
 
   return (
     <div className="relative flex w-full h-full min-h-0 overflow-hidden">
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/40 sm:hidden" onClick={() => setSidebarOpen(false)} />}
-      {/* Sidebar */}
+
       <aside
         className={`fixed z-50 inset-y-0 left-0 w-72 glass p-3 flex flex-col gap-3 h-full overflow-hidden transform transition-transform duration-200 sm:static sm:z-auto sm:inset-auto sm:w-80 sm:transform-none ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
@@ -371,7 +253,7 @@ export default function ChatApp() {
                           value={renameTitle}
                           onChange={(e) => setRenameTitle(e.target.value)}
                           placeholder={s.title || "Untitled"}
-                          autoFocus
+                        // autoFocus
                         />
                         <button
                           className="p-1 rounded bg-green-600 hover:bg-green-700 text-white"
@@ -464,137 +346,33 @@ export default function ChatApp() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-4">
-            {/* Context window tracker */}
-            <div className="w-40 sm:w-64">
-              <div className="flex items-center justify-between text-[11px] sm:text-xs mb-1">
-                <span className="text-muted-foreground">Context</span>
-                <span className="font-medium">
-                  {usedTokens.toLocaleString()} / {MAX_TOKENS.toLocaleString()} ({percentUsed}%)
-                </span>
-              </div>
-              <div className="h-2 rounded bg-muted overflow-hidden">
-                <div
-                  className={`h-2 rounded transition-all ${percentUsed >= 90 ? "bg-red-500" : percentUsed >= 75 ? "bg-yellow-500" : "bg-blue-600"
-                    }`}
-                  style={{ width: `${Math.min(100, percentUsed)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Refresh messages */}
-            <button
-              className="p-2 rounded hover:bg-muted"
-              onClick={() => loadMessages(activeSessionId)}
-              disabled={!activeSessionId}
-              title="Refresh messages"
-            >
-              <RefreshCw className={`w-4 h-4 ${loadingMessages ? "animate-spin" : ""}`} />
-            </button>
-          </div>
         </div>
 
-        {/* Messages list */}
-        <div ref={listRef} className={`flex-1 p-4 space-y-4 ${messages.length > 0 || loadingMessages || isLoading ? "overflow-auto" : "overflow-hidden"}`}>
-          {loadingMessages && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader className="w-4 h-4 animate-spin" />
-              Loading messages...
-            </div>
-          )}
-          {!loadingMessages && messages.length === 0 && (
-            <div className="text-sm text-gray-500">No messages yet.</div>
-          )}
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`rounded-xl p-3 ${m.role === "user"
-                  ? "border bg-primary/10 border-primary/40 backdrop-blur-md shadow"
-                  : "glass"
-                }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs px-2 py-1 rounded bg-muted">
-                  {m.role.toUpperCase()}
-                </span>
-                {m.role === "user" && !activeSession?.isTemporary && (
-                  <button
-                    className="text-xs p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-1"
-                    onClick={() => {
-                      setEditParentId(m.id);
-                      setInput(m.content);
-                      toast.info("Editing previous message; this will create a branch.");
-                    }}
-                  >
-                    <Pencil className="w-3 h-3" />
-                    Edit & Branch
-                  </button>
-                )}
-              </div>
-
-              {/* Streaming indicator integrated inside assistant placeholder bubble */}
-              {m.role === "assistant" && m.id === pendingAssistantId && isLoading && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-primary">
-                  <Loader className="w-3 h-3 animate-spin" />
-                  Streaming response...
-                </div>
-              )}
-
-              <div className="mt-2 whitespace-pre-wrap text-sm">
-                {m.role === "assistant" && m.id === pendingAssistantId && (isLoading || streamingMessages.length > 0)
-                  ? streamingMessages[streamingMessages.length - 1]?.content || ""
-                  : m.content}
-              </div>
-            </div>
-          ))}
-
-        </div>
-
-        {/* Composer */}
-        <form onSubmit={onSubmit} className="sticky bottom-0 border-t border-border p-3 bg-card/80 backdrop-blur">
-          <div className="glass rounded-xl p-2 sm:p-3 flex items-center gap-2">
-            <textarea
-              className="flex-1 rounded-xl border border-input bg-background/60 text-foreground placeholder-muted-foreground p-3 resize-none min-h-[56px] max-h-[160px] shadow-inner focus:outline-none focus:ring-2 focus:ring-primary/40"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={activeSessionId ? "Type your message..." : "Create or select a session first"}
-              disabled={!activeSessionId}
+        {/* Content */}
+        {/* Content */}
+        {activeSessionId ? (
+          <div className="relative flex-1 flex flex-col min-h-0">
+            <ChatBoard
+              key={activeSessionId}
+              sessionId={activeSessionId}
+              initialMessages={messages as any[]}
+              isTemporary={activeSession?.isTemporary || false}
+              onRefresh={() => loadMessages(activeSessionId)}
             />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Stop streaming"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground hover:brightness-90 shadow-sm transition-colors"
-                onClick={() => {
-                  stop();
-                }}
-                disabled={!isLoading}
-              >
-                <Square className="w-4 h-4" />
-              </button>
-              <button
-                type="submit"
-                aria-label="Send message"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary hover:brightness-90 text-primary-foreground disabled:opacity-50 shadow-sm transition-colors"
-                disabled={!activeSessionId || isLoading || input.trim().length === 0}
-              >
-                {isLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
+            {loadingMessages && messages.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+                <div className="animate-pulse">Loading conversation...</div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground p-8">
+            <div className="text-center">
+              <p>Select a session to start chatting.</p>
+              <p className="text-sm">Or create a new one.</p>
             </div>
           </div>
-          {editParentId && (
-            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-              Branching from message id: {editParentId}{" "}
-              <button
-                type="button"
-                className="ml-2 px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700"
-                onClick={() => setEditParentId(undefined)}
-              >
-                Clear
-              </button>
-            </div>
-          )}
-        </form>
+        )}
       </main>
     </div>
   );

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel } from "@/lib/openai";
+import { generateText } from "ai";
 
 // Role presets for guidance
 const ROLE_PRESETS: Record<string, { label: string; description: string }> = {
@@ -90,9 +91,9 @@ export async function POST(req: Request) {
     const roleDesc = roleKey === "custom" ? roleNotes : rolePreset.description;
 
     // Compose prompt request for Azure/OpenAI
-    const openai = await openAiHelper("system");
-    if (!openai) {
-      return new NextResponse("OpenAI client not configured", { status: 500 });
+    const model = await getAiSdkModel("system");
+    if (!model) {
+      return new NextResponse("AI model not configured", { status: 500 });
     }
 
     // Guidance for the model to output a production-grade System Prompt
@@ -145,23 +146,13 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n");
 
-    // For Azure OpenAI, the 'model' field should be the deployment name (via env AZURE_OPENAI_DEPLOYMENT)
-    const model = process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-4o-mini";
-
-    // Using Chat Completions for broad compatibility across Azure/OpenAI SDKs
-    const completion = await (openai as any).chat.completions.create({
+    const { text } = await generateText({
       model,
-    //   temperature: 0.4,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: userContent },
-      ],
+      system: sys,
+      prompt: userContent,
     });
 
-    const text =
-      completion?.choices?.[0]?.message?.content?.toString?.() ||
-      completion?.choices?.[0]?.message?.content ||
-      "";
+
 
     if (!text) {
       return NextResponse.json(

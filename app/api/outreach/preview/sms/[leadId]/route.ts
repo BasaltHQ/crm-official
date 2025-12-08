@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel } from "@/lib/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 
 /**
  * POST /api/outreach/preview/sms/[leadId]
@@ -175,29 +177,25 @@ Project Briefing:
             : "";
         const userPromptWithProject = [userPrompt, projectBlock].filter(Boolean).join("\n\n");
 
-        const openai = await openAiHelper(session.user.id);
-        if (!openai) return new NextResponse("OpenAI client not configured", { status: 500 });
+        const model = await getAiSdkModel(session.user.id);
+        if (!model) return new NextResponse("AI model not configured", { status: 500 });
 
         let smsBody = "Hi there — quick intro to PortalPay: crypto checkout, instant settlement, lower fees. Can I send a link for details?";
         try {
-            const completion: any = await (openai as any).chat.completions.create({
-                model: process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-4o-mini",
+            const { object } = await generateObject({
+                model,
+                schema: z.object({
+                    body: z.string(),
+                }),
                 messages: [
                     { role: "system", content: systemInstructionSms() },
                     { role: "user", content: userPromptWithProject || userPrompt },
                 ],
-                response_format: { type: "json_object" },
             });
-            const content = completion?.choices?.[0]?.message?.content || "";
-            try {
-                const parsed = JSON.parse(content);
-                if (typeof parsed?.body === "string") smsBody = sanitizeSmsBody(parsed.body);
-            } catch {
-                smsBody = sanitizeSmsBody(String(content || smsBody));
-            }
+            smsBody = sanitizeSmsBody(object.body || smsBody);
         } catch (err: any) {
             // eslint-disable-next-line no-console
-            console.error("[OUTREACH_PREVIEW_SMS][OPENAI_ERROR]", err?.message || err);
+            console.error("[OUTREACH_PREVIEW_SMS][AI_ERROR]", err?.message || err);
         }
 
         return NextResponse.json({ body: smsBody }, { status: 200 });

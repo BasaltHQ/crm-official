@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel } from "@/lib/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import OutreachTemplate, { type ResourceLink } from "@/emails/OutreachTemplate";
 import { render } from "@react-email/render";
 import React from "react";
@@ -237,32 +239,29 @@ Project Briefing:
         const userPromptWithProject = [userPrompt, projectBlock].filter(Boolean).join("\\n\\n");
 
         // OpenAI client
-        const openai = await openAiHelper(session.user.id);
-        if (!openai) return new NextResponse("OpenAI client not configured", { status: 500 });
+        const model = await getAiSdkModel(session.user.id);
+        if (!model) return new NextResponse("AI model not configured", { status: 500 });
 
         let subject = "Exploring Partnership Opportunities";
         let bodyText = "Hello,\n\nI'd like to explore how PortalPay could align with your investment thesis.\n\nThanks.";
         try {
-            const completion: any = await (openai as any).chat.completions.create({
-                model: process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-4o-mini",
+            const { object } = await generateObject({
+                model,
+                schema: z.object({
+                    subject: z.string(),
+                    body: z.string(),
+                }),
                 messages: [
                     { role: "system", content: systemInstruction() },
                     { role: "user", content: userPromptWithProject || userPrompt },
                 ],
-                response_format: { type: "json_object" },
             });
-            const content = completion?.choices?.[0]?.message?.content || "";
-            try {
-                const parsed = JSON.parse(content);
-                if (typeof parsed?.subject === "string") subject = parsed.subject.trim() || subject;
-                if (typeof parsed?.body === "string") bodyText = parsed.body.trim() || bodyText;
-            } catch {
-                // leave defaults
-            }
+            subject = object.subject || subject;
+            bodyText = object.body || bodyText;
         } catch (err: any) {
             // leave defaults on error
             // eslint-disable-next-line no-console
-            console.error("[OUTREACH_PREVIEW_EMAIL][OPENAI_ERROR]", err?.message || err);
+            console.error("[OUTREACH_PREVIEW_EMAIL][AI_ERROR]", err?.message || err);
         }
 
         // Prepare resources/signature

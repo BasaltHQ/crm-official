@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel, isReasoningModel } from "@/lib/openai";
+import { generateText } from "ai";
 
 /**
  * POST /api/outreach/prompt/compose
@@ -76,9 +77,9 @@ export async function POST(req: Request) {
             },
         };
 
-        const openai = await openAiHelper(session.user.id);
-        if (!openai) {
-            return new NextResponse("OpenAI client not configured", { status: 500 });
+        const model = await getAiSdkModel(session.user.id);
+        if (!model) {
+            return new NextResponse("AI model not configured", { status: 500 });
         }
 
         // System instructions for composing a PROMPT TEXT from seed inputs.
@@ -111,18 +112,16 @@ export async function POST(req: Request) {
 
         let promptText = "";
         try {
-            const completion: any = await (openai as any).chat.completions.create({
-                model: process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-5-nano",
-                messages: [
-                    { role: "system", content: system },
-                    { role: "user", content: user },
-                ],
-                temperature: 1,
+            const { text } = await generateText({
+                model,
+                system,
+                prompt: user,
+                temperature: isReasoningModel(model.modelId) ? undefined : 1,
             });
-            promptText = String(completion?.choices?.[0]?.message?.content || "").trim();
+            promptText = text.trim();
         } catch (err: any) {
             // eslint-disable-next-line no-console
-            console.error("[OUTREACH_PROMPT_COMPOSE][OPENAI_ERROR]", err?.message || err);
+            console.error("[OUTREACH_PROMPT_COMPOSE][AI_ERROR]", err?.message || err);
             // Fallback: compose a deterministic prompt locally if model fails
             const roleSuffix = (projectRole || projectTitle)
                 ? ` — ${[projectRole, projectTitle ? `at ${projectTitle}` : ""].filter(Boolean).join(" ")}`

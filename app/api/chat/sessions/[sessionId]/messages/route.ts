@@ -1,9 +1,10 @@
+// Force Rebuild
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbChat } from "@/lib/prisma-chat";
 const db: any = prismadbChat;
-import { getAiSdkModel } from "@/lib/openai";
+import { getAiSdkModel, isReasoningModel } from "@/lib/openai";
 import { streamText } from "ai";
 
 type Params = {
@@ -12,8 +13,6 @@ type Params = {
 
 // GET /api/chat/sessions/:sessionId/messages
 // Returns all messages in a session, ordered chronologically.
-// Optional search params:
-// - parent: string (return only messages that are in the subtree of this parent id) - TODO: for now returns all.
 export async function GET(req: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -31,12 +30,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ sessionI
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    const url = new URL(req.url);
-    const parent = url.searchParams.get("parent") || undefined;
-
     const where: any = { session: sessionId };
-    // Future: if parent specified, filter by subtree or compute the branch.
-    // For first cut, just return all messages in time order.
     const messages = await db.chat_Messages.findMany({
       where,
       orderBy: { createdAt: "asc" },
@@ -50,10 +44,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ sessionI
 }
 
 // POST /api/chat/sessions/:sessionId/messages
-// Body supports either:
-// - { content: string, parentId?: string }
-// or Vercel AI SDK shape:
-// - { messages: { id?: string, role: "user"|"assistant"|"system", content: string }[], parentId?: string }
 export async function POST(req: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   const auth = await getServerSession(authOptions);
   if (!auth) {
@@ -125,35 +115,62 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
       return new NextResponse("No openai key found", { status: 500 });
     }
 
-    const result = await streamText({
-      model,
-      messages: modelMessages,
-      temperature: 1.0,
-      onFinish: async ({ text: completion }) => {
-        try {
-          if (!chatSession.isTemporary) {
-            await db.chat_Messages.create({
-              data: {
-                session: sessionId,
-                parent: userMessageId || parentId || undefined,
-                role: "assistant",
-                content: completion,
-                model: undefined,
-                deployment: process.env.AZURE_OPENAI_DEPLOYMENT || undefined,
-              },
-            });
-            await db.chat_Sessions.update({
-              where: { id: sessionId },
-              data: { updatedAt: new Date() },
-            });
-          }
-        } catch (e) {
-          console.error("[CHAT_MESSAGES_ON_COMPLETION_SAVE_ERROR]", e);
-        }
-      },
-    });
+    let result: any;
+    try {
+      // Omit temperature for reasoning models (o1, etc.)
+      const temperature = isReasoningModel(model.modelId) ? undefined : 1.0;
 
-    return result.toTextStreamResponse();
+      const textStreamPromise = streamText({
+        model,
+        messages: modelMessages,
+        temperature,
+        onFinish: async ({ text: completion }) => {
+          try {
+            if (!chatSession.isTemporary) {
+              await db.chat_Messages.create({
+                data: {
+                  session: sessionId,
+                  parent: userMessageId || parentId || undefined,
+                  role: "assistant",
+                  content: completion,
+                  model: undefined,
+                  deployment: process.env.AZURE_OPENAI_DEPLOYMENT || undefined,
+                },
+              });
+              await db.chat_Sessions.update({
+                where: { id: sessionId },
+                data: { updatedAt: new Date() },
+              });
+            }
+          } catch (e) {
+            console.error("[CHAT_MESSAGES_ON_COMPLETION_SAVE_ERROR]", e);
+          }
+        },
+      });
+
+      // Handle both promise and sync return (SDK robust handling)
+      if (textStreamPromise instanceof Promise) {
+        result = await textStreamPromise;
+      } else {
+        result = textStreamPromise;
+      }
+    } catch (err) {
+      console.error("[CHAT_STREAM_TEXT_ERROR]", err);
+      return new NextResponse("Error calling streamText", { status: 500 });
+    }
+
+    // Attempt to use known response methods
+    if (result && typeof result.toDataStreamResponse === 'function') {
+      return result.toDataStreamResponse();
+    } else if (result && typeof result.toTextStreamResponse === 'function') {
+      return result.toTextStreamResponse();
+    } else if (result instanceof Response) {
+      return result;
+    } else {
+      console.error("[CHAT_STREAM_ERROR] Invalid result object:", result);
+      return new NextResponse("Stream generation failed: Invalid result", { status: 500 });
+    }
+
   } catch (error) {
     console.error("[CHAT_MESSAGES_POST]", error);
     return new NextResponse("Failed to process message", { status: 500 });

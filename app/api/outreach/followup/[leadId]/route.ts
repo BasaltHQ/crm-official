@@ -5,7 +5,9 @@ import { prismadb } from "@/lib/prisma";
 import sendEmail from "@/lib/sendmail";
 import { render } from "@react-email/render";
 import OutreachTemplate, { type ResourceLink } from "@/emails/OutreachTemplate";
-import { openAiHelper } from "@/lib/openai";
+import { getAiSdkModel } from "@/lib/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import React from "react";
 
 /**
@@ -168,8 +170,8 @@ export async function POST(req: Request, { params }: Params) {
     const trackingPixelUrl = baseUrl ? `${baseUrl}/api/outreach/open/${encodeURIComponent(token)}.png` : undefined;
 
     // OpenAI client
-    const openai = await openAiHelper(session.user.id);
-    if (!openai) return new NextResponse("OpenAI client not configured", { status: 500 });
+    const model = await getAiSdkModel(session.user.id);
+    if (!model) return new NextResponse("AI model not configured", { status: 500 });
 
     const contactName = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
     const promptOverride = body.promptOverride?.trim();
@@ -184,30 +186,22 @@ export async function POST(req: Request, { params }: Params) {
     let subject = "Quick follow-up on PortalPay";
     let bodyText = "Hello,\n\nJust following up on my previous note about PortalPay...\n\nThanks.";
     try {
-      const completion: any = await (openai as any).chat.completions.create({
-        model: process.env.AZURE_OPENAI_DEPLOYMENT || process.env.OPENAI_MODEL || "gpt-4o-mini",
+      const { object } = await generateObject({
+        model,
+        schema: z.object({
+          subject: z.string(),
+          body: z.string(),
+        }),
         messages: [
           { role: "system", content: systemInstructionFollowup() },
           { role: "user", content: userPrompt },
         ],
-        response_format: { type: "json_object" },
       });
-      const content = completion?.choices?.[0]?.message?.content || "";
-      try {
-        const parsed = JSON.parse(content);
-        if (typeof parsed?.subject === "string") subject = parsed.subject.trim() || subject;
-        if (typeof parsed?.body === "string") bodyText = parsed.body.trim() || bodyText;
-      } catch {
-        // attempt minimal extraction if parsing fails
-        const stripped = String(content || "");
-        const subjMatch = stripped.match(/"subject"\s*:\s*"([^"]+)/i);
-        const bodyMatch = stripped.match(/"body"\s*:\s*"([\s\S]+)"/i);
-        if (subjMatch?.[1]) subject = subjMatch[1].trim();
-        if (bodyMatch?.[1]) bodyText = bodyMatch[1].trim();
-      }
+      subject = object.subject || subject;
+      bodyText = object.body || bodyText;
     } catch (err: any) {
       // eslint-disable-next-line no-console
-      console.error("[FOLLOWUP][OPENAI_ERROR]", err?.message || err);
+      console.error("[FOLLOWUP][AI_ERROR]", err?.message || err);
     }
 
     // Render HTML
