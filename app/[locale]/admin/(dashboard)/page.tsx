@@ -36,11 +36,13 @@ export default async function AdminDashboardPage() {
               Users administration
             </AnyButton>
           </AnyLink>
-          <AnyLink href="/admin/modules">
-            <AnyButton variant="outline" className="text-cyan-400 border-cyan-800 hover:bg-cyan-950">
-              Modules administration
-            </AnyButton>
-          </AnyLink>
+          {(user?.is_admin || user?.assigned_team?.slug === "ledger1") && (
+            <AnyLink href="/admin/modules">
+              <AnyButton variant="outline" className="text-cyan-400 border-cyan-800 hover:bg-cyan-950">
+                Modules administration
+              </AnyButton>
+            </AnyLink>
+          )}
         </div>
 
         {/* Cards Grid */}

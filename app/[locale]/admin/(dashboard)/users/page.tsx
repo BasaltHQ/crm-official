@@ -12,6 +12,12 @@ import { Users } from "@prisma/client";
 import SendMailToAll from "@/app/[locale]/cms/(dashboard)/users/components/send-mail-to-all";
 
 import { getCurrentUserTeamId } from "@/lib/team-utils";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+
+const AnyLink = Link as any;
+const AnyButton = Button as any;
 
 const AdminUsersPage = async () => {
     const users: Users[] = await getUsers();
@@ -40,6 +46,14 @@ const AdminUsersPage = async () => {
             title="Users administration"
             description={"Here you can manage your Ledger1CRM users"}
         >
+            <div className="mb-4">
+                <AnyLink href="/admin">
+                    <AnyButton variant="ghost" className="pl-0 hover:pl-2 transition-all">
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Administration
+                    </AnyButton>
+                </AnyLink>
+            </div>
             <div className="flex-col1">
                 <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
                     Invite new user to Ledger1CRM
