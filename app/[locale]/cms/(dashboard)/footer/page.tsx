@@ -208,7 +208,7 @@ export default function FooterAdminPage() {
                     <div key={section.id || sIndex} className="bg-slate-950/50 backdrop-blur-xl border border-white/10 rounded-lg p-5 space-y-4 shadow-lg">
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 flex-1">
-                                {section.isBase && <Lock className="h-4 w-4 text-gray-400" title="Base Section" />}
+                                {section.isBase && <Lock className="h-4 w-4 text-gray-400" />}
                                 <input
                                     className="font-semibold text-lg bg-transparent border-none focus:ring-0 p-0 w-full focus:outline-none text-white placeholder:text-slate-500"
                                     value={section.title}
