@@ -70,7 +70,7 @@ export function InvoiceDataTable<TData, TValue>({
   return (
     <div className="space-y-4">
       <DataTableToolbar table={table} />
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -81,9 +81,9 @@ export function InvoiceDataTable<TData, TValue>({
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                     </TableHead>
                   );
                 })}

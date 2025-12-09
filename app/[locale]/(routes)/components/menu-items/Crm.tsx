@@ -29,10 +29,10 @@ const CrmModuleMenu = ({ open, localizations }: Props) => {
   const isPath = pathname.includes("crm");
 
   return (
-    <div className="flex flex-row items-center mx-auto p-2">
+    <div className="flex flex-row items-center mx-auto p-2 w-auto md:w-full">
       <AnyDropdownMenu>
         <AnyDropdownMenuTrigger
-          className={`menu-item ${isPath ? "menu-item-active" : ""} w-full`}
+          className={`menu-item ${isPath ? "menu-item-active" : ""} w-auto md:w-full`}
         >
           <div className="flex items-center gap-2">
             <AnyCoins className="w-6 icon" />

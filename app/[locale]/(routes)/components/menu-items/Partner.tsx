@@ -13,7 +13,7 @@ const PartnerMenu = ({ open }: Props) => {
     const pathname = usePathname();
     const isPath = pathname.includes("partners");
     return (
-        <div className="flex flex-row items-center p-2 w-full">
+        <div className="flex flex-row items-center p-2 w-auto md:w-full">
             <AnyLink href={"/partners"} className={`menu-item ${isPath ? "menu-item-active" : ""}`}>
                 <AnyUsers className="w-6 icon" />
                 <span className={open ? "" : "hidden"}>Partners</span>

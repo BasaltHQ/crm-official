@@ -51,10 +51,10 @@ export function ProfileForm({ data }: ProfileFormProps) {
     defaultValues: data
       ? { ...data }
       : {
-          name: "",
-          username: "",
-          account_name: "",
-        },
+        name: "",
+        username: "",
+        account_name: "",
+      },
   });
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
@@ -87,13 +87,13 @@ export function ProfileForm({ data }: ProfileFormProps) {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="flex space-x-5 w-full p-5 items-end"
+        className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-5 w-full p-5 items-end"
       >
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
-            <FormItem className="w-1/3">
+            <FormItem className="w-full md:w-1/3">
               <FormLabel>Full name</FormLabel>
               <FormControl>
                 <Input disabled={isLoading} placeholder="John Doe" {...field} />
@@ -106,7 +106,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
           control={form.control}
           name="username"
           render={({ field }) => (
-            <FormItem className="w-1/3">
+            <FormItem className="w-full md:w-1/3">
               <FormLabel>Username</FormLabel>
               <FormControl>
                 <Input disabled={isLoading} placeholder="jdoe" {...field} />
@@ -119,7 +119,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
           control={form.control}
           name="account_name"
           render={({ field }) => (
-            <FormItem className="w-1/3">
+            <FormItem className="w-full md:w-1/3">
               <FormLabel>Company</FormLabel>
               <FormControl>
                 <Input
@@ -133,7 +133,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
           )}
         />
 
-        <Button className="w-[150px]" type="submit">
+        <Button className="w-full md:w-[150px]" type="submit">
           Update
         </Button>
       </form>

@@ -16,11 +16,11 @@ export default function LeadsManagerTabs({ leads, crmData, defaultTab = "all" }:
   return (
     <div className="w-full h-full flex flex-col">
       <Tabs defaultValue={defaultTab} className="w-full h-full flex flex-col">
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <TabsList>
-            <TabsTrigger value="all">All Leads</TabsTrigger>
-            <TabsTrigger value="workspace">Leads Workspace</TabsTrigger>
-            <TabsTrigger value="dialer">Dialer</TabsTrigger>
+        <div className="flex items-center justify-between mb-4 flex-shrink-0 overflow-x-auto no-scrollbar">
+          <TabsList className="h-9 p-1 bg-muted/50 backdrop-blur-sm border border-border/50">
+            <TabsTrigger value="all" className="text-[10px] uppercase tracking-wider font-semibold px-3 py-1 data-[state=active]:bg-background data-[state=active]:shadow-sm">All Leads</TabsTrigger>
+            <TabsTrigger value="workspace" className="text-[10px] uppercase tracking-wider font-semibold px-3 py-1 data-[state=active]:bg-background data-[state=active]:shadow-sm">Leads Workspace</TabsTrigger>
+            <TabsTrigger value="dialer" className="text-[10px] uppercase tracking-wider font-semibold px-3 py-1 data-[state=active]:bg-background data-[state=active]:shadow-sm">Dialer</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="all" className="overflow-auto flex-1">

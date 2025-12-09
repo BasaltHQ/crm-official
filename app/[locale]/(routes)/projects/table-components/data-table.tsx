@@ -79,7 +79,7 @@ export function ProjectsDataTable<TData, TValue>({
         const j = await res.json().catch(() => null);
         const pools: any[] = Array.isArray(j?.pools) ? j.pools : [];
         const assigned = pools.filter((p) => (p?.icpConfig?.assignedProjectId === projectId));
-        const stageKeys = ["Identify","Engage_AI","Engage_Human","Offering","Finalizing","Closed"] as const;
+        const stageKeys = ["Identify", "Engage_AI", "Engage_Human", "Offering", "Finalizing", "Closed"] as const;
         const items: { poolId: string; name: string; stageData: StageDatum[]; total: number }[] = [];
         for (const p of assigned) {
           try {
@@ -92,19 +92,19 @@ export function ProjectsDataTable<TData, TValue>({
               const s = ((l as any).pipeline_stage as string) || "Identify";
               counts[s] = (counts[s] || 0) + 1;
             }
-            const stageData: StageDatum[] = stageKeys.map((k) => ({ key: k, label: (k as string).replace("_"," "), count: counts[k] || 0 }));
+            const stageData: StageDatum[] = stageKeys.map((k) => ({ key: k, label: (k as string).replace("_", " "), count: counts[k] || 0 }));
             items.push({ poolId: p.id, name: p.name, stageData, total: leads.length || 1 });
-          } catch {}
+          } catch { }
         }
         setProjectPools((prev) => ({ ...prev, [projectId]: items }));
-      } catch {}
+      } catch { }
     }
   }
 
   return (
     <div className="space-y-4">
       <DataTableToolbar table={table} />
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -115,9 +115,9 @@ export function ProjectsDataTable<TData, TValue>({
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                     </TableHead>
                   );
                 })}
@@ -132,7 +132,7 @@ export function ProjectsDataTable<TData, TValue>({
                 const pools = projectPools[projectId] || [];
                 // Overall stage aggregation
                 const agg: Record<string, number> = {};
-                const keys = ["Identify","Engage_AI","Engage_Human","Offering","Finalizing","Closed"] as const;
+                const keys = ["Identify", "Engage_AI", "Engage_Human", "Offering", "Finalizing", "Closed"] as const;
                 for (const k of keys) agg[k] = 0;
                 let total = 0;
                 for (const item of pools) {
@@ -141,7 +141,7 @@ export function ProjectsDataTable<TData, TValue>({
                     agg[sd.key as any] = (agg[sd.key as any] || 0) + (sd.count || 0);
                   }
                 }
-                const overall: StageDatum[] = keys.map((k) => ({ key: k as any, label: (k as string).replace("_"," "), count: agg[k] || 0 }));
+                const overall: StageDatum[] = keys.map((k) => ({ key: k as any, label: (k as string).replace("_", " "), count: agg[k] || 0 }));
 
                 return (
                   <React.Fragment key={row.id}>

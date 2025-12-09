@@ -35,8 +35,8 @@ const InvoicePage = async () => {
       description={"Everything you need to know about invoices and TAX"}
     >
       <NewTaskDialog users={users} boards={boards} />
-      <div className="flex justify-between py-5 w-full">
-        <div className="flex space-x-2">
+      <div className="flex flex-col md:flex-row justify-between py-5 w-full gap-4">
+        <div className="flex flex-wrap gap-2">
           <ModalDropzone buttonLabel="Upload pdf" />
           <Button asChild>
             <Link href={`/invoice/${session?.user.id}`}>My invoices</Link>

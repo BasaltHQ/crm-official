@@ -236,15 +236,15 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
 
       {/* Team Member Selection & Assignment Controls */}
       <div className="border rounded-lg p-4 bg-muted/30">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="w-full md:flex-1">
             <label className="block text-sm font-medium mb-2">
               Select Team Member for Assignment
             </label>
             {teamData?.isAdmin ? (
               <>
                 <select
-                  className="w-full max-w-sm rounded border p-2 bg-background"
+                  className="w-full md:max-w-sm rounded border p-2 bg-background"
                   value={selectedTeamMember?.id || ""}
                   onChange={(e) => {
                     const member = teamData?.users.find((u) => u.id === e.target.value);
@@ -289,9 +289,9 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
             <button
-              className="rounded border px-4 py-2 hover:bg-muted disabled:opacity-50"
+              className="rounded border px-4 py-2 hover:bg-muted disabled:opacity-50 justify-center flex"
               onClick={assignAllToSelected}
               disabled={!selectedTeamMember || (data?.candidates?.length ?? 0) === 0}
               title={teamData?.isAdmin ? "Assign all candidates to selected team member" : "Assign all candidates to you"}
@@ -299,19 +299,19 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
               {teamData?.isAdmin ? "Assign All to Selected" : "Assign All to Me"}
             </button>
             <button
-              className="rounded border px-4 py-2 hover:bg-muted disabled:opacity-50"
+              className="rounded border px-4 py-2 hover:bg-muted disabled:opacity-50 justify-center flex"
               onClick={clearAssignments}
               disabled={Object.keys(candidateAssignments).length === 0}
             >
               Clear
             </button>
             <button
-              className="rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
               onClick={onConfirmAssignments}
               disabled={assigning || Object.keys(candidateAssignments).length === 0}
             >
               <CheckCircle2 className="w-4 h-4" />
-              {assigning ? "Assigning..." : `Confirm Assignments (${Object.keys(candidateAssignments).length})`}
+              {assigning ? "Assigning..." : `Confirm (${Object.keys(candidateAssignments).length})`}
             </button>
           </div>
         </div>
@@ -323,7 +323,8 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
       {/* Candidates Table */}
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          {/* Desktop Table View */}
+          <table className="hidden md:table w-full">
             <thead className="bg-muted">
               <tr>
                 <th className="text-left p-3 text-sm font-medium">Company</th>
@@ -439,7 +440,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
                     <td className="p-3 text-center">
                       <button
                         className="rounded border px-3 py-1.5 text-xs hover:bg-muted transition-colors"
-                        onClick={() => setDetailsModal(cand)}
+                        onClick={(e) => { e.stopPropagation(); setDetailsModal(cand); }}
                       >
                         View Details
                       </button>
@@ -449,6 +450,80 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
               })}
             </tbody>
           </table>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4 p-4 bg-muted/10">
+            {(data?.candidates ?? []).length === 0 && (
+              <div className="text-center text-muted-foreground py-8">
+                No candidates found. Run a lead generation job first.
+              </div>
+            )}
+            {(data?.candidates ?? []).map((cand) => {
+              const assignedColor = getAssignedColor(cand.id);
+              return (
+                <div
+                  key={cand.id}
+                  className={`border rounded-lg p-4 bg-card shadow-sm transition-all ${assignedColor ? 'ring-2 ring-offset-2' : ''}`}
+                  style={assignedColor ? { '--tw-ring-color': assignedColor } as React.CSSProperties : {}}
+                  onClick={() => toggleCandidateAssignment(cand.id)}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="font-semibold text-lg">{cand.companyName || "Unknown"}</div>
+                      <div className="text-xs text-muted-foreground">{cand.industry || "—"}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        {cand.score ?? 0}
+                      </div>
+                      {assignedColor && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">Assigned</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mb-3 text-sm text-muted-foreground line-clamp-2">
+                    {cand.description || "No description available."}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                    {cand.homepageUrl && (
+                      <a
+                        href={cand.homepageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-3 h-3" /> Website
+                      </a>
+                    )}
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <User className="w-3 h-3" /> {cand.contacts.length} Contacts
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {Array.isArray(cand.techStack) && cand.techStack.slice(0, 3).map((tech: string, idx: number) => (
+                      <span key={idx} className={tagClass(tech)}>{tech}</span>
+                    ))}
+                    {Array.isArray(cand.techStack) && cand.techStack.length > 3 && (
+                      <span className="text-xs text-muted-foreground self-center">+{cand.techStack.length - 3}</span>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 rounded border px-3 py-2 text-sm hover:bg-muted transition-colors font-medium"
+                      onClick={(e) => { e.stopPropagation(); setDetailsModal(cand); }}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

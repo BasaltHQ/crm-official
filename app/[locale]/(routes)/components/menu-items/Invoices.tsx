@@ -13,7 +13,7 @@ const InvoicesModuleMenu = ({ open, title }: Props) => {
   const pathname = usePathname();
   const isPath = pathname.includes("invoice");
   return (
-    <div className="flex flex-row items-center mx-auto p-2">
+    <div className="flex flex-row items-center mx-auto p-2 w-auto md:w-full">
       <Link href={"/invoice"} className={`menu-item ${isPath ? "menu-item-active" : ""}`}>
         <FileCheck className="w-6 icon" />
         <span className={open ? "" : "hidden"}>{title}</span>

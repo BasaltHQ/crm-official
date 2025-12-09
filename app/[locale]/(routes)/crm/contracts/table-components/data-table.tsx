@@ -14,6 +14,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  Row,
 } from "@tanstack/react-table";
 
 import {
@@ -28,6 +29,8 @@ import {
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 import { PanelTopClose, PanelTopOpen } from "lucide-react";
+import { ContractCard } from "./contract-card";
+import { Lead as Contract } from "../table-data/schema";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -45,8 +48,17 @@ export function ContractsDataTable<TData, TValue>({
     []
   );
   const [sorting, setSorting] = React.useState<SortingState>([]);
-
+  const [view, setView] = React.useState<"table" | "compact" | "grid">("table");
   const [hide, setHide] = React.useState(false);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const table = useReactTable({
     data,
@@ -70,82 +82,131 @@ export function ContractsDataTable<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  // Force grid view on mobile
+  const currentView = isMobile ? "grid" : view;
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-start gap-3">
-        <div className="flex justify-end space-x-2">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-3">
+        <div className="flex-1 w-full">
+          <DataTableToolbar table={table} />
+        </div>
+
+        <div className="flex items-center gap-2 self-end md:self-auto">
+          {/* Layout Toggles (Desktop Only) */}
+          {!isMobile && (
+            <div className="flex items-center border rounded-md p-1 bg-muted/50">
+              <button
+                onClick={() => setView("table")}
+                className={`p-1.5 rounded-sm transition-all ${view === "table" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="Table View"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18" /><path d="M3 9h18" /><path d="M3 15h18" /><rect width="18" height="18" x="3" y="3" rx="2" /></svg>
+              </button>
+              <button
+                onClick={() => setView("compact")}
+                className={`p-1.5 rounded-sm transition-all ${view === "compact" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="Compact View"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3z" /><path d="M21 9H3" /><path d="M21 15H3" /><path d="M12 3v18" /></svg>
+              </button>
+              <button
+                onClick={() => setView("grid")}
+                className={`p-1.5 rounded-sm transition-all ${view === "grid" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="Grid View"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>
+              </button>
+            </div>
+          )}
+
           {hide ? (
             <PanelTopOpen
               onClick={() => setHide(!hide)}
-              className="text-muted-foreground"
+              className="text-muted-foreground cursor-pointer"
             />
           ) : (
             <PanelTopClose
               onClick={() => setHide(!hide)}
-              className="text-muted-foreground"
+              className="text-muted-foreground cursor-pointer"
             />
           )}
         </div>
       </div>
 
       {hide ? (
-        <div className="flex gap-2">
-          This content is hidden now. Click on <PanelTopOpen /> to show content
+        <div className="flex gap-2 text-muted-foreground text-sm italic">
+          Content hidden. Click the icon to expand.
         </div>
       ) : (
         <>
-          <DataTableToolbar table={table} />
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
+          {currentView === "grid" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <ContractCard key={row.id} row={row as unknown as Row<Contract>} />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  No results found.
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                          return (
+                            <TableHead key={header.id} className={view === "compact" ? "h-8 py-1" : ""}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                            </TableHead>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className={view === "compact" ? "py-1" : ""}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
                               )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={columns.length}
+                          className="h-24 text-center"
+                        >
+                          No results.
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <DataTablePagination table={table} />
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <DataTablePagination table={table} />
+            </>
+          )}
         </>
       )}
     </div>

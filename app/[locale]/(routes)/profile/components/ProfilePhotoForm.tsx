@@ -71,7 +71,7 @@ export function ProfilePhotoForm({ data }: ProfileFormProps) {
 
       setAvatar(result.avatar);
       setAvatarStore(result.avatar);
-      
+
       toast({
         title: "Profile photo updated",
         description: "Your profile photo has been updated successfully.",
@@ -95,7 +95,7 @@ export function ProfilePhotoForm({ data }: ProfileFormProps) {
   };
 
   return (
-    <div className="flex items-center space-x-5">
+    <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-5">
       <div>
         <Image
           src={avatar || "/images/nouser.png"}

@@ -220,12 +220,12 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                     </div>
                 </div>
             )}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Teams & Partners</h2>
                     <p className="text-muted-foreground">Manage your organizations and their access.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={handleSeed} disabled={isLoading}>
                         <Lock className="w-4 h-4 mr-2" />
                         Seed Internal Team

@@ -27,11 +27,10 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
   const leads = tab === "manager" ? await getLeads() : null;
 
   return (
-    <Container
-      title="Leads Manager"
-      description={"Everything you need to know about your leads"}
-    >
+    <div className="h-full w-full">
       <TabsContainer
+        title="Leads Manager"
+        description="Everything you need to know about your leads"
         managerSlot={
           tab === "manager" ? (
             <Suspense fallback={<SuspenseLoading />}>
@@ -45,7 +44,7 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
           <SettingsTabs />
         ) : null}
       />
-    </Container>
+    </div>
   );
 };
 

@@ -44,7 +44,7 @@ const PartnersPage = async () => {
             description="Manage your Teams and CRM Instances"
         >
             <div className="p-4 space-y-6">
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-4">
                     <Link href="/partners/ai-system-config">
                         <Button variant="outline" className="text-cyan-400 border-cyan-800 hover:bg-cyan-950">
                             AI System Keys & Defaults

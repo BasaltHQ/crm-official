@@ -29,7 +29,7 @@ const DocumentsPage = async ({ searchParams }: { searchParams?: Promise<{ [k: st
       title="Documents"
       description={"Everything you need to know about company documents"}
     >
-      <div className="flex space-x-5 py-5 items-center">
+      <div className="flex flex-wrap gap-3 py-5 items-center">
         <ModalDropzone buttonLabel="Upload pdf" fileType="pdfUploader" />
         <ModalDropzone buttonLabel="Upload images" fileType="imageUploader" />
         <ModalDropzone buttonLabel="Upload other files" fileType="docUploader" />

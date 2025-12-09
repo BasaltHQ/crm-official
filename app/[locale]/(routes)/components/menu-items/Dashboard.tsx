@@ -14,7 +14,7 @@ const DashboardMenu = ({ open, title }: Props) => {
   // Mark active when the current path ends with "/dashboard" (locale-aware, e.g., /en/dashboard)
   const isPath = pathname.endsWith("/dashboard");
   return (
-    <div className="flex flex-row items-center p-2 w-full">
+    <div className="flex flex-row items-center p-2 w-auto md:w-full">
       <Link
         href={"/dashboard"}
         className={`menu-item ${isPath ? "menu-item-active" : ""}`}

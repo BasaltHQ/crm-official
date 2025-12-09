@@ -91,7 +91,9 @@ export default async function AppLayout({
           avatar={session.user.image as string}
           lang={session.user.userLanguage as string}
         />
-        <div className="flex-grow overflow-y-auto h-full p-5">{children}</div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {children}
+        </div>
         <Footer />
       </div>
     </div>

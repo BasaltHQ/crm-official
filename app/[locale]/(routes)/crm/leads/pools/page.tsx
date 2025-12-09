@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
-import { 
-  Trash2, 
-  Target, 
-  Users, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Trash2,
+  Target,
+  Users,
+  Calendar,
+  TrendingUp,
   Building2,
   Mail,
   Phone,
@@ -105,7 +105,7 @@ export default function LeadPoolsPage() {
       const res = await fetch(`/api/leads/pools/${encodeURIComponent(poolId)}/leads?mine=true`);
       if (!res.ok) throw new Error(await res.text());
       const j = await res.json();
-      const ids: string[] = Array.isArray(j?.leads) ? (j.leads as any[]).filter(l=>!!l.email).map(l=>l.id) : [];
+      const ids: string[] = Array.isArray(j?.leads) ? (j.leads as any[]).filter(l => !!l.email).map(l => l.id) : [];
       setWizardLeadIds(ids);
       setWizardOpen(true);
     } catch (e) {
@@ -182,15 +182,15 @@ export default function LeadPoolsPage() {
         {isLoading && (
           <div className="text-sm text-muted-foreground">Loading pools…</div>
         )}
-        
+
         {error && (
           <div className="text-sm text-red-600">Failed to load pools</div>
         )}
 
         <div className="space-y-4">
           {data?.pools?.map((pool) => (
-            <div 
-              key={pool.id} 
+            <div
+              key={pool.id}
               className="border rounded-lg p-4 space-y-4"
             >
               {/* Header Section */}
@@ -225,7 +225,7 @@ export default function LeadPoolsPage() {
                   <span className="font-medium">{pool.candidatesCount}</span>
                   <span className="text-muted-foreground">candidates</span>
                 </div>
-                
+
                 {pool.contactsCount > 0 && (
                   <div className="flex items-center gap-1.5">
                     <Mail className="w-4 h-4 text-muted-foreground" />
@@ -263,7 +263,8 @@ export default function LeadPoolsPage() {
               {/* Preview Table */}
               {pool.candidatesPreview && pool.candidatesPreview.length > 0 && (
                 <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                  {/* Desktop Table */}
+                  <table className="hidden md:table w-full text-sm">
                     <thead className="bg-muted">
                       <tr>
                         <th className="text-left p-3 font-medium">Company</th>
@@ -275,13 +276,13 @@ export default function LeadPoolsPage() {
                     </thead>
                     <tbody className="divide-y">
                       {pool.candidatesPreview.slice(0, 5).map((candidate) => (
-                        <tr 
+                        <tr
                           key={candidate.id}
                           className="hover:bg-muted/50"
                         >
                           <td className="p-3 font-medium">{candidate.companyName}</td>
                           <td className="p-3">
-                            <a 
+                            <a
                               href={`https://${candidate.domain}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -320,7 +321,7 @@ export default function LeadPoolsPage() {
                           </td>
                         </tr>
                       ))}
-                      <tr 
+                      <tr
                         className="hover:bg-muted/50 cursor-pointer"
                         onClick={() => router.push(`/crm/leads/pools/${pool.id}`)}
                       >
@@ -330,6 +331,53 @@ export default function LeadPoolsPage() {
                       </tr>
                     </tbody>
                   </table>
+
+                  {/* Mobile Card List */}
+                  <div className="md:hidden divide-y">
+                    {pool.candidatesPreview.slice(0, 5).map((candidate) => (
+                      <div key={candidate.id} className="p-3 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-medium">{candidate.companyName}</div>
+                            <a
+                              href={`https://${candidate.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              {candidate.domain}
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                          {candidate.score !== undefined && candidate.score !== null && (
+                            <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                              {candidate.score}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{candidate.industry || "—"}</span>
+                          <div className="flex items-center gap-2">
+                            {candidate.contacts.length > 0 ? (
+                              <div className="flex items-center gap-1">
+                                {candidate.contacts.some(c => c.email) && <Mail className="w-3 h-3 text-green-600" />}
+                                {candidate.contacts.some(c => c.phone) && <Phone className="w-3 h-3 text-blue-600" />}
+                                <span>{candidate.contacts.length} contacts</span>
+                              </div>
+                            ) : (
+                              <span>No contacts</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      className="p-3 text-center text-sm text-blue-600 hover:underline cursor-pointer bg-muted/30"
+                      onClick={() => router.push(`/crm/leads/pools/${pool.id}`)}
+                    >
+                      View All {pool.candidatesCount} Candidates →
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -506,11 +554,11 @@ export default function LeadPoolsPage() {
 
       {/* ICP Config Modal */}
       {icpModalPool && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={() => setIcpModalPool(null)}
         >
-          <div 
+          <div
             className="bg-card rounded-xl max-w-3xl w-full max-h-[80vh] overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >

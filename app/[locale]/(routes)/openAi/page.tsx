@@ -1,11 +1,11 @@
 import { prismadb } from "@/lib/prisma";
-import Container from "../components/ui/Container";
 import Chat from "./components/Chat";
 
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import Container from "../components/ui/Container";
 
 const ProfilePage = async () => {
   const user = await getServerSession(authOptions);
@@ -21,8 +21,6 @@ const ProfilePage = async () => {
       name: "openAiKey",
     },
   });
-
-  //console.log(openAiKeySystem, "openAiKeySystem");
 
   const hasAzureConfigured =
     !!process.env.AZURE_OPENAI_ENDPOINT &&
@@ -56,14 +54,11 @@ const ProfilePage = async () => {
     );
 
   return (
-    <Container
-      title="Chat with Varuni"
-      description={"Ask anything you need to know"}
-    >
+    <div className="flex-1 h-full md:border-l border-border bg-background">
       <Suspense fallback={<div>Loading...</div>}>
         <Chat />
       </Suspense>
-    </Container>
+    </div>
   );
 };
 
