@@ -30,12 +30,19 @@ const TeamAiSettings = async ({ teamId }: TeamAiSettingsProps) => {
 
     const enabledProviders = Object.values(AiProvider).filter(isProviderEnabled);
 
+    // Helper to check if provider has system key configured
+    // Note: We check if apiKey is present AND not empty string.
+    const providersWithSystemKey = systemConfigs
+        .filter(c => c.apiKey && c.apiKey.trim().length > 0)
+        .map(c => c.provider);
+
     return (
         <TeamAiForm
             teamId={teamId}
             initialConfig={teamConfig}
             activeModels={activeModels}
             enabledProviders={enabledProviders}
+            providersWithSystemKey={providersWithSystemKey}
         />
     );
 };

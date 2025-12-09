@@ -904,7 +904,7 @@ model AiModel {
 model SystemAiConfig {
   id        String     @id @default(auto()) @map("_id") @db.ObjectId
   provider  AiProvider @unique
-  apiKey    String
+  apiKey    String?
   baseUrl   String?    // Optional override
   configuration Json?  // Store provider-specific config (Azure endpoint, etc)
   defaultModelId String? // Default model for this provider (e.g. "gpt-4o")

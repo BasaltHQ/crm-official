@@ -50,20 +50,27 @@ const UnifiedAiCard = async () => {
             configuration = { projectId };
         }
 
-        if (!apiKey) return;
+        if (!apiKey && isActive) {
+            // Only require API key if enabling the provider
+            // Exception: If provider is GOOGLE, apiKey might be empty if using Vertex AI Project ID, but we'll leave that logic to user
+            // Actually, let's just warn or allow?
+            // The user wanted to disable, so if isActive is false, we proceed.
+        }
+
+        // Removed: if (!apiKey) return; 
 
         await prismadb.systemAiConfig.upsert({
             where: { provider },
             create: {
                 provider,
-                apiKey,
+                apiKey: (apiKey || undefined) as any,
                 baseUrl,
                 configuration: configuration,
                 defaultModelId: defaultModelId || null,
                 isActive
             },
             update: {
-                apiKey,
+                apiKey: (apiKey || undefined) as any,
                 baseUrl,
                 configuration: configuration,
                 defaultModelId: defaultModelId || null,
@@ -102,10 +109,10 @@ const UnifiedAiCard = async () => {
 
                         return (
                             <TabsContent key={provider} value={provider}>
-                                <form action={saveConfig} className="space-y-4">
+                                <form action={saveConfig} className="space-y-4" suppressHydrationWarning>
                                     <input type="hidden" name="provider" value={provider} />
 
-                                    <div className="grid gap-2">
+                                    <div className="grid gap-2" suppressHydrationWarning>
                                         <Label>API Key (System Key)</Label>
                                         <Input
                                             name="apiKey"

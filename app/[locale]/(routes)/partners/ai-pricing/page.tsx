@@ -16,18 +16,20 @@ import { revalidatePath } from "next/cache";
 
 import { AiModelRow } from "./_components/AiModelRow";
 
+import Container from "@/app/[locale]/(routes)/components/ui/Container";
+
+// ... existing imports ...
+
 const AiPricingPage = async () => {
     const models = await prismadb.aiModel.findMany({
         orderBy: [{ provider: 'asc' }, { name: 'asc' }]
     });
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">AI Model Pricing & Configuration</h1>
-                {/* Sync button could go here */}
-            </div>
-
+        <Container
+            title="AI Model Pricing & Configuration"
+            description="Manage pricing and active status for AI models."
+        >
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
@@ -49,7 +51,7 @@ const AiPricingPage = async () => {
                     </TableBody>
                 </Table>
             </div>
-        </div>
+        </Container>
     );
 };
 
