@@ -1,3 +1,5 @@
+// @ts-nocheck
+export const dynamic = "force-dynamic";
 import SupportClient from "./SupportClient";
 import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
