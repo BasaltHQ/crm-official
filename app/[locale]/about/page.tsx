@@ -85,24 +85,17 @@ export default function AboutPage() {
                         <h2 className="text-3xl font-bold mb-12 text-center">Meet the Team</h2>
 
                         {/* Row 1: 4 columns */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
                             <TeamMember
                                 name="Krishna Patel"
-                                role="Chairman (Founder)"
+                                role="Chairman & CTO (Founder)"
                                 imageSrc="/images/team/member1.png"
                                 linkedin="https://www.linkedin.com/in/krishna-patel-89039120/"
                                 twitter="https://x.com/GenRevoeth"
                             />
                             <TeamMember
-                                name="Patrick Gorrell"
-                                role="Chief Executive Officer (CEO)"
-                                imageSrc="/images/team/member2.png"
-                                linkedin="https://www.linkedin.com/in/patrickgorrell/"
-                                twitter="https://x.com/tolkenbowls"
-                            />
-                            <TeamMember
                                 name="Eric Turner"
-                                role="Chief Technology Officer (CTO)"
+                                role="Chief Executive Officer (CEO)"
                                 imageSrc="/images/team/member6.png"
                                 linkedin="https://www.linkedin.com/in/ericturner85/"
                                 twitter="https://x.com/sinisterxtwitr"
