@@ -80,12 +80,14 @@ const STATIC = {
     ]
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function IndustryPage(props: Props) {
     const params = await props.params;
-    
+
     // Enable static rendering
     setRequestLocale(params.locale);
-    
+
     const industry = industries.find((i) => i.slug === params.industry);
 
     if (!industry) {

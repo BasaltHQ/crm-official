@@ -4,6 +4,8 @@ import Container from "@/app/[locale]/(routes)/components/ui/Container";
 // TODO: Fetch real teams from Prisma
 // import prismadb from "@/lib/prismadb";
 
+export const dynamic = "force-dynamic";
+
 const PartnersPage = async () => {
 
     return (

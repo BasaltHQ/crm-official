@@ -79,12 +79,14 @@ const STATIC = {
     ]
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function LocationPage(props: Props) {
     const params = await props.params;
-    
+
     // Enable static rendering
     setRequestLocale(params.locale);
-    
+
     const location = locations.find((l) => l.slug === params.city);
 
     if (!location) {

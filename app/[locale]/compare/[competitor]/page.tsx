@@ -87,12 +87,14 @@ const STATIC = {
     ]
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function CompetitorPage(props: Props) {
     const params = await props.params;
-    
+
     // Enable static rendering
     setRequestLocale(params.locale);
-    
+
     const competitor = competitors.find((c) => c.slug === params.competitor);
 
     if (!competitor) {

@@ -11,6 +11,8 @@ export const metadata = {
     description: "Join the team building the future of AI CRM.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function CareersPage() {
     const jobs = await prismadb.jobPosting.findMany({
         where: { active: true },

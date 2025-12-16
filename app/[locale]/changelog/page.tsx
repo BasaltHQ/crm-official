@@ -7,6 +7,8 @@ export const metadata = {
     description: "See what's new in Ledger1CRM.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function ChangelogPage() {
     return (
         <div className="min-h-screen bg-[#0F0F1A] text-white font-sans selection:bg-primary/30">
