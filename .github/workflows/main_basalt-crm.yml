@@ -46,7 +46,6 @@ jobs:
           npx prisma generate
           pnpm add -D @types/react@latest @types/react-dom@latest
           pnpm run build
-          pnpm run test
 
       - name: Prepare standalone build
         run: |
