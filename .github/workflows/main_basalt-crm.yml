@@ -56,7 +56,39 @@ jobs:
           cp -rL node_modules/styled-jsx .next/standalone/node_modules/
           rm -rf .next/standalone/node_modules/@swc
           cp -rL node_modules/@swc .next/standalone/node_modules/
+          rm -rf .next/standalone/node_modules/@next
           cp -rL node_modules/@next .next/standalone/node_modules/
+
+
+          # Manually copy generated Prisma client (dynamically locate it)
+          PRISMA_DIR=$(find node_modules -type d -name ".prisma" | head -n 1)
+          if [ -n "$PRISMA_DIR" ]; then
+            cp -r "$PRISMA_DIR" .next/standalone/node_modules/
+          else
+            echo "WARNING: .prisma directory not found!"
+          fi
+
+          # Manually copy node-gyp-build (for bcrypt)
+          NODE_GYP_BUILD_DIR=$(find node_modules -type d -name "node-gyp-build" | head -n 1)
+          if [ -n "$NODE_GYP_BUILD_DIR" ]; then
+            # Ensure parent dir exists (it likely does, but safe is better)
+            mkdir -p .next/standalone/node_modules/node-gyp-build
+            cp -r "$NODE_GYP_BUILD_DIR/"* .next/standalone/node_modules/node-gyp-build/
+          else
+             echo "WARNING: node-gyp-build directory not found!"
+          fi
+
+          mkdir deployment
+          rsync -aL .next/standalone/ deployment/ || echo "Rsync: Some files could not be copied (likely broken symlinks)"
+
+          # Explicitly create destination directories to avoid ambiguity with 'cp'
+          mkdir -p deployment/public
+          mkdir -p deployment/.next/static
+
+          # Copy assets into the created directories
+          # Note: 'cp -r src/. dest/' puts contents of src into dest.
+          cp -rL public/. deployment/public/ || true
+          cp -rL .next/static/. deployment/.next/static/ || true
 
           cd deployment
           # Compress node_modules to tar.gz (flat archive) 
