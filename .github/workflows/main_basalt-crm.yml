@@ -33,13 +33,14 @@ jobs:
           node-version: "24.x"
           cache: "pnpm"
 
-      - name: Next.js cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.next/cache
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-
+      # Disabled cache to force clean build with Next.js 16.1.1
+      # - name: Next.js cache
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ${{ github.workspace }}/.next/cache
+      #     key: ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-
 
       - name: pnpm install, build, and test
         env:
@@ -48,6 +49,8 @@ jobs:
           GOOGLE_SECRET: ${{ secrets.GOOGLE_SECRET }}
         run: |
           pnpm install
+          echo "Verifying Next.js version:"
+          cat node_modules/next/package.json | grep '"version"'
           npx prisma generate
           pnpm add -D @types/react@latest @types/react-dom@latest
           pnpm run build
@@ -104,18 +107,17 @@ jobs:
           cd node_modules && tar -czf ../node_modules.tar.gz . && cd ..
           rm -rf node_modules
 
+          # Create Oryx manifest for Azure to detect and extract tarball
+          cat > oryx-manifest.toml << 'MANIFEST'
+          NodeVersion = "24"
+          CompressedNodeModulesFile = "node_modules.tar.gz"
+          MANIFEST
+          echo "Created oryx-manifest.toml:"
+          cat oryx-manifest.toml
+
           zip -r ../release.zip .
           cd ..
 
-      - name: Create Oryx manifest for Azure extraction
-        run: |
-          cd deployment
-          cat > oryx-manifest.toml << 'EOF'
-          NodeVersion = "24"
-          CompressedNodeModulesFile = "node_modules.tar.gz"
-          EOF
-          zip -u ../release.zip oryx-manifest.toml
-          cd ..
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
