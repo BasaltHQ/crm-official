@@ -5,8 +5,8 @@ import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
 
 export const metadata = {
-    title: "Privacy Policy - Ledger1CRM",
-    description: "Ledger1CRM Privacy Policy.",
+    title: "Privacy Policy - BasaltCRM",
+    description: "BasaltCRM Privacy Policy.",
 };
 
 export default function PrivacyPage() {
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
                     <div className="prose prose-invert prose-lg max-w-none text-gray-300 space-y-12">
                         <section>
                             <p className="lead text-xl text-gray-200">
-                                At Ledger1CRM (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our software, or engage with our services.
+                                At BasaltCRM (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;), we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our software, or engage with our services.
                             </p>
                         </section>
 
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
                                 <li><strong>Deletion:</strong> Request deletion of your personal data (&quot;Right to be Forgotten&quot;).</li>
                                 <li><strong>Portability:</strong> Request transfer of your data to another service.</li>
                             </ul>
-                            <p className="mt-4">To exercise these rights, please contact us at <a href="mailto:privacy@ledger1crm.com" className="text-primary hover:underline">privacy@ledger1crm.com</a>.</p>
+                            <p className="mt-4">To exercise these rights, please contact us at <a href="mailto:privacy@basalthq.com" className="text-primary hover:underline">privacy@basalthq.com</a>.</p>
                         </section>
 
                         <section>
@@ -111,7 +111,7 @@ export default function PrivacyPage() {
                                 If you have any questions about this Privacy Policy, please contact us at:
                             </p>
                             <p className="mt-2">
-                                <strong>Email:</strong> <a href="mailto:privacy@ledger1crm.com" className="text-primary hover:underline">privacy@ledger1crm.com</a><br />
+                                <strong>Email:</strong> <a href="mailto:privacy@basalthq.com" className="text-primary hover:underline">privacy@basalthq.com</a><br />
                                 <strong>Address:</strong> 123 AI Boulevard, San Francisco, CA 94105, USA
                             </p>
                         </section>

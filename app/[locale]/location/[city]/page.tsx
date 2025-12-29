@@ -17,7 +17,7 @@ type Props = {
 function getBaseUrl(): string {
     const envUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!envUrl) {
-        return "https://crm.ledger1.ai";
+        return "https://crm.basalthq.com";
     }
     // Ensure URL has protocol
     if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
@@ -31,11 +31,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     const location = locations.find((l) => l.slug === params.city);
     if (!location) return {};
 
-    const title = `Top Rated AI CRM in ${location.name} | Ledger1CRM`;
-    const description = `Join the fastest growing businesses in ${location.name} using Ledger1CRM. Local support, global compliance, and state-of-the-art AI.`;
+    const title = `Top Rated AI CRM in ${location.name} | BasaltCRM`;
+    const description = `Join the fastest growing businesses in ${location.name} using BasaltCRM. Local support, global compliance, and state-of-the-art AI.`;
     const baseUrl = getBaseUrl();
 
-    let ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(`Ledger1CRM in ${location.name}`)}&description=${encodeURIComponent(`Empowering Businesses in ${location.name}`)}&type=location&badge=${encodeURIComponent("Local Favorite")}`;
+    let ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(`BasaltCRM in ${location.name}`)}&description=${encodeURIComponent(`Empowering Businesses in ${location.name}`)}&type=location&badge=${encodeURIComponent("Local Favorite")}`;
 
     return {
         title,
@@ -72,9 +72,9 @@ export async function generateStaticParams() {
 
 const STATIC = {
     faqs: [
-        { q: "Can we self-host?", a: "Ledger1CRM is a cloud-native SaaS platform designed for maximum reliability and automatic updates. For organizations with specific compliance requirements, we offer dedicated region hosting options that provide the security benefits of cloud infrastructure with data residency controls." },
-        { q: "Is there an API?", a: "Absolutely. Our REST API and Webhooks let you connect Ledger1CRM to virtually any system in your stack. Every integration uses scoped tokens with configurable rate limits, giving you enterprise-grade security without sacrificing flexibility." },
-        { q: "Do you offer local currency and time zone support?", a: "Yes. Ledger1CRM supports multiple currencies, date formats, and time zones out of the box. Your team can work in their local context while the system handles conversions for reporting and collaboration." },
+        { q: "Can we self-host?", a: "BasaltCRM is a cloud-native SaaS platform designed for maximum reliability and automatic updates. For organizations with specific compliance requirements, we offer dedicated region hosting options that provide the security benefits of cloud infrastructure with data residency controls." },
+        { q: "Is there an API?", a: "Absolutely. Our REST API and Webhooks let you connect BasaltCRM to virtually any system in your stack. Every integration uses scoped tokens with configurable rate limits, giving you enterprise-grade security without sacrificing flexibility." },
+        { q: "Do you offer local currency and time zone support?", a: "Yes. BasaltCRM supports multiple currencies, date formats, and time zones out of the box. Your team can work in their local context while the system handles conversions for reporting and collaboration." },
         { q: "How does AI train on our data?", a: "Your data stays yours. Our AI learns from your organization's patterns and signals, but we never mix data across tenants. Each AI agent adapts specifically to your business, improving over time based on your unique workflows and customer interactions." }
     ]
 };
@@ -151,7 +151,7 @@ export default async function LocationPage(props: Props) {
                                 </p>
                                 <p className="text-gray-400 leading-relaxed">
                                     We understand the unique challenges of the {location.name} market. Whether it&apos;s local compliance
-                                    requirements, currency support, or time-zone optimized AI agents, Ledger1CRM is built to help
+                                    requirements, currency support, or time-zone optimized AI agents, BasaltCRM is built to help
                                     you dominate locally while scaling globally.
                                 </p>
                             </div>
@@ -308,7 +308,7 @@ export default async function LocationPage(props: Props) {
                         </div>
                         <h2 className="text-3xl font-bold mb-4">Workflows That Run Themselves</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Stop manually moving deals through stages and chasing follow-ups. Ledger1CRM automates the
+                            Stop manually moving deals through stages and chasing follow-ups. BasaltCRM automates the
                             repetitive work so your team can focus on what humans do best—building relationships.
                         </p>
                     </div>
@@ -377,7 +377,7 @@ export default async function LocationPage(props: Props) {
                         </div>
                         <h2 className="text-3xl font-bold mb-4">Works With Your Existing Stack</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Your CRM should be the hub, not a silo. Ledger1CRM integrates seamlessly with the tools
+                            Your CRM should be the hub, not a silo. BasaltCRM integrates seamlessly with the tools
                             your {location.name} team relies on every day.
                         </p>
                     </div>
@@ -426,7 +426,7 @@ export default async function LocationPage(props: Props) {
                                 </div>
                                 <p className="text-gray-400 mb-6">
                                     Whether you&apos;re serving customers locally in {location.name} or expanding globally,
-                                    Ledger1CRM helps you stay compliant with data protection regulations wherever you operate.
+                                    BasaltCRM helps you stay compliant with data protection regulations wherever you operate.
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     {["GDPR", "CCPA", "PIPEDA", "LGPD", "PDPA", "POPIA"].map((cert) => (
@@ -490,7 +490,7 @@ export default async function LocationPage(props: Props) {
                                     Most teams complete setup in under a week—including data migration, integration setup, and team training.
                                 </p>
                                 <p className="text-gray-400 leading-relaxed">
-                                    Our implementation specialists will help you configure Ledger1CRM to match exactly
+                                    Our implementation specialists will help you configure BasaltCRM to match exactly
                                     how your team works, with support during your local business hours.
                                 </p>
                             </div>
@@ -556,7 +556,7 @@ export default async function LocationPage(props: Props) {
                     <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold mb-4">Common Questions</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Got questions about using Ledger1CRM in {location.name}? Here are answers to what we hear most often.
+                            Got questions about using BasaltCRM in {location.name}? Here are answers to what we hear most often.
                         </p>
                     </div>
 
@@ -577,7 +577,7 @@ export default async function LocationPage(props: Props) {
                     <h2 className="text-3xl font-bold mb-6">Ready to Grow Your {location.name} Business?</h2>
                     <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
                         Join the {location.name} businesses who&apos;ve already made the switch to AI-native CRM.
-                        See exactly how Ledger1CRM can help you close more deals and keep customers longer.
+                        See exactly how BasaltCRM can help you close more deals and keep customers longer.
                     </p>
                     <div className="flex justify-center">
                         <Link href={primaryCta.url} target="_blank">

@@ -26,7 +26,7 @@ export default async function AdminDashboardPage() {
   return (
     <Container
       title="Administration"
-      description="Here you can setup your Ledger1CRM instance"
+      description="Here you can setup your BasaltCRM instance"
     >
       <div className="space-y-8">
         {/* Cards Grid */}

@@ -10,7 +10,7 @@ import { Metadata } from "next";
 
 function getSafeMetadataBase(): URL {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const PRODUCTION_FALLBACK = "https://crm.ledger1.ai";
+  const PRODUCTION_FALLBACK = "https://crm.basalthq.com";
 
   if (!envUrl || envUrl.trim() === "") {
     return new URL(PRODUCTION_FALLBACK);
@@ -33,7 +33,7 @@ function getSafeMetadataBase(): URL {
 
 export const metadata: Metadata = {
   metadataBase: getSafeMetadataBase(),
-  title: "Ledger1CRM Dashboard",
+  title: "BasaltCRM Dashboard",
   description: "Manage your sales and support with AI.",
   openGraph: {
     images: [
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
         url: "/api/og?title=Dashboard&description=Manage%20your%20business",
         width: 1200,
         height: 630,
-        alt: "Ledger1CRM Dashboard",
+        alt: "BasaltCRM Dashboard",
       },
     ],
   },
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
         url: "/api/og?title=Dashboard&description=Manage%20your%20business",
         width: 1200,
         height: 630,
-        alt: "Ledger1CRM Dashboard",
+        alt: "BasaltCRM Dashboard",
       },
     ],
   },

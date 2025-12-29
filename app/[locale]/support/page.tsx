@@ -5,8 +5,8 @@ import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
 
 export const metadata = {
-    title: "Support - Ledger1CRM",
-    description: "Get help with Ledger1CRM.",
+    title: "Support - BasaltCRM",
+    description: "Get help with BasaltCRM.",
 };
 
 export default function SupportPage() {

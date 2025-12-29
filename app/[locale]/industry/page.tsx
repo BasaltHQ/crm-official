@@ -7,8 +7,8 @@ import MarketingHeader from "@/app/[locale]/components/MarketingHeader";
 import MarketingFooter from "@/app/[locale]/components/MarketingFooter";
 
 export const metadata = {
-    title: "AI CRM Solutions by Industry | Ledger1CRM",
-    description: "Discover how Ledger1CRM serves Real Estate, Healthcare, Legal, Finance, E-commerce, and more with industry-specific AI automation.",
+    title: "AI CRM Solutions by Industry | BasaltCRM",
+    description: "Discover how BasaltCRM serves Real Estate, Healthcare, Legal, Finance, E-commerce, and more with industry-specific AI automation.",
     openGraph: {
         title: "Industry-Specific AI CRM Solutions",
         description: "Built for Your Industry's Unique Needs",
@@ -43,7 +43,7 @@ export default function IndustriesPage() {
                             Built for Your Industry
                         </h1>
                         <p className="text-muted-foreground text-xl max-w-3xl mx-auto">
-                            Ledger1CRM adapts to the unique challenges of your sector. Explore industry-specific solutions.
+                            BasaltCRM adapts to the unique challenges of your sector. Explore industry-specific solutions.
                         </p>
                     </div>
 

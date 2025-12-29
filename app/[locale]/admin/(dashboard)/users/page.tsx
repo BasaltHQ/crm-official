@@ -44,7 +44,7 @@ const AdminUsersPage = async () => {
     return (
         <Container
             title="Users administration"
-            description={"Here you can manage your Ledger1CRM users"}
+            description={"Here you can manage your BasaltCRM users"}
         >
             <div className="mb-4">
                 <AnyLink href="/admin">
@@ -56,7 +56,7 @@ const AdminUsersPage = async () => {
             </div>
             <div className="flex-col1">
                 <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-                    Invite new user to Ledger1CRM
+                    Invite new user to BasaltCRM
                 </h4>
                 <InviteForm />
             </div>

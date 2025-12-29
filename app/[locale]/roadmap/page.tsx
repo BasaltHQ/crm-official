@@ -4,8 +4,8 @@ import MarketingFooter from "../components/MarketingFooter";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
 
 export const metadata = {
-    title: "Roadmap - Ledger1CRM",
-    description: "See what we've built and what's coming next for Ledger1CRM.",
+    title: "Roadmap - BasaltCRM",
+    description: "See what we've built and what's coming next for BasaltCRM.",
 };
 
 export default function RoadmapPage() {

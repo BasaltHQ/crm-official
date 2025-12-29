@@ -36,7 +36,7 @@ async function getLocales(locale: string) {
 
 function getSafeBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const PRODUCTION_FALLBACK = "https://crm.ledger1.ai";
+  const PRODUCTION_FALLBACK = "https://crm.basalthq.com";
 
   if (!envUrl || envUrl.trim() === "") {
     return PRODUCTION_FALLBACK;
@@ -71,40 +71,40 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     metadataBase: new URL(siteUrl),
     title: {
       default: title,
-      template: `%s | Ledger1CRM`,
+      template: `%s | BasaltCRM`,
     },
     description,
     keywords: ["CRM", "AI CRM", "Sales Automation", "Next.js CRM"],
-    authors: [{ name: "Ledger1CRM Team" }],
-    creator: "Ledger1CRM",
-    publisher: "Ledger1CRM",
+    authors: [{ name: "BasaltCRM Team" }],
+    creator: "BasaltCRM",
+    publisher: "BasaltCRM",
     formatDetection: {
       email: false,
       address: false,
       telephone: false,
     },
     openGraph: {
-      title: "Ledger1 – AI Sales & Support Engine",
+      title: "BasaltCRM – AI Sales & Support Engine",
       description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
-      url: "https://crm.ledger1.ai",
-      siteName: "Ledger1",
+      url: "https://crm.basalthq.com",
+      siteName: "BasaltCRM",
       locale: locale,
       type: "website",
       images: [
         {
-          url: "https://crm.ledger1.ai/social-preview.jpg",
+          url: "https://crm.basalthq.com/social-preview.jpg",
           width: 1200,
           height: 630,
-          alt: "Ledger1 – AI Sales & Support Engine",
+          alt: "BasaltCRM – AI Sales & Support Engine",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Ledger1 – AI Sales & Support Engine",
+      title: "BasaltCRM – AI Sales & Support Engine",
       description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
-      creator: "@Ledger1AI",
-      images: ["https://crm.ledger1.ai/social-preview.jpg"],
+      creator: "@BasaltHQ",
+      images: ["https://crm.basalthq.com/social-preview.jpg"],
     },
     icons: {
       icon: "/favicon.ico",

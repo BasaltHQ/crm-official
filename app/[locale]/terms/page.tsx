@@ -5,8 +5,8 @@ import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
 
 export const metadata = {
-    title: "Terms of Service - Ledger1CRM",
-    description: "Ledger1CRM Terms of Service.",
+    title: "Terms of Service - BasaltCRM",
+    description: "BasaltCRM Terms of Service.",
 };
 
 export default function TermsPage() {
@@ -22,7 +22,7 @@ export default function TermsPage() {
                     <div className="prose prose-invert prose-lg max-w-none text-gray-300 space-y-12">
                         <section>
                             <p className="lead text-xl text-gray-200">
-                                Please read these Terms of Service (&quot;Terms&quot;) carefully before using the Ledger1CRM website and services operated by Ledger1CRM (&quot;us&quot;, &quot;we&quot;, or &quot;our&quot;). By accessing or using our Service, you agree to be bound by these Terms.
+                                Please read these Terms of Service (&quot;Terms&quot;) carefully before using the BasaltCRM website and services operated by BasaltCRM (&quot;us&quot;, &quot;we&quot;, or &quot;our&quot;). By accessing or using our Service, you agree to be bound by these Terms.
                             </p>
                         </section>
 
@@ -55,7 +55,7 @@ export default function TermsPage() {
                         <section>
                             <h2 className="text-2xl font-bold text-white mb-4">3. Intellectual Property</h2>
                             <p>
-                                The Service and its original content (excluding Content provided by users), features, and functionality are and will remain the exclusive property of Ledger1CRM and its licensors. The Service is protected by copyright, trademark, and other laws of both the United States and foreign countries.
+                                The Service and its original content (excluding Content provided by users), features, and functionality are and will remain the exclusive property of BasaltCRM and its licensors. The Service is protected by copyright, trademark, and other laws of both the United States and foreign countries.
                             </p>
                         </section>
 
@@ -83,7 +83,7 @@ export default function TermsPage() {
                         <section>
                             <h2 className="text-2xl font-bold text-white mb-4">6. Limitation of Liability</h2>
                             <p>
-                                In no event shall Ledger1CRM, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service; (iii) any content obtained from the Service; and (iv) unauthorized access, use or alteration of your transmissions or content, whether based on warranty, contract, tort (including negligence) or any other legal theory, whether or not we have been informed of the possibility of such damage.
+                                In no event shall BasaltCRM, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service; (iii) any content obtained from the Service; and (iv) unauthorized access, use or alteration of your transmissions or content, whether based on warranty, contract, tort (including negligence) or any other legal theory, whether or not we have been informed of the possibility of such damage.
                             </p>
                         </section>
 
@@ -111,7 +111,7 @@ export default function TermsPage() {
                         <section>
                             <h2 className="text-2xl font-bold text-white mb-4">10. Contact Us</h2>
                             <p>
-                                If you have any questions about these Terms, please contact us at <a href="mailto:legal@ledger1crm.com" className="text-primary hover:underline">legal@ledger1crm.com</a>.
+                                If you have any questions about these Terms, please contact us at <a href="mailto:legal@basalthq.com" className="text-primary hover:underline">legal@basalthq.com</a>.
                             </p>
                         </section>
                     </div>

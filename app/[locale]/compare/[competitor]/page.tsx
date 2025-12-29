@@ -17,7 +17,7 @@ type Props = {
 function getBaseUrl(): string {
     const envUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!envUrl) {
-        return "https://crm.ledger1.ai";
+        return "https://crm.basalthq.com";
     }
     // Ensure URL has protocol
     if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
@@ -31,11 +31,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     const competitor = competitors.find((c) => c.slug === params.competitor);
     if (!competitor) return {};
 
-    const title = `Ledger1CRM vs ${competitor.name} | The Best Alternative`;
-    const description = `Compare Ledger1CRM vs ${competitor.name}. See why businesses are switching for better AI features, lower costs, and superior support.`;
+    const title = `BasaltCRM vs ${competitor.name} | The Best Alternative`;
+    const description = `Compare BasaltCRM vs ${competitor.name}. See why businesses are switching for better AI features, lower costs, and superior support.`;
     const baseUrl = getBaseUrl();
 
-    let ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(`Ledger1CRM vs ${competitor.name}`)}&description=${encodeURIComponent("The Smarter, AI-Native Alternative")}&type=competitor&badge=${encodeURIComponent("Better Alternative")}`;
+    let ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(`BasaltCRM vs ${competitor.name}`)}&description=${encodeURIComponent("The Smarter, AI-Native Alternative")}&type=competitor&badge=${encodeURIComponent("Better Alternative")}`;
 
     return {
         title,
@@ -51,7 +51,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `Ledger1CRM vs ${competitor.name}`,
+                    alt: `BasaltCRM vs ${competitor.name}`,
                 },
             ],
         },
@@ -81,8 +81,8 @@ const STATIC = {
     ],
     faqs: [
         { q: "How long does migration take?", a: "Most teams complete their migration in 1-2 weeks. Our migration specialists handle the heavy lifting—exporting your data, mapping fields, and ensuring nothing gets lost in translation. You'll run both systems in parallel until you're confident everything works perfectly." },
-        { q: "Do you offer self-hosting?", a: "Ledger1CRM is a cloud-native SaaS platform. This means you get automatic updates, enterprise-grade security, and 99.9% uptime without managing infrastructure. For organizations with specific compliance requirements, we offer dedicated region hosting." },
-        { q: "Is there an API?", a: "Absolutely. Our REST API and Webhooks let you connect Ledger1CRM to virtually any system in your stack. Every integration uses scoped tokens with configurable rate limits, giving you security without sacrificing flexibility." },
+        { q: "Do you offer self-hosting?", a: "BasaltCRM is a cloud-native SaaS platform. This means you get automatic updates, enterprise-grade security, and 99.9% uptime without managing infrastructure. For organizations with specific compliance requirements, we offer dedicated region hosting." },
+        { q: "Is there an API?", a: "Absolutely. Our REST API and Webhooks let you connect BasaltCRM to virtually any system in your stack. Every integration uses scoped tokens with configurable rate limits, giving you security without sacrificing flexibility." },
         { q: "How does AI train on our data?", a: "Your data stays yours. Our AI learns from your organization's patterns and signals, but we never mix data across tenants. Each AI agent adapts specifically to your business, improving over time based on your unique workflows and customer interactions." }
     ]
 };
@@ -150,13 +150,13 @@ export default async function CompetitorPage(props: Props) {
                     <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold mb-4">How We Stack Up</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            We&apos;ve done the research so you don&apos;t have to. Here&apos;s an honest look at where Ledger1CRM excels compared to {competitor.name}.
+                            We&apos;ve done the research so you don&apos;t have to. Here&apos;s an honest look at where BasaltCRM excels compared to {competitor.name}.
                         </p>
                     </div>
                     <div className="rounded-2xl border border-white/10 overflow-hidden bg-[#0A0A12]">
                         <div className="grid grid-cols-3 p-6 border-b border-white/10 bg-white/5">
                             <div className="font-bold text-lg text-white">Feature</div>
-                            <div className="font-bold text-lg text-center text-primary">Ledger1CRM</div>
+                            <div className="font-bold text-lg text-center text-primary">BasaltCRM</div>
                             <div className="font-bold text-lg text-center text-gray-400">{competitor.name}</div>
                         </div>
                         {STATIC.parityMatrix.map((row, idx) => (
@@ -191,7 +191,7 @@ export default async function CompetitorPage(props: Props) {
                             </div>
                             <h3 className="text-xl font-semibold mb-4">AI That Actually Works</h3>
                             <p className="text-gray-400 leading-relaxed mb-6">
-                                Forget &quot;AI-powered&quot; labels slapped on basic automation. Ledger1CRM&apos;s agents handle real work—qualifying leads, scheduling meetings, and answering support tickets—without constant babysitting.
+                                Forget &quot;AI-powered&quot; labels slapped on basic automation. BasaltCRM&apos;s agents handle real work—qualifying leads, scheduling meetings, and answering support tickets—without constant babysitting.
                             </p>
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3 text-sm">
@@ -241,7 +241,7 @@ export default async function CompetitorPage(props: Props) {
                             </div>
                             <h3 className="text-xl font-semibold mb-4">Built for Modern Teams</h3>
                             <p className="text-gray-400 leading-relaxed mb-6">
-                                Legacy CRMs carry decades of technical debt. Ledger1CRM was built from scratch with modern APIs, real-time sync, and integrations that just work—no consultants required.
+                                Legacy CRMs carry decades of technical debt. BasaltCRM was built from scratch with modern APIs, real-time sync, and integrations that just work—no consultants required.
                             </p>
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3 text-sm">
@@ -289,7 +289,7 @@ export default async function CompetitorPage(props: Props) {
                                     { step: 3, title: "Workflow Setup", desc: "Recreate your pipelines and automation triggers, often improving them in the process." },
                                     { step: 4, title: "Integration & Training", desc: "Connect your email, calendar, and tools. Train your team on the new system." },
                                     { step: 5, title: "Parallel Run", desc: "Use both systems side-by-side until you're confident everything works." },
-                                    { step: 6, title: "Go Live", desc: "Cut over to Ledger1CRM and decommission your old system." },
+                                    { step: 6, title: "Go Live", desc: "Cut over to BasaltCRM and decommission your old system." },
                                 ].map((item) => (
                                     <div key={item.step} className="flex gap-4 p-4 rounded-xl border border-white/10 bg-[#0F0F1A] hover:border-primary/30 transition-colors">
                                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
@@ -318,7 +318,7 @@ export default async function CompetitorPage(props: Props) {
                         <h2 className="text-3xl font-bold mb-4">Works With Your Stack</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
                             Your CRM should connect to the tools you already use—not force you to change everything.
-                            Ledger1CRM integrates with the platforms your team relies on every day.
+                            BasaltCRM integrates with the platforms your team relies on every day.
                         </p>
                     </div>
 
@@ -364,7 +364,7 @@ export default async function CompetitorPage(props: Props) {
                                     <h3 className="text-xl font-semibold">Global Compliance</h3>
                                 </div>
                                 <p className="text-gray-400 mb-6">
-                                    Whether you&apos;re serving customers in Europe, North America, or Asia-Pacific, Ledger1CRM helps you stay compliant with local data protection regulations.
+                                    Whether you&apos;re serving customers in Europe, North America, or Asia-Pacific, BasaltCRM helps you stay compliant with local data protection regulations.
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     {["GDPR", "CCPA", "PIPEDA", "LGPD", "PDPA", "POPIA"].map((cert) => (
@@ -520,7 +520,7 @@ export default async function CompetitorPage(props: Props) {
                 <div className="container px-4 md:px-6 text-center">
                     <h2 className="text-3xl font-bold mb-6">Ready to Make the Switch?</h2>
                     <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-                        Join the hundreds of teams who&apos;ve moved from {competitor.name} to Ledger1CRM.
+                        Join the hundreds of teams who&apos;ve moved from {competitor.name} to BasaltCRM.
                         We&apos;ll make the migration seamless and have you up and running in days, not months.
                     </p>
                     <div className="flex justify-center">

@@ -7,10 +7,10 @@ import MarketingHeader from "@/app/[locale]/components/MarketingHeader";
 import MarketingFooter from "@/app/[locale]/components/MarketingFooter";
 
 export const metadata = {
-    title: "Ledger1CRM Available Worldwide | Global AI CRM",
-    description: "Ledger1CRM serves businesses in New York, London, Toronto, Sydney, Singapore, and major cities worldwide. Find your local CRM solution.",
+    title: "BasaltCRM Available Worldwide | Global AI CRM",
+    description: "BasaltCRM serves businesses in New York, London, Toronto, Sydney, Singapore, and major cities worldwide. Find your local CRM solution.",
     openGraph: {
-        title: "Ledger1CRM Available Worldwide",
+        title: "BasaltCRM Available Worldwide",
         description: "Local Support, Global Scale",
         type: "website",
         url: `${process.env.NEXT_PUBLIC_APP_URL}/location`,
@@ -19,13 +19,13 @@ export const metadata = {
                 url: `/api/og?title=Global AI CRM&description=Available in Major Cities Worldwide&type=location&badge=Global Coverage`,
                 width: 1200,
                 height: 630,
-                alt: "Ledger1CRM Available Worldwide",
+                alt: "BasaltCRM Available Worldwide",
             },
         ],
     },
     twitter: {
         card: "summary_large_image",
-        title: "Ledger1CRM Available Worldwide",
+        title: "BasaltCRM Available Worldwide",
         description: "Local Support, Global Scale",
         images: ["/api/og?title=Global AI CRM&description=Available in Major Cities Worldwide&type=location&badge=Global Coverage"],
     },
@@ -43,7 +43,7 @@ export default function LocationsPage() {
                             Available Worldwide
                         </h1>
                         <p className="text-muted-foreground text-xl max-w-3xl mx-auto">
-                            Join thousands of businesses using Ledger1CRM to dominate their local markets with global-grade AI.
+                            Join thousands of businesses using BasaltCRM to dominate their local markets with global-grade AI.
                         </p>
                     </div>
 

@@ -8,8 +8,8 @@ import Image from "next/image";
 import TeamMember from "../components/TeamMember";
 
 export const metadata = {
-    title: "About Us - Ledger1CRM",
-    description: "Learn about Ledger1CRM, the AI-first CRM designed to automate sales and support for modern businesses.",
+    title: "About Us - BasaltCRM",
+    description: "Learn about BasaltCRM, the AI-first CRM designed to automate sales and support for modern businesses.",
 };
 
 export default function AboutPage() {
@@ -40,7 +40,7 @@ export default function AboutPage() {
                                 <h2 className="text-3xl font-bold mb-6">Our Story</h2>
                                 <div className="space-y-4 text-gray-300 leading-relaxed">
                                     <p>
-                                        Ledger1CRM started in 2025 with a simple observation: CRM software had become bloated, expensive, and surprisingly dumb.
+                                        BasaltCRM started in 2025 with a simple observation: CRM software had become bloated, expensive, and surprisingly dumb.
                                         Sales teams were spending more time entering data than closing deals.
                                     </p>
                                     <p>
@@ -49,7 +49,7 @@ export default function AboutPage() {
                                         we created a system that can predict, automate, and even act on your behalf.
                                     </p>
                                     <p>
-                                        Today, thousands of companies use Ledger1CRM to punch above their weight class and compete with industry giants.
+                                        Today, thousands of companies use BasaltCRM to punch above their weight class and compete with industry giants.
                                     </p>
                                 </div>
                             </div>

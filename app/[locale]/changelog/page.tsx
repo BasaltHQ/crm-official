@@ -3,8 +3,8 @@ import MarketingHeader from "../components/MarketingHeader";
 import MarketingFooter from "../components/MarketingFooter";
 
 export const metadata = {
-    title: "Changelog - Ledger1CRM",
-    description: "See what's new in Ledger1CRM.",
+    title: "Changelog - BasaltCRM",
+    description: "See what's new in BasaltCRM.",
 };
 
 export const dynamic = "force-dynamic";
@@ -52,7 +52,7 @@ export default function ChangelogPage() {
                         <ChangelogItem
                             date="October 28, 2025"
                             version="v2.0.0"
-                            title="Ledger1CRM 2.0 Launch"
+                            title="BasaltCRM 2.0 Launch"
                             description="The biggest update yet. A complete redesign of the UI, new branding, and a powerful new API."
                             changes={[
                                 "Complete UI redesign",

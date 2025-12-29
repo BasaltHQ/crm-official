@@ -9,8 +9,8 @@ import { prismadb } from "@/lib/prisma";
 import { BlogGrid } from "./_components/BlogGrid";
 
 export const metadata = {
-    title: "Blog - Ledger1CRM",
-    description: "Latest news, updates, and insights from the Ledger1CRM team.",
+    title: "Blog - BasaltCRM",
+    description: "Latest news, updates, and insights from the BasaltCRM team.",
 };
 
 // Helper to get random color for placeholder if no image
@@ -29,7 +29,7 @@ export default async function BlogPage() {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-20">
                         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6">
-                            The Ledger1 <span className="text-primary">Blog</span>
+                            The BasaltHQ <span className="text-primary">Blog</span>
                         </h1>
                         <p className="text-xl text-gray-400 max-w-2xl mx-auto">
                             Insights on AI, sales automation, and the future of work.

@@ -11,22 +11,22 @@ import {
 } from "@/components/ui/accordion";
 
 export const metadata = {
-    title: "FAQ - Ledger1CRM",
-    description: "Frequently asked questions about Ledger1CRM.",
+    title: "FAQ - BasaltCRM",
+    description: "Frequently asked questions about BasaltCRM.",
 };
 
 export default function FAQPage() {
     const faqs = [
         {
-            question: "What is Ledger1CRM?",
-            answer: "Ledger1CRM is an AI-powered Customer Relationship Management platform designed to help SMEs automate sales, support, and marketing workflows using advanced predictive analytics and autonomous agents.",
+            question: "What is BasaltCRM?",
+            answer: "BasaltCRM is an AI-powered Customer Relationship Management platform designed to help SMEs automate sales, support, and marketing workflows using advanced predictive analytics and autonomous agents.",
         },
         {
             question: "How does the AI predictive analytics work?",
             answer: "Our AI analyzes your historical sales data, email interactions, and customer behavior to assign a 'win probability' score to every lead. This helps your sales team focus on the deals most likely to close.",
         },
         {
-            question: "Can I self-host Ledger1CRM?",
+            question: "Can I self-host BasaltCRM?",
             answer: "Yes! We offer an open-source Community Edition that you can deploy on your own infrastructure. For enterprise features and support, we offer a cloud-hosted version and an Enterprise self-hosted license.",
         },
         {
@@ -77,7 +77,7 @@ export default function FAQPage() {
                         Frequently Asked <span className="text-primary">Questions</span>
                     </h1>
                     <p className="text-xl text-gray-400 text-center mb-16">
-                        Everything you need to know about Ledger1CRM.
+                        Everything you need to know about BasaltCRM.
                     </p>
 
                     <Accordion type="single" collapsible className="w-full space-y-4">

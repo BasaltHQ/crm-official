@@ -7,7 +7,7 @@ import Link from "next/link";
 import { prismadb } from "@/lib/prisma";
 import { CareersGrid } from "./_components/CareersGrid";
 export const metadata = {
-    title: "Careers - Ledger1CRM",
+    title: "Careers - BasaltCRM",
     description: "Join the team building the future of AI CRM.",
 };
 
@@ -46,7 +46,7 @@ export default async function CareersPage() {
                 {/* Culture Section */}
                 <section className="py-20 bg-white/5">
                     <div className="container mx-auto px-4">
-                        <h2 className="text-3xl font-bold mb-12 text-center">Life at Ledger1</h2>
+                        <h2 className="text-3xl font-bold mb-12 text-center">Life at BasaltHQ</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
                             <CultureCard
                                 icon={<Laptop className="h-8 w-8 text-primary" />}

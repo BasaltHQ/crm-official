@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export const metadata = {
-    title: "Features - Ledger1CRM",
-    description: "Explore the AI-powered features of Ledger1CRM.",
+    title: "Features - BasaltCRM",
+    description: "Explore the AI-powered features of BasaltCRM.",
 };
 
 export default function FeaturesPage() {

@@ -40,35 +40,35 @@ import MarketingFooter from "./components/MarketingFooter";
 import MarketingHeader from "./components/MarketingHeader";
 
 export const metadata: Metadata = {
-    title: "Ledger1 – AI Sales & Support Engine",
+    title: "BasaltCRM – AI Sales & Support Engine",
     description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
     keywords: ["AI CRM", "Sales AI", "Customer Support Bot", "SME CRM", "Next.js CRM"],
     openGraph: {
-        title: "Ledger1 – AI Sales & Support Engine",
+        title: "BasaltCRM – AI Sales & Support Engine",
         description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
         type: "website",
-        url: "https://crm.ledger1.ai",
+        url: "https://crm.basalthq.com",
         images: [
             {
-                url: "https://crm.ledger1.ai/social-preview.jpg",
+                url: "https://crm.basalthq.com/social-preview.jpg",
                 width: 1200,
                 height: 630,
-                alt: "Ledger1 – AI Sales & Support Engine",
+                alt: "BasaltCRM – AI Sales & Support Engine",
             },
         ],
     },
     twitter: {
         card: "summary_large_image",
-        title: "Ledger1 – AI Sales & Support Engine",
+        title: "BasaltCRM – AI Sales & Support Engine",
         description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
-        images: ["https://crm.ledger1.ai/social-preview.jpg"],
+        images: ["https://crm.basalthq.com/social-preview.jpg"],
     },
 };
 
 const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "Ledger1CRM",
+    "name": "BasaltCRM",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
     "offers": {
@@ -107,7 +107,7 @@ export default function LandingPage() {
                                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-teal-500">Supercharged.</span>
                                 </h1>
                                 <p className="mx-auto max-w-[800px] text-muted-foreground md:text-xl lg:text-2xl leading-relaxed">
-                                    Focus on the features that keep you competitive in this new era. Be excited about business again. The first CRM that doesn&apos;t just manage your data—it actively works for you. From finding prospects to closing deals with voice AI, Ledger1CRM is your unfair advantage.
+                                    Focus on the features that keep you competitive in this new era. Be excited about business again. The first CRM that doesn&apos;t just manage your data—it actively works for you. From finding prospects to closing deals with voice AI, BasaltCRM is your unfair advantage.
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-6 min-w-[300px] justify-center pt-4">
@@ -174,11 +174,11 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* VoiceHub Section */}
+                {/* BasaltEcho Section */}
                 <section id="voicehub" className="w-full py-24 md:py-32 bg-[#020617] relative overflow-hidden text-white border-y border-white/10">
                     {/* Background Effects */}
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950" />
-                    <div className="absolute inset-0 bg-[url('https://voice.ledger1.ai/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+                    <div className="absolute inset-0 bg-[url('https://echo.basalthq.com/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
 
                     <div className="container px-4 md:px-6 relative z-10">
                         {/* Header */}
@@ -192,7 +192,7 @@ export default function LandingPage() {
                             </div>
 
                             <h2 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-500/50 drop-shadow-2xl">
-                                VoiceHub – Real-Time AI<br />
+                                BasaltEcho – Real-Time AI<br />
                                 Voice Conversations on <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Ethereum</span>
                             </h2>
 
@@ -202,9 +202,9 @@ export default function LandingPage() {
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-6 pt-4">
-                                <Link href="/voicehub">
+                                <Link href="/echo">
                                     <Button size="lg" className="h-14 px-10 text-lg rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:shadow-[0_0_60px_rgba(6,182,212,0.6)] transition-all duration-300">
-                                        Explore VoiceHub
+                                        Explore BasaltEcho
                                         <ArrowRight className="ml-2 h-5 w-5" />
                                     </Button>
                                 </Link>
@@ -272,8 +272,8 @@ export default function LandingPage() {
                         {/* Image Branding */}
                         <div className="mt-20 flex justify-center opacity-80 hover:opacity-100 transition-opacity duration-500">
                             <img
-                                src="https://voice.ledger1.ai/vhlogo.png"
-                                alt="VoiceHub Logo"
+                                src="https://echo.basalthq.com/BasaltEchoWide.png"
+                                alt="BasaltEcho Logo"
                                 loading="lazy"
                                 className="h-12 md:h-16 w-auto"
                             />
@@ -287,7 +287,7 @@ export default function LandingPage() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                             <div className="space-y-8">
                                 <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-                                    What Ledger1CRM<br />
+                                    What BasaltCRM<br />
                                     <span className="text-primary">Does For You.</span>
                                 </h2>
                                 <p className="text-muted-foreground md:text-xl leading-relaxed">
@@ -347,7 +347,7 @@ export default function LandingPage() {
                                     Ready to Dominate Your Market?
                                 </h2>
                                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                                    Join thousands of forward-thinking businesses using Ledger1CRM to scale smarter, faster, and more securely.
+                                    Join thousands of forward-thinking businesses using BasaltCRM to scale smarter, faster, and more securely.
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-6">

@@ -39,7 +39,7 @@ export default async function AdminDashboardLayout({
     // Fetch build info for sidebar
     const build = await getAllCommits();
 
-    // Check if user is partner admin (Ledger1) or global admin
+    // Check if user is partner admin (BasaltHQ) or global admin
     // We need to fetch the user again with team slug to be sure, or rely on teamInfo if it has slug
     // teamInfo from getCurrentUserTeamId returns { id, name, plan, isAdmin, isOwner }
     // It doesn't seem to return slug. Let's fetch user to be safe and consistent with page.tsx

@@ -22,12 +22,12 @@ import MarketingHeader from "../[locale]/components/MarketingHeader";
 import MarketingFooter from "../[locale]/components/MarketingFooter";
 
 export const metadata: Metadata = {
-    title: 'VoiceHub - Real-Time AI Voice Conversations',
+    title: 'BasaltEcho - Real-Time AI Voice Conversations',
     description: 'Professional-grade, ultra-low latency voice AI powered by the world\'s most advanced real-time models. Pay per second with ETH.',
     openGraph: {
-        title: 'VoiceHub - Real-Time AI Voice Conversations',
+        title: 'BasaltEcho - Real-Time AI Voice Conversations',
         description: 'Professional-grade, ultra-low latency voice AI powered by the world\'s most advanced real-time models. Pay per second with ETH.',
-        images: ['https://voice.ledger1.ai/vhlogo.png'],
+        images: ['https://echo.basalthq.com/BasaltEchoWide.png'],
     },
 };
 
