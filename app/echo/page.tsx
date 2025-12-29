@@ -55,8 +55,8 @@ export default async function VoiceHubPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
                         >
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-6">
-                                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full-button-frame bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                                <span className="w-2 h-2 rounded-full-button-frame bg-cyan-400 animate-pulse" />
                                 Live on Base & Ethereum
                             </div>
                             <h1 className="text-5xl lg:text-7xl font-bold leading-tight tracking-tight">
@@ -85,11 +85,11 @@ export default async function VoiceHubPage() {
                         >
                             <Link
                                 href="/pricing"
-                                className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white transition-all duration-200 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-lg hover:from-cyan-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-[#020617]"
+                                className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white transition-all duration-200 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-full-button-frame hover:from-cyan-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-[#020617]"
                             >
                                 See Pricing
                                 <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
-                                <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-white/20" />
+                                <div className="absolute inset-0 rounded-full-button-frame ring-1 ring-inset ring-white/20" />
                             </Link>
                         </Motion.div>
 
@@ -336,7 +336,7 @@ export default async function VoiceHubPage() {
                     </p>
                     <Link
                         href="/pricing"
-                        className="inline-flex items-center px-10 py-5 text-lg font-bold text-white bg-cyan-600 rounded-full hover:bg-cyan-500 transition-all shadow-[0_0_40px_rgba(8,145,178,0.4)] hover:shadow-[0_0_60px_rgba(8,145,178,0.6)] transform hover:-translate-y-1"
+                        className="inline-flex items-center px-10 py-5 text-lg font-bold text-white bg-cyan-600 rounded-full-button-frame hover:bg-cyan-500 transition-all shadow-[0_0_40px_rgba(8,145,178,0.4)] hover:shadow-[0_0_60px_rgba(8,145,178,0.6)] transform hover:-translate-y-1"
                     >
                         View Pricing Plans
                         <ArrowRight className="ml-2 w-6 h-6" />

@@ -47,14 +47,14 @@ const LoadingComponent = () => {
       {/* Center logo with filter and motion */}
       <div className="relative z-10 flex flex-col items-center gap-3">
         <Image
-          src="/BasaltCRMWide.png"
+          src="/BasaltCRM.png"
           alt="CRM Loading"
-          width={84}
-          height={84}
+          width={150}
+          height={40}
           priority
           className="select-none will-change-transform will-change-filter animate-[float_3s_ease-in-out_infinite,hue_6s_linear_infinite] [filter:drop-shadow(0_0_14px_rgba(34,211,238,0.60))]"
         />
-        <div className="text-xs tracking-widest uppercase text-white/60">Loading CRM…</div>
+        <div className="text-xs tracking-widest uppercase text-white/60">Loading…</div>
       </div>
 
       <style jsx>{`
