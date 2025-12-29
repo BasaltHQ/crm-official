@@ -202,7 +202,7 @@ export default function LandingPage() {
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-6 pt-4">
-                                <Link href="/echo">
+                                <Link href="https://echo.basalthq.com">
                                     <Button size="lg" className="h-14 px-10 text-lg rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-[0_0_40px_rgba(6,182,212,0.4)] hover:shadow-[0_0_60px_rgba(6,182,212,0.6)] transition-all duration-300">
                                         Explore BasaltEcho
                                         <ArrowRight className="ml-2 h-5 w-5" />
