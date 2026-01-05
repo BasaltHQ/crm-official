@@ -55,7 +55,7 @@ export function CommandComponent() {
 
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, [router]);
+  }, [router, locale]);
 
   return (
     <div className="hidden lg:block">

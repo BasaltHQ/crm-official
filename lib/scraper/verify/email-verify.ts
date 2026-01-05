@@ -193,4 +193,5 @@ export async function verifyEmail(emailInput?: string | null, options: Verificat
   return result;
 }
 
-export default { verifyEmail };
+const emailVerify = { verifyEmail };
+export default emailVerify;

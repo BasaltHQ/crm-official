@@ -57,7 +57,7 @@ export async function POST(_: Request, props: { params: Promise<{ leadId: string
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_RESET_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

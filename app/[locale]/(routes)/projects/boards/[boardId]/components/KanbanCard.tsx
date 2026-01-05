@@ -54,6 +54,7 @@ export default function KanbanCard({
     const isOverdue =
         task.dueDateAt &&
         task.taskStatus !== "COMPLETE" &&
+        // eslint-disable-next-line react-hooks/purity
         new Date(task.dueDateAt).getTime() < Date.now();
 
     const isComplete = task.taskStatus === "COMPLETE";

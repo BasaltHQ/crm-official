@@ -85,4 +85,5 @@ export function normalizePhone(
   return { normalized: digits, format: "digits_only" };
 }
 
-export default { extractCore, normalizeUSLocal, toE164Loose, normalizePhone };
+const phoneNormalizer = { extractCore, normalizeUSLocal, toE164Loose, normalizePhone };
+export default phoneNormalizer;

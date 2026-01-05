@@ -59,7 +59,7 @@ export default function LinkPreview({ href, className, compact = false, tiny = f
         {loading ? (
           <div className="w-full h-full animate-pulse bg-muted" />
         ) : data?.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
+
           <img src={data.image} alt={data.title || data.url} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">No image</div>

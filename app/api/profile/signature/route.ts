@@ -50,7 +50,7 @@ export async function GET() {
       { status: 200 }
     );
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[PROFILE_SIGNATURE_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ status: "ok" }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[PROFILE_SIGNATURE_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

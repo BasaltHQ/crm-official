@@ -37,7 +37,7 @@ export async function PUT(req: Request) {
         const body = await req.json();
 
         // Remove id from body to avoid Prisma errors
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+         
         const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...updateData } = body;
 
         let settings = await prismadb.socialSettings.findFirst();

@@ -266,6 +266,7 @@ export default function OutreachCampaignWizard({
         if (leads.length > 0 && !selectedLeadForPreview) {
             setSelectedLeadForPreview(leads[0]);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [leads]);
 
     // Check if SMS is configured for the team
@@ -326,6 +327,7 @@ export default function OutreachCampaignWizard({
         };
 
         fetchProject();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [projectId]);
 
     // Also handle if project prop is provided directly
@@ -337,6 +339,7 @@ export default function OutreachCampaignWizard({
             setProjectTitle(project.title);
             setProductName(project.title);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [project]);
 
     const steps = [
@@ -447,6 +450,7 @@ export default function OutreachCampaignWizard({
         }, 2000); // Auto-save after 2 seconds of inactivity
 
         return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [campaignName, campaignDescription, selectedChannels, promptTemplate, projectBriefing, meetingPreferences]);
 
     const prevStep = () => {

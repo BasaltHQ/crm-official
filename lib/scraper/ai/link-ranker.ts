@@ -147,4 +147,5 @@ export async function rankLinks(userId: string | undefined, domain: string, urls
   return heuristicSorted;
 }
 
-export default { rankLinks };
+const linkRanker = { rankLinks };
+export default linkRanker;

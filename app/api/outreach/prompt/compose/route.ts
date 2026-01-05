@@ -120,7 +120,7 @@ export async function POST(req: Request) {
             });
             promptText = text.trim();
         } catch (err: any) {
-            // eslint-disable-next-line no-console
+             
             console.error("[OUTREACH_PROMPT_COMPOSE][AI_ERROR]", err?.message || err);
             // Fallback: compose a deterministic prompt locally if model fails
             const roleSuffix = (projectRole || projectTitle)
@@ -165,7 +165,7 @@ Requirements:
 
         return NextResponse.json({ prompt: promptText }, { status: 200 });
     } catch (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("[OUTREACH_PROMPT_COMPOSE_POST]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }

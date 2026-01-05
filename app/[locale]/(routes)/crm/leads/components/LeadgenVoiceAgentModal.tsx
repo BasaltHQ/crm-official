@@ -1361,7 +1361,7 @@ USAGE RULES:
     if (!open) {
       stopAgent();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   // Apply proposed changes on human confirmation

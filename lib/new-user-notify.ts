@@ -10,7 +10,7 @@ export async function newUserNotify(newUser: Users) {
     },
   });
 
-  admins.forEach(async (admin) => {
+  for (const admin of admins) {
     await sendEmail({
       from: process.env.EMAIL_FROM,
       to: admin.email,
@@ -19,5 +19,7 @@ export async function newUserNotify(newUser: Users) {
     });
 
     console.log("Email sent to admin");
-  });
+    // Simple delay to respect rate limits (2 calls/sec)
+    await new Promise(resolve => setTimeout(resolve, 600));
+  }
 }

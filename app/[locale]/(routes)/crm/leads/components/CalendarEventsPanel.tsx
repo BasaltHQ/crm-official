@@ -145,7 +145,7 @@ export default function CalendarEventsPanel() {
         setLoadingPrefs(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [calendars]);
 
   const savePreferences = async () => {

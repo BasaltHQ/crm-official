@@ -23,7 +23,7 @@ export async function GET(_req: Request) {
     
     return NextResponse.json({ ok: true, url, redirectUri }, { status: 200 });
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[GOOGLE_AUTH_URL_GET]", e?.message || e);
     return new NextResponse("Failed to generate auth URL", { status: 500 });
   }

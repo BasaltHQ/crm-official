@@ -75,7 +75,7 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json({ status: "ok", leadId: lead.id }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_CLOSE_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

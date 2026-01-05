@@ -172,7 +172,7 @@ export async function POST(req: Request) {
         sendUpdates: "all",
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error("[CALENDAR_EVENTS_INSERT]", (err as any)?.message || err);
       return NextResponse.json(
         { ok: false, error: (err as any)?.message || String(err), calendarIdUsed: targetCalendarId },
@@ -249,7 +249,7 @@ export async function POST(req: Request) {
           } as any,
         });
       } catch (e) {
-        // eslint-disable-next-line no-console
+         
         console.error("[CALENDAR_SCHEDULE_LEAD_UPDATE]", (e as any)?.message || e);
         // Return the error but still include the event details since the event was created
         return NextResponse.json(
@@ -286,7 +286,7 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[CALENDAR_SCHEDULE_POST]", e?.message || e);
     return new NextResponse("Failed to schedule event", { status: 500 });
   }

@@ -97,6 +97,7 @@ export default function LeadPoolsPage() {
         // noop
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.pools]);
 
   const startFirstContact = async (poolId: string) => {

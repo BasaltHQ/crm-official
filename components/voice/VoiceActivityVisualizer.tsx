@@ -41,14 +41,40 @@ export default function VoiceActivityVisualizer({
     for (let i = 0; i < half; i++) {
       // center bars taller
       const centerBias = 1 - Math.abs(i - (half - 1)) / half;
+      // eslint-disable-next-line react-hooks/purity
       const v = 0.35 + centerBias * 0.55 + Math.random() * 0.1;
       left.push(Math.min(1, Math.max(0.25, v)));
     }
     const right = [...left].reverse();
     const arr = NUM_BARS % 2 === 0 ? [...left, ...right] : [...left, 1, ...right];
     return arr.map((v) => Math.min(1, Math.max(0.2, v)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
+
+  const cleanup = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    try {
+      srcNodeRef.current?.disconnect();
+    } catch { }
+    srcNodeRef.current = null;
+
+    try {
+      analyserRef.current?.disconnect();
+    } catch { }
+    analyserRef.current = null;
+
+    if (audioCtxRef.current) {
+      try {
+        // Close only if allowed; some browsers throw if already closed
+        audioCtxRef.current.close().catch(() => { });
+      } catch { }
+      audioCtxRef.current = null;
+    }
+  };
+
 
   useEffect(() => {
     // Clean previous graph
@@ -119,29 +145,7 @@ export default function VoiceActivityVisualizer({
     };
   }, [stream]);
 
-  const cleanup = () => {
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    try {
-      srcNodeRef.current?.disconnect();
-    } catch {}
-    srcNodeRef.current = null;
 
-    try {
-      analyserRef.current?.disconnect();
-    } catch {}
-    analyserRef.current = null;
-
-    if (audioCtxRef.current) {
-      try {
-        // Close only if allowed; some browsers throw if already closed
-        audioCtxRef.current.close().catch(() => {});
-      } catch {}
-      audioCtxRef.current = null;
-    }
-  };
 
   const gradientFrom = fromColor || "#34d399"; // emerald-400 default (user)
   const gradientTo = toColor || "#10b981"; // emerald-500 default (user)
@@ -171,10 +175,10 @@ export default function VoiceActivityVisualizer({
             </div>
           ) : null}
           <div className="mt-1 h-2 w-2 rounded-full transition-all"
-               style={{
-                 background: active ? "radial-gradient(circle, #22d3ee 0%, #3b82f6 100%)" : "rgba(255,255,255,0.35)",
-                 boxShadow: active ? "0 0 18px rgba(59,130,246,0.8)" : "none",
-               }}
+            style={{
+              background: active ? "radial-gradient(circle, #22d3ee 0%, #3b82f6 100%)" : "rgba(255,255,255,0.35)",
+              boxShadow: active ? "0 0 18px rgba(59,130,246,0.8)" : "none",
+            }}
           />
         </div>
 
@@ -191,9 +195,9 @@ export default function VoiceActivityVisualizer({
                   background: `linear-gradient(180deg, ${gradientFrom} 0%, ${gradientTo} 100%)`,
                   boxShadow: active
                     ? `0 4px 12px ${hexToRgba(gradientTo, 0.35)}, 0 0 16px ${hexToRgba(
-                        gradientTo,
-                        0.25
-                      )}`
+                      gradientTo,
+                      0.25
+                    )}`
                     : "none",
                   opacity: 0.9,
                 }}

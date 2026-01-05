@@ -13,7 +13,7 @@ try {
   // Node-only; may fail in edge runtimes
   dns = require("node:dns/promises");
   dnsAvailable = !!dns;
-} catch {}
+} catch { }
 
 export function buildResendAdapters(): VerificationOptions["adapters"] {
   return {
@@ -61,4 +61,5 @@ export function buildResendAdapters(): VerificationOptions["adapters"] {
   };
 }
 
-export default { buildResendAdapters };
+const resendAdapters = { buildResendAdapters };
+export default resendAdapters;

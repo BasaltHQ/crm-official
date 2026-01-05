@@ -444,7 +444,7 @@ export async function GET(request: Request) {
                 )}
 
                 {/* Logo */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+
                 <img
                   src={`${origin}/logo.png`}
                   width="320"

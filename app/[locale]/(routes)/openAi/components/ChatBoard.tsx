@@ -93,6 +93,7 @@ export default function ChatBoard({ sessionId, initialMessages, isTemporary, onR
                 setMessages(initialMessages as any[]);
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialMessagesKey, setMessages]);
 
     const usedTokens = useMemo(() => {

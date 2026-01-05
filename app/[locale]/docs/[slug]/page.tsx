@@ -13,6 +13,7 @@ function MarkdownRenderer({ content }: { content: string }) {
             {lines.map((line, i) => {
                 // Handle Code Blocks
                 if (line.trim().startsWith('```')) {
+                    // eslint-disable-next-line react-hooks/immutability
                     inCodeBlock = !inCodeBlock;
                     return null;
                 }

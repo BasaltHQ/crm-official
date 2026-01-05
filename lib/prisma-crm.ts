@@ -36,7 +36,7 @@ function computeCrmUrl(): string {
 const crmUrl = computeCrmUrl();
 
 declare global {
-  // eslint-disable-next-line no-var, no-unused-vars
+   
   var cachedPrismaCrm: PrismaClient | undefined;
 }
 

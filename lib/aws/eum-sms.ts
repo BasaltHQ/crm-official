@@ -7,7 +7,7 @@ let SendTextMessageCommand: any;
 function ensureEumSdk() {
     if (!PinpointSMSVoiceV2Client || !SendTextMessageCommand) {
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+             
             const pkg = require("@aws-sdk/client-pinpoint-sms-voice-v2");
             PinpointSMSVoiceV2Client = pkg.PinpointSMSVoiceV2Client;
             SendTextMessageCommand = pkg.SendTextMessageCommand;

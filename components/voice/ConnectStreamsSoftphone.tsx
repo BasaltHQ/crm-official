@@ -114,7 +114,7 @@ export default function ConnectStreamsSoftphone({
       const agentConn = c.getAgentConnection?.();
       if (agentConn?.destroy) {
         agentConn.destroy({
-          success: () => {},
+          success: () => { },
           failure: () => setError("Failed to disconnect"),
         });
         return;
@@ -128,7 +128,7 @@ export default function ConnectStreamsSoftphone({
       if (statusType === "ended") {
         if (c.clear) {
           c.clear({
-            success: () => {},
+            success: () => { },
             failure: () => setError("Failed to clear contact"),
           });
           return;
@@ -155,7 +155,7 @@ export default function ConnectStreamsSoftphone({
           try {
             const resolved = instanceUrl || process.env.NEXT_PUBLIC_CONNECT_BASE_URL || "https://ledger1crm.my.connect.aws";
             arr.push(new URL(String(resolved)).origin);
-          } catch {}
+          } catch { }
           return arr.filter(Boolean);
         })();
         if (!allowedOrigins.includes(ev.origin)) {
@@ -173,10 +173,11 @@ export default function ConnectStreamsSoftphone({
         } else if (type === "softphone:getStatus") {
           ev.source?.postMessage({ type: "softphone:status", status: getStatus() }, { targetOrigin: ev.origin });
         }
-      } catch {}
+      } catch { }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactStatus]);
 
   async function loadStreamsScript(): Promise<void> {
@@ -290,7 +291,7 @@ export default function ConnectStreamsSoftphone({
               const s = agent.getState?.();
               setAgentState(s?.name ? String(s.name) : "");
             });
-          } catch {}
+          } catch { }
         });
 
         // Contact status
@@ -301,7 +302,7 @@ export default function ConnectStreamsSoftphone({
             contact.onConnected?.(() => setContactStatus("Connected"));
             contact.onEnded?.(() => setContactStatus("Ended"));
             contact.onAccepted?.(() => setContactStatus("Accepted"));
-          } catch {}
+          } catch { }
         });
       } catch (e: any) {
         console.error("[CONNECT_STREAMS_INIT]", e);
@@ -310,7 +311,7 @@ export default function ConnectStreamsSoftphone({
           const g = (window as any);
           g.__ccpProviderInitializing = false;
           g.__ccpProviderInit = false;
-        } catch {}
+        } catch { }
         if (mounted) {
           const hint = '\nTip: vendor the Streams SDK locally under /connect/connect-streams.js or set NEXT_PUBLIC_CONNECT_STREAMS_URL.';
           setError((e?.message || String(e)) + hint);
@@ -340,7 +341,7 @@ export default function ConnectStreamsSoftphone({
         // }
         // Preserve provider init flag so upstream remains active across view switches.
         g.__ccpProviderInit = true;
-      } catch {}
+      } catch { }
     };
   }, [instanceUrl, launched, preferPopup, theme]);
 
@@ -355,7 +356,7 @@ export default function ConnectStreamsSoftphone({
         if (noHandler || deviceEnum) {
           return;
         }
-      } catch {}
+      } catch { }
       // pass through other errors
       original(...args);
     }

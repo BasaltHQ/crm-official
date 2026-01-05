@@ -100,7 +100,7 @@ export async function POST(req: Request) {
       }
     }
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[CALENDAR_MANAGE_POST]", e?.message || e);
     return new NextResponse("Failed to manage calendar", { status: 500 });
   }

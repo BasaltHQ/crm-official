@@ -109,4 +109,5 @@ export function detectTechFromSnapshot(snapshot: TechSnapshot): string[] {
   return Array.from(found);
 }
 
-export default { detectTechFromSnapshot };
+const detector = { detectTechFromSnapshot };
+export default detector;

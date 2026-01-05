@@ -112,6 +112,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
       reloadActivities(selectedLeadId);
       reloadNotes(selectedLeadId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeadId]);
 
   // Softphone status listener and default number binding from selected lead
@@ -126,7 +127,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
         if (data?.type === "softphone:status") {
           setSoftphoneStatus(String(data?.status || ""));
         }
-      } catch {}
+      } catch { }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -296,11 +297,11 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
             </div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">Subject</div>
-              <div className="text-sm">{activities.find((a:any)=>a.type==="email_sent")?.metadata?.subject || "-"}</div>
+              <div className="text-sm">{activities.find((a: any) => a.type === "email_sent")?.metadata?.subject || "-"}</div>
             </div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">Body (plain text)</div>
-              <div className="text-sm whitespace-pre-wrap">{activities.find((a:any)=>a.type==="email_sent")?.metadata?.bodyText || "(no body saved)"}</div>
+              <div className="text-sm whitespace-pre-wrap">{activities.find((a: any) => a.type === "email_sent")?.metadata?.bodyText || "(no body saved)"}</div>
             </div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">Open Status</div>
@@ -308,7 +309,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
             </div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">Meeting Link</div>
-              <div className="text-sm break-all">{activities.find((a:any)=>a.type==="email_sent")?.metadata?.meetingLink || selectedLead?.outreach_meeting_link || "(none)"}</div>
+              <div className="text-sm break-all">{activities.find((a: any) => a.type === "email_sent")?.metadata?.meetingLink || selectedLead?.outreach_meeting_link || "(none)"}</div>
             </div>
 
             {(() => {
@@ -321,11 +322,11 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
               <div className="text-[11px] font-semibold mb-1">Live Transcript (activity feed)</div>
               <div className="text-xs max-h-40 overflow-auto whitespace-pre-wrap break-words">
                 {(() => {
-                  const segs = activities.filter((a:any)=>a.type === 'call_transcript_segment');
+                  const segs = activities.filter((a: any) => a.type === 'call_transcript_segment');
                   if (!segs.length) return <div className="text-muted-foreground">No transcript yet.</div>;
                   return (
                     <ol className="list-decimal pl-4 space-y-1">
-                      {segs.slice().reverse().map((s:any)=> (
+                      {segs.slice().reverse().map((s: any) => (
                         <li key={s.id}>
                           <span className="text-[10px] text-muted-foreground mr-2">{new Date(s.createdAt).toLocaleTimeString()}</span>
                           <span>{s.metadata?.text || ''}</span>
@@ -356,11 +357,11 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
               <div className="text-[11px] font-semibold mb-1">Live Transcript (activity feed)</div>
               <div className="text-xs max-h-40 overflow-auto whitespace-pre-wrap break-words">
                 {(() => {
-                  const segs = activities.filter((a:any)=>a.type === 'call_transcript_segment');
+                  const segs = activities.filter((a: any) => a.type === 'call_transcript_segment');
                   if (!segs.length) return <div className="text-muted-foreground">No transcript yet.</div>;
                   return (
                     <ol className="list-decimal pl-4 space-y-1">
-                      {segs.slice().reverse().map((s:any)=> (
+                      {segs.slice().reverse().map((s: any) => (
                         <li key={s.id}>
                           <span className="text-[10px] text-muted-foreground mr-2">{new Date(s.createdAt).toLocaleTimeString()}</span>
                           <span>{s.metadata?.text || ''}</span>
@@ -379,12 +380,12 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
             <div className="text-sm text-muted-foreground">Project documents with live gamma.app links will be shown here for editing and attaching to email.</div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">Meeting Link</div>
-              <div className="text-sm break-all">{activities.find((a:any)=>a.type==="email_sent")?.metadata?.meetingLink || selectedLead?.outreach_meeting_link || "(none)"}</div>
+              <div className="text-sm break-all">{activities.find((a: any) => a.type === "email_sent")?.metadata?.meetingLink || selectedLead?.outreach_meeting_link || "(none)"}</div>
             </div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">SMS</div>
               {(() => {
-                const sms = activities.find((a:any)=>a.type === 'sms_sent');
+                const sms = activities.find((a: any) => a.type === 'sms_sent');
                 if (!sms) return <div className="text-sm text-muted-foreground">No SMS sent.</div>;
                 return (
                   <div className="text-sm space-y-1">
@@ -433,7 +434,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
             {notes.length === 0 && (
               <div className="text-xs text-muted-foreground">No notes yet.</div>
             )}
-            {notes.map((n:any) => (
+            {notes.map((n: any) => (
               <div key={n.id} className="rounded border p-2">
                 <div className="text-[10px] text-muted-foreground mb-1">{new Date(n.createdAt).toLocaleString()}</div>
                 <div className="text-sm whitespace-pre-wrap">
@@ -445,7 +446,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
               </div>
             ))}
           </div>
-          <Textarea rows={3} placeholder="@tag team members and add a note..." value={noteText} onChange={(e)=>setNoteText(e.target.value)} />
+          <Textarea rows={3} placeholder="@tag team members and add a note..." value={noteText} onChange={(e) => setNoteText(e.target.value)} />
           <div className="mt-2 flex gap-2 justify-end">
             <Button size="sm" onClick={postNote} disabled={!noteText.trim()}>Post</Button>
           </div>

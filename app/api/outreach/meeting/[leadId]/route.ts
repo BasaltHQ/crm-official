@@ -67,7 +67,7 @@ export async function GET(
     // Redirect to external meeting link
     return NextResponse.redirect(meetingLink, { status: 302 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_MEETING_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

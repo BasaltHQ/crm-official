@@ -329,7 +329,7 @@ export async function POST(req: Request) {
 
         } catch (err: any) {
           // Keep defaults on failure
-          // eslint-disable-next-line no-console
+           
           console.error("[OUTREACH_SEND][AI_ERROR]", err?.message || err);
         }
       }
@@ -425,7 +425,7 @@ export async function POST(req: Request) {
 
         results.push({ leadId: lead.id, status: "sent", subject, to: toEmail });
       } catch (err: any) {
-        // eslint-disable-next-line no-console
+         
         console.error("[OUTREACH_SEND][SMTP_ERROR]", err?.message || err);
         results.push({ leadId: lead.id, status: "error", reason: err?.message || "Send failed" });
       }
@@ -441,7 +441,7 @@ export async function POST(req: Request) {
     };
     return NextResponse.json(summary, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_SEND_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

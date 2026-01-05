@@ -47,7 +47,7 @@ export async function GET(_req: Request, props: { params: Promise<{ projectId: s
             { status: 200 },
         );
     } catch (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("[PROJECT_SUMMARY_GET]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getUsers, deleteUser, toggleUserStatus } from "@/actions/cms/users";
 import { UserManagementModal } from "@/components/cms/UserManagementModal";
 import { Loader2, Plus, Search, MoreHorizontal, Pencil, Trash2, Shield, AlertCircle } from "lucide-react";
@@ -19,7 +19,7 @@ export default function TeamPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<any>(null);
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getUsers(searchQuery);
@@ -29,12 +29,12 @@ export default function TeamPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [searchQuery]);
 
     useEffect(() => {
         const debounce = setTimeout(fetchUsers, 300);
         return () => clearTimeout(debounce);
-    }, [searchQuery]);
+    }, [fetchUsers]);
 
     // Refresh when modal closes (if saved) - simplified by just refetching
     const handleModalClose = () => {

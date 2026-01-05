@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
     await logActivity("voicehub_event", { body });
     return NextResponse.json({ ok: true, action: "logged" }, { status: 200 });
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[VOICE_ENGAGE_WEBHOOK]", e?.message || e);
     return NextResponse.json({ ok: false, error: e?.message || "failed" }, { status: 500 });
   }

@@ -197,13 +197,13 @@ Project Briefing:
             });
             smsBody = sanitizeSmsBody(object.body || smsBody);
         } catch (err: any) {
-            // eslint-disable-next-line no-console
+             
             console.error("[OUTREACH_PREVIEW_SMS][AI_ERROR]", err?.message || err);
         }
 
         return NextResponse.json({ body: smsBody }, { status: 200 });
     } catch (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("[OUTREACH_PREVIEW_SMS_POST]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }

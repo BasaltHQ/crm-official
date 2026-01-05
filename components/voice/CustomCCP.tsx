@@ -111,13 +111,13 @@ export default function CustomCCP({
   function logInfoMsg(msg: string) {
     try {
       connectRef.current?.getLog?.().info?.(msg);
-    } catch {}
+    } catch { }
     setLogs((prev) => [new Date().toLocaleTimeString() + " " + msg, ...prev].slice(0, 200));
   }
   function logInfoEvent(msg: string) {
     try {
       connectRef.current?.getLog?.().info?.(msg);
-    } catch {}
+    } catch { }
     setEvents((prev) => [new Date().toLocaleTimeString() + " " + msg, ...prev].slice(0, 200));
   }
 
@@ -189,7 +189,7 @@ export default function CustomCCP({
         try {
           rootLogger?.setLogLevel?.(connect.LogLevel?.DEBUG);
           rootLogger?.setEchoLevel?.(connect.LogLevel?.DEBUG);
-        } catch {}
+        } catch { }
 
         // Prevent duplicate init across route changes
         const g = (window as any);
@@ -238,7 +238,7 @@ export default function CustomCCP({
               g.__ccpProviderInit = true;
               g.__ccpProviderInitializing = false;
             });
-          } catch {}
+          } catch { }
 
           // Fallback: if CCP doesn't become ready within timeout, try alternate path once
           const fallbackMs = 30000 + 5000; // ccpLoadTimeout + 5s buffer
@@ -248,7 +248,7 @@ export default function CustomCCP({
                 ccpFallbackAttemptedRef.current = true;
                 logInfoMsg(`CCP not ready after ${fallbackMs}ms; attempting fallback URL`);
                 connect.core.terminate?.();
-              } catch {}
+              } catch { }
               try {
                 initAt(fallbackUrl);
               } catch (err: any) {
@@ -267,7 +267,7 @@ export default function CustomCCP({
           connect.core.onViewContact((event: any) => {
             logInfoEvent(`[onViewContact] Viewing contact ${event?.contactId || "?"}`);
           });
-        } catch {}
+        } catch { }
 
         // Subscribe to Agent
         connect.agent((agent: any) => {
@@ -313,7 +313,7 @@ export default function CustomCCP({
               logInfoEvent(`[agent.onAfterCallWork] ${ag.getStatus?.().name || ""}`);
               setAgentState(String(ag.getStatus?.().name || ""));
             });
-          } catch {}
+          } catch { }
         });
 
         // Subscribe to Contact
@@ -349,7 +349,7 @@ export default function CustomCCP({
               setContactStatus("Destroyed");
               hangupInProgressRef.current = false;
             });
-          } catch {}
+          } catch { }
         });
       } catch (e: any) {
         console.error("[CUSTOM_CCP_INIT]", e);
@@ -357,7 +357,7 @@ export default function CustomCCP({
           const g = (window as any);
           g.__ccpProviderInitializing = false;
           g.__ccpProviderInit = false;
-        } catch {}
+        } catch { }
         const hint = "\nTip: vendor Streams locally under /connect/connect-streams.js or set NEXT_PUBLIC_CONNECT_STREAMS_URL.";
         setError((e?.message || String(e)) + hint);
       } finally {
@@ -381,7 +381,7 @@ export default function CustomCCP({
         const g = (window as any);
         // Preserve provider init flag so upstream remains active.
         g.__ccpProviderInit = true;
-      } catch {}
+      } catch { }
     };
   }, [launched, urlBase, theme]);
 
@@ -490,88 +490,88 @@ export default function CustomCCP({
   }
 
   // Outbound Dial (Streams client)
-async function dialNumber(num: string) {
-  try {
-    const n = String(num || "").trim();
-    if (!/^\+[1-9]\d{1,14}$/.test(n)) throw new Error("Invalid E.164");
-    phoneNumberRef.current = n;
-
-    // Auto-start VoiceHub session for Engage AI panel if enabled
+  async function dialNumber(num: string) {
     try {
-      if (autoStartVoiceHub) {
-        const walletOverride = String(localStorage.getItem("voicehub:wallet") || "").trim().toLowerCase();
-        const payload: any = { leadId, contactId, source: "CustomCCP" };
+      const n = String(num || "").trim();
+      if (!/^\+[1-9]\d{1,14}$/.test(n)) throw new Error("Invalid E.164");
+      phoneNumberRef.current = n;
 
-        // Silent credit check + robust start with retries and correlationId
-        let unlimited = false;
-        try {
-          const credRes = await fetch("/api/voicehub/credits", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ walletOverride: walletOverride || undefined }),
-          });
-          const cred = await credRes.json().catch(() => ({}));
-          if (credRes.ok) {
-            const bal = Number((cred as any)?.balance?.balanceSeconds ?? 0);
-            unlimited = !!(cred as any)?.balance?.unlimited;
-            logInfoMsg(`VoiceHub credits: balanceSeconds=${bal}${unlimited ? " (unlimited)" : ""}`);
-          } else {
-            logInfoMsg(`Credit check failed: ${(cred as any)?.error || credRes.status}`);
+      // Auto-start VoiceHub session for Engage AI panel if enabled
+      try {
+        if (autoStartVoiceHub) {
+          const walletOverride = String(localStorage.getItem("voicehub:wallet") || "").trim().toLowerCase();
+          const payload: any = { leadId, contactId, source: "CustomCCP" };
+
+          // Silent credit check + robust start with retries and correlationId
+          let unlimited = false;
+          try {
+            const credRes = await fetch("/api/voicehub/credits", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ walletOverride: walletOverride || undefined }),
+            });
+            const cred = await credRes.json().catch(() => ({}));
+            if (credRes.ok) {
+              const bal = Number((cred as any)?.balance?.balanceSeconds ?? 0);
+              unlimited = !!(cred as any)?.balance?.unlimited;
+              logInfoMsg(`VoiceHub credits: balanceSeconds=${bal}${unlimited ? " (unlimited)" : ""}`);
+            } else {
+              logInfoMsg(`Credit check failed: ${(cred as any)?.error || credRes.status}`);
+            }
+          } catch (e: any) {
+            logInfoMsg(`Credit check error: ${e?.message || String(e)}`);
           }
-        } catch (e: any) {
-          logInfoMsg(`Credit check error: ${e?.message || String(e)}`);
-        }
 
-        // SuperAdmin skip: owner wallet has unlimited
-        const owner = String(process.env.NEXT_PUBLIC_OWNER_WALLET || "").toLowerCase();
-        const isOwner = !!walletOverride && walletOverride === owner;
+          // SuperAdmin skip: owner wallet has unlimited
+          const owner = String(process.env.NEXT_PUBLIC_OWNER_WALLET || "").toLowerCase();
+          const isOwner = !!walletOverride && walletOverride === owner;
 
-        const correlationId = `crm:${String(leadId || "none")}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+          const correlationId = `crm:${String(leadId || "none")}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+          const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-        let started = false;
-        for (let attempt = 1; attempt <= 3 && !started; attempt++) {
-          // Open Console on first attempt only if credits not unlimited and not SuperAdmin
-          if (attempt === 1 && !unlimited && !isOwner) {
-            try {
-              const vhBase = String(process.env.NEXT_PUBLIC_VOICEHUB_BASE_URL || "").trim();
-              if (vhBase) {
-                const win = window.open(`${vhBase}/console`, "_blank", "noopener,noreferrer");
-                if (!win) {
-                  logInfoMsg("Popup blocked for VoiceHub Console; enable popups to approve credits");
+          let started = false;
+          for (let attempt = 1; attempt <= 3 && !started; attempt++) {
+            // Open Console on first attempt only if credits not unlimited and not SuperAdmin
+            if (attempt === 1 && !unlimited && !isOwner) {
+              try {
+                const vhBase = String(process.env.NEXT_PUBLIC_VOICEHUB_BASE_URL || "").trim();
+                if (vhBase) {
+                  const win = window.open(`${vhBase}/console`, "_blank", "noopener,noreferrer");
+                  if (!win) {
+                    logInfoMsg("Popup blocked for VoiceHub Console; enable popups to approve credits");
+                  }
+                } else {
+                  logInfoMsg("NEXT_PUBLIC_VOICEHUB_BASE_URL not set; cannot open Console for credit approval");
                 }
-              } else {
-                logInfoMsg("NEXT_PUBLIC_VOICEHUB_BASE_URL not set; cannot open Console for credit approval");
+              } catch (openErr: any) {
+                logInfoMsg(`Failed to open VoiceHub Console: ${openErr?.message || String(openErr)}`);
               }
-            } catch (openErr: any) {
-              logInfoMsg(`Failed to open VoiceHub Console: ${openErr?.message || String(openErr)}`);
+            }
+
+            const res = await fetch("/api/voicehub/control", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ command: "start", payload, walletOverride: walletOverride || undefined, correlationId }),
+            });
+            if (res.ok) {
+              started = true;
+              logInfoMsg(`Requested VoiceHub auto-start (attempt ${attempt})`);
+            } else {
+              logInfoMsg(`VoiceHub start request failed (attempt ${attempt}): ${res.status}`);
+              await sleep(400 * attempt); // exponential backoff
             }
           }
 
-          const res = await fetch("/api/voicehub/control", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ command: "start", payload, walletOverride: walletOverride || undefined, correlationId }),
-          });
-          if (res.ok) {
-            started = true;
-            logInfoMsg(`Requested VoiceHub auto-start (attempt ${attempt})`);
-          } else {
-            logInfoMsg(`VoiceHub start request failed (attempt ${attempt}): ${res.status}`);
-            await sleep(400 * attempt); // exponential backoff
+          if (!started) {
+            logInfoMsg("VoiceHub start failed after retries");
           }
         }
-
-        if (!started) {
-          logInfoMsg("VoiceHub start failed after retries");
-        }
+      } catch (e: any) {
+        logInfoMsg(`VoiceHub auto-start failed: ${e?.message || String(e)}`);
       }
-    } catch (e: any) {
-      logInfoMsg(`VoiceHub auto-start failed: ${e?.message || String(e)}`);
-    }
 
-    // Use Streams Agent.connect with Endpoint.byPhoneNumber for outbound
-    const winAny = (window as any);
+      // Use Streams Agent.connect with Endpoint.byPhoneNumber for outbound
+      const winAny = (window as any);
       const agent =
         agentRef.current ||
         (typeof winAny.connect?.agent === "function" ? winAny.connect.agent() : null);
@@ -583,7 +583,7 @@ async function dialNumber(num: string) {
         if (st?.type && st.type !== (winAny.connect?.AgentStateType?.ROUTABLE || "ROUTABLE")) {
           logInfoMsg(`Agent state is ${st?.type}; outbound may fail unless routable`);
         }
-      } catch {}
+      } catch { }
 
       const ep = winAny.connect?.Endpoint?.byPhoneNumber
         ? winAny.connect.Endpoint.byPhoneNumber(n)
@@ -616,7 +616,7 @@ async function dialNumber(num: string) {
         })
           .then(() => logInfoMsg("Requested VoiceHub stop listening"))
           .catch((e) => logInfoMsg(`VoiceHub stop failed: ${e?.message || String(e)}`));
-      } catch {}
+      } catch { }
       const c = contactRef.current;
       if (!c) throw new Error("No active contact");
       if (hangupInProgressRef.current) {
@@ -624,10 +624,10 @@ async function dialNumber(num: string) {
         return;
       }
       hangupInProgressRef.current = true;
-  
+
       const agentConn = c.getAgentConnection?.();
       let attempted = false;
-  
+
       if (agentConn?.destroy) {
         attempted = true;
         agentConn.destroy({
@@ -655,7 +655,7 @@ async function dialNumber(num: string) {
             }
           },
         });
-  
+
         // Fallback timeout if neither onEnded nor onDestroy fires
         window.setTimeout(() => {
           try {
@@ -687,10 +687,10 @@ async function dialNumber(num: string) {
             hangupInProgressRef.current = false;
           }
         }, 5000);
-  
+
         return;
       }
-  
+
       // If no agent connection destroy available, try clear then complete
       if (c.clear) {
         attempted = true;
@@ -709,14 +709,14 @@ async function dialNumber(num: string) {
         });
         return;
       }
-  
+
       if (c.completeContact) {
         attempted = true;
         c.completeContact();
         logInfoMsg("Completed contact");
         return;
       }
-  
+
       if (!attempted) throw new Error("No supported hangup method available");
     } catch (e: any) {
       setError(e?.message || "Hangup failed");
@@ -734,7 +734,7 @@ async function dialNumber(num: string) {
           try {
             const resolved = ccpResolvedUrlRef.current || urlBase;
             if (resolved) arr.push(new URL(resolved).origin);
-          } catch {}
+          } catch { }
           return arr.filter(Boolean);
         })();
         if (!allowedOrigins.includes(ev.origin)) return;
@@ -750,10 +750,11 @@ async function dialNumber(num: string) {
         } else if (type === "softphone:getStatus") {
           ev.source?.postMessage({ type: "softphone:status", status: contactStatus || "" }, { targetOrigin: ev.origin });
         }
-      } catch {}
+      } catch { }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactStatus]);
 
   // Suppress benign Streams SDK console errors for known noisy patterns
@@ -769,7 +770,7 @@ async function dialNumber(num: string) {
         if (noHandler || deviceEnum || asyncLoader || routerReqErr) {
           return;
         }
-      } catch {}
+      } catch { }
       original(...args);
     }
     console.error = filtered as any;
@@ -787,9 +788,8 @@ async function dialNumber(num: string) {
     <div className={`rounded-xl border bg-card p-3 shadow-sm ${className || ""}`}>
       {/* Header */}
       <div
-        className={`mb-3 flex items-center justify-between rounded-lg px-3 py-2 ${
-          theme === "dark" ? "bg-gradient-to-r from-slate-900 to-slate-800" : "bg-gradient-to-r from-white to-slate-50"
-        } border`}
+        className={`mb-3 flex items-center justify-between rounded-lg px-3 py-2 ${theme === "dark" ? "bg-gradient-to-r from-slate-900 to-slate-800" : "bg-gradient-to-r from-white to-slate-50"
+          } border`}
         style={{ borderColor: accent, boxShadow: `0 0 0 1px ${accent}` }}
       >
         <div className="flex items-center gap-3">
@@ -841,118 +841,118 @@ async function dialNumber(num: string) {
 
       <div className="grid md:grid-cols-2 gap-3">
         <div className={`space-y-3 ${agentColOrder}`}>
-      {/* Agent panel */}
-      <section className="rounded-md border bg-background p-3" style={{ borderColor: accent }}>
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold">Agent</div>
-          {routingProfile ? <div className="microtext text-muted-foreground">RP: {routingProfile}</div> : null}
-        </div>
-        <div className="mt-2 flex items-center gap-2 text-[11px]">
-          {agentName ? (
-            <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">{agentName}</span>
-          ) : null}
-          {agentState ? (
-            <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">{agentState}</span>
-          ) : null}
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Button variant="outline" onClick={goAvailable}>
-            Go Available
-          </Button>
-          <Button variant="outline" onClick={goBreak}>
-            Go Break
-          </Button>
-          <Button variant="outline" onClick={goOffline}>
-            Go Offline
-          </Button>
-        </div>
-      </section>
-
-      {/* Contact actions */}
-      <section className="rounded-md border bg-background p-3 mt-3" style={{ borderColor: accent }}>
-        <div className="text-xs font-semibold">Contact</div>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          <Button variant="outline" onClick={acceptContact}>
-            Answer Incoming
-          </Button>
-          <Button variant="outline" onClick={hangupActive}>
-            Hang Up
-          </Button>
-          <Button variant="outline" onClick={clearContact}>
-            Close Contact
-          </Button>
-        </div>
-      </section>
-        </div>
-
-      {/* Outbound dialer (compact, frosted glass) */}
-      <section className={`rounded-md border p-3 ${dialerColOrder}`} style={{ borderColor: accent }}>
-        <div className="rounded-xl border border-primary/30 bg-white/10 dark:bg-slate-900/30 backdrop-blur-md p-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <div className="md:col-span-3">
-              <label className="text-xs font-medium">Number (E.164)</label>
-              <Input
-                placeholder="+15551234567"
-                value={displayNumber}
-                onChange={(e) => setDisplayNumber(e.target.value)}
-                className="h-8"
-              />
+          {/* Agent panel */}
+          <section className="rounded-md border bg-background p-3" style={{ borderColor: accent }}>
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-semibold">Agent</div>
+              {routingProfile ? <div className="microtext text-muted-foreground">RP: {routingProfile}</div> : null}
             </div>
-
-            <div className="md:col-span-1 flex md:block items-stretch md:h-full">
-              <Button
-                className="w-full h-12 md:h-full min-h-[200px] text-lg bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => dialNumber(displayNumber)}
-                disabled={!String(displayNumber || "").trim()}
-              >
-                Dial
+            <div className="mt-2 flex items-center gap-2 text-[11px]">
+              {agentName ? (
+                <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">{agentName}</span>
+              ) : null}
+              {agentState ? (
+                <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">{agentState}</span>
+              ) : null}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={goAvailable}>
+                Go Available
+              </Button>
+              <Button variant="outline" onClick={goBreak}>
+                Go Break
+              </Button>
+              <Button variant="outline" onClick={goOffline}>
+                Go Offline
               </Button>
             </div>
+          </section>
 
-            <div className="md:col-span-2">
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("1")}>1</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("2")}>2</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("3")}>3</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("4")}>4</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("5")}>5</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("6")}>6</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("7")}>7</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("8")}>8</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("9")}>9</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("+")}>+</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("0")}>0</Button>
-                <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={backspaceDial}>⌫</Button>
-                <Button variant="outline" className="h-10 md:h-12 col-span-3 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={clearDial}>Clear</Button>
-              </div>
+          {/* Contact actions */}
+          <section className="rounded-md border bg-background p-3 mt-3" style={{ borderColor: accent }}>
+            <div className="text-xs font-semibold">Contact</div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={acceptContact}>
+                Answer Incoming
+              </Button>
+              <Button variant="outline" onClick={hangupActive}>
+                Hang Up
+              </Button>
+              <Button variant="outline" onClick={clearContact}>
+                Close Contact
+              </Button>
             </div>
+          </section>
+        </div>
 
-            {contactStatus === "Connected" && (
-              <div className="md:col-span-1">
-                <div className="text-xs font-semibold mb-1">DTMF</div>
+        {/* Outbound dialer (compact, frosted glass) */}
+        <section className={`rounded-md border p-3 ${dialerColOrder}`} style={{ borderColor: accent }}>
+          <div className="rounded-xl border border-primary/30 bg-white/10 dark:bg-slate-900/30 backdrop-blur-md p-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="md:col-span-3">
+                <label className="text-xs font-medium">Number (E.164)</label>
+                <Input
+                  placeholder="+15551234567"
+                  value={displayNumber}
+                  onChange={(e) => setDisplayNumber(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+
+              <div className="md:col-span-1 flex md:block items-stretch md:h-full">
+                <Button
+                  className="w-full h-12 md:h-full min-h-[200px] text-lg bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => dialNumber(displayNumber)}
+                  disabled={!String(displayNumber || "").trim()}
+                >
+                  Dial
+                </Button>
+              </div>
+
+              <div className="md:col-span-2">
                 <div className="grid grid-cols-3 gap-2">
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("1")}>1</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("2")}>2</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("3")}>3</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("4")}>4</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("5")}>5</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("6")}>6</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("7")}>7</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover/bg-primary/10" onClick={() => sendDtmf("8")}>8</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("9")}>9</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("0")}>0</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("*")}>*</Button>
-                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("#")}>#</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("1")}>1</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("2")}>2</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("3")}>3</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("4")}>4</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("5")}>5</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("6")}>6</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("7")}>7</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("8")}>8</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("9")}>9</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("+")}>+</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary bg-primary/10 hover:bg-primary/20" onClick={() => appendDial("0")}>0</Button>
+                  <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={backspaceDial}>⌫</Button>
+                  <Button variant="outline" className="h-10 md:h-12 col-span-3 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={clearDial}>Clear</Button>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <div className="microtext text-muted-foreground mt-2">
-          Outbound uses Agent.connect with Endpoint.byPhoneNumber. Ensure the agent is Routable and CCP is initialized.
-        </div>
-      </section>
+              {contactStatus === "Connected" && (
+                <div className="md:col-span-1">
+                  <div className="text-xs font-semibold mb-1">DTMF</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("1")}>1</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("2")}>2</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("3")}>3</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("4")}>4</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("5")}>5</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("6")}>6</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("7")}>7</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover/bg-primary/10" onClick={() => sendDtmf("8")}>8</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("9")}>9</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("0")}>0</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("*")}>*</Button>
+                    <Button variant="outline" className="h-10 md:h-12 border-primary/40 text-primary/80 hover:bg-primary/10" onClick={() => sendDtmf("#")}>#</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="microtext text-muted-foreground mt-2">
+            Outbound uses Agent.connect with Endpoint.byPhoneNumber. Ensure the agent is Routable and CCP is initialized.
+          </div>
+        </section>
       </div>
 
       {/* Logs */}

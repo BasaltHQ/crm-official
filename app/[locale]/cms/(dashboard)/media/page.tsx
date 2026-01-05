@@ -34,6 +34,7 @@ export default function MediaLibraryPage() {
 
     useEffect(() => {
         fetchMedia();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
     const fetchMedia = async () => {
@@ -91,6 +92,7 @@ export default function MediaLibraryPage() {
         setUploading(false);
         fetchMedia();
         toast.success("Assets added");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleAddUrl = async () => {
@@ -327,7 +329,7 @@ export default function MediaLibraryPage() {
                                                 <td className="px-4 py-3 flex items-center gap-3">
                                                     <div className="h-10 w-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden">
                                                         {item.mimeType.startsWith("image/") ? (
-                                                            <img src={item.url} className="h-full w-full object-cover" />
+                                                            <img src={item.url} alt={item.altText || item.filename} className="h-full w-full object-cover" />
                                                         ) : (
                                                             <div className="h-full w-full flex items-center justify-center">
                                                                 <Type className="h-5 w-5 text-slate-500" />

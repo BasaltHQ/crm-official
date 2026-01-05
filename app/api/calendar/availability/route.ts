@@ -270,7 +270,7 @@ export async function GET(req: Request) {
         });
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.error("[CALENDAR_AVAILABILITY_CACHE_PERSIST]", (e as any)?.message || e);
     }
 
@@ -286,7 +286,7 @@ export async function GET(req: Request) {
       { status: 200 }
     );
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[CALENDAR_AVAILABILITY_GET]", e?.message || e);
     return new NextResponse("Failed to fetch availability", { status: 500 });
   }

@@ -161,7 +161,7 @@ export async function GET(req: Request) {
         }
       } catch (e: any) {
         // Continue other calendars even if one fails
-        // eslint-disable-next-line no-console
+         
         console.error("[CALENDAR_EVENTS_LIST]", calId, e?.message || e);
       }
     }
@@ -176,7 +176,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, events, calendars: calendarsResponse }, { status: 200 });
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[CALENDAR_EVENTS_GET]", e?.message || e);
     return new NextResponse("Failed to fetch events", { status: 500 });
   }

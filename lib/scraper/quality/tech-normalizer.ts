@@ -225,8 +225,9 @@ export function normalizeTechStack(list?: any): string[] {
   return out;
 }
 
-export default {
+const techNormalizer = {
   TECH_ALIASES,
   canonicalizeTechName,
   normalizeTechStack,
 };
+export default techNormalizer;

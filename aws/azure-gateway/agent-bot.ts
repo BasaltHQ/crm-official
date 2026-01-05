@@ -238,7 +238,7 @@ export async function startAgentBot(params: AgentBotParams): Promise<{ ok: boole
 
     // Inject bootstrap objects (join + azure config) into the page context
     await page.evaluate((joinInfo, azureCfg) => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+       
       // @ts-ignore
       window.__BOOTSTRAP__ = { join: joinInfo, azure: azureCfg };
     }, params.join, params.azure);

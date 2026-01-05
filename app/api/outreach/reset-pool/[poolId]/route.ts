@@ -66,7 +66,7 @@ export async function POST(req: Request, context: { params: Promise<{ poolId: st
 
     return NextResponse.json({ ok: true, reset: ids.length });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_RESET_POOL_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

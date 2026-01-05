@@ -48,7 +48,7 @@ export async function GET(_req: Request) {
 
     return NextResponse.json({ ok: true, calendars }, { status: 200 });
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[CALENDAR_LIST_GET]", e?.message || e);
     return new NextResponse("Failed to list calendars", { status: 500 });
   }

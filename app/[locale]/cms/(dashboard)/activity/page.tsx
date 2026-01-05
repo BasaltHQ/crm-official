@@ -81,7 +81,7 @@ export default async function CMSActivityPage() {
                                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                         {/* @ts-ignore - joined user data */}
                                         {log.user?.avatar ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
+
                                             <img src={log.user.avatar} alt="User" className="h-10 w-10 rounded-full object-cover" />
                                         ) : (
                                             <User className="h-5 w-5 text-primary" />

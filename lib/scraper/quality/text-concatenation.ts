@@ -202,7 +202,7 @@ export function preferInformative(a?: string | null, b?: string | null): string 
   return A;
 }
 
-export default {
+const textConcatenation = {
   fixConcatenatedWords,
   camelAndConnectorSplit,
   collapseRepeats,
@@ -210,3 +210,4 @@ export default {
   normalizeNameCandidate,
   preferInformative,
 };
+export default textConcatenation;

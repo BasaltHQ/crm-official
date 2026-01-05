@@ -211,8 +211,10 @@ export function guessEmailForName(domain: string, name: string, limit: number = 
   return candidates.slice(0, Math.max(1, limit));
 }
 
-export default {
+const patternModel = {
   learnDomainPatterns,
   getDomainPattern,
   guessEmailForName,
 };
+
+export default patternModel;

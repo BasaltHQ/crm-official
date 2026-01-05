@@ -69,7 +69,7 @@ export async function GET(req: Request) {
       { status: 200 }
     );
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[GOOGLE_STATUS_GET]", e?.message || e);
     return new NextResponse("Failed to check status", { status: 500 });
   }

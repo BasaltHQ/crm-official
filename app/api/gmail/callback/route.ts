@@ -42,7 +42,7 @@ export async function GET(req: Request) {
     const redirectTo = new URL("/profile", appUrl).toString();
     return NextResponse.redirect(redirectTo, { status: 302 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[GMAIL_CALLBACK_GET]", error);
     return new NextResponse("Failed to handle Gmail callback", { status: 500 });
   }

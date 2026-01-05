@@ -15,7 +15,7 @@ export default function TeamMember({ name, role, imageSrc, linkedin, twitter }: 
         <div className="text-center group flex flex-col items-center">
             <div className="w-[180px] h-[180px] rounded-full overflow-hidden mb-4 relative bg-gray-800">
                 {/* Using a simple img tag with onError handling */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+
                 <img
                     src={imageSrc}
                     alt={name}

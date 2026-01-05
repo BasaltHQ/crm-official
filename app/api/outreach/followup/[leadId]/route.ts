@@ -200,7 +200,7 @@ export async function POST(req: Request, { params }: Params) {
       subject = object.subject || subject;
       bodyText = object.body || bodyText;
     } catch (err: any) {
-      // eslint-disable-next-line no-console
+       
       console.error("[FOLLOWUP][AI_ERROR]", err?.message || err);
     }
 
@@ -251,7 +251,7 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json({ status: "ok", leadId: lead.id, to: toEmail, subject }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_FOLLOWUP_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

@@ -19,7 +19,7 @@ export async function GET() {
     const url = getGmailAuthUrl(session.user.id);
     return NextResponse.json({ url }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[GMAIL_CONNECT_GET]", error);
     return new NextResponse("Failed to create Gmail auth URL", { status: 500 });
   }

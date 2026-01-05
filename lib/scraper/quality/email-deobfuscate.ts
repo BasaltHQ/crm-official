@@ -98,7 +98,7 @@ function tryBase64Decode(s: string): string | null {
     const out = buf.toString('utf8');
     // sanity: must contain @ to be an email-like string
     if (out && /@/.test(out)) return out;
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -158,4 +158,5 @@ export function decodeEmailCandidates(rawText?: string, hrefs?: string[]): strin
   return out;
 }
 
-export default { decodeEmailCandidates };
+const emailDeobfuscate = { decodeEmailCandidates };
+export default emailDeobfuscate;

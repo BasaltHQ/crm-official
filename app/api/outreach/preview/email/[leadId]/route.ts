@@ -263,7 +263,7 @@ Project Briefing:
             bodyText = object.body || bodyText;
         } catch (err: any) {
             // leave defaults on error
-            // eslint-disable-next-line no-console
+             
             console.error("[OUTREACH_PREVIEW_EMAIL][AI_ERROR]", err?.message || err);
         }
 
@@ -309,7 +309,7 @@ Project Briefing:
             { status: 200 },
         );
     } catch (error) {
-        // eslint-disable-next-line no-console
+         
         console.error("[OUTREACH_PREVIEW_EMAIL_POST]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }

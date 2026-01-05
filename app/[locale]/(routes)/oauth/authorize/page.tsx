@@ -61,35 +61,6 @@ export default function LedgerAuthorizePage() {
       });
   }, []);
 
-  // If popup + authenticated + opener exists, auto-approve to complete VoiceHub connect
-  useEffect(() => {
-    if (!isPopup) return;
-    // Guard for SSR
-    if (typeof window === "undefined") return;
-    if (!window.opener) return;
-    if (!userDisplay) return;
-
-    setAutoMsg("Connecting to VoiceHub...");
-    const t = setTimeout(() => {
-      try {
-        // Reuse approve flow to post code/state to opener and close
-        (handleApprove as any)();
-      } catch {
-        // ignore
-      }
-    }, 600);
-    return () => clearTimeout(t);
-  }, [isPopup, userDisplay]);
-
-  // Hide scrollbars/shell in popup by locking body scroll while this page is mounted
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
   function handleApprove() {
     try {
       // Generate code server-side with authenticated user context
@@ -160,6 +131,38 @@ export default function LedgerAuthorizePage() {
       history.back();
     }
   }
+
+  // If popup + authenticated + opener exists, auto-approve to complete VoiceHub connect
+  useEffect(() => {
+    if (!isPopup) return;
+    // Guard for SSR
+    if (typeof window === "undefined") return;
+    if (!window.opener) return;
+    if (!userDisplay) return;
+
+    setAutoMsg("Connecting to VoiceHub...");
+    const t = setTimeout(() => {
+      try {
+        // Reuse approve flow to post code/state to opener and close
+        (handleApprove as any)();
+      } catch {
+        // ignore
+      }
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPopup, userDisplay]);
+
+  // Hide scrollbars/shell in popup by locking body scroll while this page is mounted
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+
 
   return (
     <div id="ledger1crm-popup" className="fixed inset-0 z-[10000] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">

@@ -46,7 +46,7 @@ export async function GET(_req: Request, { params }: Params) {
 
     return NextResponse.json({ activities }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[LEAD_ACTIVITIES_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

@@ -64,7 +64,7 @@ export function capitalizeWords(input?: any): string {
     .join(" ");
 }
 
-export default {
+const stringUtils = {
   safeTrim,
   normalizeWhitespace,
   uniqueStrings,
@@ -73,3 +73,4 @@ export default {
   collapseRepeats,
   capitalizeWords,
 };
+export default stringUtils;

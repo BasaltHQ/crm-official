@@ -34,7 +34,7 @@ export async function GET(_req: Request) {
       return NextResponse.json({ ok: true, connected: false }, { status: 200 });
     }
   } catch (e: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[GMAIL_STATUS_GET]", e?.message || e);
     return new NextResponse("Failed to check status", { status: 500 });
   }

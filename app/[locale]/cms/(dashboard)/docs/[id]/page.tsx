@@ -138,7 +138,7 @@ export default function DocEditorPage({ params }: { params: Promise<{ id: string
         };
 
         init();
-    }, [id]);
+    }, [id, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

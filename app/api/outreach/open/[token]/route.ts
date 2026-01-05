@@ -58,7 +58,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[OUTREACH_OPEN_GET]", error);
     // Always return a pixel to avoid revealing tracking status
     const body = Buffer.from(PIXEL_BASE64, "base64");

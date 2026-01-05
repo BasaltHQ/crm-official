@@ -14,7 +14,7 @@ const navLinks = [
 
 const externalLinks: { label: string; href: string; internal?: boolean }[] = [
     { label: 'BASALT ECHO', href: 'https://echo.basalthq.com', internal: false },
-    { label: 'LOGIN', href: '/login', internal: true },
+    { label: 'LOGIN', href: '/sign-in', internal: true },
 ];
 
 interface NavbarProps {

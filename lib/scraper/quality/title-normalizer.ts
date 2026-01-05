@@ -55,20 +55,22 @@ const deptMatchers: Array<{ dept: Department; rx: RegExp[] }> = [
 ];
 
 const ladderMatchers: Array<{ ladder: Ladder; rx: RegExp[]; canonical?: string }> = [
-  { ladder: "C-SUITE", rx: [
-    /\bceo\b/, /chief executive/,
-    /\bcto\b/, /chief technology/,
-    /\bcfo\b/, /chief financial/,
-    /\bcoo\b/, /chief operating/,
-    /chief marketing officer|\bcmo\b/,
-    /chief product officer|\bcpo\b/,
-    /\bcio\b/, /chief information officer/,
-    /\bciso\b/, /chief information security officer/,
-    /\bcdo\b/, /chief data officer/,
-    /\bcro\b/, /chief revenue officer/,
-    /\bcco\b/, /chief compliance officer/,
-    /chief people officer/
-  ] },
+  {
+    ladder: "C-SUITE", rx: [
+      /\bceo\b/, /chief executive/,
+      /\bcto\b/, /chief technology/,
+      /\bcfo\b/, /chief financial/,
+      /\bcoo\b/, /chief operating/,
+      /chief marketing officer|\bcmo\b/,
+      /chief product officer|\bcpo\b/,
+      /\bcio\b/, /chief information officer/,
+      /\bciso\b/, /chief information security officer/,
+      /\bcdo\b/, /chief data officer/,
+      /\bcro\b/, /chief revenue officer/,
+      /\bcco\b/, /chief compliance officer/,
+      /chief people officer/
+    ]
+  },
   { ladder: "VP", rx: [/\bvp\b/, /vice president/] },
   { ladder: "DIRECTOR", rx: [/director\b/, /head of\b/] },
   { ladder: "MANAGER", rx: [/manager\b/, /lead\b/, /owner of\b/] },
@@ -148,6 +150,7 @@ export function normalizeTitleAndPersona(rawTitle?: string | null): NormalizedTi
   return { normalizedTitle, ladder, department: dept, persona };
 }
 
-export default {
+const titleNormalizer = {
   normalizeTitleAndPersona,
 };
+export default titleNormalizer;

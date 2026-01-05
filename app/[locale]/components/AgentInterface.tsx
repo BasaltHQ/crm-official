@@ -103,6 +103,7 @@ export default function AgentInterface() {
                                 key={i}
                                 className="w-1 bg-cyan-500 rounded-full"
                                 animate={{
+                                    // eslint-disable-next-line react-hooks/purity
                                     height: [8, Math.random() * 24 + 8, 8],
                                 }}
                                 transition={{
@@ -119,7 +120,7 @@ export default function AgentInterface() {
             {/* Conversation Thread */}
             <div className="flex-1 flex flex-col gap-2 overflow-hidden">
                 <div className="text-xs font-bold text-cyan-500 uppercase tracking-wider">Live Conversation</div>
-                
+
                 <AnimatePresence>
                     {step >= 4 && (
                         <motion.div

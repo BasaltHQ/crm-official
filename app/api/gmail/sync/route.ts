@@ -102,7 +102,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ threads: threadIds.size, repliesDetected: replySenders.size, leadsUpdated: updatedCount }, { status: 200 });
   } catch (error: any) {
-    // eslint-disable-next-line no-console
+     
     console.error("[GMAIL_SYNC_GET]", error?.message || error);
     return new NextResponse("Failed to sync Gmail", { status: 500 });
   }

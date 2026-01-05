@@ -189,7 +189,7 @@ export function normalizePhoneDigits(input?: string | null): string {
     return `(${area}) ${mid}-${end}`;
   }
   // Fallback: return digit-only (international/country codes preserved)
-  return `+${digits}`.replace(/^\+$/,'');
+  return `+${digits}`.replace(/^\+$/, '');
 }
 
 // Prefer more informative string (longer non-empty); fallback to other
@@ -243,7 +243,7 @@ export function sanitizeContact(contact: { name?: string; email?: string; phone?
   return { name: cleanedName, email, phone, title, linkedin };
 }
 
-export default {
+const edgeNormalizers = {
   NAV_LABELS,
   fixConcatenatedWords,
   isNavLabel,
@@ -256,3 +256,4 @@ export default {
   mergeStringSets,
   sanitizeContact,
 };
+export default edgeNormalizers;

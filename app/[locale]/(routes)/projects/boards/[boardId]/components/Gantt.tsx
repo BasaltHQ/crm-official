@@ -86,7 +86,7 @@ export default function Gantt({ data }: GanttProps) {
   }, [initialStart, initialEnd, dateRange]);
 
   // --- Derived Values ---
-  const startDate = dateRange?.from || new Date();
+  const startDate = useMemo(() => dateRange?.from || new Date(), [dateRange?.from]);
   const endDate = dateRange?.to || addDays(startDate, 30);
   const totalDays = Math.max(1, differenceInDays(endDate, startDate) + 1);
   const dayWidth = dayWidthForZoom[zoom];

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useState, useTransition } from "react";
 import { toast } from "react-hot-toast";
-import { MessageSquare, Globe, Palette, Image, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { MessageSquare, Globe, Palette, Image as ImageIcon, Copy, ExternalLink, RefreshCw } from "lucide-react";
 
 interface TeamPortalFormProps {
     teamId: string;
@@ -176,7 +176,7 @@ export const TeamPortalForm = ({ teamId, initialPortal }: TeamPortalFormProps) =
                             {/* Logo URL */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-foreground font-medium">
-                                    <Image className="w-4 h-4 text-teal-500" />
+                                    <ImageIcon className="w-4 h-4 text-teal-500" />
                                     <Label className="text-base">Logo URL</Label>
                                 </div>
                                 <div className="bg-background/30 p-4 rounded-xl border border-border/50">

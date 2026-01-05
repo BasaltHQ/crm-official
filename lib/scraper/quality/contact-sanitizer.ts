@@ -120,8 +120,9 @@ export function sanitizeTechStack(list?: any): string[] {
   return normalizeTechStack(list);
 }
 
-export default {
+const contactSanitizer = {
   sanitizeContact,
   mergeContacts,
   sanitizeTechStack,
 };
+export default contactSanitizer;

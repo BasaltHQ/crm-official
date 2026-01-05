@@ -178,30 +178,30 @@ export const NAV_ALIASES: string[] = [
   // CTA compact forms
   "discover", "submit", "stayintheloop", "stayconnected", "joinnewsletter", "subscribe",
   "signupforupdates", "getupdates", "keepmeposted", "entersite", "confirmage", "verifyage",
-  
+
   // Spanish compact forms
   "sobrenosotros", "quienessomos", "nuestrahistoria", "contactanos", "ponteencontacto", "centrodeayuda",
   "trabajaconnosotros", "estamoscontratando", "pruebagratis", "masinformacion",
-  
+
   // French compact forms
   "apropos", "quisommesnous", "notreequipe", "contacteznous", "nouscontacter", "centredaide",
   "essai gratuit", "ensavoirplus", "mentionslegales",
-  
+
   // German compact forms
   "ueberuns", "unserteam", "kontaktierenuns", "hilfecenter", "datenschutzerklaerung",
-  
+
   // Italian compact forms
   "chisiamo", "nostrastoria", "contattaci", "centroassistenza", "provagratuita", "iscriviti",
-  
+
   // Portuguese compact forms
   "sobrenos", "quemsomos", "nossahistoria", "faleconosco", "centraldeajuda", "testegRAtuito", "saibamais",
-  
+
   // Dutch compact forms
   "overons", "wi z i jn", "onsteam", "neemcontactop", "helpcentrum", "algemenevoorwaarden",
-  
+
   // Czech compact forms
   "onas", "nastym", "kontaktujtenas", "centrumnapovedy", "obchodnipodminky",
-  
+
   // Ukrainian compact forms
   "пронас", "нашаетсторія", "звяжітьсязнами", "центрдовідки", "політикоконфіденційності",
 ];
@@ -219,4 +219,5 @@ export function isNavLabel(input?: string | null): boolean {
   return NAV_SET.has(compact);
 }
 
-export default { NAV_LABELS, NAV_ALIASES, isNavLabel };
+const navLabels = { NAV_LABELS, NAV_ALIASES, isNavLabel };
+export default navLabels;

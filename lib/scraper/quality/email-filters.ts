@@ -159,7 +159,7 @@ export function classifyEmail(email?: string | null): EmailClass {
   return "generic";
 }
 
-export default {
+const emailFilters = {
   isValidEmailFormat,
   normalizeEmail,
   getLocalPart,
@@ -167,3 +167,4 @@ export default {
   shouldIgnoreEmail,
   classifyEmail,
 };
+export default emailFilters;

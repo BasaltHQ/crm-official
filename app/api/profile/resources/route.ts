@@ -69,7 +69,7 @@ export async function GET() {
 
     return NextResponse.json({ resources }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[PROFILE_RESOURCES_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ status: "ok", resources: sanitized }, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
+     
     console.error("[PROFILE_RESOURCES_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
