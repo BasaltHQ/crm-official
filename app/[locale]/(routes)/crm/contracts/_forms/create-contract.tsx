@@ -141,7 +141,7 @@ const CreateContractForm = ({
           {isLoading ? (
             <Loader2 className="h-6 w-6  animate-spin" />
           ) : (
-            "Vytvořit"
+            "Create"
           )}
         </FormSubmit>
       </form>

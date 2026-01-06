@@ -19,6 +19,10 @@ import {
     MoreVertical,
     FormInput,
     UserPlus,
+    Undo2,
+    AlertTriangle,
+    X,
+    Pencil,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -76,6 +80,8 @@ interface Message {
     to_user_id: string;
     from_user?: TeamMember | null;
     to_user?: TeamMember | null;
+    recipients?: { recipient_id: string; is_archived?: boolean; is_deleted?: boolean; is_read?: boolean }[];
+    status?: string;
 }
 
 interface FormSubmission {
@@ -85,6 +91,7 @@ interface FormSubmission {
     source_url?: string;
     ip_address?: string;
     status: string;
+    is_deleted?: boolean;
     createdAt: Date | string;
     converted_lead_id?: string | null;
     lead_id?: string | null;
@@ -125,12 +132,30 @@ export function InternalMessagesComponent({
     const [searchQuery, setSearchQuery] = React.useState("");
     const [activeNav, setActiveNav] = React.useState<"inbox" | "sent" | "drafts" | "archive" | "trash" | "submissions">("inbox");
     const [isConvertingToLead, setIsConvertingToLead] = React.useState(false);
+    const [isDeletingSubmission, setIsDeletingSubmission] = React.useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+    const [submissionToDelete, setSubmissionToDelete] = React.useState<string | null>(null);
+    const [messageToDelete, setMessageToDelete] = React.useState<string | null>(null);
+    const [filterReadStatus, setFilterReadStatus] = React.useState<string>("all");
 
     // Compose form state
     const [composeToUserId, setComposeToUserId] = React.useState("");
     const [composeSubject, setComposeSubject] = React.useState("");
     const [composeBody, setComposeBody] = React.useState("");
     const [isSending, setIsSending] = React.useState(false);
+    const [draftId, setDraftId] = React.useState<string | null>(null);
+
+    // Filter messages based on active nav and search
+    const getStatus = React.useCallback((m: Message) => {
+        const isMeSender = m.from_user_id === currentUserId;
+        const myRecipient = m.recipients?.find(r => r.recipient_id === currentUserId);
+
+        const isTrash = (isMeSender && m.labels?.includes("trash")) || (myRecipient?.is_deleted);
+        const isArchived = (isMeSender && m.labels?.includes("archived")) || (myRecipient?.is_archived);
+        const isDraft = m.status === "DRAFT";
+
+        return { isMeSender, isTrash, isArchived, isDraft, myRecipient };
+    }, [currentUserId]);
 
     // Filter messages based on active nav and search
     const filteredMessages = React.useMemo(() => {
@@ -138,19 +163,35 @@ export function InternalMessagesComponent({
 
         switch (activeNav) {
             case "inbox":
-                filtered = messages.filter(m => m.to_user_id === currentUserId);
+                filtered = messages.filter(m => {
+                    const { isMeSender, isTrash, isArchived, myRecipient } = getStatus(m);
+                    // Inbox contains messages where I am recipient, not trashed, not archived
+                    return !!myRecipient && !isTrash && !isArchived;
+                });
                 break;
             case "sent":
-                filtered = messages.filter(m => m.from_user_id === currentUserId);
+                filtered = messages.filter(m => {
+                    const { isMeSender, isTrash, isDraft } = getStatus(m);
+                    return isMeSender && !isTrash && !isDraft;
+                });
                 break;
             case "drafts":
-                filtered = messages.filter(m => m.labels?.includes("draft"));
+                filtered = messages.filter(m => {
+                    const { isMeSender, isDraft, isTrash } = getStatus(m);
+                    return isMeSender && isDraft && !isTrash;
+                });
                 break;
             case "archive":
-                filtered = messages.filter(m => m.labels?.includes("archive"));
+                filtered = messages.filter(m => {
+                    const { isArchived, isTrash } = getStatus(m);
+                    return isArchived && !isTrash;
+                });
                 break;
             case "trash":
-                filtered = messages.filter(m => m.labels?.includes("trash"));
+                filtered = messages.filter(m => {
+                    const { isTrash } = getStatus(m);
+                    return isTrash;
+                });
                 break;
         }
 
@@ -165,15 +206,65 @@ export function InternalMessagesComponent({
             );
         }
 
+        if (filterReadStatus === "unread") {
+            filtered = filtered.filter(m => {
+                const { myRecipient } = getStatus(m);
+                return !!myRecipient && !myRecipient.is_read;
+            });
+        }
+
         return filtered;
-    }, [messages, activeNav, searchQuery, currentUserId]);
+    }, [messages, activeNav, searchQuery, getStatus, filterReadStatus]);
 
     const selectedMessage = React.useMemo(() => {
         return filteredMessages.find(m => m.id === selectedMessageId) || null;
     }, [filteredMessages, selectedMessageId]);
 
-    const inboxCount = messages.filter(m => m.to_user_id === currentUserId && !m.is_read).length;
-    const submissionsCount = formSubmissions.filter(s => s.status === "NEW").length;
+    const inboxCount = messages.filter(m => {
+        const { isTrash, isArchived, myRecipient } = getStatus(m);
+        return !!myRecipient && !isTrash && !isArchived && !myRecipient.is_read;
+    }).length;
+
+    const archiveCount = messages.filter(m => {
+        const { isArchived, isTrash } = getStatus(m);
+        return isArchived && !isTrash;
+    }).length;
+
+    const draftsCount = messages.filter(m => {
+        const { isDraft, isTrash } = getStatus(m);
+        return isDraft && !isTrash;
+    }).length;
+
+    const sentCount = messages.filter(m => {
+        const { isMeSender, isTrash, isDraft } = getStatus(m);
+        return isMeSender && !isTrash && !isDraft;
+    }).length;
+
+    const messageTrashCount = messages.filter(m => {
+        const { isTrash } = getStatus(m);
+        return isTrash;
+    }).length;
+
+    // Separate active submissions from trashed ones
+    const activeSubmissions = React.useMemo(() => {
+        let subs = formSubmissions.filter(s => !s.is_deleted && s.status !== "ARCHIVED" && s.status !== "DELETED");
+        if (filterReadStatus === "unread") {
+            subs = subs.filter(s => s.status === "NEW");
+        }
+        return subs;
+    }, [formSubmissions, filterReadStatus]);
+
+    const trashedSubmissions = React.useMemo(() => {
+        return formSubmissions.filter(s => !!s.is_deleted || s.status === "DELETED");
+    }, [formSubmissions]);
+
+    const archivedSubmissions = React.useMemo(() => {
+        return formSubmissions.filter(s => !s.is_deleted && s.status === "ARCHIVED");
+    }, [formSubmissions]);
+
+    const submissionsCount = activeSubmissions.filter(s => s.status === "NEW").length;
+    const totalTrashCount = messageTrashCount + trashedSubmissions.length;
+    const totalArchiveCount = archiveCount + archivedSubmissions.length;
 
     const selectedSubmission = React.useMemo(() => {
         return formSubmissions.find(s => s.id === selectedSubmissionId) || null;
@@ -200,6 +291,174 @@ export function InternalMessagesComponent({
         }
     };
 
+    // Soft delete submission (move to trash)
+    const handleDeleteSubmission = async (submissionId: string) => {
+        setIsDeletingSubmission(true);
+        try {
+            const res = await fetch("/api/forms/submissions/delete", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ submissionId, action: "delete" }),
+            });
+
+            if (!res.ok) throw new Error("Failed to delete submission");
+
+            toast.success("Moved to Trash");
+            setSelectedSubmissionId(null);
+            router.refresh();
+        } catch (error) {
+            toast.error("Failed to delete submission");
+        } finally {
+            setIsDeletingSubmission(false);
+        }
+    };
+
+    // Archive submission
+    const handleArchiveSubmission = async (submissionId: string) => {
+        setIsDeletingSubmission(true);
+        try {
+            const res = await fetch("/api/forms/submissions/delete", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ submissionId, action: "archive" }),
+            });
+
+            if (!res.ok) throw new Error("Failed to archive submission");
+
+            toast.success("Submission archived");
+            setSelectedSubmissionId(null);
+            router.refresh();
+        } catch (error) {
+            toast.error("Failed to archive submission");
+        } finally {
+            setIsDeletingSubmission(false);
+        }
+    };
+
+    // Restore submission from trash
+    const handleRestoreSubmission = async (submissionId: string) => {
+        setIsDeletingSubmission(true);
+        try {
+            const res = await fetch("/api/forms/submissions/delete", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ submissionId, action: "restore" }),
+            });
+
+            if (!res.ok) throw new Error("Failed to restore submission");
+
+            toast.success("Submission restored");
+            setSelectedSubmissionId(null);
+            router.refresh();
+        } catch (error) {
+            toast.error("Failed to restore submission");
+        } finally {
+            setIsDeletingSubmission(false);
+        }
+    };
+
+    // Permanent delete submission
+    const handlePermanentDeleteSubmission = async (submissionId: string) => {
+        setIsDeletingSubmission(true);
+        try {
+            const res = await fetch(`/api/forms/submissions/delete?submissionId=${submissionId}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) throw new Error("Failed to permanently delete");
+
+            toast.success("Permanently deleted");
+            setSelectedSubmissionId(null);
+            setShowDeleteConfirm(false);
+            setSubmissionToDelete(null);
+            router.refresh();
+        } catch (error) {
+            toast.error("Failed to delete submission");
+        } finally {
+            setIsDeletingSubmission(false);
+        }
+    };
+
+    // Message Handlers
+    const handleArchiveMessage = async (messageId: string) => {
+        try {
+            await fetch(`/api/messages/${messageId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ action: "archive" }),
+            });
+            toast.success("Message archived");
+            setSelectedMessageId(null);
+            router.refresh();
+        } catch (e) { toast.error("Failed to archive"); }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        try {
+            await fetch(`/api/messages/${messageId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ action: "delete" }),
+            });
+            toast.success("Moved to trash");
+            setSelectedMessageId(null);
+            router.refresh();
+        } catch (e) { toast.error("Failed to delete"); }
+    };
+
+    const handleRestoreMessage = async (messageId: string) => {
+        try {
+            await fetch(`/api/messages/${messageId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ action: "restore" }),
+            });
+            toast.success("Message restored");
+            setSelectedMessageId(null);
+            router.refresh();
+        } catch (e) { toast.error("Failed to restore"); }
+    };
+
+    const handlePermanentDeleteMessage = async (messageId: string) => {
+        try {
+            await fetch(`/api/messages/${messageId}`, {
+                method: "DELETE",
+            });
+            toast.success("Permanently deleted");
+            setSelectedMessageId(null);
+            router.refresh();
+        } catch (e) { toast.error("Failed to delete"); }
+    };
+
+    const handleMessageRead = async (msg: Message) => {
+        const { myRecipient } = getStatus(msg);
+        if (!myRecipient || myRecipient.is_read) return;
+        try {
+            await fetch(`/api/messages/${msg.id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ is_read: true })
+            });
+            router.refresh();
+        } catch (e) { }
+    };
+
+    const handleSubmissionViewed = async (id: string, currentStatus: string) => {
+        if (currentStatus !== "NEW") return;
+        try {
+            await fetch("/api/forms/submissions/update", {
+                method: "PATCH",
+                body: JSON.stringify({ submissionId: id, status: "VIEWED" })
+            });
+            router.refresh();
+        } catch (e) { }
+    };
+
+    const handleEditDraft = (message: Message) => {
+        setDraftId(message.id);
+        const recipient = message.to_user_id || (message.recipients?.[0]?.recipient_id);
+        setComposeToUserId(recipient || "");
+        setComposeSubject(message.subject || "");
+        setComposeBody(message.body || "");
+        setComposeOpen(true);
+    };
+
     const handleSendMessage = async () => {
         if (!composeToUserId || !composeBody.trim()) {
             toast.error("Please select a recipient and enter a message");
@@ -208,26 +467,83 @@ export function InternalMessagesComponent({
 
         setIsSending(true);
         try {
-            const res = await fetch("/api/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    to_user_id: composeToUserId,
-                    subject: composeSubject || "(No Subject)",
-                    body: composeBody,
-                }),
-            });
+            if (draftId) {
+                // Update draft to sent
+                const res = await fetch(`/api/messages/${draftId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        action: "update_draft",
+                        recipient_ids: [composeToUserId],
+                        subject: composeSubject,
+                        body_text: composeBody,
+                        status: "SENT"
+                    }),
+                });
+                if (!res.ok) throw new Error("Failed to send");
+            } else {
+                const res = await fetch("/api/messages", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        recipient_ids: [composeToUserId],
+                        subject: composeSubject,
+                        body_text: composeBody,
+                        status: "SENT"
+                    }),
+                });
+                if (!res.ok) throw new Error("Failed to send message");
+            }
 
-            if (!res.ok) throw new Error("Failed to send message");
-
-            toast.success("Message sent!");
+            toast.success("Message sent successfully!");
             setComposeOpen(false);
             setComposeToUserId("");
             setComposeSubject("");
             setComposeBody("");
+            setDraftId(null);
             router.refresh();
         } catch (error) {
             toast.error("Failed to send message");
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        setIsSending(true);
+        try {
+            if (draftId) {
+                // Update existing draft
+                await fetch(`/api/messages/${draftId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        action: "update_draft",
+                        recipient_ids: composeToUserId ? [composeToUserId] : [],
+                        subject: composeSubject,
+                        body_text: composeBody,
+                        status: "DRAFT"
+                    }),
+                });
+            } else {
+                // Create new draft
+                await fetch("/api/messages", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        recipient_ids: composeToUserId ? [composeToUserId] : [],
+                        subject: composeSubject,
+                        body_text: composeBody,
+                        status: "DRAFT"
+                    }),
+                });
+            }
+            toast.success("Draft saved");
+            setComposeOpen(false);
+            setDraftId(null);
+            router.refresh();
+        } catch (error) {
+            toast.error("Failed to save draft");
         } finally {
             setIsSending(false);
         }
@@ -256,10 +572,10 @@ export function InternalMessagesComponent({
     const navItems = [
         { id: "inbox" as const, title: "Inbox", icon: Inbox, count: inboxCount },
         { id: "submissions" as const, title: "Form Submissions", icon: FormInput, count: submissionsCount },
-        { id: "sent" as const, title: "Sent", icon: Send, count: 0 },
-        { id: "drafts" as const, title: "Drafts", icon: File, count: 0 },
-        { id: "archive" as const, title: "Archive", icon: Archive, count: 0 },
-        { id: "trash" as const, title: "Trash", icon: Trash2, count: 0 },
+        { id: "sent" as const, title: "Sent", icon: Send, count: sentCount },
+        { id: "drafts" as const, title: "Drafts", icon: File, count: draftsCount },
+        { id: "archive" as const, title: "Archive", icon: Archive, count: totalArchiveCount },
+        { id: "trash" as const, title: "Trash", icon: Trash2, count: totalTrashCount },
     ];
 
     const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -358,6 +674,20 @@ export function InternalMessagesComponent({
                                         <div className="text-xs text-muted-foreground">{formatMessageDate(msg.createdAt)}</div>
                                     </div>
                                 ))
+                            )}
+                            {activeNav === "archive" && archivedSubmissions.length > 0 && (
+                                <div className="border-t">
+                                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground bg-muted/50">Form Submissions</div>
+                                    {archivedSubmissions.map((sub) => (
+                                        <div key={sub.id} onClick={() => setSelectedSubmissionId(sub.id)} className="p-3 border-b active:bg-muted hover:bg-muted/50 cursor-pointer">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Badge variant="outline" className="text-[10px] h-5 px-1">Form</Badge>
+                                                <span className="font-medium text-sm">{sub.form.name}</span>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">{formatMessageDate(sub.createdAt)}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </ScrollArea>
                     </div>
@@ -541,25 +871,7 @@ export function InternalMessagesComponent({
                             ))}
                         </nav>
 
-                        <Separator />
 
-                        {/* Quick Links */}
-                        <nav className="p-2 space-y-1">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Link
-                                        href="/messages/forms"
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors"
-                                        )}
-                                    >
-                                        <FileText className="h-4 w-4 flex-shrink-0" />
-                                        {!isCollapsed && <span>Form Builder</span>}
-                                    </Link>
-                                </TooltipTrigger>
-                                {isCollapsed && <TooltipContent side="right">Form Builder</TooltipContent>}
-                            </Tooltip>
-                        </nav>
                     </div>
                 </ResizablePanel>
 
@@ -571,7 +883,7 @@ export function InternalMessagesComponent({
                         <div className="flex items-center px-4 py-3 border-b">
                             <h2 className="text-lg font-semibold capitalize">{activeNav}</h2>
                             <div className="ml-auto flex items-center gap-2">
-                                <Tabs defaultValue="all" className="w-auto">
+                                <Tabs defaultValue="all" value={filterReadStatus} onValueChange={setFilterReadStatus} className="w-auto">
                                     <TabsList className="h-8">
                                         <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
                                         <TabsTrigger value="unread" className="text-xs">Unread</TabsTrigger>
@@ -593,7 +905,7 @@ export function InternalMessagesComponent({
                         <ScrollArea className="flex-1">
                             {activeNav === "submissions" ? (
                                 /* Form Submissions List */
-                                formSubmissions.length === 0 ? (
+                                activeSubmissions.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                                         <FormInput className="h-12 w-12 text-muted-foreground/50 mb-4" />
                                         <p className="text-muted-foreground">No form submissions</p>
@@ -603,7 +915,7 @@ export function InternalMessagesComponent({
                                     </div>
                                 ) : (
                                     <div className="divide-y">
-                                        {formSubmissions.map((submission) => {
+                                        {activeSubmissions.map((submission) => {
                                             const email = submission.data?.email || submission.data?.Email || "";
                                             const name = submission.data?.name || submission.data?.full_name ||
                                                 `${submission.data?.first_name || ""} ${submission.data?.last_name || ""}`.trim() ||
@@ -614,6 +926,7 @@ export function InternalMessagesComponent({
                                                     onClick={() => {
                                                         setSelectedSubmissionId(submission.id);
                                                         setSelectedMessageId(null);
+                                                        handleSubmissionViewed(submission.id, submission.status);
                                                     }}
                                                     className={cn(
                                                         "w-full flex items-start gap-3 p-4 text-left hover:bg-muted/50 transition-colors",
@@ -621,6 +934,9 @@ export function InternalMessagesComponent({
                                                         submission.status === "NEW" && "bg-green-50 dark:bg-green-950/30"
                                                     )}
                                                 >
+                                                    {submission.status === "NEW" && (
+                                                        <div className="h-2.5 w-2.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                                                    )}
                                                     <div className="h-9 w-9 flex-shrink-0 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                                                         <FormInput className="h-4 w-4 text-white" />
                                                     </div>
@@ -659,7 +975,64 @@ export function InternalMessagesComponent({
                                         })}
                                     </div>
                                 )
-                            ) : filteredMessages.length === 0 ? (
+                            ) : activeNav === "trash" ? (
+                                /* Trash - Deleted Submissions */
+                                trashedSubmissions.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                                        <Trash2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                        <p className="text-muted-foreground">Trash is empty</p>
+                                        <p className="text-sm text-muted-foreground/70">
+                                            Deleted submissions will appear here
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y">
+                                        {trashedSubmissions.map((submission) => {
+                                            const email = submission.data?.email || submission.data?.Email || "";
+                                            const name = submission.data?.name || submission.data?.full_name ||
+                                                `${submission.data?.first_name || ""} ${submission.data?.last_name || ""}`.trim() ||
+                                                submission.data?.firstName || email.split("@")[0] || "Anonymous";
+                                            return (
+                                                <button
+                                                    key={submission.id}
+                                                    onClick={() => {
+                                                        setSelectedSubmissionId(submission.id);
+                                                        setSelectedMessageId(null);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full flex items-start gap-3 p-4 text-left hover:bg-muted/50 transition-colors",
+                                                        selectedSubmissionId === submission.id && "bg-muted",
+                                                        "opacity-75"
+                                                    )}
+                                                >
+                                                    <div className="h-9 w-9 flex-shrink-0 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center">
+                                                        <Trash2 className="h-4 w-4 text-white" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm truncate">
+                                                                {name}
+                                                            </span>
+                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                                                                Deleted
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-sm truncate text-muted-foreground">
+                                                            {submission.form.name}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                                            {email || submission.source_url || "No email provided"}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                                                        {formatMessageDate(submission.createdAt)}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )
+                            ) : (filteredMessages.length === 0 && (activeNav !== "archive" || archivedSubmissions.length === 0)) ? (
                                 <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                                     <Inbox className="h-12 w-12 text-muted-foreground/50 mb-4" />
                                     <p className="text-muted-foreground">No messages</p>
@@ -671,6 +1044,23 @@ export function InternalMessagesComponent({
                                 </div>
                             ) : (
                                 <div className="divide-y">
+                                    {activeNav === "archive" && archivedSubmissions.length > 0 && (
+                                        <>
+                                            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground bg-muted/50">Form Submissions</div>
+                                            {archivedSubmissions.map((sub) => (
+                                                <button key={sub.id} onClick={() => setSelectedSubmissionId(sub.id)} className="w-full flex items-start gap-3 p-4 text-left hover:bg-muted/50 transition-colors border-b">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Badge variant="outline" className="text-[10px] h-5 px-1">Form</Badge>
+                                                            <span className="font-medium text-sm">{sub.form.name}</span>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">{formatMessageDate(sub.createdAt)}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground bg-muted/50">Messages</div>
+                                        </>
+                                    )}
                                     {filteredMessages.map((message) => {
                                         const isFromMe = message.from_user_id === currentUserId;
                                         const otherUser = isFromMe ? message.to_user : message.from_user;
@@ -678,8 +1068,13 @@ export function InternalMessagesComponent({
                                             <button
                                                 key={message.id}
                                                 onClick={() => {
-                                                    setSelectedMessageId(message.id);
-                                                    setSelectedSubmissionId(null);
+                                                    if (activeNav === "drafts") {
+                                                        handleEditDraft(message);
+                                                    } else {
+                                                        setSelectedMessageId(message.id);
+                                                        setSelectedSubmissionId(null);
+                                                        handleMessageRead(message);
+                                                    }
                                                 }}
                                                 className={cn(
                                                     "w-full flex items-start gap-3 p-4 text-left hover:bg-muted/50 transition-colors",
@@ -687,6 +1082,9 @@ export function InternalMessagesComponent({
                                                     !message.is_read && activeNav === "inbox" && "bg-blue-50 dark:bg-blue-950/30"
                                                 )}
                                             >
+                                                {!message.is_read && activeNav === "inbox" && (
+                                                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                                                )}
                                                 <Avatar className="h-9 w-9 flex-shrink-0">
                                                     <AvatarFallback className="text-xs">
                                                         {getInitials(otherUser?.name)}
@@ -765,6 +1163,78 @@ export function InternalMessagesComponent({
                                             ✓ Lead Created
                                         </Badge>
                                     )}
+                                    {/* Delete/Restore buttons based on status */}
+                                    {selectedSubmission.is_deleted ? (
+                                        <div className="flex items-center gap-2">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleRestoreSubmission(selectedSubmission.id)}
+                                                        disabled={isDeletingSubmission}
+                                                        className="gap-2"
+                                                    >
+                                                        <Undo2 className="h-4 w-4" />
+                                                        Restore
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Restore to inbox</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setSubmissionToDelete(selectedSubmission.id);
+                                                            setShowDeleteConfirm(true);
+                                                        }}
+                                                        disabled={isDeletingSubmission}
+                                                        className="gap-2"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Delete Forever
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Permanently delete</TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => handleArchiveSubmission(selectedSubmission.id)}
+                                                        disabled={isDeletingSubmission}
+                                                    >
+                                                        <Archive className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Archive</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() => handleDeleteSubmission(selectedSubmission.id)}
+                                                        disabled={isDeletingSubmission}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Move to Trash</TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                    )}
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={() => setSelectedSubmissionId(null)}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
                                 </div>
                                 <div className="p-4 border-b bg-muted/30">
                                     <div className="flex items-start gap-3">
@@ -833,38 +1303,69 @@ export function InternalMessagesComponent({
                                         <h3 className="font-semibold">{selectedMessage.subject || "(No Subject)"}</h3>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <Reply className="h-4 w-4" />
+                                        {getStatus(selectedMessage).isTrash ? (
+                                            <>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleRestoreMessage(selectedMessage.id)}
+                                                    className="gap-2 mr-2"
+                                                >
+                                                    <Undo2 className="h-4 w-4" />
+                                                    Restore
                                                 </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Reply</TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <Forward className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Forward</TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <Archive className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Archive</TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setMessageToDelete(selectedMessage.id);
+                                                        setShowDeleteConfirm(true);
+                                                    }}
+                                                    className="gap-2"
+                                                >
                                                     <Trash2 className="h-4 w-4" />
+                                                    Delete Forever
                                                 </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Delete</TooltipContent>
-                                        </Tooltip>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <Reply className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Reply</TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <Forward className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Forward</TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleArchiveMessage(selectedMessage.id)}>
+                                                            <Archive className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Archive</TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteMessage(selectedMessage.id)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Delete</TooltipContent>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={() => setSelectedMessageId(null)}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
                                     </div>
                                 </div>
                                 <div className="p-4 border-b">
@@ -967,12 +1468,55 @@ export function InternalMessagesComponent({
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setComposeOpen(false)}>
+                    <DialogFooter className="sm:justify-between">
+                        <Button type="button" variant="ghost" onClick={handleSaveDraft} disabled={isSending}>
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Save Draft
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setComposeOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSendMessage} disabled={isSending}>
+                                {isSending ? "Sending..." : "Send Message"}
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Permanent Delete Confirmation Dialog */}
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="h-5 w-5" />
+                            Delete Forever?
+                        </DialogTitle>
+                        <DialogDescription>
+                            This action cannot be undone. This will permanently delete the form submission and all its data.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowDeleteConfirm(false);
+                                setSubmissionToDelete(null);
+                                setMessageToDelete(null);
+                            }}
+                        >
                             Cancel
                         </Button>
-                        <Button onClick={handleSendMessage} disabled={isSending}>
-                            {isSending ? "Sending..." : "Send Message"}
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (submissionToDelete) handlePermanentDeleteSubmission(submissionToDelete);
+                                if (messageToDelete) handlePermanentDeleteMessage(messageToDelete);
+                            }}
+                            disabled={isDeletingSubmission}
+                        >
+                            {isDeletingSubmission ? "Deleting..." : "Delete Forever"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

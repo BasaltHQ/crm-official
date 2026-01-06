@@ -131,7 +131,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="+420 ...."
+                      placeholder="+1 555 000 0000"
                       {...field}
                     />
                   </FormControl>
@@ -199,7 +199,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="CZ1234567890"
+                      placeholder="US123456789"
                       {...field}
                     />
                   </FormControl>
@@ -219,7 +219,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Švábova 772/18"
+                        placeholder="123 Main St"
                         {...field}
                       />
                     </FormControl>
@@ -236,7 +236,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="252 18"
+                        placeholder="10001"
                         {...field}
                       />
                     </FormControl>
@@ -253,7 +253,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Prague"
+                        placeholder="New York"
                         {...field}
                       />
                     </FormControl>
@@ -283,7 +283,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Czechia"
+                        placeholder="USA"
                         {...field}
                       />
                     </FormControl>
@@ -302,7 +302,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Švábova 772/18"
+                        placeholder="123 Main St"
                         {...field}
                       />
                     </FormControl>
@@ -319,7 +319,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="252 18"
+                        placeholder="10001"
                         {...field}
                       />
                     </FormControl>
@@ -336,7 +336,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Prague"
+                        placeholder="New York"
                         {...field}
                       />
                     </FormControl>
@@ -366,7 +366,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Czechia"
+                        placeholder="USA"
                         {...field}
                       />
                     </FormControl>

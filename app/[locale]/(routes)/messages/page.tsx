@@ -36,31 +36,56 @@ const MessagesRoute = async () => {
         },
     }) : [];
 
-    // Fetch messages from TeamMessage table
+    // Fetch messages from InternalMessage table
     let messages: any[] = [];
     try {
-        // Check if TeamMessage model exists and fetch
-        messages = await (prismadb as any).teamMessage?.findMany?.({
+        const rawMessages = await prismadb.internalMessage.findMany({
             where: {
                 team_id: teamId,
                 OR: [
-                    { to_user_id: session.user.id },
-                    { from_user_id: session.user.id },
+                    { sender_id: session.user.id },
+                    { recipients: { some: { recipient_id: session.user.id } } },
                 ],
             },
             include: {
-                from_user: {
-                    select: { id: true, name: true, email: true },
-                },
-                to_user: {
-                    select: { id: true, name: true, email: true },
-                },
+                recipients: true,
             },
             orderBy: { createdAt: "desc" },
             take: 100,
-        }) || [];
+        });
+
+        messages = rawMessages.map((m) => {
+            let toUserId = "";
+            // Determine primary "to_user" for UI display
+            if (m.sender_id === session.user.id) {
+                toUserId = m.recipients[0]?.recipient_id || "";
+            } else {
+                toUserId = session.user.id;
+            }
+
+            const myRecipient = m.recipients.find((r) => r.recipient_id === session.user.id);
+
+            const fromUser = teamMembers.find(u => u.id === m.sender_id) || { id: m.sender_id, name: m.sender_name, email: m.sender_email };
+            const toUser = teamMembers.find(u => u.id === toUserId) || { id: toUserId, name: "Unknown", email: "" };
+
+            return {
+                id: m.id,
+                subject: m.subject,
+                body: m.body_text || m.body_html || "",
+                createdAt: m.createdAt,
+                is_read: myRecipient?.is_read || false,
+                is_important: m.priority === "URGENT" || m.priority === "HIGH",
+                labels: m.labels,
+                from_user_id: m.sender_id,
+                to_user_id: toUserId,
+                from_user: fromUser,
+                to_user: toUser,
+                recipients: m.recipients,
+                status: m.status
+            };
+        });
     } catch (e) {
-        // Model might not exist yet, return empty
+        console.error("Failed to fetch messages", e);
         messages = [];
     }
 

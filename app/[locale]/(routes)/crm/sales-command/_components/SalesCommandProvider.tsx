@@ -10,6 +10,8 @@ interface SalesCommandContextType {
     data: UnifiedSalesData;
     leads: any[]; // Type as any for now to match LeadsView flexibility or import specific type
     crmData: any;
+    boards: any[];
+    tasks: any[];
     viewMode: ViewMode;
     setViewMode: (mode: ViewMode) => void;
     isManager: boolean;
@@ -25,6 +27,8 @@ interface SalesCommandProviderProps {
     initialData: UnifiedSalesData;
     initialLeads?: any[];
     initialCrmData?: any;
+    initialBoards?: any[];
+    initialTasks?: any[];
     defaultViewMode?: ViewMode;
 }
 
@@ -33,6 +37,8 @@ export function SalesCommandProvider({
     initialData,
     initialLeads = [],
     initialCrmData = {},
+    initialBoards = [],
+    initialTasks = [],
     defaultViewMode = "team",
 }: SalesCommandProviderProps) {
     const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
@@ -82,6 +88,8 @@ export function SalesCommandProvider({
                 data: initialData,
                 leads: initialLeads,
                 crmData: initialCrmData,
+                boards: initialBoards,
+                tasks: initialTasks,
                 viewMode,
                 setViewMode,
                 isManager,

@@ -54,13 +54,15 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { recipient_ids, subject, body_text, body_html, priority, labels } = body;
+        const { recipient_ids, subject, body_text, body_html, priority, labels, status } = body;
 
-        if (!recipient_ids || recipient_ids.length === 0) {
+        const isDraft = status === "DRAFT";
+
+        if (!isDraft && (!recipient_ids || recipient_ids.length === 0)) {
             return NextResponse.json({ error: "At least one recipient required" }, { status: 400 });
         }
 
-        if (!subject) {
+        if (!isDraft && !subject) {
             return NextResponse.json({ error: "Subject required" }, { status: 400 });
         }
 
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
                 subject,
                 body_text,
                 body_html,
-                status: "SENT",
+                status: status || "SENT",
                 priority: priority || "NORMAL",
                 labels: labels || [],
                 team_id: teamId,

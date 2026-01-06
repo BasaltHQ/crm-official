@@ -21,6 +21,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "echo.basalthq.com",
       },
+      {
+        protocol: "https",
+        hostname: "engram1.blob.core.windows.net",
+      },
     ],
   },
   env: {

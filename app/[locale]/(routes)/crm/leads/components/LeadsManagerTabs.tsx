@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
+import useSWR from "swr";
+import fetcher from "@/lib/fetcher";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SWRSessionProvider } from "@/components/providers/swr-session-provider";
 import LeadsView from "./LeadsView";
 import ProcessPanel from "./ProcessPanel";
 import DialerPanel from "../../dialer/DialerPanel";
@@ -12,7 +15,22 @@ type Props = {
   defaultTab?: "all" | "workspace" | "dialer";
 };
 
-export default function LeadsManagerTabs({ leads, crmData, defaultTab = "all" }: Props) {
+export default function LeadsManagerTabs({ leads: initialLeads, crmData, defaultTab = "all" }: Props) {
+  return (
+    <SWRSessionProvider>
+      <LeadsManagerTabsContent leads={initialLeads} crmData={crmData} defaultTab={defaultTab} />
+    </SWRSessionProvider>
+  );
+}
+
+function LeadsManagerTabsContent({ leads: initialLeads, crmData, defaultTab }: Props) {
+  const { data: leadsData } = useSWR('/api/leads/list', fetcher, {
+    fallbackData: initialLeads,
+    revalidateOnFocus: false // Don't revalidate on window focus aggressively
+  });
+
+  const leads = leadsData || [];
+
   return (
     <div className="w-full h-full flex flex-col">
       <Tabs defaultValue={defaultTab} className="w-full h-full flex flex-col">

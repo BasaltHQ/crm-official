@@ -79,7 +79,9 @@ export default function SalesCommandDashboard() {
                             )}
                         >
                             {/* Dynamic Title if drilling down */}
-                            {selectedUserData ? `${selectedUserData.meta.userName}'s Dashboard` : "My Dashboard"}
+                            {selectedUserData && selectedUserData.meta.userName !== "Me"
+                                ? `${selectedUserData.meta.userName}'s Dashboard`
+                                : "My Dashboard"}
                         </button>
                         <button
                             onClick={() => setViewMode("leads")}

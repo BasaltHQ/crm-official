@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
     Users,
+    BookOpen,
     Package,
     Bot,
     ChevronLeft,
@@ -46,6 +47,7 @@ export default function AdminSidebar({ showModules = false }: AdminSidebarProps)
     const navItems = [
         { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
         { label: "Users", href: "/admin/users", icon: Users },
+
         ...(showModules ? [{ label: "Modules", href: "/admin/modules", icon: Package }] : []),
         { label: "AI Settings", href: "/admin/ai-setup", icon: Bot },
     ];

@@ -13,7 +13,8 @@ type Props = {
 
 const CrmModuleMenu = ({ open, localizations, isMobile = false }: Props) => {
   const pathname = usePathname();
-  const isPath = /^\/([a-z]{2}\/)?crm(\/|$)/.test(pathname);
+  // Match /crm paths but exclude /crm/university which has its own menu item
+  const isPath = /^\/([a-z]{2}\/)?crm(\/|$)/.test(pathname) && !pathname.includes("/crm/university");
 
   return (
     <MenuItem

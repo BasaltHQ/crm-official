@@ -1816,6 +1816,7 @@ model FormSubmission {
   
   // Status
   status          FormSubmissionStatus     @default(NEW)
+  is_deleted      Boolean                  @default(false)
   
   // Converted lead reference
   lead_id         String?                  @db.ObjectId

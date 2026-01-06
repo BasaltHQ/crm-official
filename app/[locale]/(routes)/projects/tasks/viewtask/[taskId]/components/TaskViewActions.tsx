@@ -83,7 +83,7 @@ const TaskViewActions = ({
         Edit
       </Badge>
       <Sheet open={openEdit} onOpenChange={(open) => setOpenEdit(open)}>
-        <SheetContent>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto md:overflow-y-hidden">
           <SheetHeader>
             <SheetTitle>Edit Task</SheetTitle>
           </SheetHeader>
@@ -93,11 +93,6 @@ const TaskViewActions = ({
             initialData={initialData}
             onDone={() => setOpenEdit(false)}
           />
-          <div className="flex pt-2 w-full justify-end">
-            <Button onClick={() => setOpenEdit(false)} variant={"destructive"}>
-              Close
-            </Button>
-          </div>
         </SheetContent>
       </Sheet>
     </div>

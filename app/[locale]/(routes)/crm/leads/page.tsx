@@ -23,9 +23,10 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
   const tabParam = sp?.tab;
   const tab = typeof tabParam === "string" ? tabParam : Array.isArray(tabParam) ? tabParam[0] ?? "manager" : "manager";
 
-  // Only load heavy data when needed for the active tab
+  // Only load heavy data when needed for the active tab (Client-side fetch optimization)
   const crmData = tab === "manager" ? await getAllCrmData() : null;
-  const leads = tab === "manager" ? await getLeads() : null;
+  // const leads = tab === "manager" ? await getLeads() : null;
+  const leads = null;
 
   return (
     <div className="h-full w-full">

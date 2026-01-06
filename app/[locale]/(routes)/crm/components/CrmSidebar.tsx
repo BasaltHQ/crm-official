@@ -45,7 +45,7 @@ export default function CrmSidebar() {
 
     const navItems = [
         { label: "Dashboard", href: "/crm/sales-command", icon: LayoutDashboard },
-        { label: "Companies", href: "/crm/accounts", icon: Building2 },
+        { label: "Accounts", href: "/crm/accounts", icon: Building2 },
         { label: "Contacts", href: "/crm/contacts", icon: Contact },
         { label: "Leads Manager", href: "/crm/leads", icon: Users },
         { label: "Dialer", href: "/crm/dialer", icon: Phone },
@@ -54,6 +54,12 @@ export default function CrmSidebar() {
     ];
 
 
+
+    // Hide CrmSidebar on /crm/university as it has its own layout
+    const isUniversityPage = pathname.includes("/crm/university");
+    if (isUniversityPage) {
+        return null;
+    }
 
     return (
         <>

@@ -38,6 +38,8 @@ const iconMap: Record<string, LucideIcon> = {
   HardDrive,
 };
 
+import Link from "next/link";
+
 interface MetricsSummaryCardProps {
   title: string;
   value: string | number;
@@ -49,6 +51,7 @@ interface MetricsSummaryCardProps {
   };
   accentColor?: "cyan" | "violet" | "emerald" | "amber" | "rose";
   size?: "default" | "large";
+  href?: string;
 }
 
 const accentColors = {
@@ -97,22 +100,24 @@ export function MetricsSummaryCard({
   trend,
   accentColor = "cyan",
   size = "default",
+  href,
 }: MetricsSummaryCardProps) {
   const colors = accentColors[accentColor];
   const Icon = iconMap[iconName] || DollarSign;
 
-  return (
+  const CardContent = (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-gradient-to-br backdrop-blur-xl",
+        "relative overflow-hidden rounded-2xl border bg-gradient-to-br backdrop-blur-xl h-full",
         colors.bg,
         colors.border,
         size === "large" ? "p-8" : "p-6",
         "hover:shadow-lg transition-all duration-300",
-        `hover:${colors.glow}`
+        `hover:${colors.glow}`,
+        href && "cursor-pointer"
       )}
     >
       {/* Background decoration */}
@@ -164,4 +169,14 @@ export function MetricsSummaryCard({
       </div>
     </motion.div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full">
+        {CardContent}
+      </Link>
+    );
+  }
+
+  return CardContent;
 }

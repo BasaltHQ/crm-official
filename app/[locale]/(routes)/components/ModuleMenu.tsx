@@ -17,10 +17,12 @@ import EmployeesModuleMenu from "./menu-items/Employees";
 import DataboxModuleMenu from "./menu-items/Databoxes";
 import CrmModuleMenu from "./menu-items/Crm";
 import MessagesModuleMenu from "./menu-items/Messages";
+import FormBuilderModuleMenu from "./menu-items/FormBuilder";
 import AdministrationMenu from "./menu-items/Administration";
 import PartnerMenu from "./menu-items/Partner";
 import DashboardMenu from "./menu-items/Dashboard";
 import EmailsModuleMenu from "./menu-items/Emails";
+import UniversityModuleMenu from "./menu-items/University";
 
 type Props = {
   modules: any;
@@ -175,7 +177,10 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
                 <EmailsModuleMenu open={open} title={dict.ModuleMenu.emails} />
               )}
               {modules.find((m: any) => m.name === "messages" && m.enabled) && hasFeature("messages") && (
-                <MessagesModuleMenu open={open} title={dict.ModuleMenu.messages || "Messages"} />
+                <>
+                  <MessagesModuleMenu open={open} title={dict.ModuleMenu.messages || "Messages"} />
+                  <FormBuilderModuleMenu open={open} />
+                </>
               )}
               {modules.find((m: any) => m.name === "employee" && m.enabled) && hasFeature("employee") && (
                 <EmployeesModuleMenu open={open} />
@@ -189,6 +194,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
               {modules.find((m: any) => m.name === "documents" && m.enabled) && hasFeature("documents") && (
                 <DocumentsModuleMenu open={open} title={dict.ModuleMenu.documents} />
               )}
+              <UniversityModuleMenu open={open} title="University" />
               {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && (
                 <DataboxModuleMenu open={open} />
               )}
@@ -225,7 +231,10 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
           <EmailsModuleMenu open={false} title={dict.ModuleMenu.emails} isMobile />
         )}
         {modules.find((m: any) => m.name === "messages" && m.enabled) && hasFeature("messages") && (
-          <MessagesModuleMenu open={false} title={dict.ModuleMenu.messages || "Messages"} isMobile />
+          <>
+            <MessagesModuleMenu open={false} title={dict.ModuleMenu.messages || "Messages"} isMobile />
+            <FormBuilderModuleMenu open={false} isMobile />
+          </>
         )}
         {modules.find((m: any) => m.name === "employee" && m.enabled) && hasFeature("employee") && (
           <EmployeesModuleMenu open={false} isMobile />
@@ -239,6 +248,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
         {modules.find((m: any) => m.name === "documents" && m.enabled) && hasFeature("documents") && (
           <DocumentsModuleMenu open={false} title={dict.ModuleMenu.documents} isMobile />
         )}
+        <UniversityModuleMenu open={false} title="University" isMobile />
         {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && (
           <DataboxModuleMenu open={false} isMobile />
         )}

@@ -1,5 +1,7 @@
 "use client";
 
+import Modal from "@/components/ui/modal";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -41,6 +43,7 @@ const FormSchema = z.object({
 
 export function ProfileForm({ data }: ProfileFormProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
 
   const router = useRouter();
 
@@ -48,13 +51,12 @@ export function ProfileForm({ data }: ProfileFormProps) {
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
-    defaultValues: data
-      ? { ...data }
-      : {
-        name: "",
-        username: "",
-        account_name: "",
-      },
+    defaultValues: {
+      id: data?.id || "",
+      name: data?.name || "",
+      username: data?.username || "",
+      account_name: data?.account_name || "",
+    },
   });
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
@@ -62,14 +64,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
       setIsLoading(true);
       await axios.put(`/api/user/${data.id}/updateprofile`, data);
       //TODO: send data to the server
-      toast({
-        title: "You submitted the following values:",
-        description: (
-          <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-            <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-          </pre>
-        ),
-      });
+      setShowSuccessModal(true);
       router.refresh();
     } catch (error) {
       toast({
@@ -85,6 +80,18 @@ export function ProfileForm({ data }: ProfileFormProps) {
 
   return (
     <Form {...form}>
+      <Modal
+        title="Success!"
+        description="Your profile details have been successfully saved."
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+      >
+        <div className="flex w-full items-center justify-end pt-6 space-x-2">
+          <Button onClick={() => setShowSuccessModal(false)}>
+            Close
+          </Button>
+        </div>
+      </Modal>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-5 w-full p-5 items-end"

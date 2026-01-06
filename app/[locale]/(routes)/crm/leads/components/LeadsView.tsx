@@ -2,6 +2,8 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
+import fetcher from '@/lib/fetcher';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +13,8 @@ import { STAGE_BADGE_CLASS, formatStageLabel, type PipelineStage } from '@/compo
 import OutreachCampaignWizard from './OutreachCampaignWizard';
 import StageProgressBar, { type StageDatum } from '@/components/StageProgressBar';
 import FollowUpWizard from '@/components/modals/FollowUpWizard';
-import { ExternalLink, Mail, TrendingUp, Target, X, User, Phone, FileText, Info, Activity, Calendar } from 'lucide-react';
+import { ViewToggle, type ViewMode } from '@/components/ViewToggle';
+import { ExternalLink, Mail, TrendingUp, Target, X, User, Phone, FileText, Info, Activity, Calendar, Building2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -108,100 +111,100 @@ export default function LeadsView({ data }: Props) {
   const [meetingLinkOverride, setMeetingLinkOverride] = useState('');
   const [promptOverride, setPromptOverride] = useState('');
   const [firstContactOpen, setFirstContactOpen] = useState(false);
-  const [pools, setPools] = useState<any[]>([]);
   const [selectedPoolId, setSelectedPoolId] = useState<string>("");
-  const [poolLeadIdsMap, setPoolLeadIdsMap] = useState<Record<string, Set<string>>>({});
   const [wizardInitialPrompt, setWizardInitialPrompt] = useState<string>("");
   const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
   const [expandedLeadId, setExpandedLeadId] = useState<string>("");
-  const [poolBrandLogoMap, setPoolBrandLogoMap] = useState<Record<string, string>>({});
-  const [poolProjectIdMap, setPoolProjectIdMap] = useState<Record<string, string>>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Follow-up wizard state
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpLeadId, setFollowUpLeadId] = useState<string | null>(null);
 
-  // View mode toggle
-  const [viewMode, setViewMode] = useState<'lead' | 'company'>('lead');
+  // View mode toggle: table (default list), compact (grid), card (large cards)
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
 
-  // Outreach eligibility: only when a pool is selected AND that pool has an assigned project
-  const projectAssignedForSelectedPool = useMemo(() => (
-    selectedPoolId ? poolProjectIdMap[selectedPoolId] : undefined
-  ), [selectedPoolId, poolProjectIdMap]);
-  const canBatchSelect = Boolean(selectedPoolId && projectAssignedForSelectedPool);
+  // Optimize data fetching with SWR
+  const { data: poolsResponse, error: poolsError } = useSWR('/api/leads/pools', fetcher);
+  const pools = useMemo(() => Array.isArray(poolsResponse?.pools) ? poolsResponse.pools : [], [poolsResponse]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/leads/pools");
-        const j = await res.json().catch(() => null);
-        const arr = Array.isArray(j?.pools) ? j.pools : [];
-        setPools(arr);
-        const map: Record<string, Set<string>> = {};
-        for (const p of arr) {
-          try {
-            const r = await fetch(`/api/leads/pools/${encodeURIComponent(p.id)}/leads?mine=true`);
-            if (r.ok) {
-              const jl = await r.json().catch(() => null);
-              const ids: string[] = Array.isArray(jl?.leads) ? jl.leads.map((l: any) => l.id) : [];
-              map[p.id] = new Set(ids);
-            }
-          } catch { }
-        }
-        setPoolLeadIdsMap(map);
+    if (poolsError) {
+      toast.error("Failed to load pools: " + (poolsError.message || "Unknown error"));
+    }
+  }, [poolsError]);
 
-        // Build per-pool brand logo map and project id map
-        const logoMap: Record<string, string> = {};
-        const projectMap: Record<string, string> = {};
-        await Promise.all(
-          arr.map(async (p: any) => {
-            try {
-              const projectId = p?.icpConfig?.assignedProjectId;
-              if (projectId) {
-                projectMap[p.id] = projectId;
-                const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/brand`);
-                if (r.ok) {
-                  const jb = await r.json().catch(() => null);
-                  const url = jb?.brand_logo_url || "";
-                  if (url) logoMap[p.id] = url;
-                }
-              }
-            } catch { }
-          })
-        );
-        setPoolBrandLogoMap(logoMap);
-        setPoolProjectIdMap(projectMap);
-      } catch { }
-    })();
-  }, []);
+  // Outreach eligibility: only when a pool is selected AND that pool has an assigned project
+  const projectAssignedForSelectedPool = useMemo(() => {
+    if (!selectedPoolId) return undefined;
+    const p = pools.find((x: any) => x.id === selectedPoolId);
+    return p?.icpConfig?.assignedProjectId;
+  }, [selectedPoolId, pools]);
+  const canBatchSelect = Boolean(selectedPoolId && projectAssignedForSelectedPool);
+
+
+
+  // Only fetch leads for the SELECTED pool to avoid request storm
+  const { data: selectedPoolLeadsResponse } = useSWR(
+    selectedPoolId ? `/api/leads/pools/${encodeURIComponent(selectedPoolId)}/leads` : null,
+    fetcher
+  );
+
+  // Build the set of lead IDs for the selected pool
+  const selectedPoolLeadIds = useMemo(() => {
+    if (!selectedPoolId || !selectedPoolLeadsResponse?.leads) return new Set<string>();
+    return new Set(selectedPoolLeadsResponse.leads.map((l: any) => l.id));
+  }, [selectedPoolId, selectedPoolLeadsResponse]);
+
+  // Fetch brand logo only for the selected pool's project if needed
+  const selectedPoolProject = useMemo(() => {
+    if (!selectedPoolId) return null;
+    const p = pools.find((x: any) => x.id === selectedPoolId);
+    return p?.icpConfig?.assignedProjectId;
+  }, [selectedPoolId, pools]);
+
+  const { data: brandResponse } = useSWR(
+    selectedPoolProject ? `/api/projects/${encodeURIComponent(selectedPoolProject)}/brand` : null,
+    fetcher
+  );
 
   useEffect(() => {
     if (!selectedPoolId) { setWizardInitialPrompt(""); setBrandLogoUrl(""); return; }
     const p = pools.find((x: any) => x.id === selectedPoolId);
     const tpl = (p?.latestJob?.queryTemplates?.[0]) || (p?.icpConfig?.prompt) || "";
     setWizardInitialPrompt(tpl || "");
-    // fetch project brand logo if assigned
-    const projectId = p?.icpConfig?.assignedProjectId;
-    (async () => {
-      try {
-        if (projectId) {
-          const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/brand`);
-          const j = await res.json().catch(() => null);
-          setBrandLogoUrl(j?.brand_logo_url || "");
-        } else {
-          setBrandLogoUrl("");
-        }
-      } catch { setBrandLogoUrl(""); }
-    })();
-  }, [selectedPoolId, pools]);
+
+    if (brandResponse?.brand_logo_url) {
+      setBrandLogoUrl(brandResponse.brand_logo_url);
+    } else {
+      setBrandLogoUrl("");
+    }
+  }, [selectedPoolId, pools, brandResponse]);
 
   const selectedIds = useMemo(() => Object.entries(selected).filter(([, v]) => v).map(([k]) => k), [selected]);
   const visibleLeads = useMemo(() => {
-    const set = selectedPoolId ? poolLeadIdsMap[selectedPoolId] : undefined;
-    if (!set) return data;
-    return data.filter((lead) => set.has(lead.id));
-  }, [data, selectedPoolId, poolLeadIdsMap]);
+    if (selectedPoolId && selectedPoolLeadsResponse?.leads) {
+      // API now returns full objects
+      return selectedPoolLeadsResponse.leads as Lead[];
+    }
+    return data;
+  }, [data, selectedPoolId, selectedPoolLeadsResponse]);
+
+  // Reset page when pool or limit changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedPoolId, itemsPerPage]);
+
+  const totalItems = visibleLeads.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return visibleLeads.slice(start, start + itemsPerPage);
+  }, [visibleLeads, currentPage, itemsPerPage]);
 
   // Group by company for company view
   const companies = useMemo(() => {
@@ -241,22 +244,32 @@ export default function LeadsView({ data }: Props) {
 
   const selectedInPoolIds = useMemo(
     () => selectedIds.filter((id) => {
-      const set = selectedPoolId ? poolLeadIdsMap[selectedPoolId] : undefined;
-      return set ? set.has(id) : true;
+      if (!selectedPoolId) return true;
+      return selectedPoolLeadIds.has(id);
     }),
-    [selectedIds, selectedPoolId, poolLeadIdsMap]
+    [selectedIds, selectedPoolId, selectedPoolLeadIds]
   );
 
-  const allSelected = selectedInPoolIds.length === visibleLeads.length && visibleLeads.length > 0;
-  const someSelected = selectedInPoolIds.length > 0;
+  // Batch select logic - now applies to PAGINATED leads for "select current page" behavior
+  // heavily simplifying for now to just select visible items on current page
+  const selectedInCurrentPage = useMemo(() => {
+    return paginatedLeads.filter(l => selected[l.id]).map(l => l.id);
+  }, [paginatedLeads, selected]);
+
+  const allSelected = selectedInCurrentPage.length === paginatedLeads.length && paginatedLeads.length > 0;
+  const someSelected = selectedIds.length > 0; // Global selection count for actions
 
   const toggleAll = () => {
     if (!canBatchSelect) return;
     if (allSelected) {
-      setSelected({});
+      // Deselect current page
+      const next = { ...selected };
+      paginatedLeads.forEach(l => delete next[l.id]);
+      setSelected(next);
     } else {
-      const next: Record<string, boolean> = {};
-      for (const lead of visibleLeads) next[lead.id] = true;
+      // Select all on current page
+      const next = { ...selected };
+      paginatedLeads.forEach(l => next[l.id] = true);
       setSelected(next);
     }
   };
@@ -371,8 +384,8 @@ export default function LeadsView({ data }: Props) {
                   onChange={(e) => setSelectedPoolId(e.target.value)}
                 >
                   <option value="">{pools.length ? "All pools" : "No pools"}</option>
-                  {pools.filter((p: any) => !!(poolLeadIdsMap[p.id] && poolLeadIdsMap[p.id].size > 0)).map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                  {pools.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name} {p.candidatesCount > 0 ? `(${p.candidatesCount})` : ''}</option>
                   ))}
                 </select>
                 {selectedPoolId && (
@@ -381,8 +394,7 @@ export default function LeadsView({ data }: Props) {
                     className="text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-600 border border-amber-600 dark:bg-amber-400 dark:text-black transition-colors"
                     onClick={async () => {
                       try {
-                        const poolSet = poolLeadIdsMap[selectedPoolId] || new Set<string>();
-                        const ids = selectedInPoolIds.filter((id) => poolSet.has(id));
+                        const ids = selectedInPoolIds.filter((id) => selectedPoolLeadIds.has(id));
                         if (!ids.length) { toast.error('Select at least one lead in this pool to reset'); return; }
                         const res = await fetch(`/api/outreach/reset-pool/${encodeURIComponent(selectedPoolId)}`, {
                           method: 'POST',
@@ -412,16 +424,20 @@ export default function LeadsView({ data }: Props) {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">View:</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Rows:</span>
                 <select
                   className="h-8 rounded border px-2 text-[10px] uppercase tracking-wider font-semibold bg-background"
-                  value={viewMode}
-                  onChange={(e) => setViewMode(e.target.value as 'lead' | 'company')}
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
                 >
-                  <option value="lead">Lead Name</option>
-                  <option value="company">Company</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
                 </select>
               </div>
+
+              <ViewToggle value={viewMode} onChange={setViewMode} />
             </div>
 
             <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:justify-end">
@@ -463,7 +479,8 @@ export default function LeadsView({ data }: Props) {
       </div>
       {firstContactOpen && (
         <OutreachCampaignWizard
-          selectedLeads={visibleLeads.filter(l => selectedInPoolIds.includes(l.id)) as any}
+
+          selectedLeads={visibleLeads.filter(l => selectedIds.includes(l.id)) as any}
           poolId={selectedPoolId}
           projectId={projectAssignedForSelectedPool}
           onClose={() => setFirstContactOpen(false)}
@@ -476,7 +493,7 @@ export default function LeadsView({ data }: Props) {
         poolId={selectedPoolId}
       />
       {/* Leads table */}
-      {viewMode === 'lead' && (
+      {viewMode === 'table' && (
         <>
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-auto rounded-md border">
@@ -498,7 +515,7 @@ export default function LeadsView({ data }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {visibleLeads?.map((lead) => {
+                {paginatedLeads?.map((lead) => {
                   const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
                   const canSend =
                     !lead.outreach_status || lead.outreach_status === 'IDLE' || lead.outreach_status === 'PENDING';
@@ -580,22 +597,13 @@ export default function LeadsView({ data }: Props) {
                             let url = brandLogoUrl;
                             let projectId: string | undefined;
                             if (selectedPoolId) {
-                              projectId = poolProjectIdMap[selectedPoolId];
-                            } else {
-                              // Determine pool for this lead and get its logo + project id
-                              let poolIdForLead: string | undefined;
-                              for (const [pid, set] of Object.entries(poolLeadIdsMap)) {
-                                if (set.has(lead.id)) { poolIdForLead = pid; break; }
-                              }
-                              if (poolIdForLead) {
-                                if (poolBrandLogoMap[poolIdForLead]) {
-                                  url = poolBrandLogoMap[poolIdForLead];
-                                }
-                                if (poolProjectIdMap[poolIdForLead]) {
-                                  projectId = poolProjectIdMap[poolIdForLead];
-                                }
-                              }
+                              // Use the one we fetched
+                              const p = pools.find((x: any) => x.id === selectedPoolId);
+                              projectId = p?.icpConfig?.assignedProjectId;
                             }
+                            // Note: In "All Leads" view, we no longer aggressively search all pools for every lead to show a logo.
+                            // This is a trade-off to stop the massive API request storm.
+
                             if (!url) return null;
                             const img = (
                               <img src={url} alt="Project" className="h-8 w-auto rounded object-contain inline-block hover:opacity-90 transition-opacity" />
@@ -652,7 +660,7 @@ export default function LeadsView({ data }: Props) {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4">
-            {visibleLeads?.map((lead) => {
+            {paginatedLeads?.map((lead) => {
               const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
               const canSend = !lead.outreach_status || lead.outreach_status === 'IDLE' || lead.outreach_status === 'PENDING';
               const canFollowup = (lead.outreach_status === 'SENT' || lead.outreach_status === 'OPENED') && !lead.outreach_meeting_booked_at;
@@ -722,16 +730,8 @@ export default function LeadsView({ data }: Props) {
                       let url = brandLogoUrl;
                       let projectId: string | undefined;
                       if (selectedPoolId) {
-                        projectId = poolProjectIdMap[selectedPoolId];
-                      } else {
-                        let poolIdForLead: string | undefined;
-                        for (const [pid, set] of Object.entries(poolLeadIdsMap)) {
-                          if (set.has(lead.id)) { poolIdForLead = pid; break; }
-                        }
-                        if (poolIdForLead) {
-                          if (poolBrandLogoMap[poolIdForLead]) url = poolBrandLogoMap[poolIdForLead];
-                          if (poolProjectIdMap[poolIdForLead]) projectId = poolProjectIdMap[poolIdForLead];
-                        }
+                        const p = pools.find((x: any) => x.id === selectedPoolId);
+                        projectId = p?.icpConfig?.assignedProjectId;
                       }
                       if (!url) return null;
                       const img = <img src={url} alt="Project" className="h-8 w-auto rounded object-contain" />;
@@ -748,91 +748,190 @@ export default function LeadsView({ data }: Props) {
         </>
       )}
 
-      {viewMode === 'company' && (
-        <div className="space-y-3">
-          {Array.from(companies.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([company, leadsInCompany]) => {
-            const { stageData, total, activeStageKey, isClosed } = buildCompanyStageData(leadsInCompany);
+      {/* Pagination Controls */}
+      {(viewMode === 'table' || viewMode === 'compact' || viewMode === 'card') && totalItems > 0 && (
+        <div className="flex items-center justify-between px-2 py-4 border-t">
+          <div className="text-xs text-muted-foreground">
+            Showing <span className="font-medium">{Math.min(itemsPerPage * (currentPage - 1) + 1, totalItems)}</span> to <span className="font-medium">{Math.min(itemsPerPage * currentPage, totalItems)}</span> of <span className="font-medium">{totalItems}</span> leads
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-20 text-[10px] uppercase tracking-wider disabled:opacity-50"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-xs font-medium px-2">
+              Page {currentPage} of {Math.max(1, totalPages)}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-20 text-[10px] uppercase tracking-wider disabled:opacity-50"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Compact Grid View */}
+      {viewMode === 'compact' && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {paginatedLeads?.map((lead) => {
+            const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
+            const stageKey = (lead as any).pipeline_stage as PipelineStage | undefined;
             return (
-              <details key={company} className="rounded-md border bg-card overflow-hidden">
-                <summary className="cursor-pointer list-none px-3 py-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium">{company}</div>
-                    <div className="text-xs text-muted-foreground">{leadsInCompany.length} lead{leadsInCompany.length === 1 ? '' : 's'}</div>
+              <div
+                key={lead.id}
+                onClick={() => setDetailsLead(lead)}
+                className="group border rounded-lg bg-card p-3 cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{name || 'Unknown'}</div>
+                    <div className="text-xs text-muted-foreground truncate">{lead.company || '—'}</div>
                   </div>
-                  <div className="w-full sm:w-1/2">
-                    <StageProgressBar
-                      stages={stageData}
-                      total={total}
-                      orientation="horizontal"
-                      nodeSize={12}
-                      showLabelsAndCounts={true}
-                      coloringMode="activated"
-                      activeStageKey={activeStageKey}
-                      isClosed={isClosed}
-                      showMicroStatus
-                      microStatusText={isClosed ? 'Complete' : 'In Progress'}
-                    />
-                  </div>
-                </summary>
-                <div className="px-3 pb-3">
-                  <div className="overflow-auto rounded-md border">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="p-2 text-left">Lead</th>
-                          <th className="p-2 text-left">Email</th>
-                          <th className="p-2 text-left">Title</th>
-                          <th className="p-2 text-left">Stage</th>
-                          <th className="p-2 text-left">Progress</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leadsInCompany.map((lead) => {
-                          const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
-                          const stageKey = (lead as any).pipeline_stage as PipelineStage | undefined;
-                          return (
-                            <tr key={lead.id} className="border-t">
-                              <td className="p-2">
-                                <div className="font-medium">{name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}</div>
-                              </td>
-                              <td className="p-2">{lead.email || '-'}</td>
-                              <td className="p-2">{lead.jobTitle || '-'}</td>
-                              <td className="p-2">
-                                <span className={
-                                  stageKey
-                                    ? STAGE_BADGE_CLASS[stageKey]
-                                    : 'px-2 py-1 rounded text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                                }>
-                                  {formatStageLabel(stageKey)}
-                                </span>
-                              </td>
-                              <td className="p-2 w-64 align-top">
-                                <StageProgressBar
-                                  stages={((): StageDatum[] => {
-                                    const cur: PipelineStage = stageKey || 'Identify';
-                                    return STAGES.map((s) => ({ key: s, label: s.replace('_', ' '), count: s === cur ? 1 : 0 }));
-                                  })()}
-                                  total={1}
-                                  orientation="horizontal"
-                                  nodeSize={10}
-                                  showLabelsAndCounts={false}
-                                  coloringMode="activated"
-                                  activeStageKey={stageKey || 'Identify'}
-                                  isClosed={stageKey === 'Closed'}
-                                  showMicroStatus
-                                  microStatusText={stageKey === 'Closed' ? 'Complete' : 'In Progress'}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <Switch
+                    checked={!!selected[lead.id]}
+                    onCheckedChange={(c) => toggleOne(lead.id, c)}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={!canBatchSelect}
+                    className="scale-75"
+                  />
                 </div>
-              </details>
+                <div className="flex items-center justify-between">
+                  <span className={
+                    stageKey
+                      ? STAGE_BADGE_CLASS[stageKey]
+                      : 'px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                  }>
+                    {formatStageLabel(stageKey)}
+                  </span>
+                  <StatusBadge status={lead.outreach_status} />
+                </div>
+              </div>
             );
           })}
+          {(!paginatedLeads || paginatedLeads.length === 0) && (
+            <div className="col-span-full text-center py-8 text-muted-foreground">No leads found.</div>
+          )}
+        </div>
+      )}
+
+      {/* Card Grid View */}
+      {viewMode === 'card' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {paginatedLeads?.map((lead) => {
+            const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
+            const stageKey = (lead as any).pipeline_stage as PipelineStage | undefined;
+            const canSend = !lead.outreach_status || lead.outreach_status === 'IDLE' || lead.outreach_status === 'PENDING';
+            const canFollowup = (lead.outreach_status === 'SENT' || lead.outreach_status === 'OPENED') && !lead.outreach_meeting_booked_at;
+
+            return (
+              <div key={lead.id} className="border rounded-xl bg-card overflow-hidden hover:shadow-md hover:border-primary/30 transition-all">
+                {/* Card Header */}
+                <div className="p-4 border-b bg-muted/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-base truncate">{name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}</div>
+                      {lead.jobTitle && <div className="text-sm text-muted-foreground truncate">{lead.jobTitle}</div>}
+                    </div>
+                    <Switch
+                      checked={!!selected[lead.id]}
+                      onCheckedChange={(c) => toggleOne(lead.id, c)}
+                      disabled={!canBatchSelect}
+                    />
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-4 space-y-3">
+                  {/* Company & Email */}
+                  <div className="space-y-2">
+                    {lead.company && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{lead.company}</span>
+                      </div>
+                    )}
+                    {lead.email && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{lead.email}</span>
+                      </div>
+                    )}
+                    {lead.phone && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-4 w-4 flex-shrink-0" />
+                        <span>{lead.phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stage & Status */}
+                  <div className="flex items-center justify-between pt-2">
+                    <span className={
+                      stageKey
+                        ? STAGE_BADGE_CLASS[stageKey]
+                        : 'px-2 py-1 rounded text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                    }>
+                      {formatStageLabel(stageKey)}
+                    </span>
+                    <StatusBadge status={lead.outreach_status} />
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="pt-2">
+                    <StageProgressBar
+                      stages={STAGES.map((s) => ({ key: s, label: s.replace('_', ' '), count: s === (stageKey || 'Identify') ? 1 : 0 }))}
+                      total={1}
+                      orientation="horizontal"
+                      nodeSize={8}
+                      showLabelsAndCounts={false}
+                      coloringMode="activated"
+                      activeStageKey={stageKey || 'Identify'}
+                      isClosed={stageKey === 'Closed'}
+                    />
+                  </div>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="px-4 py-3 border-t bg-muted/20 flex items-center justify-between">
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDetailsLead(lead)} title="View Details">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openMeeting(lead.id)} title="Meeting Link">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => composeEmail(lead.email)} disabled={!canSend} title="Send Email">
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setFollowUpLeadId(lead.id); setFollowUpOpen(true); }} disabled={!canFollowup} title="Follow-up">
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-500" onClick={async () => { try { const res = await fetch(`/api/outreach/reset/${encodeURIComponent(lead.id)}`, { method: 'POST' }); if (res.ok) { toast.success('Lead reset'); } } catch (err: any) { toast.error(err?.message); } }} title="Reset Lead">
+                      <Target className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => closeLead(lead.id)} title="Close">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {(!paginatedLeads || paginatedLeads.length === 0) && (
+            <div className="col-span-full text-center py-8 text-muted-foreground">No leads found.</div>
+          )}
         </div>
       )}
 
