@@ -34,7 +34,7 @@ const AnyMenu = Menu as any;
 
 const sidebarVariants = {
   expanded: {
-    width: "18rem", // w-72
+    width: "14rem", // w-56
     transition: {
       type: "spring",
       stiffness: 200,
@@ -95,7 +95,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
 
   return (
     <>
-      <div className="hidden md:flex h-screen sticky top-0 z-50">
+      <div className="hidden md:flex h-screen sticky top-0 z-[100]">
         <motion.div
           initial={open ? "expanded" : "collapsed"}
           animate={open ? "expanded" : "collapsed"}

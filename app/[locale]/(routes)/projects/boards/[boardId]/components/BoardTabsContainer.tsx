@@ -93,8 +93,10 @@ export default function BoardTabsContainer({ title, description, visibility, kan
                             onMouseEnter={() => setHoveredLabel(item.label)}
                             onMouseLeave={() => setHoveredLabel(null)}
                             className={cn(
-                                "group flex items-center w-full relative transition-all duration-200",
-                                isCollapsed ? "justify-center px-0 py-2" : "justify-start px-4 py-2 gap-3",
+                                "group flex items-center relative transition-all duration-200 rounded-lg",
+                                isCollapsed
+                                    ? "w-8 h-8 justify-center mx-auto hover:bg-white/10 hover:ring-1 hover:ring-primary/50"
+                                    : "justify-start px-4 py-2 gap-3 w-full",
                                 selected === item.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
                             )}
                             title={isCollapsed ? undefined : item.label}

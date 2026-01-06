@@ -27,13 +27,12 @@ const ProjectsView = async () => {
 
   return (
     <>
-      <div className="flex gap-2 py-10">
+      <div className="flex gap-2 pb-6">
         <NewProjectDialog />
         <NewTaskDialog users={users} boards={boards} />
         <AiAssistant session={session} />
       </div>
       <div className="pt-2 space-y-3">
-        <H2Title>Projects</H2Title>
         <ProjectsDataTable data={boards} columns={columns} stats={stats} />
       </div>
     </>

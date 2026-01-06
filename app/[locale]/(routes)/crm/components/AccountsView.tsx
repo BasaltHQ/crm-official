@@ -42,16 +42,7 @@ const AccountsView = ({ data, crmData }: any) => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex justify-between">
-          <div>
-            <CardTitle
-              onClick={() => router.push("/crm/accounts")}
-              className="cursor-pointer"
-            >
-              Accounts
-            </CardTitle>
-            <CardDescription></CardDescription>
-          </div>
+        <div className="flex justify-end">
           <div className="flex space-x-2">
             <Sheet open={open} onOpenChange={() => setOpen(false)}>
               <Button
