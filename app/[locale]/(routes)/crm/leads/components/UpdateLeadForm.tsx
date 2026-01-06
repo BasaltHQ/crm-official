@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Linkedin, Facebook, Twitter } from "lucide-react";
 import { format } from "date-fns";
 
 import { cn } from "@/lib/utils";
@@ -68,8 +68,10 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
     description: z.string().nullable().optional(),
     lead_source: z.string().nullable().optional(),
     refered_by: z.string().optional().nullable(),
-    //TODO: add campaing schema from db as data source
-    campaign: z.string().optional().nullable(),
+    // Socials
+    social_twitter: z.string().optional().nullable(),
+    social_facebook: z.string().optional().nullable(),
+    social_linkedin: z.string().optional().nullable(),
     assigned_to: z.string().optional(),
     status: z.string(),
     //TODO: add type schema from db as data source
@@ -177,7 +179,7 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="Ledger1CRM Inc."
+                      placeholder="BasaltCRM Inc."
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -236,16 +238,17 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
               )}
             />
 
+            {/* Reordered Fields */}
             <FormField
               control={form.control}
-              name="description"
+              name="refered_by"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Refered by</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <Input
                       disabled={isLoading}
-                      placeholder="New Ledger1CRM functionality"
+                      placeholder="Referral Name"
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -259,11 +262,11 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
               name="lead_source"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Lead source</FormLabel>
+                  <FormLabel>Website</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <Input
                       disabled={isLoading}
-                      placeholder="Website"
+                      placeholder="Website URL"
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -274,14 +277,14 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
             />
             <FormField
               control={form.control}
-              name="refered_by"
+              name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Refered by</FormLabel>
+                  <FormLabel>Notes</FormLabel>
                   <FormControl>
                     <Textarea
                       disabled={isLoading}
-                      placeholder="Johny Walker"
+                      placeholder="Description"
                       {...field}
                       value={field.value ?? ""}
                     />
@@ -290,24 +293,76 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="campaign"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Campaign</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      disabled={isLoading}
-                      placeholder="Social networks"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            {/* Social Profiles */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Social Profiles</h3>
+              <div className="grid grid-cols-1 gap-4">
+                <FormField
+                  control={form.control}
+                  name="social_linkedin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="relative">
+                          <Linkedin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            className="pl-9"
+                            disabled={isLoading}
+                            placeholder="LinkedIn Profile URL"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="social_facebook"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="relative">
+                          <Facebook className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            className="pl-9"
+                            disabled={isLoading}
+                            placeholder="Meta (Facebook) Profile URL"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="social_twitter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <div className="relative">
+                          <Twitter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            className="pl-9"
+                            disabled={isLoading}
+                            placeholder="X (Twitter) Profile URL"
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
             <div className="flex w-full  space-x-5">
               <div className="w-1/2">
                 <FormField
@@ -326,7 +381,7 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="overflow-y-auto h-56">
-                          {users.map((user: any) => (
+                          {Array.isArray(users) && users.map((user: any) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.name}
                             </SelectItem>
@@ -353,7 +408,7 @@ export function UpdateLeadForm({ initialData, setOpen }: NewTaskFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {accounts.map((account: any) => (
+                          {Array.isArray(accounts) && accounts.map((account: any) => (
                             <SelectItem key={account.id} value={account.id}>
                               {account.name}
                             </SelectItem>

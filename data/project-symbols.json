@@ -80,13 +80,13 @@
     {
         "id": "ledger1",
         "name": "Ledger1",
-        "url": "https://ledger1.ai/images/ledger1-logo-icon.png",
+        "url": "https://basalthq.com/images/basalt-logo-icon.png",
         "category": "primary"
     },
     {
-        "id": "portalpay",
-        "name": "PortalPay",
-        "url": "https://pay.ledger1.ai/ppsymbol.png",
+        "id": "surge",
+        "name": "Surge",
+        "url": "https://surge.basalthq.com/ppsymbol.png",
         "category": "primary"
     }
 ]

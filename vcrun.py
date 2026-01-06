@@ -63,7 +63,7 @@ TEST_EMAIL = "founders@theutilitycompany.co"  # Email to use in test mode
 # Links
 INVESTOR_PORTAL_LINK = "https://stack.angellist.com/s/lp1srl5cnf"
 DATA_ROOM_LINK = "https://stack.angellist.com/s/x8g9yjgpbw"
-PORTALPAY_LINK = "https://pay.ledger1.ai"
+SURGE_LINK = "https://surge.basalthq.com"
 CALENDAR_LINK = "https://calendar.app.google/EJ4WsqeS2JSXt6ZcA"
 # Google Apps Script Web App URL that updates a Google Sheet and returns a 1x1 pixel
 # Example: https://script.google.com/macros/s/AKfycb.../exec
@@ -480,17 +480,17 @@ def generate_personalized_email(contact, azure_client, company_info="", debug=Fa
     
     # STRUCTURED PROMPT: Persona prompt for Krishna Patel; return JSON with subject/body (plain text only)
     prompt = f"""Persona:
-You are Krishna Patel — Founder of The Utility Company (TUC) and creator of PortalPay. Write entirely in first person (I/me) as Krishna; never refer to yourself in third person. Your voice is principled builder, analytical and candid, confident but not salesy.
+You are Krishna Patel — Founder of The Utility Company (TUC) and creator of Surge. Write entirely in first person (I/me) as Krishna; never refer to yourself in third person. Your voice is principled builder, analytical and candid, confident but not salesy.
 
 Goal:
-Craft a personalized VC outreach email about PortalPay tailored to the recipient, using any available firm/company research.
+Craft a personalized VC outreach email about Surge tailored to the recipient, using any available firm/company research.
 
 Voice and Style:
 - Narrative, insight-driven prose; no section headings or bullet points in the email body.
 - Avoid phrases like “Founder note”.
 - Be concise, confident, and specific; show operator depth and strategic clarity.
 
-PortalPay Briefing (context for personalization):
+Surge Briefing (context for personalization):
 - Crypto-native payment gateway enabling physical merchants to accept stablecoins and crypto tokens at checkout via QR scan; on-chain settlement that’s transparent and efficient.
 - Innovations:
   • Multi-Token Infrastructure: USDC, USDT, cbBTC, cbXRP, ETH on Base
@@ -526,7 +526,7 @@ Requirements:
 - Body MUST be plain text (no HTML, signature, resources section, footers, or disclaimers).
 - Length: 250–300 words.
 - Open with a hook tied to their thesis/portfolio using available research.
-- Personalize: connect PortalPay’s value to their focus; demonstrate homework.
+- Personalize: connect Surge’s value to their focus; demonstrate homework.
 - Use preferred nickname if the email username or research suggests one.
 - Maintain first-person voice throughout (I/me). No third-person references to Krishna. No “Founder note”.
 - No explicit headings; write as natural prose paragraphs.
@@ -549,7 +549,7 @@ Return EXACTLY this JSON object:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are Krishna Patel (Founder of The Utility Company; creator of PortalPay). Write all outreach emails AS YOURSELF in first person (I/me) — never third person. Return structured JSON with keys 'subject' and 'body' only. Do not include HTML, signatures, resources sections, or disclaimers."
+                    "content": "You are Krishna Patel (Founder of The Utility Company; creator of Surge). Write all outreach emails AS YOURSELF in first person (I/me) — never third person. Return structured JSON with keys 'subject' and 'body' only. Do not include HTML, signatures, resources sections, or disclaimers."
                 },
                 {"role": "user", "content": prompt}
             ],
@@ -773,7 +773,7 @@ def append_signature(html: str) -> str:
         return cleaned[:idx] + SIGNATURE_HTML + cleaned[idx:]
     return cleaned + SIGNATURE_HTML
 
-def build_portalpay_email_html(
+def build_surge_email_html(
     body_text: str,
     utm_id: str = "",
     recipient_email: str = "",
@@ -782,21 +782,21 @@ def build_portalpay_email_html(
     subject: str = ""
 ) -> str:
     """
-    Build a fixed PortalPay-styled HTML email template and fill it with body_text (plain text).
+    Build a fixed Surge-styled HTML email template and fill it with body_text (plain text).
     Buttons (Resources) are fixed and styled; signature is appended separately.
     """
-    PRIMARY = "#1f2937"  # PortalPay primary text color (slate-800)
-    ACCENT = "#F54029"   # PortalPay accent
+    PRIMARY = "#1f2937"  # Surge primary text color (slate-800)
+    ACCENT = "#F54029"   # Surge accent
     FONT = "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
 
     paragraphs = [p.strip() for p in body_text.split("\n") if p.strip()]
     body_html = "".join([f'<p style="margin: 0 0 16px 0; font-size: 15px; color: {PRIMARY};">{p}</p>' for p in paragraphs])
 
     # UTM-tag links for basic click tracking
-    portalpay = f"{PORTALPAY_LINK}{'?' if '?' not in PORTALPAY_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=portalpay&utm_id={utm_id}" if utm_id else PORTALPAY_LINK
-    calendar = f"{CALENDAR_LINK}{'?' if '?' not in CALENDAR_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=portalpay&utm_id={utm_id}" if utm_id else CALENDAR_LINK
-    investor = f"{INVESTOR_PORTAL_LINK}{'?' if '?' not in INVESTOR_PORTAL_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=portalpay&utm_id={utm_id}" if utm_id else INVESTOR_PORTAL_LINK
-    dataroom = f"{DATA_ROOM_LINK}{'?' if '?' not in DATA_ROOM_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=portalpay&utm_id={utm_id}" if utm_id else DATA_ROOM_LINK
+    portalpay = f"{SURGE_LINK}{'?' if '?' not in SURGE_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=surge&utm_id={utm_id}" if utm_id else SURGE_LINK
+    calendar = f"{CALENDAR_LINK}{'?' if '?' not in CALENDAR_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=surge&utm_id={utm_id}" if utm_id else CALENDAR_LINK
+    investor = f"{INVESTOR_PORTAL_LINK}{'?' if '?' not in INVESTOR_PORTAL_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=surge&utm_id={utm_id}" if utm_id else INVESTOR_PORTAL_LINK
+    dataroom = f"{DATA_ROOM_LINK}{'?' if '?' not in DATA_ROOM_LINK else '&'}utm_source=vcoutreach&utm_medium=email&utm_campaign=surge&utm_id={utm_id}" if utm_id else DATA_ROOM_LINK
 
     html = f"""<!DOCTYPE html>
 <html>

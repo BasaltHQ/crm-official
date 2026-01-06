@@ -222,7 +222,7 @@ export default function FirstContactWizard({ leadId }: Props) {
                         SMS Sender ID (optional; region-specific)
                     </div>
                     <Input
-                        placeholder="PORTALPAY"
+                        placeholder="SURGE"
                         value={senderId}
                         onChange={(e) => setSenderId(e.target.value)}
                     />

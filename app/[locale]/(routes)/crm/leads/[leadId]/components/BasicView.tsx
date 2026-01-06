@@ -29,7 +29,9 @@ import { Clapperboard } from "lucide-react";
 import { prismadb } from "@/lib/prisma";
 import Link from "next/link";
 import { EnvelopeClosedIcon, LightningBoltIcon } from "@radix-ui/react-icons";
-import { LucideLandmark } from "lucide-react";
+import { LucideLandmark, Linkedin, Facebook, Twitter, Link as LinkIcon } from "lucide-react";
+import { LeadActions } from "./LeadActions";
+import { SendEmailDialog } from "./SendEmailDialog";
 
 interface OppsViewProps {
   data: any;
@@ -52,11 +54,7 @@ export async function BasicView({ data }: OppsViewProps) {
               <CardDescription>ID:{data.id}</CardDescription>
             </div>
             <div>
-              {
-                //TODO: Add menu
-                //TODO: Add edit button
-              }
-              <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+              <LeadActions data={data} />
             </div>
           </div>
         </CardHeader>
@@ -92,32 +90,43 @@ export async function BasicView({ data }: OppsViewProps) {
                   </p>
                 </div>
               </div>
-              <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-                <File className="mt-px h-5 w-5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Description
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {data.description}
-                  </p>
-                </div>
-              </div>
               <div className="-mx-2 flex items-start justify-between space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
                 <div className="flex mt-px gap-5">
                   <EnvelopeClosedIcon className="mt-px h-5 w-5" />
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">Email</p>
                     {data?.email ? (
-                      <Link
-                        href={`mailto:${data.email}`}
-                        className="flex items-center  gap-5 text-sm text-muted-foreground"
-                      >
-                        {data.email}
-                        <EnvelopeClosedIcon />
-                      </Link>
-                    ) : null}
+                      <SendEmailDialog
+                        recipientEmail={data.email}
+                        trigger={
+                          <div className="flex items-center gap-5 text-sm text-muted-foreground cursor-pointer hover:text-primary transition-colors">
+                            {data.email}
+                            <EnvelopeClosedIcon />
+                          </div>
+                        }
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">N/A</p>
+                    )}
                   </div>
+                </div>
+              </div>
+              <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
+                <Phone className="mt-px h-5 w-5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Phone</p>
+                  <p className="text-sm text-muted-foreground">{data.phone || "N/A"}</p>
+                </div>
+              </div>
+              <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
+                <User className="mt-px h-5 w-5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Refered by
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {data.refered_by || "N/A"}
+                  </p>
                 </div>
               </div>
               <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
@@ -125,21 +134,49 @@ export async function BasicView({ data }: OppsViewProps) {
                 <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">Website</p>
                   <p className="text-sm text-muted-foreground">
-                    {data?.website ? (
-                      <Link href={data.website}>{data.website}</Link>
-                    ) : (
-                      "N/A"
-                    )}
+                    {data.lead_source ? (
+                      <Link href={data.lead_source} target="_blank" className="hover:underline text-blue-500">
+                        {data.lead_source}
+                      </Link>
+                    ) : "N/A"}
                   </p>
                 </div>
               </div>
               <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-                <Phone className="mt-px h-5 w-5" />
+                <File className="mt-px h-5 w-5" />
                 <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">Phone</p>
-                  <p className="text-sm text-muted-foreground">{data.phone}</p>
+                  <p className="text-sm font-medium leading-none">
+                    Notes
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {data.description || "N/A"}
+                  </p>
                 </div>
               </div>
+
+              {/* Social Profiles */}
+              {(data.social_linkedin || data.social_facebook || data.social_twitter) && (
+                <div className="pt-2">
+                  <p className="text-sm font-medium mb-3">Social Profiles</p>
+                  <div className="flex gap-4">
+                    {data.social_linkedin && (
+                      <Link href={data.social_linkedin} target="_blank">
+                        <Linkedin className="h-5 w-5 text-muted-foreground hover:text-blue-600 cursor-pointer" />
+                      </Link>
+                    )}
+                    {data.social_facebook && (
+                      <Link href={data.social_facebook} target="_blank">
+                        <Facebook className="h-5 w-5 text-muted-foreground hover:text-blue-600 cursor-pointer" />
+                      </Link>
+                    )}
+                    {data.social_twitter && (
+                      <Link href={data.social_twitter} target="_blank">
+                        <Twitter className="h-5 w-5 text-muted-foreground hover:text-blue-400 cursor-pointer" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
@@ -149,7 +186,7 @@ export async function BasicView({ data }: OppsViewProps) {
                     Assigned to
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {users.find((user) => user.id === data.assigned_to)?.name}
+                    {users.find((user) => user.id === data.assigned_to)?.name || "Unassigned"}
                   </p>
                 </div>
               </div>
@@ -158,13 +195,13 @@ export async function BasicView({ data }: OppsViewProps) {
                 <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">Created</p>
                   <p className="text-sm text-muted-foreground">
-                    {moment(data.created_on).format("MMM DD YYYY")}
+                    {data.created_on ? moment(data.created_on).format("MMM DD YYYY") : "N/A"}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">Created by</p>
                   <p className="text-sm text-muted-foreground">
-                    {users.find((user) => user.id === data.createdBy)?.name}
+                    {users.find((user) => user.id === data.createdBy)?.name || "Unknown"}
                   </p>
                 </div>
               </div>
@@ -175,7 +212,7 @@ export async function BasicView({ data }: OppsViewProps) {
                     Last update
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {moment(data.updatedAt).format("MMM DD YYYY")}
+                    {data.updatedAt ? moment(data.updatedAt).format("MMM DD YYYY") : "N/A"}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -183,7 +220,7 @@ export async function BasicView({ data }: OppsViewProps) {
                     Last update by
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {users.find((user) => user.id === data.updatedBy)?.name}
+                    {users.find((user) => user.id === data.updatedBy)?.name || "Unknown"}
                   </p>
                 </div>
               </div>
@@ -191,34 +228,14 @@ export async function BasicView({ data }: OppsViewProps) {
                 <LightningBoltIcon className="mt-px h-5 w-5" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">Status</p>
-                  <p className="text-sm text-muted-foreground">{data.status}</p>
+                  <p className="text-sm text-muted-foreground">{data.status || "N/A"}</p>
                 </div>
               </div>
               <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
                 <CoinsIcon className="mt-px h-5 w-5" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium leading-none">Type</p>
-                  <p className="text-sm text-muted-foreground">{data.type}</p>
-                </div>
-              </div>
-              <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-                <CoinsIcon className="mt-px h-5 w-5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Lead source
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {data.lead_source}
-                  </p>
-                </div>
-              </div>
-              <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-                <CoinsIcon className="mt-px h-5 w-5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">refered_by</p>
-                  <p className="text-sm text-muted-foreground">
-                    {data.refered_by}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{data.type || "N/A"}</p>
                 </div>
               </div>
             </div>

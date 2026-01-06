@@ -33,9 +33,10 @@ type TeamAnalyticsProps = {
   team: TeamOverview;
   leaderboard: LeaderboardEntry[];
   weights: Record<PipelineStage, number>;
+  onUserSelect?: (userId: string) => void;
 };
 
-export default function TeamAnalytics({ team, leaderboard, weights }: TeamAnalyticsProps) {
+export default function TeamAnalytics({ team, leaderboard, weights, onUserSelect }: TeamAnalyticsProps) {
   const stageChartData = Object.entries(team.stageCounts).map(([k, v]) => ({ name: k.replace("_", " "), Number: v as number }));
 
   return (
@@ -80,7 +81,15 @@ export default function TeamAnalytics({ team, leaderboard, weights }: TeamAnalyt
             <div className="text-sm text-muted-foreground">No active team members or no activity yet.</div>
           )}
           {leaderboard.map((u, idx) => (
-            <div key={u.userId} className={cn("p-3 rounded-lg border bg-background", idx === 0 && "ring-1 ring-amber-400")}>
+            <div
+              key={u.userId}
+              onClick={() => onUserSelect?.(u.userId)}
+              className={cn(
+                "p-3 rounded-lg border bg-background transition-colors",
+                idx === 0 && "ring-1 ring-amber-400",
+                onUserSelect ? "cursor-pointer hover:bg-muted/50" : ""
+              )}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative h-8 w-8 rounded-full overflow-hidden bg-muted">

@@ -34,8 +34,8 @@ export const InviteUserEmail = ({
 }: VercelInviteUserEmailProps) => {
   const previewText =
     userLanguage === "en"
-      ? `You have been invited by ${invitedByUsername} to Ledger1CRM app`
-      : `Byl jste pozván uživatelem ${invitedByUsername} do aplikace Ledger1CRM`;
+      ? `You have been invited by ${invitedByUsername} to BasaltCRM app`
+      : `Byl jste pozván uživatelem ${invitedByUsername} do aplikace BasaltCRM`;
 
   return (
     <Html>
@@ -46,17 +46,17 @@ export const InviteUserEmail = ({
           <Container className="border border-solid border-[#eaeaea] rounded-lg my-[40px] mx-auto p-[20px] w-[465px]">
             <Section className="mt-[32px]">
               <Img
-                src={`${appUrl}/logo.png`}
+                src={`${appUrl}/BasaltCRMWide.png`}
                 width="150"
                 height="42"
-                alt="Ledger1CRM"
+                alt="BasaltCRM"
                 className="my-0 mx-auto"
               />
             </Section>
             <Heading className="text-black text-[24px] font-normal text-center p-0 my-[30px] mx-0">
               {userLanguage === "en"
-                ? "Join the team on Ledger1CRM"
-                : "Připojte se k týmu na Ledger1CRM"}
+                ? "Join the team on BasaltCRM"
+                : "Připojte se k týmu na BasaltCRM"}
             </Heading>
             <Text className="text-black text-[14px] leading-[24px]">
               {userLanguage === "en"

@@ -255,7 +255,7 @@ export default function SmsConfigForm({ teamId, teamName }: SmsConfigFormProps) 
     const handleAutoPopulate = async () => {
         setAutoPopulating(true);
         try {
-            // For now, use default Ledger1 template values
+            // For now, use default BasaltCRM template values
             // In future, this could call an AI endpoint to generate based on team details
             setConfig((prev) => ({
                 ...prev,

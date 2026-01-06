@@ -41,7 +41,7 @@ const SuspendedOverlay = ({ reason }: Props) => {
                 </div>
 
                 <div className="p-6 bg-muted/20 flex flex-col gap-3">
-                    <Button variant="default" className="w-full" onClick={() => window.location.href = "mailto:support@ledger1.ai"}>
+                    <Button variant="default" className="w-full" onClick={() => window.location.href = "mailto:support@basalt.ai"}>
                         Contact Support
                     </Button>
                     <Button variant="outline" className="w-full" onClick={() => signOut({ callbackUrl: '/' })}>

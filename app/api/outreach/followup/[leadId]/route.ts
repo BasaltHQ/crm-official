@@ -29,7 +29,7 @@ type RequestBody = {
 const DEFAULT_TEST_EMAIL = "founders@theutilitycompany.co";
 
 const DEFAULT_RESOURCES: ResourceLink[] = [
-  { id: "portalpay", label: "Explore PortalPay", href: "https://pay.ledger1.ai", type: "primary", enabled: true },
+  { id: "portalpay", label: "Explore PortalPay", href: "https://surge.basalthq.com", type: "primary", enabled: true },
   { id: "calendar", label: "Schedule a Call", href: "https://calendar.app.google/EJ4WsqeS2JSXt6ZcA", type: "primary", enabled: true },
   { id: "investor_portal", label: "View Investor Portal", href: "https://stack.angellist.com/s/lp1srl5cnf", type: "secondary", enabled: true },
   { id: "data_room", label: "Access Data Room", href: "https://stack.angellist.com/s/x8g9yjgpbw", type: "secondary", enabled: true },
@@ -200,7 +200,7 @@ export async function POST(req: Request, { params }: Params) {
       subject = object.subject || subject;
       bodyText = object.body || bodyText;
     } catch (err: any) {
-       
+
       console.error("[FOLLOWUP][AI_ERROR]", err?.message || err);
     }
 
@@ -251,7 +251,7 @@ export async function POST(req: Request, { params }: Params) {
 
     return NextResponse.json({ status: "ok", leadId: lead.id, to: toEmail, subject }, { status: 200 });
   } catch (error) {
-     
+
     console.error("[OUTREACH_FOLLOWUP_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

@@ -174,7 +174,7 @@ export default function PromptGeneratorPanel({ embedded = false, showSoftphone =
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-medium">Project Name</label>
-            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g., Ledger1 CRM onboarding" />
+            <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g., BasaltCRM onboarding" />
           </div>
           <div>
             <label className="text-xs font-medium">Primary Language</label>

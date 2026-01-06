@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * GET /oauth/authorize
- * Scaffold for Ledger1CRM OAuth Authorization Code + PKCE provider.
+ * Scaffold for BasaltCRM OAuth Authorization Code + PKCE provider.
  *
  * Query params:
  * - response_type=code

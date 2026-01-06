@@ -3,7 +3,7 @@ import { prismadb } from "@/lib/prisma";
 
 /**
  * POST /api/voice/engage/webhook
- * VoiceHub → Ledger1CRM webhook for agent/call events with optional HMAC verification and best-effort idempotency.
+ * VoiceHub → BasaltCRM webhook for agent/call events with optional HMAC verification and best-effort idempotency.
  *
  * Security:
  * - Set VOICEHUB_WEBHOOK_SECRET to enable HMAC verification (Header: x-voicehub-signature = hex(HMAC_SHA256(rawBody, secret)))
@@ -78,7 +78,7 @@ async function isDuplicateEvent(leadId: string, eventId?: string | null): Promis
       if (md && typeof md === "object" && md.eventId && String(md.eventId) === String(eventId)) {
         return true;
       }
-    } catch {}
+    } catch { }
   }
   return false;
 }
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
             metadata: { ...metadata, eventId } as any,
           } as any,
         });
-      } catch {}
+      } catch { }
     };
 
     // Route by event type
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
           const j = await res.json().catch(() => ({}));
           createdLink = String(j?.meetingLink || j?.link || "") || null;
         }
-      } catch {}
+      } catch { }
 
       // Advance pipeline stage to Engage_Human and update meeting link if provided
       try {
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
             outreach_meeting_link: createdLink || undefined,
           } as any,
         });
-      } catch {}
+      } catch { }
 
       await logActivity("agent_schedule_meeting", {
         requested: args,
@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
             call_status: "CONNECTED",
           } as any,
         });
-      } catch {}
+      } catch { }
       await logActivity("call_connected", { ts: body?.ts });
 
       return NextResponse.json({ ok: true, action: "call_connected" }, { status: 200 });
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
             call_status: "ENDED",
           } as any,
         });
-      } catch {}
+      } catch { }
       await logActivity("call_ended", { ts: body?.ts, durationSec });
 
       // Optional: trigger follow-up scheduling (deferred execution recommended)
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
     await logActivity("voicehub_event", { body });
     return NextResponse.json({ ok: true, action: "logged" }, { status: 200 });
   } catch (e: any) {
-     
+
     console.error("[VOICE_ENGAGE_WEBHOOK]", e?.message || e);
     return NextResponse.json({ ok: false, error: e?.message || "failed" }, { status: 500 });
   }

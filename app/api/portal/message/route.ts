@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Link message to recipients and optionally send SMS
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://app.ledger1.ai";
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://app.basalt.ai";
         const results: { recipientId: string; linked: boolean; smsSent?: boolean; error?: string }[] = [];
 
         for (const recipient of recipients) {
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
                 const portalLink = `${baseUrl}/portal/${portal.portal_slug}/m/${recipient.access_token}`;
                 const smsText = buildNotificationSms(
                     recipient.first_name,
-                    message.sender_name || portal.portal_name || "Ledger1",
+                    message.sender_name || portal.portal_name || "BasaltCRM",
                     portalLink
                 );
 

@@ -157,7 +157,7 @@ async function main() {
       data: {
         tagline: "Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.",
         copyrightText: "© 2025 Ledger AI. All rights reserved.",
-        socialXUrl: "https://x.com/Ledger1AI",
+        socialXUrl: "https://x.com/BasaltAI",
         socialDiscordUrl: "https://discord.gg/vARPqF84Zt",
       },
     });

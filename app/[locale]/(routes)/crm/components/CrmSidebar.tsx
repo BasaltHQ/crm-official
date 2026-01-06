@@ -44,9 +44,7 @@ export default function CrmSidebar() {
     };
 
     const navItems = [
-        { label: "Dashboard", href: "/crm/dashboard", icon: LayoutDashboard },
-        { label: "My Dashboard", href: "/crm/dashboard/user", icon: LayoutDashboard },
-        { label: "Overview", href: "/crm", icon: PieChart },
+        { label: "Dashboard", href: "/crm/sales-command", icon: LayoutDashboard },
         { label: "Companies", href: "/crm/accounts", icon: Building2 },
         { label: "Contacts", href: "/crm/contacts", icon: Contact },
         { label: "Leads Manager", href: "/crm/leads", icon: Users },

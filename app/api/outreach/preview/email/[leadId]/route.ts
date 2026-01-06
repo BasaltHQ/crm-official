@@ -41,7 +41,7 @@ type RequestBody = {
 };
 
 const DEFAULT_RESOURCES: ResourceLink[] = [
-    { id: "portalpay", label: "Explore PortalPay", href: "https://pay.ledger1.ai", type: "primary", enabled: true },
+    { id: "portalpay", label: "Explore PortalPay", href: "https://surge.basalthq.com", type: "primary", enabled: true },
     { id: "calendar", label: "Schedule a Call", href: "https://calendar.app.google/EJ4WsqeS2JSXt6ZcA", type: "primary", enabled: true },
     { id: "investor_portal", label: "View Investor Portal", href: "https://stack.angellist.com/s/lp1srl5cnf", type: "secondary", enabled: true },
     { id: "data_room", label: "Access Data Room", href: "https://stack.angellist.com/s/x8g9yjgpbw", type: "secondary", enabled: true },
@@ -263,7 +263,7 @@ Project Briefing:
             bodyText = object.body || bodyText;
         } catch (err: any) {
             // leave defaults on error
-             
+
             console.error("[OUTREACH_PREVIEW_EMAIL][AI_ERROR]", err?.message || err);
         }
 
@@ -309,7 +309,7 @@ Project Briefing:
             { status: 200 },
         );
     } catch (error) {
-         
+
         console.error("[OUTREACH_PREVIEW_EMAIL_POST]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }

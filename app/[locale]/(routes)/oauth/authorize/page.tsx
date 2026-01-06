@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 /**
- * Ledger1CRM OAuth Consent
- * Branded authorize screen for VoiceHub ↔ Ledger1CRM OAuth (Authorization Code + PKCE).
+ * BasaltCRM OAuth Consent
+ * Branded authorize screen for VoiceHub ↔ BasaltCRM OAuth (Authorization Code + PKCE).
  *
  * Query Params expected (passed through from /api/oauth/authorize):
  * - response_type=code
@@ -28,7 +28,7 @@ function randomCode(): string {
   return "mock_code_" + Math.random().toString(36).slice(2, 10);
 }
 
-export default function LedgerAuthorizePage() {
+export default function BasaltAuthorizePage() {
   const params = useSearchParams();
 
   const data = useMemo(() => {
@@ -165,13 +165,13 @@ export default function LedgerAuthorizePage() {
 
 
   return (
-    <div id="ledger1crm-popup" className="fixed inset-0 z-[10000] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div id="basaltcrm-popup" className="fixed inset-0 z-[10000] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {isPopup && null}
       <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/60 p-6 shadow-xl">
         <div className="flex items-center gap-3 mb-4">
-          <img src="/logo.png" alt="Ledger1CRM" className="h-8 w-8 rounded-md" />
+          <img src="/BasaltCRMWide.png" alt="BasaltCRM" className="h-8 w-auto rounded-md" />
           <div className="flex flex-col">
-            <div className="text-sm font-semibold">Ledger1CRM Authorization</div>
+            <div className="text-sm font-semibold">BasaltCRM Authorization</div>
             <div className="text-[11px] opacity-70">Grant access to VoiceHub</div>
           </div>
 
@@ -182,7 +182,7 @@ export default function LedgerAuthorizePage() {
             </div>
           ) : (
             <div className="text-xs mb-2 opacity-80">
-              Not signed in. Please sign in to Ledger1CRM if prompted, then approve access.
+              Not signed in. Please sign in to BasaltCRM if prompted, then approve access.
             </div>
           )}
         </div>

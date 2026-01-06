@@ -27,7 +27,7 @@ const ProjectDashboard = async () => {
     <Container
       title="Dashboard"
       description={
-        "Welcome to Ledger1CRM cockpit, here you can see your company overview"
+        "Welcome to BasaltCRM cockpit, here you can see your company overview"
       }
     >
       <div className="flex gap-2 py-5">

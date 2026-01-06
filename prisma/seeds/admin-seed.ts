@@ -4,8 +4,13 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = "admin@ledger1.com";
-    const password = "password123";
+    const email = "sysadm@basalthq.com";
+    const password = process.env.ADMIN_PASSWORD;
+
+    if (!password) {
+        throw new Error("ADMIN_PASSWORD must be set in environment variables.");
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const existingUser = await prisma.users.findUnique({

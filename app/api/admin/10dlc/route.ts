@@ -13,7 +13,7 @@ import {
     listPhoneNumbers,
     requestPhoneNumber,
     associatePhoneNumberWithCampaign,
-    LEDGER1_BRAND_CONFIG,
+    BASALT_BRAND_CONFIG,
     PORTAL_MESSAGE_CAMPAIGN_CONFIG,
 } from "@/lib/aws/eum-10dlc";
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
                 return NextResponse.json({
                     registrations,
                     phoneNumbers,
-                    brandConfig: LEDGER1_BRAND_CONFIG,
+                    brandConfig: BASALT_BRAND_CONFIG,
                     campaignConfig: PORTAL_MESSAGE_CAMPAIGN_CONFIG,
                 });
             }

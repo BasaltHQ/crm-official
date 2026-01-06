@@ -52,24 +52,24 @@ async function main() {
             brand_name: "The Utility Company LLC",
             brand_vertical: "TECHNOLOGY",
             brand_company_type: "PRIVATE_PROFIT",
-            brand_website_url: "https://ledger1.ai",
+            brand_website_url: "https://basalt.ai",
             brand_street: "1005 Wellesley Dr. SE",
             brand_city: "Albuquerque",
             brand_state: "NM",
             brand_postal_code: "87106",
             brand_country_code: "US",
             brand_contact_email: "founders@theutilitycompany.co",
-            brand_support_email: "support@ledger1.ai",
+            brand_support_email: "support@basalt.ai",
             // Campaign Registration
             campaign_registration_id: CAMPAIGN_REGISTRATION_ID,
             campaign_status: "SUBMITTED",
             campaign_use_case: "ACCOUNT_NOTIFICATION",
             campaign_description:
-                "Ledger1 CRM Message Portal Notifications. When users send outreach messages to business contacts, " +
+                "BasaltCRM Message Portal Notifications. When users send outreach messages to business contacts, " +
                 "the recipient receives an SMS notification with a secure link to view the full message in a web portal. " +
                 "This is used for B2B sales outreach and investor communications.",
             campaign_message_flow:
-                "Recipients opt-in when they are added as a lead/contact in Ledger1 CRM. " +
+                "Recipients opt-in when they are added as a lead/contact in BasaltCRM. " +
                 "Business users initiate outreach through the CRM's Push to Outreach feature. " +
                 "Recipients can opt-out at any time by replying STOP or clicking unsubscribe in the portal.",
             campaign_sample_messages: [
@@ -78,10 +78,10 @@ async function main() {
                 "New business communication from {Company}. Read the full message: {PortalLink}. Text STOP to unsubscribe.",
             ],
             campaign_help_message:
-                "Ledger1 CRM Message Portal: You're receiving notifications about secure business messages. " +
-                "Reply STOP to opt out. Contact support@ledger1.ai for help.",
+                "BasaltCRM Message Portal: You're receiving notifications about secure business messages. " +
+                "Reply STOP to opt out. Contact support@basalt.ai for help.",
             campaign_opt_out_message:
-                "You've been unsubscribed from Ledger1 message notifications. " +
+                "You've been unsubscribed from BasaltCRM message notifications. " +
                 "You will no longer receive SMS alerts. Reply START to re-subscribe.",
             // Settings
             sms_enabled: false, // Enable after campaign approval

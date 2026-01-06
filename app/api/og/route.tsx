@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const badge = searchParams.get("badge");
     const type = searchParams.get("type") || "default";
 
-    const isDefaultTitle = !titleParam || titleParam === "Ledger1CRM";
+    const isDefaultTitle = !titleParam || titleParam === "BasaltCRM";
     const displayTitle = isDefaultTitle ? null : titleParam;
 
     // Function to render widgets based on type
@@ -446,10 +446,10 @@ export async function GET(request: Request) {
                 {/* Logo */}
 
                 <img
-                  src={`${origin}/logo.png`}
+                  src={`${origin}/BasaltCRM.png`}
                   width="320"
                   height="85"
-                  alt="Ledger1CRM"
+                  alt="BasaltCRM"
                   style={{ objectFit: "contain", filter: "drop-shadow(0 0 20px rgba(255,255,255,0.1))" }}
                 />
 

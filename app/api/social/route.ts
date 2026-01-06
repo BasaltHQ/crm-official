@@ -13,7 +13,7 @@ export async function GET() {
         if (!settings) {
             settings = await prismadb.socialSettings.create({
                 data: {
-                    xTwitterUrl: "https://x.com/Ledger1AI",
+                    xTwitterUrl: "https://x.com/BasaltAI",
                     discordUrl: "https://discord.gg/vARPqF84Zt",
                 }
             });
@@ -37,7 +37,7 @@ export async function PUT(req: Request) {
         const body = await req.json();
 
         // Remove id from body to avoid Prisma errors
-         
+
         const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...updateData } = body;
 
         let settings = await prismadb.socialSettings.findFirst();

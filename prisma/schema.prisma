@@ -116,6 +116,11 @@ model crm_Leads {
   lead_activities    crm_Lead_Activities[] @relation(name: "LeadActivitiesToLead")
   outreach_items     crm_Outreach_Items[]  @relation(name: "OutreachItemsLead")
 
+  // Social profiles
+  social_twitter      String?
+  social_facebook     String?
+  social_linkedin     String?
+
   // Link to a Project/Board for tagging and association
   project            String?       @db.ObjectId
   assigned_project   Boards?       @relation(name: "LeadsAssignedProject", fields: [project], references: [id])
@@ -1440,7 +1445,7 @@ model FooterSetting {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   tagline         String   @default("Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.")
   copyrightText   String   @default("© 2025 Ledger AI. All rights reserved.")
-  socialXUrl      String   @default("https://x.com/Ledger1AI")
+  socialXUrl      String   @default("https://x.com/BasaltAI")
   socialDiscordUrl String   @default("https://discord.gg/vARPqF84Zt")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

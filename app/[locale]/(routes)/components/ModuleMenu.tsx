@@ -118,18 +118,18 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
             {/* Full Logo (Expanded) */}
             <motion.div variants={logoVariants} className="absolute left-6">
               <img
-                src="/logo.png"
+                src="/BasaltCRMWide.png"
                 alt="App logo"
-                className="h-8 w-auto object-contain"
+                className="h-12 w-auto object-contain"
               />
             </motion.div>
 
             {/* Compact Logo (Collapsed) - Centered */}
             <motion.div variants={compactLogoVariants} className="absolute">
               <img
-                src="/crmlogo.png"
+                src="/BasaltCRM.png"
                 alt="App logo compact"
-                className="h-8 w-auto object-contain"
+                className="h-10 w-auto object-contain"
               />
             </motion.div>
           </div>

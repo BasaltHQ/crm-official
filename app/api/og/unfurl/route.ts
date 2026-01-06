@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     const url = searchParams.get("url");
     if (!url) return new NextResponse("Missing url", { status: 400 });
 
-    const res = await fetch(url, { headers: { "User-Agent": "Ledger1CRM-Link-Preview/1.0" } });
+    const res = await fetch(url, { headers: { "User-Agent": "BasaltCRM-Link-Preview/1.0" } });
     if (!res.ok) return new NextResponse(`Fetch failed: ${res.status}`, { status: 502 });
     const html = await res.text();
 
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     const imageRaw = pick(html, "og:image") || pick(html, "twitter:image") || undefined;
     const image = imageRaw ? absolutize(imageRaw, url) : undefined;
     let siteName = pick(html, "og:site_name") || undefined;
-    try { if (!siteName) siteName = new URL(url).hostname; } catch {}
+    try { if (!siteName) siteName = new URL(url).hostname; } catch { }
 
     return NextResponse.json({ url, title, description, image, siteName }, { status: 200, headers: { "Cache-Control": "public, max-age=3600" } });
   } catch (e: any) {

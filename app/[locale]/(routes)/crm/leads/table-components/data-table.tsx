@@ -58,6 +58,7 @@ export function LeadDataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
+    columnResizeMode: "onChange",
     state: {
       sorting,
       columnVisibility,
@@ -151,19 +152,30 @@ export function LeadDataTable<TData, TValue>({
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">
-                <Table>
+                <Table style={{ width: table.getCenterTotalSize() }} className="table-fixed">
                   <TableHeader>
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header) => {
                           return (
-                            <TableHead key={header.id} className={view === "compact" ? "h-8 py-1" : ""}>
+                            <TableHead
+                              key={header.id}
+                              className={view === "compact" ? "h-8 py-1 relative" : "relative"}
+                              style={{ width: header.getSize() }}
+                            >
                               {header.isPlaceholder
                                 ? null
                                 : flexRender(
                                   header.column.columnDef.header,
                                   header.getContext()
                                 )}
+                              {/* Resize Handle */}
+                              <div
+                                onMouseDown={header.getResizeHandler()}
+                                onTouchStart={header.getResizeHandler()}
+                                className={`absolute right-0 top-0 h-full w-1 bg-border cursor-col-resize touch-none select-none opacity-0 hover:opacity-100 ${header.column.getIsResizing() ? "bg-primary opacity-100" : ""
+                                  }`}
+                              />
                             </TableHead>
                           );
                         })}
@@ -178,7 +190,11 @@ export function LeadDataTable<TData, TValue>({
                           data-state={row.getIsSelected() && "selected"}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id} className={view === "compact" ? "py-1" : ""}>
+                            <TableCell
+                              key={cell.id}
+                              className={view === "compact" ? "py-1" : ""}
+                              style={{ width: cell.column.getSize() }}
+                            >
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext()
@@ -204,7 +220,8 @@ export function LeadDataTable<TData, TValue>({
             </>
           )}
         </>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }

@@ -190,7 +190,7 @@ export function NewOpportunityForm({
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="New Ledger1CRM functionality"
+                      placeholder="New BasaltCRM functionality"
                       {...field}
                     />
                   </FormControl>
@@ -248,7 +248,7 @@ export function NewOpportunityForm({
                   <FormControl>
                     <Textarea
                       disabled={isLoading}
-                      placeholder="New Ledger1CRM functionality"
+                      placeholder="New BasaltCRM functionality"
                       {...field}
                     />
                   </FormControl>
