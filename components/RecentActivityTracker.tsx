@@ -44,8 +44,12 @@ export default function RecentActivityTracker() {
             const parts = pathname.split("/");
             if (parts.length > 2) {
                 const parent = parts[parts.length - 2];
-                // e.g. "Leads Item"
-                label = `${parent.charAt(0).toUpperCase() + parent.slice(1, -1)} Item`;
+                // e.g. "leads" -> "Lead Item", "viewtask" -> "Viewtask Item"
+                let parentLabel = parent.charAt(0).toUpperCase() + parent.slice(1);
+                if (parentLabel.endsWith("s")) {
+                    parentLabel = parentLabel.slice(0, -1);
+                }
+                label = `${parentLabel} Item`;
             } else {
                 label = "Item View";
             }

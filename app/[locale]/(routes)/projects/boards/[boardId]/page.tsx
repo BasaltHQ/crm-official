@@ -12,6 +12,7 @@ import Kanban from "./components/Kanban";
 import Gantt from "./components/Gantt";
 
 import ProjectEditPanel from "./components/ProjectEditPanel";
+import ProjectDocumentsPanel from "./components/ProjectDocumentsPanel";
 import { getBoards } from "@/actions/projects/get-boards";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -91,6 +92,9 @@ const BoardPage = async (props: BoardDetailProps) => {
             </div>
             <Gantt data={kanbanData.sections as any} />
           </>
+        }
+        documentsSlot={
+          <ProjectDocumentsPanel boardId={boardId} />
         }
         settingsSlot={
           <>

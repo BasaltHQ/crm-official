@@ -44,13 +44,13 @@ export default function CrmSidebar() {
     };
 
     const navItems = [
-        { label: "Dashboard", href: "/crm/sales-command", icon: LayoutDashboard },
+        { label: "Overview", href: "/crm/sales-command", icon: LayoutDashboard },
         { label: "Accounts", href: "/crm/accounts", icon: Building2 },
         { label: "Contacts", href: "/crm/contacts", icon: Contact },
-        { label: "Leads Manager", href: "/crm/leads", icon: Users },
-        { label: "Dialer", href: "/crm/dialer", icon: Phone },
-        { label: "Opportunities", href: "/crm/opportunities", icon: Target },
         { label: "Contracts", href: "/crm/contracts", icon: FileText },
+        { label: "Dialer", href: "/crm/dialer", icon: Phone },
+        { label: "Leads Manager", href: "/crm/leads", icon: Users },
+        { label: "Opportunities", href: "/crm/opportunities", icon: Target },
     ];
 
 

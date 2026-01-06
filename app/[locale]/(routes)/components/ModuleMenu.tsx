@@ -11,7 +11,6 @@ import ProjectModuleMenu from "./menu-items/Projects";
 import SecondBrainModuleMenu from "./menu-items/SecondBrain";
 import InvoicesModuleMenu from "./menu-items/Invoices";
 import ReportsModuleMenu from "./menu-items/Reports";
-import DocumentsModuleMenu from "./menu-items/Documents";
 import ChatGPTModuleMenu from "./menu-items/ChatGPT";
 import EmployeesModuleMenu from "./menu-items/Employees";
 import DataboxModuleMenu from "./menu-items/Databoxes";
@@ -191,9 +190,6 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
               {modules.find((m: any) => m.name === "reports" && m.enabled) && hasFeature("reports") && (
                 <ReportsModuleMenu open={open} title={dict.ModuleMenu.reports} />
               )}
-              {modules.find((m: any) => m.name === "documents" && m.enabled) && hasFeature("documents") && (
-                <DocumentsModuleMenu open={open} title={dict.ModuleMenu.documents} />
-              )}
               <UniversityModuleMenu open={open} title="University" />
               {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && (
                 <DataboxModuleMenu open={open} />
@@ -244,9 +240,6 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
         )}
         {modules.find((m: any) => m.name === "reports" && m.enabled) && hasFeature("reports") && (
           <ReportsModuleMenu open={false} title={dict.ModuleMenu.reports} isMobile />
-        )}
-        {modules.find((m: any) => m.name === "documents" && m.enabled) && hasFeature("documents") && (
-          <DocumentsModuleMenu open={false} title={dict.ModuleMenu.documents} isMobile />
         )}
         <UniversityModuleMenu open={false} title="University" isMobile />
         {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && (

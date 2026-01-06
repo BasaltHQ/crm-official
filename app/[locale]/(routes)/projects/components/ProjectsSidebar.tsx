@@ -7,7 +7,9 @@ import {
     LayoutDashboard,
     FolderKanban,
     ListTodo,
-    PieChart,
+    FileText,
+    BarChart2,
+    CalendarDays,
     ChevronLeft,
     ChevronRight
 } from "lucide-react";
@@ -40,9 +42,11 @@ export default function ProjectsSidebar() {
     };
 
     const navItems = [
-        { label: "Overview", href: "/projects", icon: PieChart },
-        { label: "Dashboard", href: "/projects/dashboard", icon: LayoutDashboard },
+        { label: "Overview", href: "/projects", icon: FolderKanban },
         { label: "Tasks", href: "/projects/tasks", icon: ListTodo },
+        { label: "Gantt", href: "/projects/gantt", icon: BarChart2 },
+        { label: "Calendar", href: "/projects/calendar", icon: CalendarDays },
+        { label: "Documents", href: "/projects/documents", icon: FileText },
     ];
 
     if (!isMounted) return null;

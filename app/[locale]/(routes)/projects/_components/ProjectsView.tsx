@@ -3,12 +3,12 @@ import { getServerSession } from "next-auth";
 
 import { getActiveUsers } from "@/actions/get-users";
 import { getBoards } from "@/actions/projects/get-boards";
+import { getProjectStats } from "@/actions/projects/get-project-stats";
 
 import { authOptions } from "@/lib/auth";
 
 import NewTaskDialog from "../dialogs/NewTask";
 import NewProjectDialog from "../dialogs/NewProject";
-
 
 import H2Title from "@/components/typography/h2";
 
@@ -21,10 +21,9 @@ const ProjectsView = async () => {
 
   if (!session) return null;
 
-
-
   const users = await getActiveUsers();
   const boards: any = await getBoards(session.user.id!);
+  const stats = await getProjectStats();
 
   return (
     <>
@@ -35,7 +34,7 @@ const ProjectsView = async () => {
       </div>
       <div className="pt-2 space-y-3">
         <H2Title>Projects</H2Title>
-        <ProjectsDataTable data={boards} columns={columns} />
+        <ProjectsDataTable data={boards} columns={columns} stats={stats} />
       </div>
     </>
   );
