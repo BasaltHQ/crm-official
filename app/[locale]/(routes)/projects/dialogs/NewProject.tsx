@@ -2,6 +2,7 @@
 
 import LoadingComponent from "@/components/LoadingComponent";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogTrigger,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -104,159 +104,174 @@ const NewProjectDialog = () => {
       <DialogTrigger asChild>
         <Button className="px-2">New project</Button>
       </DialogTrigger>
-      <DialogContent className="">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="p-2">New Project</DialogTitle>
-          <DialogDescription className="p-2">
+          <DialogTitle>New Project</DialogTitle>
+          <DialogDescription>
             Fill out the form below to create a new project.
           </DialogDescription>
         </DialogHeader>
         {isLoading ? (
           <LoadingComponent />
         ) : (
-          <div className="flex w-full ">
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="h-full w-full space-y-3"
-              >
-                <div className="flex flex-col space-y-3">
-                  {/* Project logo (optional) */}
-                  <FormField
-                    control={form.control}
-                    name="brand_logo_url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project logo (optional)</FormLabel>
-                        <FormControl>
-                          <div className="space-y-2">
-                            {field.value ? (
-                              <img src={field.value} alt="Logo preview" className="h-12 w-12 rounded object-contain" />
-                            ) : null}
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              disabled={isLoading}
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                if (!file.type.startsWith("image/")) {
-                                  alert("Please select an image file");
-                                  return;
-                                }
-                                if (file.size > 5 * 1024 * 1024) {
-                                  alert("Max file size is 5MB");
-                                  return;
-                                }
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  const dataUrl = reader.result as string;
-                                  field.onChange(dataUrl);
-                                };
-                                reader.readAsDataURL(file);
-                              }}
-                            />
-                            {field.value && (
-                              <Button type="button" variant="secondary" size="sm" onClick={() => field.onChange("")}>Clear logo</Button>
-                            )}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-5"
+            >
+              {/* Project name - most important field first */}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project name</FormLabel>
+                    <FormControl>
+                      <Input
+                        disabled={isLoading}
+                        placeholder="Enter project name"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                  {/* Primary color */}
-                  <FormField
-                    control={form.control}
-                    name="brand_primary_color"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Primary color (optional)</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              disabled={isLoading}
-                              placeholder="#0ea5e9 or rgb(...)"
-                              {...field}
-                            />
-                            <div className="h-6 w-6 rounded border" style={{ backgroundColor: field.value || undefined }} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New project name</FormLabel>
-                        <FormControl>
+              {/* Project description */}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        disabled={isLoading}
+                        placeholder="Enter project description"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Project visibility */}
+              <FormField
+                control={form.control}
+                name="visibility"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project visibility</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project visibility" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="public">Public</SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Branding section */}
+              <div className="space-y-4 pt-2 border-t border-white/10">
+                <p className="text-sm text-muted-foreground">Branding (optional)</p>
+
+                {/* Primary color with color picker popup */}
+                <FormField
+                  control={form.control}
+                  name="brand_primary_color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Primary color</FormLabel>
+                      <FormControl>
+                        <ColorPicker
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Project logo */}
+                <FormField
+                  control={form.control}
+                  name="brand_logo_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project logo</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          {field.value && (
+                            <div className="flex items-center gap-3 p-2 rounded-md bg-white/5 border border-white/10">
+                              <img
+                                src={field.value}
+                                alt="Logo preview"
+                                className="h-10 w-10 rounded object-contain bg-white/10"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => field.onChange("")}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          )}
                           <Input
+                            type="file"
+                            accept="image/*"
                             disabled={isLoading}
-                            placeholder="Enter project name"
-                            {...field}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (!file.type.startsWith("image/")) {
+                                alert("Please select an image file");
+                                return;
+                              }
+                              if (file.size > 5 * 1024 * 1024) {
+                                alert("Max file size is 5MB");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                const dataUrl = reader.result as string;
+                                field.onChange(dataUrl);
+                              };
+                              reader.readAsDataURL(file);
+                            }}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            disabled={isLoading}
-                            placeholder="Enter project description"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="visibility"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project visibility</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select projects visibility" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={"public"}>{`Public`}</SelectItem>
-                            <SelectItem
-                              value={"private"}
-                            >{`Private`}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="flex w-full justify-end space-x-2 pt-2">
-                  <DialogTrigger asChild>
-                    <Button variant={"destructive"}>Cancel</Button>
-                  </DialogTrigger>
-                  <Button type="submit">Create</Button>
-                </div>
-              </form>
-            </Form>
-          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex justify-end gap-3 pt-4">
+                <DialogTrigger asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </DialogTrigger>
+                <Button type="submit">Create Project</Button>
+              </div>
+            </form>
+          </Form>
         )}
       </DialogContent>
     </Dialog>

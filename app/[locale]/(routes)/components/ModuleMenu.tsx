@@ -158,6 +158,10 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
               {/* Separator for clarity */}
               <div className="my-2 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent opacity-50 mx-2" />
 
+              {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && (
+                <ProjectModuleMenu open={open} title={dict.ModuleMenu.projects} />
+              )}
+
               {modules.find(
                 (menuItem: any) => menuItem.name === "crm" && menuItem.enabled
               ) && hasFeature("crm") && (
@@ -168,10 +172,6 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
               {/* Note: I am not refactoring EVERY component separately yet, but passing 'open' creates re-renders. 
                     Ideally, these sub-menus should also be wrapped or updated. 
                     For now, I rely on their internal rendering but the container gives the width constraint. */}
-
-              {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && (
-                <ProjectModuleMenu open={open} title={dict.ModuleMenu.projects} />
-              )}
               {modules.find((m: any) => m.name === "emails" && m.enabled) && hasFeature("emails") && (
                 <EmailsModuleMenu open={open} title={dict.ModuleMenu.emails} />
               )}
@@ -217,11 +217,11 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
       {/* Mobile Bottom Navigation (Preserved/Minimally Touched) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-b from-background/95 via-background/90 to-background/95 backdrop-blur-xl border-t border-white/5 flex flex-row overflow-x-auto items-center justify-between px-4 py-2 gap-4 no-scrollbar safe-area-pb">
         <DashboardMenu open={false} title={dict.ModuleMenu.dashboard} isMobile />
-        {modules.find((m: any) => m.name === "crm" && m.enabled) && hasFeature("crm") && (
-          <CrmModuleMenu open={false} localizations={dict.ModuleMenu.crm} isMobile />
-        )}
         {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && (
           <ProjectModuleMenu open={false} title={dict.ModuleMenu.projects} isMobile />
+        )}
+        {modules.find((m: any) => m.name === "crm" && m.enabled) && hasFeature("crm") && (
+          <CrmModuleMenu open={false} localizations={dict.ModuleMenu.crm} isMobile />
         )}
         {modules.find((m: any) => m.name === "emails" && m.enabled) && hasFeature("emails") && (
           <EmailsModuleMenu open={false} title={dict.ModuleMenu.emails} isMobile />

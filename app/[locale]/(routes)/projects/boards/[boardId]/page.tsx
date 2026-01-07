@@ -66,7 +66,7 @@ const BoardPage = async (props: BoardDetailProps) => {
         }
         kanbanSlot={
           <>
-            <div className="flex items-center justify-between py-5 w-full">
+            <div className="flex items-center justify-between py-2 w-full">
               <div className="space-x-2">
                 <NewSectionDialog boardId={boardId} />
                 <NewTaskInProjectDialog
@@ -87,7 +87,7 @@ const BoardPage = async (props: BoardDetailProps) => {
         }
         ganttSlot={
           <>
-            <div className="flex items-center justify-between py-5 w-full">
+            <div className="flex items-center justify-between py-2 w-full">
               <div className="space-x-2"></div>
             </div>
             <Gantt data={kanbanData.sections as any} />

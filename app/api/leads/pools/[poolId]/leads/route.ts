@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 // GET /api/leads/pools/[poolId]/leads?mine=true
 // Returns leads converted from a pool; if mine=true, restrict to current user's assigned leads.
@@ -17,12 +18,9 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
     const { searchParams } = new URL(req.url);
     const mine = searchParams.get("mine") === "true";
 
-    // Verify pool belongs to current user (assigned_user) or allow if admin
-    const user = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: { is_admin: true, is_account_admin: true },
-    });
-    const isAdmin = !!(user?.is_admin || user?.is_account_admin);
+    // Verify pool belongs to current user (assigned_user) or allow if admin/super admin
+    const teamInfo = await getCurrentUserTeamId();
+    const isAdmin = teamInfo?.isGlobalAdmin || teamInfo?.isAdmin;
 
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },

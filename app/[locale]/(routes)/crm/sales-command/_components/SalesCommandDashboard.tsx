@@ -5,12 +5,12 @@ import { useSalesCommand } from "./SalesCommandProvider";
 import { UnifiedMetricCard } from "./UnifiedMetricCard";
 import MyCommandView from "./MyCommandView";
 import TeamCommandView from "./TeamCommandView";
-import LeadsView from "../../components/LeadsView"; // Import existing LeadsView
+
 import { cn } from "@/lib/utils";
 import Container from "../../../components/ui/Container"; // Adjust path if needed
 
 export default function SalesCommandDashboard() {
-    const { data, viewMode, setViewMode, isManager, selectedUserData, leads, crmData } = useSalesCommand();
+    const { data, viewMode, setViewMode, isManager, selectedUserData } = useSalesCommand();
     const { summary } = data;
 
     return (
@@ -83,17 +83,7 @@ export default function SalesCommandDashboard() {
                                 ? `${selectedUserData.meta.userName}'s Dashboard`
                                 : "My Dashboard"}
                         </button>
-                        <button
-                            onClick={() => setViewMode("leads")}
-                            className={cn(
-                                "px-4 py-2 text-sm font-medium rounded-md transition-all",
-                                viewMode === "leads"
-                                    ? "bg-background shadow-sm text-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            Leads
-                        </button>
+
                     </div>
 
                     <div className="hidden md:flex items-center gap-2">
@@ -112,7 +102,7 @@ export default function SalesCommandDashboard() {
                 <div className="min-h-[500px]">
                     {viewMode === "personal" && <MyCommandView />}
                     {viewMode === "team" && <TeamCommandView />}
-                    {viewMode === "leads" && <LeadsView data={leads} crmData={crmData} />}
+
                 </div>
 
             </div>

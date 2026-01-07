@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { logActivity } from "@/actions/audit";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 // GET /api/projects/[projectId]/opportunities
 // List project-scoped opportunities
@@ -14,13 +15,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ projectId: stri
     const { projectId } = await ctx.params;
     if (!projectId) return new NextResponse("Missing projectId", { status: 400 });
 
-    // Access check: user owns or is shared
+    // Get current user's team for team-based access
+    const teamInfo = await getCurrentUserTeamId();
+    const userTeamId = teamInfo?.teamId;
+
+    // Access check: user owns, is shared, or team member with public visibility
     const project = await prismadb.boards.findUnique({
       where: { id: projectId },
-      select: { id: true, user: true, sharedWith: true, title: true },
+      select: { id: true, user: true, sharedWith: true, title: true, team_id: true, visibility: true },
     });
     if (!project) return new NextResponse("Project not found", { status: 404 });
-    const canAccess = project.user === session.user.id || (project.sharedWith || []).includes(session.user.id);
+
+    const isOwner = project.user === session.user.id;
+    const isShared = (project.sharedWith || []).includes(session.user.id);
+    const isTeamPublic = userTeamId && project.team_id === userTeamId && project.visibility === "public";
+    const canAccess = isOwner || isShared || isTeamPublic;
     if (!canAccess) return new NextResponse("Forbidden", { status: 403 });
 
     const opportunities = await (prismadb as any).project_Opportunities.findMany({
@@ -56,13 +65,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
       return new NextResponse("Invalid category", { status: 400 });
     }
 
-    // Access check
+    // Get current user's team for team-based access
+    const teamInfo = await getCurrentUserTeamId();
+    const userTeamId = teamInfo?.teamId;
+
+    // Access check: user owns, is shared, or team member with public visibility
     const project = await prismadb.boards.findUnique({
       where: { id: projectId },
-      select: { id: true, user: true, sharedWith: true, title: true },
+      select: { id: true, user: true, sharedWith: true, title: true, team_id: true, visibility: true },
     });
     if (!project) return new NextResponse("Project not found", { status: 404 });
-    const canAccess = project.user === session.user.id || (project.sharedWith || []).includes(session.user.id);
+
+    const isOwner = project.user === session.user.id;
+    const isShared = (project.sharedWith || []).includes(session.user.id);
+    const isTeamPublic = userTeamId && project.team_id === userTeamId && project.visibility === "public";
+    const canAccess = isOwner || isShared || isTeamPublic;
     if (!canAccess) return new NextResponse("Forbidden", { status: 403 });
 
     const created = await (prismadb as any).project_Opportunities.create({
@@ -76,6 +93,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ projectId: str
         valueEstimate: valueEstimate as any,
         createdAt: new Date() as any,
         createdBy: session.user.id,
+        assignedTo: session.user.id,
         relatedTasksIDs: [],
       },
     });

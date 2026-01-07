@@ -191,17 +191,17 @@ export default function BoardTabsContainer({ title, description, visibility, kan
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto h-full flex flex-col bg-background">
-                <div className="p-4 md:p-6 lg:p-8 pb-4">
+                <div className="px-4 md:px-6 lg:px-8 pt-4 md:pt-5 pb-2">
                     <div className="flex items-center gap-4">
                         {headerSlot}
                         <div>
                             <Heading title={title} description={description} visibility={visibility} />
                         </div>
                     </div>
-                    <Separator className="mt-4" />
+                    <div className="mt-3 h-px bg-gradient-to-r from-border/80 via-border/40 to-transparent" />
                 </div>
 
-                <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 pt-0 pb-20 md:pb-0">
+                <div className="flex-1 overflow-auto px-4 md:px-6 lg:px-8 pb-20 md:pb-0">
                     {selected === "kanban" && kanbanSlot}
                     {selected === "gantt" && ganttSlot}
                     {selected === "documents" && documentsSlot}
