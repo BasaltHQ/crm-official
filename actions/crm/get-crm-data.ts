@@ -34,6 +34,7 @@ export const getAllCrmData = async () => {
     }
   });
   const leads = await prismadb.crm_Leads.findMany({ where: whereClause });
+
   const contacts = await (prismadb.crm_Contacts as any).findMany({ where: whereClause });
   const contracts = await (prismadb.crm_Contracts as any).findMany({ where: whereClause });
 

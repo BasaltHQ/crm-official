@@ -19,7 +19,7 @@ export const getCurrentUserTeamId = async () => {
         }
     });
 
-    const isInternalTeam = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt";
+    const isInternalTeam = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
     const isSuperAdminRole = user?.team_role === "SUPER_ADMIN";
 
     // "God Mode" only for SUPER_ADMIN in Internal Team
