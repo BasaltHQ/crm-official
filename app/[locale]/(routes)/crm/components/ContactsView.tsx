@@ -22,6 +22,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { UserPlus } from "lucide-react";
+import { NavigationCard } from "@/components/NavigationCard";
 
 const ContactsView = ({ data, crmData }: any) => {
   const router = useRouter();
@@ -39,47 +41,47 @@ const ContactsView = ({ data, crmData }: any) => {
 
   const { users, accounts } = crmData;
 
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex justify-end">
-          <div className="flex space-x-2">
-            <Sheet open={open} onOpenChange={() => setOpen(false)}>
-              <Button
-                className="m-2 cursor-pointer"
-                onClick={() => setOpen(true)}
-              >
-                +
-              </Button>
-              <SheetContent className="min-w-[1000px] space-y-2">
-                <SheetHeader>
-                  <SheetTitle>Create new Contact</SheetTitle> {/* Fixed Title from "Create new Account" to "Create new Contact" */}
-                </SheetHeader>
-                <div className="h-full overflow-y-auto">
-                  <NewContactForm
-                    users={users}
-                    accounts={accounts}
-                    onFinish={() => setOpen(false)}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-        </div>
-        <Separator />
-      </CardHeader>
+  const card = {
+    title: "Create Contact",
+    description: "Add a new contact",
+    icon: UserPlus,
+    color: "from-emerald-500/20 to-green-500/20",
+    iconColor: "text-emerald-400"
+  };
 
-      <CardContent>
-        {!data || data.length === 0 ? (
-          "No assigned contacts found"
-        ) : (
-          <ContactsDataTable
-            data={data}
-            columns={columns}
-          />
-        )}
-      </CardContent>
-    </Card>
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sticky top-0 z-40 bg-background/95 backdrop-blur pb-4 pt-4 -mt-4">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <div onClick={() => setOpen(true)}>
+            <NavigationCard card={card} />
+          </div>
+          <SheetContent className="min-w-[1000px] space-y-2">
+            <SheetHeader>
+              <SheetTitle>Create new Contact</SheetTitle>
+            </SheetHeader>
+            <div className="h-full overflow-y-auto">
+              <NewContactForm
+                users={users}
+                accounts={accounts}
+                onFinish={() => setOpen(false)}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {!data || data.length === 0 ? (
+        <Card>
+          <CardContent className="p-5">No assigned contacts found</CardContent>
+        </Card>
+      ) : (
+        <ContactsDataTable
+          data={data}
+          columns={columns}
+        />
+      )}
+    </div>
   );
 };
 

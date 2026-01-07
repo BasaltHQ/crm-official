@@ -10,13 +10,15 @@ import { Button } from "@/components/ui/button";
 type Props = {
   buttonLabel: string;
   fileType:
-    | "pdfUploader"
-    | "imageUploader"
-    | "docUploader"
-    | "profilePhotoUploader";
+  | "pdfUploader"
+  | "imageUploader"
+  | "docUploader"
+  | "docUploader"
+  | "profilePhotoUploader";
+  customTrigger?: React.ReactNode;
 };
 
-const ModalDropzone = ({ buttonLabel, fileType }: Props) => {
+const ModalDropzone = ({ buttonLabel, fileType, customTrigger }: Props) => {
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
@@ -25,7 +27,11 @@ const ModalDropzone = ({ buttonLabel, fileType }: Props) => {
 
   return (
     <div>
-      <Button onClick={() => setOpen(true)}>{buttonLabel}</Button>
+      {customTrigger ? (
+        <div onClick={() => setOpen(true)} className="cursor-pointer">{customTrigger}</div>
+      ) : (
+        <Button onClick={() => setOpen(true)}>{buttonLabel}</Button>
+      )}
       <UploadFileModal
         isOpen={open}
         onClose={() => {

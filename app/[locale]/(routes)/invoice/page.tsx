@@ -20,7 +20,8 @@ import { getActiveUsers } from "@/actions/get-users";
 import { getBoards } from "@/actions/projects/get-boards";
 import NewTaskDialog from "./dialogs/NewTask";
 
-import CronButton from "./components/cron-button";
+import { SyncInvoiceCard } from "./components/SyncInvoiceCard";
+
 import { UploadCloud, FileText, Settings, Loader2 } from "lucide-react";
 
 const CardContent = ({ card, loading = false }: { card: any, loading?: boolean }) => (
@@ -109,11 +110,10 @@ const InvoicePage = async () => {
         </Link>
 
         {/* Sync Cron Card */}
-        <CronButton
-          customTrigger={(loading: boolean) => (
-            <CardContent card={cards[2]} loading={loading} />
-          )}
-        />
+        {(() => {
+          const { icon, ...syncCardProps } = cards[2];
+          return <SyncInvoiceCard card={syncCardProps} />;
+        })()}
 
         {/* Settings Card */}
         <RightViewModal

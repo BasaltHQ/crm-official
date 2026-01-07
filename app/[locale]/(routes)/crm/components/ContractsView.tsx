@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { ContractsDataTable } from "../contracts/table-components/data-table";
 
 import CreateContractForm from "../contracts/_forms/create-contract";
+import { NavigationCard } from "@/components/NavigationCard";
+import { FileText } from "lucide-react";
 
 const ContractsView = ({ data, crmData, accountId }: any) => {
   const router = useRouter();
@@ -32,48 +34,36 @@ const ContractsView = ({ data, crmData, accountId }: any) => {
 
   const { users, accounts } = crmData;
 
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex justify-between">
-          <CardTitle
-            onClick={() => router.push("/crm/contracts")}
-            className="cursor-pointer"
-          >
-            Contracts
-          </CardTitle>
+  const card = {
+    title: "Create Contract",
+    description: "Create a new contract",
+    icon: FileText,
+    color: "from-orange-500/20 to-red-500/20",
+    iconColor: "text-orange-400"
+  };
 
-          <div className="flex space-x-2 items-center">
-            <CreateContractForm
-              users={users}
-              accounts={accounts}
-              accountId={accountId}
-            />
-          </div>
-        </div>
-        <Separator />
-      </CardHeader>
-      <CardContent>
-        {/*         <pre>
-          {JSON.stringify(
-            {
-              data,
-            },
-            null,
-            2
-          )}
-        </pre> */}
-        {!data ||
-          (data.length === 0 ? (
-            "No assigned contracts found"
-          ) : (
-            <ContractsDataTable
-              data={data}
-              columns={columns}
-            />
-          ))}
-      </CardContent>
-    </Card>
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <CreateContractForm
+          users={users}
+          accounts={accounts}
+          accountId={accountId}
+          customTrigger={<NavigationCard card={card} />}
+        />
+      </div>
+
+      {!data || data.length === 0 ? (
+        <Card>
+          <CardContent className="p-5">No assigned contracts found</CardContent>
+        </Card>
+      ) : (
+        <ContractsDataTable
+          data={data}
+          columns={columns}
+        />
+      )}
+    </div>
   );
 };
 

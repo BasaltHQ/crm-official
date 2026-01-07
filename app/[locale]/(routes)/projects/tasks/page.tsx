@@ -8,9 +8,11 @@ import { getBoards } from "@/actions/projects/get-boards";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import { Plus, Layout } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import NewTaskDialog from "../dialogs/NewTask";
+import { NavigationCard } from "@/components/NavigationCard";
 
 const TasksPage = async () => {
   const session = await getServerSession(authOptions);
@@ -18,17 +20,41 @@ const TasksPage = async () => {
   const users = await getActiveUsers();
   const boards = session ? await getBoards(session.user.id!) : [];
 
+  const cards = [
+    {
+      title: "Create Task",
+      description: "Add a new task to board",
+      icon: Plus,
+      color: "from-cyan-500/20 to-sky-500/20",
+      iconColor: "text-cyan-400",
+      type: "create"
+    },
+    {
+      title: "My Tasks",
+      description: "View certain tasks assigned to me",
+      icon: Layout,
+      color: "from-violet-500/20 to-purple-500/20",
+      iconColor: "text-violet-400",
+      type: "link",
+      href: `/projects/tasks/${session?.user.id}`
+    }
+  ];
+
   return (
     <Container
       title="All tasks"
       description={"Everything you need to know about tasks"}
     >
-      <div className="flex gap-2 py-5">
-        <NewTaskDialog users={users} boards={boards as any} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 flex-shrink-0">
+        <NewTaskDialog
+          users={users}
+          boards={boards as any}
+          customTrigger={<NavigationCard card={cards[0]} />}
+        />
         {session && (
-          <Button asChild variant="outline">
-            <Link href={`/projects/tasks/${session.user.id}`}>My Tasks</Link>
-          </Button>
+          <Link href={cards[1].href!} className="block h-full">
+            <NavigationCard card={cards[1]} />
+          </Link>
         )}
       </div>
       <div>

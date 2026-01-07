@@ -192,13 +192,13 @@ export default function TabsContainer({ title, description, managerSlot, wizardS
 
       {/* Content Area - Scrolls independently */}
       <div className="flex-1 overflow-y-auto h-full flex flex-col bg-background">
-        {/* Header Section - Sticky */}
-        <div className="sticky top-0 z-10 bg-background p-4 md:px-6 lg:px-8 pb-3">
+        {/* Header Section - Standard Scroll */}
+        <div className="bg-background p-4 md:px-6 lg:px-8 pb-3">
           <Heading title={title} description={description} />
           <Separator className="mt-2" />
         </div>
 
-        <div className="flex-1 overflow-auto px-4 md:px-6 lg:px-8 pb-20 md:pb-4">
+        <div className="flex-1 px-4 md:px-6 lg:px-8 pb-20 md:pb-4">
           {selected === "manager" && managerSlot}
           {selected === "wizard" && wizardSlot}
           {selected === "pools" && poolsSlot}

@@ -496,7 +496,7 @@ export default function LeadsView({ data }: Props) {
       {viewMode === 'table' && (
         <>
           {/* Desktop Table View */}
-          <div className="hidden md:block overflow-auto rounded-md border">
+          <div className="hidden md:block rounded-md border">
             <table className="min-w-full text-sm">
               <thead className="bg-muted">
                 <tr>

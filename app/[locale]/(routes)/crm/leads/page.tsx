@@ -28,11 +28,44 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
   // const leads = tab === "manager" ? await getLeads() : null;
   const leads = null;
 
+  const getTabInfo = (currentTab: string) => {
+    switch (currentTab) {
+      case "wizard":
+        return {
+          title: "Leads Wizard",
+          description: "Generate and manage leads using AI-powered tools"
+        };
+      case "pools":
+        return {
+          title: "Leads Pools",
+          description: "Manage and organize your lead pools efficiently"
+        };
+      case "campaigns":
+        return {
+          title: "Campaigns",
+          description: "Track and manage your marketing campaigns"
+        };
+      case "settings":
+        return {
+          title: "Settings",
+          description: "Configure your lead management preferences"
+        };
+      case "manager":
+      default:
+        return {
+          title: "Leads Manager",
+          description: "Everything you need to know about your leads"
+        };
+    }
+  };
+
+  const { title, description } = getTabInfo(tab);
+
   return (
     <div className="h-full w-full">
       <TabsContainer
-        title="Leads Manager"
-        description="Everything you need to know about your leads"
+        title={title}
+        description={description}
         managerSlot={
           tab === "manager" ? (
             <Suspense fallback={<SuspenseLoading />}>

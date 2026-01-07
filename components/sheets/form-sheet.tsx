@@ -15,6 +15,7 @@ type FormSheetProps = {
   setOpen?: (open: boolean) => void;
   position?: "left" | "right" | "top" | "bottom";
   trigger?: string;
+  customTrigger?: React.ReactNode;
   title: string;
   description: string;
   children: React.ReactNode;
@@ -26,6 +27,7 @@ const FormSheet = ({
   setOpen,
   position,
   trigger,
+  customTrigger,
   title,
   description,
   children,
@@ -34,9 +36,13 @@ const FormSheet = ({
   return (
     <Sheet>
       <SheetTrigger asChild ref={onClose}>
-        <Button className="mb-5 " size={"sm"}>
-          {trigger}
-        </Button>
+        {customTrigger ? (
+          <div className="cursor-pointer">{customTrigger}</div>
+        ) : (
+          <Button className="mb-5 " size={"sm"}>
+            {trigger}
+          </Button>
+        )}
       </SheetTrigger>
       <SheetContent side={position || "right"}>
         <SheetHeader>

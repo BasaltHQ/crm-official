@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Users as UsersIcon, Edit, Lock, List, CalendarClock } from "lucide-react";
+import { Users as UsersIcon, Edit, CalendarClock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 import {
     Card,
@@ -27,16 +26,7 @@ import {
     CardTitle
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 
-import { createTeam } from "@/actions/teams/create-team";
-import { seedInternalTeam } from "@/actions/teams/seed-team";
 import { updateTeamRenewal } from "@/actions/teams/update-team-renewal";
 import { toast } from "react-hot-toast";
 
@@ -90,52 +80,12 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
     }, [isMobile]);
 
     // Create Modal State
-    const [open, setOpen] = useState(false);
-    const [name, setName] = useState("");
-    const [slug, setSlug] = useState("");
-    const [planId, setPlanId] = useState("");
+    // Logic moved to CreateTeamCard component
 
-    const handleCreate = async () => {
-        try {
-            setIsLoading(true);
-            const res = await createTeam(name, slug, planId || undefined);
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success("Team created!");
-                setOpen(false);
-                router.refresh();
-            }
-        } catch (error) {
-            toast.error("Something went wrong");
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
-    const handleSeed = async () => {
-        try {
-            setIsLoading(true);
-            const res = await seedInternalTeam();
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success(`Internal Team Seeded! Updated ${res.count} users.`);
-                router.refresh();
-            }
-        } catch (error) {
-            toast.error("Failed to seed");
-        } finally {
-            setIsLoading(false);
-        }
-    }
 
-    // Auto-generate slug
-    useEffect(() => {
-        if (name) {
-            setSlug(name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
-        }
-    }, [name]);
+
+
 
     // Renewal Dialog State
     const [renewalOpen, setRenewalOpen] = useState(false);
@@ -241,86 +191,18 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
             )}
             <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4">
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={handleSeed} disabled={isLoading}>
-                        <Lock className="w-4 h-4 mr-2" />
-                        Seed Internal Team
-                    </Button>
-
-                    {hasInternalTeam && (
-                        <LinkHref href="/partners/plans">
-                            <Button variant="outline">
-                                <List className="w-4 h-4 mr-2" />
-                                Manage Plans
-                            </Button>
-                        </LinkHref>
-                    )}
 
                     {teams.find(t => t.slug === 'internal') && (
                         <LinkHref href={`/partners/${teams.find(t => t.slug === 'internal')?.id}`}>
                             <Button variant="secondary">
                                 <UsersIcon className="w-4 h-4 mr-2" />
-                                Manage Internal Team
+                                <span className="hidden md:inline">Manage Internal Team</span>
+                                <span className="md:hidden">Manage</span>
                             </Button>
                         </LinkHref>
                     )}
 
-                    <Dialog open={open} onOpenChange={setOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Team
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Create New Team</DialogTitle>
-                                <DialogDescription>
-                                    Add a new partner organization or team instance.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Team Name</label>
-                                    <Input
-                                        placeholder="e.g. Acme Corp"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Brand Key (Slug)</label>
-                                    <Input
-                                        placeholder="e.g. acme-corp"
-                                        value={slug}
-                                        onChange={(e) => setSlug(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Subscription Plan</label>
-                                    <Select
-                                        value={planId}
-                                        onValueChange={(val) => setPlanId(val)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Plan" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none" disabled>Select Plan</SelectItem>
-                                            {availablePlans.map((plan) => (
-                                                <SelectItem key={plan.id} value={plan.id}>
-                                                    {plan.name} ({plan.currency} {plan.price})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                                <Button onClick={handleCreate} disabled={isLoading}>Create Team</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+
                 </div>
                 {/* View Toggle */}
                 <div className="flex items-center ml-2">

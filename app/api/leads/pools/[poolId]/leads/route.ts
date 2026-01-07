@@ -71,7 +71,48 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
       orderBy: { createdAt: "desc" as const },
     });
 
-    return NextResponse.json({ leads }, { status: 200 });
+    // Also fetch candidates to show potentially unconverted pool members
+    const candidates = await (prismadbCrm as any).crm_Lead_Candidates.findMany({
+      where: { pool: poolId },
+      include: {
+        contacts: {
+          orderBy: { confidence: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    const candidateLeads = candidates.map((c: any) => {
+      const contact = c.contacts?.[0];
+      const nameParts = contact?.fullName?.split(" ") || [];
+      const lastName = nameParts.length > 1 ? nameParts.pop() : (contact?.fullName || c.companyName || "Candidate");
+      const firstName = nameParts.join(" ");
+
+      return {
+        id: c.id,
+        firstName: firstName || "",
+        lastName: lastName as string,
+        company: c.companyName || null,
+        jobTitle: contact?.title || null,
+        email: contact?.email || null,
+        phone: contact?.phone || null,
+        description: c.description,
+        lead_source: "POOL_CANDIDATE",
+        status: c.status || "NEW",
+        type: "CANDIDATE",
+        outreach_status: "IDLE",
+        pipeline_stage: "Identify",
+        createdAt: c.freshnessAt || new Date(),
+        updatedAt: new Date(),
+      };
+    });
+
+    // Merge and sort
+    const allLeads = [...leads, ...candidateLeads].sort((a: any, b: any) => {
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+
+    return NextResponse.json({ leads: allLeads }, { status: 200 });
   } catch (error) {
     console.error("[POOL_LEADS_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });

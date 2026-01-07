@@ -22,6 +22,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Building2 } from "lucide-react";
+import { NavigationCard } from "@/components/NavigationCard";
 
 const AccountsView = ({ data, crmData }: any) => {
   const router = useRouter();
@@ -39,50 +41,50 @@ const AccountsView = ({ data, crmData }: any) => {
 
   const { users, industries } = crmData;
 
+  const card = {
+    title: "Create Account",
+    description: "Add a new company account",
+    icon: Building2,
+    color: "from-blue-500/20 to-indigo-500/20",
+    iconColor: "text-blue-400"
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex justify-end">
-          <div className="flex space-x-2">
-            <Sheet open={open} onOpenChange={() => setOpen(false)}>
-              <Button
-                className="m-2 cursor-pointer"
-                onClick={() => setOpen(true)}
-              >
-                +
-              </Button>
-              <SheetContent className="min-w-[1000px] space-y-2">
-                <SheetHeader>
-                  <SheetTitle>Create new Account</SheetTitle>
-                </SheetHeader>
-                <div className="h-full overflow-y-auto">
-                  <NewAccountForm
-                    industries={industries}
-                    users={users}
-                    onFinish={() => setOpen(false)}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sticky top-0 z-40 bg-background/95 backdrop-blur pb-4 pt-4 -mt-4">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <div onClick={() => setOpen(true)}>
+            <NavigationCard card={card} />
           </div>
-        </div>
-        <Separator />
-      </CardHeader>
-      {!data ||
-        (data.length === 0 ? (
-          <CardContent>No assigned accounts found</CardContent>
-        ) : (
-          <CardContent>
-            {/* Pass viewMode to data table or handle view switching */}
-            <AccountDataTable
-              data={data}
-              columns={columns}
-              industries={industries}
-              users={users}
-            />
-          </CardContent>
-        ))}
-    </Card>
+          <SheetContent className="min-w-[1000px] space-y-2">
+            <SheetHeader>
+              <SheetTitle>Create new Account</SheetTitle>
+            </SheetHeader>
+            <div className="h-full overflow-y-auto">
+              <NewAccountForm
+                industries={industries}
+                users={users}
+                onFinish={() => setOpen(false)}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {!data || data.length === 0 ? (
+        <Card>
+          <CardContent className="p-5">No assigned accounts found</CardContent>
+        </Card>
+      ) : (
+
+        <AccountDataTable
+          data={data}
+          columns={columns}
+          industries={industries}
+          users={users}
+        />
+      )}
+    </div>
   );
 };
 

@@ -48,77 +48,36 @@ export async function GET() {
         createdAt: true,
         updatedAt: true,
         user: true, // Include user info for admins to see who owns the pool
+        icpConfig: true,
+        jobs: {
+          take: 1,
+          orderBy: { startedAt: "desc" },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            finishedAt: true,
+            counters: true,
+            queryTemplates: true,
+          },
+        },
+        _count: {
+          select: { candidates: true },
+        },
       },
     });
 
-    const results = [];
-    for (const p of pools) {
-      const latestJob = await (prismadbCrm as any).crm_Lead_Gen_Jobs.findFirst({
-        where: { pool: p.id },
-        orderBy: { startedAt: "desc" },
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          finishedAt: true,
-          counters: true,
-          queryTemplates: true,
-        },
-      });
-
-      const candidatesCount = await (prismadbCrm as any).crm_Lead_Candidates.count({
-        where: { pool: p.id },
-      });
-
-      // Get total contacts count for the pool
-      const contactsCount = await (prismadbCrm as any).crm_Contact_Candidates.count({
-        where: {
-          leadCandidate: {
-            in: await (prismadbCrm as any).crm_Lead_Candidates.findMany({
-              where: { pool: p.id },
-              select: { id: true }
-            }).then((candidates: any[]) => candidates.map(c => c.id))
-          }
-        }
-      });
-
-      // Get preview of first 11 candidates
-      const candidatesPreview = await (prismadbCrm as any).crm_Lead_Candidates.findMany({
-        where: { pool: p.id },
-        orderBy: { score: "desc" },
-        take: 11,
-        select: {
-          id: true,
-          domain: true,
-          companyName: true,
-          industry: true,
-          score: true,
-          contacts: {
-            select: {
-              email: true,
-              phone: true,
-            },
-          },
-        },
-      });
-
-      // Get full pool data including icpConfig
-      const fullPool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
-        where: { id: p.id },
-        select: {
-          icpConfig: true,
-        },
-      });
-
-      results.push({
-        ...p,
-        latestJob: latestJob ?? null,
-        candidatesCount,
-        contactsCount,
-        candidatesPreview,
-        icpConfig: fullPool?.icpConfig ?? null,
-      });
-    }
+    const results = pools.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      user: p.user,
+      icpConfig: p.icpConfig,
+      latestJob: p.jobs?.[0] || null,
+      candidatesCount: p._count?.candidates || 0,
+    }));
 
     return NextResponse.json({ pools: results }, { status: 200 });
   } catch (error) {
