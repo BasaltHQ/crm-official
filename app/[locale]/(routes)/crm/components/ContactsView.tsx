@@ -51,7 +51,7 @@ const ContactsView = ({ data, crmData }: any) => {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sticky top-0 z-40 bg-background/95 backdrop-blur pb-4 pt-4 -mt-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Sheet open={open} onOpenChange={setOpen}>
           <div onClick={() => setOpen(true)}>
             <NavigationCard card={card} />

@@ -69,7 +69,7 @@ export default function SettingsTabs({ defaultTab = "integration" }: SettingsTab
     return (
         <div className="w-full h-full flex flex-col">
             <Tabs defaultValue={defaultTab} className="w-full h-full flex flex-col">
-                <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 bg-background/95 backdrop-blur z-20 sticky top-0 py-2 h-auto">
+                <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 h-auto">
                     {cards.map((card) => (
                         <TabsTrigger
                             key={card.value}
@@ -100,31 +100,31 @@ export default function SettingsTabs({ defaultTab = "integration" }: SettingsTab
                     ))}
                 </TabsList>
 
-                <TabsContent value="integration" className="overflow-auto flex-1 mt-0">
+                <TabsContent value="integration" className="mt-0">
                     <div className="space-y-6">
                         <CalendarIntegrationPanel />
                     </div>
                 </TabsContent>
 
-                <TabsContent value="availability" className="overflow-auto flex-1 mt-0">
+                <TabsContent value="availability" className="mt-0">
                     <div className="space-y-6">
                         <CalendarAvailabilityPanel />
                     </div>
                 </TabsContent>
 
-                <TabsContent value="events" className="overflow-auto flex-1 mt-0">
+                <TabsContent value="events" className="mt-0">
                     <div className="space-y-6">
                         <CalendarEventsPanel />
                     </div>
                 </TabsContent>
 
-                <TabsContent value="signatures" className="overflow-auto flex-1 mt-0">
+                <TabsContent value="signatures" className="mt-0">
                     <div className="space-y-6">
                         <SignaturesResourcesPanel />
                     </div>
                 </TabsContent>
 
-                <TabsContent value="portal" className="overflow-auto flex-1 mt-0">
+                <TabsContent value="portal" className="mt-0">
                     <div className="space-y-6">
                         <PortalSettingsPanel />
                     </div>
