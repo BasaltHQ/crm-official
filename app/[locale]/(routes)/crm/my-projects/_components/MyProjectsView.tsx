@@ -15,6 +15,9 @@ import {
     Sparkles,
     Loader2,
     FileText,
+    CheckSquare,
+    BarChart2,
+    Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { ViewToggle, type ViewMode } from "@/components/ViewToggle";
@@ -105,57 +108,85 @@ export default function MyProjectsView({ userId }: Props) {
 
     return (
         <div className="space-y-6">
-            {/* Header Row: My Assignments + Need More Leads horizontally aligned */}
-            <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-                {/* My Assignments Card */}
-                <Card className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border-none">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <FolderKanban className="w-5 h-5 text-indigo-400" />
-                            My Assignments
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                            Projects and lead pools assigned to you by your admin. Start campaigns from here.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
 
-                {/* Need More Leads Card */}
-                <Card className="bg-muted/30">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-amber-400" />
-                            Need More Leads?
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                            Contact your admin to request access to more lead pools or projects.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </motion.div>
 
-            {/* Navigation Actions Row: Documents + View Toggle */}
+
+            {/* Navigation Buttons Row - Glassmorphism style similar to /crm/leads */}
             <motion.div
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
-                className="flex flex-wrap items-center justify-between gap-4"
+                className="grid grid-cols-2 md:grid-cols-4 gap-3"
             >
-                {/* Documents Navigation Card */}
-                <Link href="/documents" className="flex-shrink-0">
-                    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:bg-white/10 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] flex items-center gap-3">
-                        {/* Gradient Background */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/20 to-blue-500/20 opacity-20 group-hover:opacity-60 transition-opacity duration-300" />
-                        <div className="relative z-10 flex items-center gap-3">
-                            <div className="p-2 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 text-sky-400 ring-1 ring-white/20 group-hover:ring-white/40">
-                                <FileText className="w-5 h-5" strokeWidth={1.5} />
+                {/* My Tasks Button */}
+                <Link href={`/projects/tasks/${userId}`}>
+                    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] h-full">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 opacity-20 group-hover:opacity-60 transition-opacity duration-300" />
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-2">
+                            <div className="p-3 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 text-blue-400 ring-1 ring-white/20 group-hover:ring-white/40">
+                                <CheckSquare className="w-6 h-6" strokeWidth={1.5} />
                             </div>
-                            <div>
+                            <div className="space-y-0.5">
+                                <span className="block text-sm font-medium text-foreground group-hover:text-white transition-colors">
+                                    My Tasks
+                                </span>
+                                <span className="block text-xs text-muted-foreground group-hover:text-white/80 transition-colors">
+                                    View assigned tasks
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+
+                {/* Gantt View Button */}
+                <Link href="/projects/gantt">
+                    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] h-full">
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-violet-500/20 opacity-20 group-hover:opacity-60 transition-opacity duration-300" />
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-2">
+                            <div className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 text-purple-400 ring-1 ring-white/20 group-hover:ring-white/40">
+                                <BarChart2 className="w-6 h-6" strokeWidth={1.5} />
+                            </div>
+                            <div className="space-y-0.5">
+                                <span className="block text-sm font-medium text-foreground group-hover:text-white transition-colors">
+                                    Gantt View
+                                </span>
+                                <span className="block text-xs text-muted-foreground group-hover:text-white/80 transition-colors">
+                                    Project timeline
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+
+                {/* Calendar Button */}
+                <Link href="/projects/calendar">
+                    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] h-full">
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-green-500/20 opacity-20 group-hover:opacity-60 transition-opacity duration-300" />
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-2">
+                            <div className="p-3 rounded-full bg-gradient-to-br from-emerald-500/20 to-green-500/20 border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 text-emerald-400 ring-1 ring-white/20 group-hover:ring-white/40">
+                                <Calendar className="w-6 h-6" strokeWidth={1.5} />
+                            </div>
+                            <div className="space-y-0.5">
+                                <span className="block text-sm font-medium text-foreground group-hover:text-white transition-colors">
+                                    Calendar
+                                </span>
+                                <span className="block text-xs text-muted-foreground group-hover:text-white/80 transition-colors">
+                                    Task deadlines
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+
+                {/* Documents Button */}
+                <Link href="/documents">
+                    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] h-full">
+                        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/20 to-blue-500/20 opacity-20 group-hover:opacity-60 transition-opacity duration-300" />
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-2">
+                            <div className="p-3 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 text-sky-400 ring-1 ring-white/20 group-hover:ring-white/40">
+                                <FileText className="w-6 h-6" strokeWidth={1.5} />
+                            </div>
+                            <div className="space-y-0.5">
                                 <span className="block text-sm font-medium text-foreground group-hover:text-white transition-colors">
                                     Documents
                                 </span>
@@ -166,10 +197,18 @@ export default function MyProjectsView({ userId }: Props) {
                         </div>
                     </div>
                 </Link>
+            </motion.div>
 
-                {/* View Toggle */}
+            {/* View Toggle Row */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.15 }}
+                className="flex justify-end"
+            >
                 <ViewToggle value={viewMode} onChange={setViewMode} />
             </motion.div>
+
 
             {hasNoAssignments ? (
                 <motion.div
@@ -323,7 +362,7 @@ export default function MyProjectsView({ userId }: Props) {
                                                                 </Button>
                                                             </Link>
                                                             <Link href={`/crm/leads/pools/${pool.id}/campaign`}>
-                                                                <Button size="sm" className="bg-gradient-to-r from-emerald-600 to-green-600">
+                                                                <Button size="sm" className="bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white border-none">
                                                                     <Rocket className="w-4 h-4 mr-1" />
                                                                     Campaign
                                                                 </Button>
@@ -367,7 +406,7 @@ export default function MyProjectsView({ userId }: Props) {
                                                                 </Button>
                                                             </Link>
                                                             <Link href={`/crm/leads/pools/${pool.id}/campaign`} className={viewMode === "compact" ? "flex-1" : ""}>
-                                                                <Button size="sm" className={`bg-gradient-to-r from-emerald-600 to-green-600 ${viewMode === "compact" ? "w-full h-7 text-xs" : ""}`}>
+                                                                <Button size="sm" className={`bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white border-none ${viewMode === "compact" ? "w-full h-7 text-xs" : ""}`}>
                                                                     <Rocket className="w-4 h-4 mr-1" />
                                                                     {viewMode === "compact" ? "" : "Campaign"}
                                                                 </Button>
@@ -384,6 +423,39 @@ export default function MyProjectsView({ userId }: Props) {
                     )}
                 </>
             )}
+            {/* Footer Row: My Assignments + Need More Leads horizontally aligned */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t"
+            >
+                {/* My Assignments Card */}
+                <Card className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border-none">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <FolderKanban className="w-5 h-5 text-indigo-400" />
+                            My Assignments
+                        </CardTitle>
+                        <CardDescription className="text-sm">
+                            Projects and lead pools assigned to you by your admin. Start campaigns from here.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+
+                {/* Need More Leads Card */}
+                <Card className="bg-muted/30">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-amber-400" />
+                            Need More Leads?
+                        </CardTitle>
+                        <CardDescription className="text-sm">
+                            Contact your admin to request access to more lead pools or projects.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            </motion.div>
         </div>
     );
 }

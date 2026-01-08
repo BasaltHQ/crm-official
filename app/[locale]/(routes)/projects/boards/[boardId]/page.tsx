@@ -21,6 +21,8 @@ import AiAssistantProject from "./components/AiAssistantProject";
 import { Lock } from "lucide-react";
 import BoardTabsContainer from "./components/BoardTabsContainer";
 import ProjectMembersPanel from "./components/ProjectMembersPanel";
+import { prismadb } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 interface BoardDetailProps {
   params: Promise<{ boardId: string }>;
@@ -32,12 +34,35 @@ const BoardPage = async (props: BoardDetailProps) => {
   const params = await props.params;
   const session = await getServerSession(authOptions);
   const user = session?.user;
+
+  // Role-based access check: Members cannot access individual board pages
+  if (user?.id) {
+    const userData = await prismadb.users.findUnique({
+      where: { id: user.id },
+      select: {
+        team_role: true,
+        is_admin: true,
+        is_account_admin: true,
+        assigned_role: { select: { name: true } }
+      }
+    });
+
+    const isSuperAdmin = userData?.assigned_role?.name === "SuperAdmin";
+    const isAdmin = userData?.is_admin || userData?.is_account_admin;
+
+    // Members are redirected to their My Projects page
+    if (!isSuperAdmin && !isAdmin) {
+      return redirect("/crm/my-projects");
+    }
+  }
+
   const { boardId } = params;
   const board: any = await getBoard(boardId);
   const boards = await getBoards(user?.id!);
   const users: Users[] = await getActiveUsers();
   const sections: any = await getBoardSections(boardId);
   const kanbanData = await getKanbanData(boardId);
+
 
   // fetch brand logo for hero header
   let brandLogoUrl: string | null = null;

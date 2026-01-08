@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Folder, CalendarIcon, ArrowRight, Building2 } from "lucide-react";
+import { Folder, CalendarIcon, ArrowRight } from "lucide-react";
 
 import {
     Dialog,
@@ -70,8 +70,8 @@ export default function NewProjectsWidget({ projects }: NewProjectsWidgetProps) 
                         )}
 
                         {projects.map((item) => (
-                            <div key={item.id} className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card/50 hover:bg-muted/50 transition-colors">
-                                <div className="space-y-1.5 overflow-hidden">
+                            <div key={item.id} className="group flex items-start gap-3 p-3 rounded-lg border bg-card/50 hover:bg-muted/50 transition-colors">
+                                <div className="space-y-1.5 overflow-hidden flex-1">
                                     <div className="flex items-center gap-2">
                                         <span className="font-medium truncate block">
                                             {item.board.title}
@@ -87,20 +87,13 @@ export default function NewProjectsWidget({ projects }: NewProjectsWidgetProps) 
                                         </span>
                                         <span className="flex items-center gap-1 opacity-70">
                                             <CalendarIcon className="h-3 w-3" />
-                                            Assigned: {format(new Date(item.assignedAt), "EOKK")}
+                                            Assigned: {format(new Date(item.assignedAt), "PPP")}
                                         </span>
                                     </div>
                                 </div>
-
-                                <div className="shrink-0 pt-0.5">
-                                    <Link href={`/projects/boards/${item.board.id}`}>
-                                        <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <ArrowRight className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                </div>
                             </div>
                         ))}
+
                     </div>
                 </ScrollArea>
 
