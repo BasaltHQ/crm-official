@@ -43,10 +43,10 @@ export default function ProjectsSidebar() {
 
     const navItems = [
         { label: "Overview", href: "/projects", icon: FolderKanban },
-        { label: "Tasks", href: "/projects/tasks", icon: ListTodo },
-        { label: "Gantt", href: "/projects/gantt", icon: BarChart2 },
+        { label: "All Tasks", href: "/projects/tasks", icon: ListTodo },
+        { label: "All Gantts", href: "/projects/gantt", icon: BarChart2 },
         { label: "Calendar", href: "/projects/calendar", icon: CalendarDays },
-        { label: "Documents", href: "/projects/documents", icon: FileText },
+        { label: "All Documents", href: "/projects/documents", icon: FileText },
     ];
 
     if (!isMounted) return null;

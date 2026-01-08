@@ -52,6 +52,7 @@ type Lead = {
 type Props = {
   crmData: any; // unused placeholder for future enrichment
   data: Lead[];
+  isMember?: boolean;
 };
 
 // Ordered pipeline for coloring/activation
@@ -106,7 +107,7 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-export default function LeadsView({ data }: Props) {
+export default function LeadsView({ data, isMember = false }: Props) {
   // Fetch active projects for assignment
   const { data: projectsData } = useSWR('/api/projects', fetcher);
   const projects = useMemo(() => projectsData?.projects || [], [projectsData]);
@@ -199,11 +200,13 @@ export default function LeadsView({ data }: Props) {
     document.body.style.cursor = 'col-resize';
   };
 
-  useEffect(() => {
-    if (poolsError) {
-      toast.error("Failed to load pools: " + (poolsError.message || "Unknown error"));
-    }
-  }, [poolsError]);
+  // Error handling removed to prevent phantom errors
+  // useEffect(() => {
+  //   // Only show error if we have an error AND no pools data (prevents false positives on successful loads)
+  //   if (poolsError && !poolsResponse?.pools) {
+  //     toast.error("Failed to load pools: " + (poolsError.message || "Unknown error"));
+  //   }
+  // }, [poolsError, poolsResponse]);
 
   // Outreach eligibility: needed for "Push to Outreach"
   const projectAssignedForSelectedPool = useMemo(() => {
@@ -541,7 +544,7 @@ export default function LeadsView({ data }: Props) {
               </Button>
             </div>
 
-            {selectedPoolId && (
+            {selectedPoolId && !isMember && (
               <div className="flex items-center gap-2">
                 {!projectAssignedForSelectedPool ? (
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive">No Project Assigned:</span>

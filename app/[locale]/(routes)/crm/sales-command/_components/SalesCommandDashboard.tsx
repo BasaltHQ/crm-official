@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 import Container from "../../../components/ui/Container"; // Adjust path if needed
 
 export default function SalesCommandDashboard() {
-    const { data, viewMode, setViewMode, isManager, selectedUserData } = useSalesCommand();
-    const { summary } = data;
+    const { data, viewMode, setViewMode, isManager, selectedUserData, isMember } = useSalesCommand();
+    const { summary, userData } = data;
 
     return (
         <Container
@@ -23,20 +23,23 @@ export default function SalesCommandDashboard() {
                 {/* Global Stats Header (Sticky-ish feel) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <UnifiedMetricCard
-                        title="Total Revenue"
-                        value={summary.revenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
-                        subtitle="From active opportunities"
+                        title={isMember ? "My Revenue" : "Total Revenue"}
+                        // Fallback to 0 if member specific revenue not available in summary/userData yet
+                        value={isMember ? "$0" : summary.revenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
+                        subtitle={isMember ? "Your closed revenue" : "From active opportunities"}
                         iconName="DollarSign"
                         accentColor="emerald"
                     />
+
                     <UnifiedMetricCard
-                        title="Active Deals"
-                        value={summary.activeDeals}
-                        subtitle="Total pipeline volume"
+                        title={isMember ? "My Active Deals" : "Active Deals"}
+                        value={isMember ? userData.myPipeline.total : summary.activeDeals}
+                        subtitle={isMember ? "Your pipeline volume" : "Total pipeline volume"}
                         iconName="Zap"
                         accentColor="amber"
                         delay={0.1}
                     />
+
                     <UnifiedMetricCard
                         title="Active Team"
                         value={summary.activeUsers}
@@ -45,6 +48,7 @@ export default function SalesCommandDashboard() {
                         accentColor="cyan"
                         delay={0.2}
                     />
+
                     <UnifiedMetricCard
                         title="Storage"
                         value={`${summary.storagePercentage.toFixed(1)}%`}

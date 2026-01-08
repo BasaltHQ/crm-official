@@ -23,7 +23,57 @@ export const getSummaryCounts = async (): Promise<DashboardCounts> => {
   const isGlobalAdmin = teamInfo?.isGlobalAdmin;
 
   // Build team filter - global admins see all, others see only their team
-  const teamFilter = isGlobalAdmin ? {} : teamId ? { team_id: teamId } : { team_id: "no-team-fallback" };
+  const teamRole = teamInfo?.teamRole;
+  const assignmentsFilter = teamRole === "MEMBER" ? {
+    OR: [
+      { assigned_to: teamInfo?.userId },
+      { user: teamInfo?.userId } // For models using 'user' instead of 'assigned_to'
+    ]
+  } : {};
+
+  // Helper to merge team filter with member restriction
+  const getFilter = (modelField: "assigned_to" | "user" | "none" = "none") => {
+    let base = isGlobalAdmin ? {} : teamId ? { team_id: teamId } : { team_id: "no-team-fallback" };
+
+    if (teamRole === "MEMBER") {
+      if (modelField === "assigned_to") {
+        return { ...base, assigned_to: teamInfo?.userId };
+      } else if (modelField === "user") {
+        return { ...base, user: teamInfo?.userId };
+      }
+    }
+    return base;
+  };
+
+  // For documents: members see only their assigned or created docs
+  const getDocumentFilter = () => {
+    if (isGlobalAdmin) return {};
+    const base = teamId ? { team_id: teamId } : { team_id: "no-team-fallback" };
+    if (teamRole === "MEMBER") {
+      return {
+        ...base,
+        OR: [
+          { created_by_user: teamInfo?.userId },
+          { assigned_user: teamInfo?.userId }
+        ]
+      };
+    }
+    return base;
+  };
+
+  // For project opportunities: members see only their created/assigned ones
+  const getProjectOpportunityFilter = () => {
+    if (teamRole === "MEMBER") {
+      return {
+        status: "OPEN",
+        OR: [
+          { createdBy: teamInfo?.userId },
+          { assignedTo: teamInfo?.userId }
+        ]
+      };
+    }
+    return { status: "OPEN" };
+  };
 
   const [
     leads,
@@ -41,30 +91,35 @@ export const getSummaryCounts = async (): Promise<DashboardCounts> => {
     projectRevenueAgg,
     storageAgg,
   ] = await prismadb.$transaction([
-    prismadb.crm_Leads.count({ where: teamFilter }),
-    prismadb.tasks.count({ where: teamFilter }),
-    prismadb.boards.count({ where: teamFilter }),
-    prismadb.crm_Contacts.count({ where: teamFilter }),
-    prismadb.crm_Accounts.count({ where: teamFilter }),
-    prismadb.crm_Contracts.count({ where: teamFilter }),
-    prismadb.invoices.count({ where: teamFilter }),
-    prismadb.documents.count({ where: teamFilter }),
+    prismadb.crm_Leads.count({ where: getFilter("assigned_to") }),
+    prismadb.tasks.count({ where: getFilter("user") }),
+    prismadb.boards.count({ where: getFilter("user") }),
+    prismadb.crm_Contacts.count({ where: getFilter("assigned_to") }),
+    prismadb.crm_Accounts.count({ where: getFilter("assigned_to") }),
+    prismadb.crm_Contracts.count({ where: getFilter("assigned_to") }),
+    prismadb.invoices.count({ where: isGlobalAdmin ? {} : teamId ? { team_id: teamId } : { team_id: "no-team-fallback" } }), // Invoices stay team-level
+    prismadb.documents.count({ where: getDocumentFilter() }), // Member-specific document filter
     // Count CRM Opportunities
-    prismadb.crm_Opportunities.count({ where: teamFilter }),
-    // Count Project Opportunities (these don't have team_id, so count all OPEN ones for user's projects)
-    (prismadb.project_Opportunities as any).count({ where: { status: "OPEN" } }),
-    prismadb.users.count({ where: { ...teamFilter, userStatus: "ACTIVE" as any } }),
-    // CRM Opportunities expected revenue
+    prismadb.crm_Opportunities.count({ where: getFilter("assigned_to") }),
+    // Count Project Opportunities - now filtered for members
+    (prismadb.project_Opportunities as any).count({ where: getProjectOpportunityFilter() }),
+    // Users: members see "1" (themselves), admins see team count
+    prismadb.users.count({
+      where: teamRole === "MEMBER"
+        ? { id: teamInfo?.userId }
+        : { ...(isGlobalAdmin ? {} : teamId ? { team_id: teamId } : { team_id: "no-team-fallback" }), userStatus: "ACTIVE" as any }
+    }),
+    // CRM Opportunities expected revenue (already filtered for members)
     prismadb.crm_Opportunities.aggregate({
-      where: { ...teamFilter, status: "ACTIVE" as any },
+      where: { ...getFilter("assigned_to"), status: "ACTIVE" as any },
       _sum: { expected_revenue: true }
     }),
-    // Project Opportunities value estimate (for OPEN opportunities)
+    // Project Opportunities value estimate - now filtered for members
     (prismadb.project_Opportunities as any).aggregate({
-      where: { status: "OPEN" },
+      where: getProjectOpportunityFilter(),
       _sum: { valueEstimate: true }
     }),
-    prismadb.documents.aggregate({ where: teamFilter, _sum: { size: true } }),
+    prismadb.documents.aggregate({ where: getDocumentFilter(), _sum: { size: true } }),
   ]);
 
   // Combine opportunities from both CRM and Project systems

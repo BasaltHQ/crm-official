@@ -10,7 +10,18 @@ export const getDocuments = async () => {
   if (!session || (!teamInfo?.teamId && !teamInfo?.isGlobalAdmin)) return [];
 
   const whereClause: any = {};
-  if (!teamInfo?.isGlobalAdmin) {
+
+  if (teamInfo?.isGlobalAdmin) {
+    // Global admins see all documents
+  } else if (teamInfo?.teamRole === "MEMBER") {
+    // Members only see their own created or assigned documents
+    whereClause.team_id = teamInfo?.teamId;
+    whereClause.OR = [
+      { created_by_user: teamInfo?.userId },
+      { assigned_user: teamInfo?.userId }
+    ];
+  } else {
+    // Other roles (ADMIN, OWNER) see all team documents
     whereClause.team_id = teamInfo?.teamId;
   }
 

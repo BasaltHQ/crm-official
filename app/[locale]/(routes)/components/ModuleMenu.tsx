@@ -28,6 +28,7 @@ type Props = {
   dict: any;
   features: string[];
   isPartnerAdmin: boolean;
+  teamRole?: string;
 };
 
 const AnyMenu = Menu as any;
@@ -63,7 +64,7 @@ const compactLogoVariants = {
   collapsed: { opacity: 1, x: 0, display: "block" },
 };
 
-const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
+const ModuleMenu = ({ modules, dict, features, isPartnerAdmin, teamRole = "MEMBER" }: Props) => {
   const [open, setOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
@@ -158,7 +159,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
               {/* Separator for clarity */}
               <div className="my-2 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent opacity-50 mx-2" />
 
-              {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && (
+              {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && teamRole !== "MEMBER" && (
                 <ProjectModuleMenu open={open} title={dict.ModuleMenu.projects} />
               )}
 
@@ -181,7 +182,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
                   <FormBuilderModuleMenu open={open} />
                 </>
               )}
-              {modules.find((m: any) => m.name === "employee" && m.enabled) && hasFeature("employee") && (
+              {modules.find((m: any) => m.name === "employee" && m.enabled) && hasFeature("employee") && teamRole !== "MEMBER" && (
                 <EmployeesModuleMenu open={open} />
               )}
               {modules.find((m: any) => m.name === "invoice" && m.enabled) && hasFeature("invoices") && (
@@ -191,13 +192,13 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
                 <ReportsModuleMenu open={open} title={dict.ModuleMenu.reports} />
               )}
               <UniversityModuleMenu open={open} title="University" />
-              {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && (
+              {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && teamRole !== "MEMBER" && (
                 <DataboxModuleMenu open={open} />
               )}
               {modules.find((m: any) => m.name === "openai" && m.enabled) && hasFeature("openai") && (
                 <ChatGPTModuleMenu open={open} />
               )}
-              <AdministrationMenu open={open} title={dict.ModuleMenu.settings} />
+              {teamRole !== "MEMBER" && <AdministrationMenu open={open} title={dict.ModuleMenu.settings} />}
               {isPartnerAdmin && <PartnerMenu open={open} />}
             </div>
           </div>
@@ -217,7 +218,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
       {/* Mobile Bottom Navigation (Preserved/Minimally Touched) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-b from-background/95 via-background/90 to-background/95 backdrop-blur-xl border-t border-white/5 flex flex-row overflow-x-auto items-center justify-between px-4 py-2 gap-4 no-scrollbar safe-area-pb">
         <DashboardMenu open={false} title={dict.ModuleMenu.dashboard} isMobile />
-        {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && (
+        {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && teamRole !== "MEMBER" && (
           <ProjectModuleMenu open={false} title={dict.ModuleMenu.projects} isMobile />
         )}
         {modules.find((m: any) => m.name === "crm" && m.enabled) && hasFeature("crm") && (
@@ -232,7 +233,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
             <FormBuilderModuleMenu open={false} isMobile />
           </>
         )}
-        {modules.find((m: any) => m.name === "employee" && m.enabled) && hasFeature("employee") && (
+        {modules.find((m: any) => m.name === "employee" && m.enabled) && hasFeature("employee") && teamRole !== "MEMBER" && (
           <EmployeesModuleMenu open={false} isMobile />
         )}
         {modules.find((m: any) => m.name === "invoice" && m.enabled) && hasFeature("invoices") && (
@@ -242,13 +243,13 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin }: Props) => {
           <ReportsModuleMenu open={false} title={dict.ModuleMenu.reports} isMobile />
         )}
         <UniversityModuleMenu open={false} title="University" isMobile />
-        {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && (
+        {modules.find((m: any) => m.name === "databox" && m.enabled) && hasFeature("databox") && teamRole !== "MEMBER" && (
           <DataboxModuleMenu open={false} isMobile />
         )}
         {modules.find((m: any) => m.name === "openai" && m.enabled) && hasFeature("openai") && (
           <ChatGPTModuleMenu open={false} isMobile />
         )}
-        <AdministrationMenu open={false} title={dict.ModuleMenu.settings} isMobile />
+        {teamRole !== "MEMBER" && <AdministrationMenu open={false} title={dict.ModuleMenu.settings} isMobile />}
         {isPartnerAdmin && <PartnerMenu open={false} isMobile />}
       </div>
     </>

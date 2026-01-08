@@ -16,7 +16,11 @@ import {
     ChevronRight,
 } from "lucide-react";
 
-export default function CrmSidebar() {
+interface CrmSidebarProps {
+    isMember?: boolean;
+}
+
+export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -53,9 +57,9 @@ export default function CrmSidebar() {
         { label: "Opportunities", href: "/crm/opportunities", icon: Target },
     ];
 
-    // Hide CrmSidebar on /crm/university as it has its own layout
+    // Hide CrmSidebar for Members (they use DashboardNavGrid) or on /crm/university
     const isUniversityPage = pathname.includes("/crm/university");
-    if (isUniversityPage) {
+    if (isMember || isUniversityPage) {
         return null;
     }
 

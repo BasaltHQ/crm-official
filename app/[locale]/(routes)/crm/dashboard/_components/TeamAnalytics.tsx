@@ -34,43 +34,46 @@ type TeamAnalyticsProps = {
   leaderboard: LeaderboardEntry[];
   weights: Record<PipelineStage, number>;
   onUserSelect?: (userId: string) => void;
+  isMember?: boolean;
 };
 
-export default function TeamAnalytics({ team, leaderboard, weights, onUserSelect }: TeamAnalyticsProps) {
+export default function TeamAnalytics({ team, leaderboard, weights, onUserSelect, isMember = false }: TeamAnalyticsProps) {
   const stageChartData = Object.entries(team.stageCounts).map(([k, v]) => ({ name: k.replace("_", " "), Number: v as number }));
 
   return (
     <div className="space-y-6">
-      {/* Team Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <div className="text-sm text-muted-foreground">Total leads</div>
-          <div className="text-2xl font-semibold">{team.totalLeads}</div>
-          <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-            <div className="rounded border p-2 bg-muted/30 text-center">
-              <div className="font-medium">Emails present</div>
-              <div className="text-muted-foreground">{team.activityCounts.emailsPresent}</div>
-            </div>
-            <div className="rounded border p-2 bg-muted/30 text-center">
-              <div className="font-medium">Phones present</div>
-              <div className="text-muted-foreground">{team.activityCounts.phonesPresent}</div>
-            </div>
-            <div className="rounded border p-2 bg-muted/30 text-center">
-              <div className="font-medium">Emails sent</div>
-              <div className="text-muted-foreground">{team.activityCounts.emailSent}</div>
-            </div>
-            <div className="rounded border p-2 bg-muted/30 text-center">
-              <div className="font-medium">Calls initiated</div>
-              <div className="text-muted-foreground">{team.activityCounts.callsInitiated}</div>
+      {/* Team Overview - Hidden for Members */}
+      {!isMember && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="text-sm text-muted-foreground">Total leads</div>
+            <div className="text-2xl font-semibold">{team.totalLeads}</div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded border p-2 bg-muted/30 text-center">
+                <div className="font-medium">Emails present</div>
+                <div className="text-muted-foreground">{team.activityCounts.emailsPresent}</div>
+              </div>
+              <div className="rounded border p-2 bg-muted/30 text-center">
+                <div className="font-medium">Phones present</div>
+                <div className="text-muted-foreground">{team.activityCounts.phonesPresent}</div>
+              </div>
+              <div className="rounded border p-2 bg-muted/30 text-center">
+                <div className="font-medium">Emails sent</div>
+                <div className="text-muted-foreground">{team.activityCounts.emailSent}</div>
+              </div>
+              <div className="rounded border p-2 bg-muted/30 text-center">
+                <div className="font-medium">Calls initiated</div>
+                <div className="text-muted-foreground">{team.activityCounts.callsInitiated}</div>
+              </div>
             </div>
           </div>
+          <div className="lg:col-span-2">
+            <BarChartDemo chartData={stageChartData} title="Pipeline distribution (team-wide)" />
+          </div>
         </div>
-        <div className="lg:col-span-2">
-          <BarChartDemo chartData={stageChartData} title="Pipeline distribution (team-wide)" />
-        </div>
-      </div>
+      )}
 
-      {/* Leaderboard */}
+      {/* Leaderboard - Visible to All */}
       <div className="rounded-lg border bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold">Leaderboard</h2>

@@ -13,6 +13,10 @@ import CampaignsView from "./components/CampaignsView";
 
 import { getAllCrmData } from "@/actions/crm/get-crm-data";
 import { getLeads } from "@/actions/crm/get-leads";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prismadb } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +25,29 @@ type LeadsPageProps = { searchParams?: Promise<Record<string, string | string[] 
 const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
   const sp = searchParams ? await searchParams : undefined;
   const tabParam = sp?.tab;
-  const tab = typeof tabParam === "string" ? tabParam : Array.isArray(tabParam) ? tabParam[0] ?? "manager" : "manager";
+  let tab = typeof tabParam === "string" ? tabParam : Array.isArray(tabParam) ? tabParam[0] ?? "manager" : "manager";
+
+  // Check generic member role
+  const session = await getServerSession(authOptions);
+  let isMember = false;
+
+  if (session?.user?.id) {
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { team_role: true }
+    });
+
+    // If user is a MEMBER, they are restricted
+    if (user?.team_role === "MEMBER") {
+      isMember = true;
+      // If they try to access anything other than manager, force 'manager' (essentially a redirect/override)
+      if (tab !== "manager") {
+        // We can either redirect or just force render. For safer UX, let's just force the variable. 
+        // But redirect is cleaner URL wise.
+        return redirect("/crm/leads?tab=manager");
+      }
+    }
+  }
 
   // Only load heavy data when needed for the active tab (Client-side fetch optimization)
   const crmData = tab === "manager" ? await getAllCrmData() : null;
@@ -66,17 +92,18 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
       <TabsContainer
         title={title}
         description={description}
+        isMember={isMember}
         managerSlot={
           tab === "manager" ? (
             <Suspense fallback={<SuspenseLoading />}>
-              <LeadsManagerTabs leads={leads as any} crmData={crmData} />
+              <LeadsManagerTabs leads={leads as any} crmData={crmData} isMember={isMember} />
             </Suspense>
           ) : null
         }
-        wizardSlot={tab === "wizard" ? <LeadGenWizardPage /> : null}
-        poolsSlot={tab === "pools" ? <LeadPoolsPage /> : null}
-        campaignsSlot={tab === "campaigns" ? <CampaignsView /> : null}
-        settingsSlot={tab === "settings" ? (
+        wizardSlot={!isMember && tab === "wizard" ? <LeadGenWizardPage /> : null}
+        poolsSlot={!isMember && tab === "pools" ? <LeadPoolsPage /> : null}
+        campaignsSlot={!isMember && tab === "campaigns" ? <CampaignsView /> : null}
+        settingsSlot={!isMember && tab === "settings" ? (
           <SettingsTabs />
         ) : null}
       />

@@ -43,6 +43,14 @@ const navItems = [
         iconColor: "text-purple-400",
     },
     {
+        title: "Contracts",
+        description: "View and manage contracts",
+        href: "/crm/contracts",
+        icon: FileText,
+        color: "from-slate-500/20 to-zinc-500/20",
+        iconColor: "text-slate-400",
+    },
+    {
         title: "Dashboard",
         description: "Sales performance overview",
         href: "/crm/sales-command",
@@ -95,15 +103,30 @@ const navItems = [
         description: "Track sales pipeline",
         href: "/crm/opportunities",
         icon: Target,
-        color: "from-yellow-500/20 to-amber-500/20",
-        iconColor: "text-yellow-400",
+        color: "from-lime-500/20 to-green-500/20",
+        iconColor: "text-lime-400",
     },
 ];
 
-export default function DashboardNavGrid() {
+interface Props {
+    isMember?: boolean;
+}
+
+export default function DashboardNavGrid({ isMember = false }: Props) {
+    // Filter items based on role
+    const filteredNavItems = navItems.filter((item) => {
+        if (isMember) {
+            // Hide specific items for Members (Campaigns is now shown since members can access their own)
+            if (["Lead Wizard", "Lead Pools"].includes(item.title)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {navItems.map((item) => (
+            {filteredNavItems.map((item) => (
                 <Link
                     key={item.title}
                     href={item.href}

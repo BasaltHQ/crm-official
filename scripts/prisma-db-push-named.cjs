@@ -50,7 +50,7 @@ function main() {
   console.log(`[prisma-db-push-named] Target database name: ${dbName}`);
 
   const result = spawnSync(
-    process.platform === "win32" ? "npx.cmd" : "npx",
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["prisma", "db", "push"],
     {
       stdio: "inherit",

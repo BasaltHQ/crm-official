@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import fetcher from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 import {
@@ -97,6 +97,34 @@ export default function LeadPoolsPage() {
       setViewMode("card");
     }
   }, [isMobile]);
+
+  // Cache version check - invalidates SWR cache when server resets at 12 AM PST
+  useEffect(() => {
+    const checkCacheVersion = async () => {
+      try {
+        const res = await fetch("/api/cache-version");
+        if (!res.ok) return;
+        const { version } = await res.json();
+        const storedVersion = sessionStorage.getItem("poolsCacheVersion");
+
+        if (storedVersion && version !== storedVersion) {
+          // Server cache was reset - invalidate all SWR caches
+          console.log("[CACHE] Server version changed, invalidating SWR cache");
+          globalMutate(() => true, undefined, { revalidate: true });
+        }
+        sessionStorage.setItem("poolsCacheVersion", version);
+      } catch (e) {
+        // Silently fail - not critical
+      }
+    };
+
+    // Check immediately on mount
+    checkCacheVersion();
+
+    // Then check every 60 seconds
+    const interval = setInterval(checkCacheVersion, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Auto-load button sets for pools with assigned project and preselect default
   useEffect(() => {
@@ -213,9 +241,10 @@ export default function LeadPoolsPage() {
           <div className="text-sm text-muted-foreground">Loading pools…</div>
         )}
 
-        {error && (
+        {/* Error display removed to prevent phantom errors */}
+        {/* {error && !data?.pools && (
           <div className="text-sm text-red-600">Failed to load pools</div>
-        )}
+        )} */}
 
         <div className="space-y-4">
           {viewMode === "table" ? (

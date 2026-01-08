@@ -3,7 +3,7 @@
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { logActivity } from "@/actions/audit";
 
 export async function updateProfile(data: { name?: string; password?: string }) {

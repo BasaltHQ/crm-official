@@ -6,7 +6,7 @@ import TeamAnalytics from "../../dashboard/_components/TeamAnalytics";
 import { motion } from "framer-motion";
 
 export default function TeamCommandView() {
-    const { data, handleUserSelect } = useSalesCommand();
+    const { data, handleUserSelect, isMember } = useSalesCommand();
     const { teamData } = data;
 
     return (
@@ -27,7 +27,9 @@ export default function TeamCommandView() {
                 team={teamData.team as any}
                 leaderboard={teamData.leaderboard as any}
                 weights={teamData.weights as any}
+
                 onUserSelect={handleUserSelect}
+                isMember={isMember}
             />
         </motion.div>
     );

@@ -18,16 +18,34 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
     const { searchParams } = new URL(req.url);
     const mine = searchParams.get("mine") === "true";
 
-    // Verify pool belongs to current user (assigned_user) or allow if admin/super admin
-    const teamInfo = await getCurrentUserTeamId();
-    const isAdmin = teamInfo?.isGlobalAdmin || teamInfo?.isAdmin;
+    // Verify user role directly
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { team_role: true }
+    });
 
+    // Permission check
+    // 1. Global Admin (simplified check or rely on isGlobalAdmin from teamInfo if reliable, but role is better)
+    // 2. Pool Owner
+    // 3. Team Admin (if pool is in team)
+
+    const teamInfo = await getCurrentUserTeamId();
+    const isGlobalAdmin = teamInfo?.isGlobalAdmin;
+    const isTeamAdmin = user?.team_role === "ADMIN" || user?.team_role === "OWNER";
+
+    // Fetch pool with team_id
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
-      select: { user: true },
+      select: { user: true, team_id: true },
     });
+
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
-    if (!isAdmin && pool.user !== session.user.id) {
+
+    const isOwner = pool.user === session.user.id;
+    const isTeamMatch = pool.team_id === teamInfo?.teamId;
+
+    if (!isGlobalAdmin && !isOwner && !(isTeamAdmin && isTeamMatch)) {
+      // If just a MEMBER, they are blocked unless they own it
       return new NextResponse("Forbidden", { status: 403 });
     }
 

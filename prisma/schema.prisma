@@ -226,6 +226,9 @@ model crm_Outreach_Campaigns {
   user              String                   @db.ObjectId
   team_id           String?                  @db.ObjectId
   
+  // Members assigned to work on this campaign (for collaboration)
+  assigned_users    String[]                 @db.ObjectId
+  
   // Project/Context association
   project           String?                  @db.ObjectId
   pool              String?                  @db.ObjectId

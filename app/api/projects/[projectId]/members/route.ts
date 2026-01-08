@@ -10,16 +10,18 @@ import { sendAssignmentNotification } from "@/lib/notifications/assignment-notif
  */
 export async function GET(
     req: Request,
-    { params }: { params: { projectId: string } }
+    { params }: { params: Promise<{ projectId: string }> }
 ) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { projectId } = await params;
+
     try {
-        const members = await prismadb.projectMember.findMany({
-            where: { project: params.projectId },
+        const members = await (prismadb as any).projectMember.findMany({
+            where: { project: projectId },
             include: {
                 member: {
                     select: {
@@ -54,8 +56,9 @@ export async function GET(
  */
 export async function POST(
     req: Request,
-    { params }: { params: { projectId: string } }
+    { params }: { params: Promise<{ projectId: string }> }
 ) {
+    const { projectId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -94,9 +97,9 @@ export async function POST(
         }
 
         // Check if already assigned
-        const existing = await prismadb.projectMember.findFirst({
+        const existing = await (prismadb as any).projectMember.findFirst({
             where: {
-                project: params.projectId,
+                project: projectId,
                 user: userId,
             },
         });
@@ -110,14 +113,14 @@ export async function POST(
 
         // Get project details for notification
         const project = await prismadb.boards.findUnique({
-            where: { id: params.projectId },
+            where: { id: projectId },
             select: { title: true, description: true },
         });
 
         // Create membership
-        const membership = await prismadb.projectMember.create({
+        const membership = await (prismadb as any).projectMember.create({
             data: {
-                project: params.projectId,
+                project: projectId,
                 user: userId,
                 role: role || "MEMBER",
                 assignedBy: session.user.id,
@@ -147,7 +150,7 @@ export async function POST(
                 assignedByName: currentUser?.name || "Admin",
                 assignmentType: "project",
                 assignmentName: project?.title || "Project",
-                assignmentId: params.projectId,
+                assignmentId: projectId,
                 role: role || "MEMBER",
                 description: project?.description || undefined,
             }).catch((err) => console.error("[NOTIFY] Project assignment email failed:", err));

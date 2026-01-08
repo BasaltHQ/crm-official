@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 const MAX_HISTORY_ITEMS = 5;
 const IGNORED_PATHS = ["/crm/dashboard", "/sign-in", "/admin/login"];
@@ -15,9 +16,11 @@ export interface HistoryItem {
 export default function RecentActivityTracker() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { data: session } = useSession();
+    const userId = session?.user?.id;
 
     useEffect(() => {
-        if (!pathname) return;
+        if (!pathname || !userId) return;
 
         // Skip ignored paths
         if (IGNORED_PATHS.some((path) => pathname === path || pathname.startsWith(path + "/"))) {
@@ -62,7 +65,8 @@ export default function RecentActivityTracker() {
         };
 
         try {
-            const stored = localStorage.getItem("jump-back-in-history");
+            const storageKey = `jump-back-in-history-${userId}`;
+            const stored = localStorage.getItem(storageKey);
             let history: HistoryItem[] = stored ? JSON.parse(stored) : [];
 
             // Remove existing entry for the same path or label to avoid duplicates and bubble to top
@@ -76,11 +80,11 @@ export default function RecentActivityTracker() {
                 history = history.slice(0, MAX_HISTORY_ITEMS);
             }
 
-            localStorage.setItem("jump-back-in-history", JSON.stringify(history));
+            localStorage.setItem(storageKey, JSON.stringify(history));
         } catch (e) {
             console.error("Failed to save history", e);
         }
-    }, [pathname, searchParams]);
+    }, [pathname, searchParams, userId]);
 
     return null;
 }

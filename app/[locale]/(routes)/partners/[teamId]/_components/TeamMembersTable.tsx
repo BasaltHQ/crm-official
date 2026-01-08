@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { MoreHorizontal, Shield, User, Trash, Search, Plus, KeyRound, Ban, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Shield, User, Trash, Search, Plus, KeyRound, Ban, CheckCircle, Fingerprint } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,7 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) =>
     const [passwordOpen, setPasswordOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [newPassword, setNewPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     const handlePasswordChange = async () => {
         if (!selectedUser || !newPassword) return;
@@ -236,13 +237,26 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) =>
                             Enter a new password for this user.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <Input
-                            type="password"
-                            placeholder="New Password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                        />
+                    <div className="space-y-4 py-4 property-wrapper">
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="New Password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="pr-10"
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                disabled={isLoading}
+                            >
+                                <Fingerprint className={`h-4 w-4 ${showPassword ? "text-primary" : "text-muted-foreground"}`} />
+                            </Button>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setPasswordOpen(false)}>Cancel</Button>

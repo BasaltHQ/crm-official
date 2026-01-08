@@ -62,7 +62,7 @@ export default function BoardTabsContainer({ title, description, visibility, kan
     );
 
     const navItems = [
-        { id: "kanban", label: "Kanban", icon: FolderKanban },
+        { id: "kanban", label: "Tasks", icon: FolderKanban },
         { id: "gantt", label: "Gantt", icon: BarChart2 },
         { id: "documents", label: "Documents", icon: FileText },
         { id: "members", label: "Members", icon: Users },

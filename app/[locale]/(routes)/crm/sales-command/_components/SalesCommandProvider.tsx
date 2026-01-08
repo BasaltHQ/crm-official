@@ -18,6 +18,7 @@ interface SalesCommandContextType {
     selectedUserId: string | null;
     selectedUserData: UserSpecificSalesData | null;
     handleUserSelect: (userId: string | null) => Promise<void>;
+    isMember: boolean;
 }
 
 const SalesCommandContext = createContext<SalesCommandContextType | undefined>(undefined);
@@ -30,6 +31,7 @@ interface SalesCommandProviderProps {
     initialBoards?: any[];
     initialTasks?: any[];
     defaultViewMode?: ViewMode;
+    isMember?: boolean;
 }
 
 export function SalesCommandProvider({
@@ -40,8 +42,11 @@ export function SalesCommandProvider({
     initialBoards = [],
     initialTasks = [],
     defaultViewMode = "team",
+    isMember = false,
 }: SalesCommandProviderProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
+    // If member, force default view to personal
+    const effectiveDefaultView = isMember ? "personal" : defaultViewMode;
+    const [viewMode, setViewMode] = useState<ViewMode>(effectiveDefaultView);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [selectedUserData, setSelectedUserData] = useState<UserSpecificSalesData | null>(null);
 
@@ -95,11 +100,12 @@ export function SalesCommandProvider({
                 isManager,
                 selectedUserId,
                 selectedUserData,
-                handleUserSelect
+                handleUserSelect,
+                isMember
             }}
         >
             {children}
-        </SalesCommandContext.Provider>
+        </SalesCommandContext.Provider >
     );
 }
 

@@ -5,12 +5,29 @@ import WelcomeMessage from "./_components/WelcomeMessage";
 import JumpBackIn from "./_components/JumpBackIn";
 import DailyTasksWidget from "./_components/DailyTasksWidget";
 import MyLeadsWidget from "./_components/MyLeadsWidget";
+import NewProjectsWidget from "./_components/NewProjectsWidget";
 import { getDailyTasks } from "@/actions/dashboard/get-daily-tasks";
 import { getNewLeads } from "@/actions/dashboard/get-new-leads";
+import { getNewProjects } from "@/actions/dashboard/get-new-projects";
+import { prismadb } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const CrmDashboardPage = async () => {
   const dailyTasks = await getDailyTasks();
   const newLeads = await getNewLeads();
+  const newProjects = await getNewProjects();
+
+  const session = await getServerSession(authOptions);
+  let isMember = false;
+
+  if (session?.user?.id) {
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { team_role: true }
+    });
+    isMember = user?.team_role === "MEMBER";
+  }
 
   return (
     <Container>
@@ -20,6 +37,7 @@ const CrmDashboardPage = async () => {
           <WelcomeMessage />
           <div className="mt-2 md:mt-0 flex items-center gap-2">
             <MyLeadsWidget leads={newLeads} />
+            <NewProjectsWidget projects={newProjects} />
             <DailyTasksWidget tasks={dailyTasks} />
           </div>
         </div>
@@ -28,7 +46,7 @@ const CrmDashboardPage = async () => {
         <JumpBackIn />
 
         {/* Main Navigation Grid */}
-        <DashboardNavGrid />
+        <DashboardNavGrid isMember={isMember} />
       </div>
     </Container>
   );

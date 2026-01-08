@@ -18,54 +18,102 @@ export async function GET() {
   }
 
   try {
+    // Verify user role
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { team_role: true }
+    });
+
+    const isMember = user?.team_role === "MEMBER";
     const teamInfo = await getCurrentUserTeamId();
-
-    // Super Admin sees all pools
     const isGlobalAdmin = teamInfo?.isGlobalAdmin;
-
-    // Team Members see pools assigned to their team
     const teamId = teamInfo?.teamId;
 
-    const whereClause: any = {};
-    if (!isGlobalAdmin) {
+    const poolSelect = {
+      id: true,
+      name: true,
+      description: true,
+      createdAt: true,
+      updatedAt: true,
+      user: true,
+      icpConfig: true,
+      assigned_members: true,
+      jobs: {
+        take: 1,
+        orderBy: { startedAt: "desc" as const },
+        select: {
+          id: true,
+          status: true,
+          startedAt: true,
+          finishedAt: true,
+          counters: true,
+          queryTemplates: true,
+        },
+      },
+      _count: {
+        select: { candidates: true },
+      },
+    };
+
+    let pools: any[] = [];
+
+    if (isGlobalAdmin) {
+      // All pools
+      pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+        orderBy: { createdAt: "desc" },
+        select: poolSelect,
+      });
+    } else if (isMember) {
+      // Members: Use two separate queries and merge to avoid OR clause issues
+      console.log("[LEADS_POOLS_GET] Member query - fetching pools for user:", session.user.id);
+
+      // Query 1: Pools created by member
+      const createdPools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+        where: { user: session.user.id },
+        orderBy: { createdAt: "desc" },
+        select: poolSelect,
+      });
+      console.log("[LEADS_POOLS_GET] Created pools count:", createdPools.length);
+
+      // Query 2: Pools where member is assigned
+      const assignedPools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+        where: { assigned_members: { has: session.user.id } },
+        orderBy: { createdAt: "desc" },
+        select: poolSelect,
+      });
+      console.log("[LEADS_POOLS_GET] Assigned pools count:", assignedPools.length);
+
+      // Merge and dedupe by id
+      const poolMap = new Map<string, any>();
+      for (const p of createdPools) poolMap.set(p.id, p);
+      for (const p of assignedPools) poolMap.set(p.id, p);
+      pools = Array.from(poolMap.values());
+
+      // Sort by createdAt desc
+      pools.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      // Admins/Team Owners: Team + Own
       if (teamId) {
-        whereClause.OR = [
-          { team_id: teamId },
-          { user: session.user.id }
-        ];
+        pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+          where: {
+            OR: [
+              { team_id: teamId },
+              { user: session.user.id }
+            ]
+          },
+          orderBy: { createdAt: "desc" },
+          select: poolSelect,
+        });
       } else {
-        whereClause.user = session.user.id;
+        pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+          where: { user: session.user.id },
+          orderBy: { createdAt: "desc" },
+          select: poolSelect,
+        });
       }
     }
 
-    const pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
-      where: whereClause,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        user: true, // Include user info for admins to see who owns the pool
-        icpConfig: true,
-        jobs: {
-          take: 1,
-          orderBy: { startedAt: "desc" },
-          select: {
-            id: true,
-            status: true,
-            startedAt: true,
-            finishedAt: true,
-            counters: true,
-            queryTemplates: true,
-          },
-        },
-        _count: {
-          select: { candidates: true },
-        },
-      },
-    });
+    console.log("[LEADS_POOLS_GET] Total pools returned:", pools.length);
 
     const results = pools.map((p: any) => ({
       id: p.id,
@@ -75,14 +123,19 @@ export async function GET() {
       updatedAt: p.updatedAt,
       user: p.user,
       icpConfig: p.icpConfig,
+      assignedMembers: p.assigned_members || [],
       latestJob: p.jobs?.[0] || null,
       candidatesCount: p._count?.candidates || 0,
     }));
 
     return NextResponse.json({ pools: results }, { status: 200 });
-  } catch (error) {
-    console.error("[LEADS_POOLS_GET]", error);
-    return new NextResponse("Failed to fetch lead pools", { status: 500 });
+  } catch (error: any) {
+    console.error("[LEADS_POOLS_GET] Error:", error?.message || error);
+    console.error("[LEADS_POOLS_GET] Stack:", error?.stack);
+    return new NextResponse(JSON.stringify({ error: error?.message || "Failed to fetch lead pools" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 }
 

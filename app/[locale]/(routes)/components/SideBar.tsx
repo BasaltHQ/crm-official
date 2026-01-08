@@ -46,7 +46,8 @@ const SideBar = async () => {
   }
 
   const isPartnerAdmin = (user as any).is_admin || (user as any).assigned_team?.slug === "ledger1";
+  const teamRole = (user as any)?.team_role || "MEMBER";
 
-  return <ModuleMenu modules={modules} dict={dict} features={features} isPartnerAdmin={isPartnerAdmin} />;
+  return <ModuleMenu modules={modules} dict={dict} features={features} isPartnerAdmin={isPartnerAdmin} teamRole={teamRole} />;
 };
 export default SideBar;

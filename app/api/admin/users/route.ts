@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -18,7 +18,7 @@ export async function GET() {
                 name: true,
                 email: true,
                 is_admin: true,
-                createdAt: true,
+                created_on: true,
             }
         });
         return NextResponse.json(users);

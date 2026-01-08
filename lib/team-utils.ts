@@ -29,6 +29,7 @@ export const getCurrentUserTeamId = async () => {
         teamId: user?.team_id,
         isGlobalAdmin: isGlobalAdmin,
         teamRole: user?.team_role,
-        isAdmin: user?.is_admin || user?.team_role === "ADMIN" || user?.team_role === "OWNER" || isGlobalAdmin
+        isAdmin: user?.is_admin || user?.team_role === "ADMIN" || user?.team_role === "OWNER" || isGlobalAdmin,
+        userId: session.user.id
     };
 }

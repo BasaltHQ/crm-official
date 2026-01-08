@@ -16,6 +16,7 @@ type Props = {
   leads: any[];
   crmData: any;
   defaultTab?: "all" | "workspace" | "dialer";
+  isMember?: boolean;
 };
 
 const navCards = [
@@ -53,15 +54,15 @@ const addLeadCard = {
   iconColor: "text-emerald-400",
 };
 
-export default function LeadsManagerTabs({ leads: initialLeads, crmData, defaultTab = "all" }: Props) {
+export default function LeadsManagerTabs({ leads: initialLeads, crmData, defaultTab = "all", isMember = false }: Props) {
   return (
     <SWRSessionProvider>
-      <LeadsManagerTabsContent leads={initialLeads} crmData={crmData} defaultTab={defaultTab} />
+      <LeadsManagerTabsContent leads={initialLeads} crmData={crmData} defaultTab={defaultTab} isMember={isMember} />
     </SWRSessionProvider>
   );
 }
 
-function LeadsManagerTabsContent({ leads: initialLeads, crmData, defaultTab }: Props) {
+function LeadsManagerTabsContent({ leads: initialLeads, crmData, defaultTab, isMember }: Props) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const { data: leadsData } = useSWR('/api/leads/list', fetcher, {
     fallbackData: initialLeads,
@@ -140,7 +141,7 @@ function LeadsManagerTabsContent({ leads: initialLeads, crmData, defaultTab }: P
       {/* Tab Content */}
       <Tabs value={activeTab} className="w-full relative flex flex-col flex-1">
         <TabsContent value="all" className="flex-1 mt-0">
-          <LeadsView crmData={crmData} data={leads} />
+          <LeadsView crmData={crmData} data={leads} isMember={isMember} />
         </TabsContent>
         <TabsContent value="workspace" className="flex-1 mt-0">
           <ProcessPanel leads={leads as any} crmData={crmData} />

@@ -11,8 +11,9 @@ import { sendAssignmentNotification } from "@/lib/notifications/assignment-notif
  */
 export async function POST(
     req: Request,
-    { params }: { params: { poolId: string } }
+    { params }: { params: Promise<{ poolId: string }> }
 ) {
+    const { poolId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -52,7 +53,7 @@ export async function POST(
 
         // Get current pool
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
-            where: { id: params.poolId },
+            where: { id: poolId },
             select: { id: true, assigned_members: true, name: true, description: true },
         });
 
@@ -74,7 +75,7 @@ export async function POST(
 
         // Add member to pool
         await (prismadbCrm as any).crm_Lead_Pools.update({
-            where: { id: params.poolId },
+            where: { id: poolId },
             data: {
                 assigned_members: [...currentMembers, userId],
             },
@@ -97,7 +98,7 @@ export async function POST(
                 assignedByName: user?.name || "Admin",
                 assignmentType: "pool",
                 assignmentName: pool.name || "Lead Pool",
-                assignmentId: params.poolId,
+                assignmentId: poolId,
                 role: "Member",
                 description: pool.description || undefined,
             }).catch((err) => console.error("[NOTIFY] Pool assignment notification failed:", err));
@@ -116,8 +117,9 @@ export async function POST(
  */
 export async function DELETE(
     req: Request,
-    { params }: { params: { poolId: string } }
+    { params }: { params: Promise<{ poolId: string }> }
 ) {
+    const { poolId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -156,7 +158,7 @@ export async function DELETE(
 
         // Get current pool
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
-            where: { id: params.poolId },
+            where: { id: poolId },
             select: { id: true, assigned_members: true },
         });
 
@@ -171,7 +173,7 @@ export async function DELETE(
 
         // Remove member from pool
         await (prismadbCrm as any).crm_Lead_Pools.update({
-            where: { id: params.poolId },
+            where: { id: poolId },
             data: {
                 assigned_members: currentMembers.filter((id: string) => id !== userId),
             },
@@ -190,8 +192,9 @@ export async function DELETE(
  */
 export async function GET(
     req: Request,
-    { params }: { params: { poolId: string } }
+    { params }: { params: Promise<{ poolId: string }> }
 ) {
+    const { poolId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -199,7 +202,7 @@ export async function GET(
 
     try {
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
-            where: { id: params.poolId },
+            where: { id: poolId },
             select: { id: true, assigned_members: true },
         });
 

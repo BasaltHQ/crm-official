@@ -2,19 +2,34 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowRight, Clock } from "lucide-react";
 import { HistoryItem } from "@/components/RecentActivityTracker";
 
 import GlobalSearchWidget from "./GlobalSearchWidget";
 
 export default function JumpBackIn() {
+    const { data: session } = useSession(); // Add session hook
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [isMounted, setIsMounted] = useState(false);
 
+    // Get userId safely
+    const userId = session?.user?.id;
+
     useEffect(() => {
         setIsMounted(true);
+        if (!userId) return; // Wait for user ID
+
         try {
-            const stored = localStorage.getItem("jump-back-in-history");
+            const storageKey = `jump-back-in-history-${userId}`;
+            const stored = localStorage.getItem(storageKey);
+
+            // Migration: Check for legacy key and migrate if empty (optional, but good UX)
+            // If new key is empty, strictly we should start fresh or copy? 
+            // The requirement says "Only pages that THEY have visited". 
+            // So we should probably NOT migrate the shared history to avoid polluting it.
+            // We'll just start fresh for the namespaced key.
+
             if (stored) {
                 let parsed = JSON.parse(stored);
                 // Fix legacy typo "Viewtas Item" -> "Task View"
@@ -30,13 +45,16 @@ export default function JumpBackIn() {
                 setHistory(parsed);
 
                 if (hasChanges) {
-                    localStorage.setItem("jump-back-in-history", JSON.stringify(parsed));
+                    localStorage.setItem(storageKey, JSON.stringify(parsed));
                 }
+            } else {
+                // Initialize empty to ensure no cross-contamination
+                setHistory([]);
             }
         } catch (e) {
             console.error("Failed to load history", e);
         }
-    }, []);
+    }, [userId]); // Re-run when userId is available
 
     if (!isMounted) return null;
 
