@@ -293,16 +293,16 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                                 <CardContent>
                                     <div className="flex -space-x-2 overflow-hidden py-2">
                                         {team.members.slice(0, 5).map((member) => (
-                                            <div key={member.id} className="h-8 w-8 rounded-full ring-2 ring-background bg-slate-200 flex items-center justify-center overflow-hidden" title={member.name || member.email}>
+                                            <div key={member.id} className="h-8 w-8 rounded-full ring-2 ring-background bg-primary/10 flex items-center justify-center overflow-hidden" title={member.name || member.email}>
                                                 {member.avatar ? (
                                                     <img src={member.avatar} alt={member.name || "User"} className="h-full w-full object-cover" />
                                                 ) : (
-                                                    <span className="text-xs font-semibold text-slate-500">{(member.name || member.email)[0].toUpperCase()}</span>
+                                                    <span className="text-xs font-semibold text-primary/80">{(member.name || member.email)[0].toUpperCase()}</span>
                                                 )}
                                             </div>
                                         ))}
                                         {team.members.length > 5 && (
-                                            <div className="h-8 w-8 rounded-full ring-2 ring-background bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">
+                                            <div className="h-8 w-8 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
                                                 +{team.members.length - 5}
                                             </div>
                                         )}
@@ -322,7 +322,7 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                                             )}
                                         </span>
                                         {team.assigned_plan && (
-                                            <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-xs shadow-sm border border-slate-200 dark:border-slate-700">
+                                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs shadow-sm">
                                                 {team.assigned_plan.name}
                                             </Badge>
                                         )}
