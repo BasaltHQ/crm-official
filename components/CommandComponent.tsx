@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 
 import { signOut } from "next-auth/react";
+import { clearUserCache } from "@/lib/cache-utils";
 
 export function CommandComponent() {
   const [open, setOpen] = React.useState(false);
@@ -49,6 +50,7 @@ export function CommandComponent() {
         setOpen(false);
       }
       if (e.key === "k" && e.metaKey) {
+        clearUserCache();
         signOut({ callbackUrl: `/${locale}/sign-in?loggedOut=true` });
       }
     };
@@ -95,7 +97,7 @@ export function CommandComponent() {
               <span>Profile settings</span>
               <CommandShortcut>Shift + ⌘ + P</CommandShortcut>
             </CommandItem>
-            <CommandItem onClick={() => signOut({ callbackUrl: `/${locale}/sign-in?loggedOut=true` })}>
+            <CommandItem onClick={() => { clearUserCache(); signOut({ callbackUrl: `/${locale}/sign-in?loggedOut=true` }); }}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
               <CommandShortcut>⌘k</CommandShortcut>

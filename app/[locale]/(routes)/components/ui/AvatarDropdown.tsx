@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "next-auth/react";
+import { clearUserCache } from "@/lib/cache-utils";
 
 import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -74,7 +75,10 @@ const AvatarDropdown = ({ avatar, userId, name, email }: Props) => {
           <span>Profile settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut({ callbackUrl: `/${locale}/sign-in?loggedOut=true` })}>
+        <DropdownMenuItem onClick={() => {
+          clearUserCache();
+          signOut({ callbackUrl: `/${locale}/sign-in?loggedOut=true` });
+        }}>
           <LogOut className="w-4 h-4 inline-block mr-2 stroke-current text-gray-500" />
           <span>Sign out</span>
         </DropdownMenuItem>

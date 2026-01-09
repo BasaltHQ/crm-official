@@ -154,8 +154,10 @@ export default function LeadsView({ data, isMember = false }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
 
-  // Optimize data fetching with SWR
-  const { data: poolsResponse, error: poolsError } = useSWR('/api/leads/pools', fetcher);
+  // Optimize data fetching with SWR - 30s polling for fresh pool data
+  const { data: poolsResponse, error: poolsError } = useSWR('/api/leads/pools', fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds for up-to-date pool list
+  });
   const pools = useMemo(() => Array.isArray(poolsResponse?.pools) ? poolsResponse.pools : [], [poolsResponse]);
 
   // Column resizing logic
