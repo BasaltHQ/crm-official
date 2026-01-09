@@ -4,6 +4,6 @@ import GlobalSearchWidget from "@/components/GlobalSearchWidget";
 
 export default function DashboardGlobalSearchWidget() {
     return (
-        <GlobalSearchWidget />
+        <GlobalSearchWidget className="max-w-4xl" />
     );
 }

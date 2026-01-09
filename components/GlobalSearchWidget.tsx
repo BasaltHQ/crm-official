@@ -21,7 +21,11 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
-export default function GlobalSearchWidget() {
+interface GlobalSearchWidgetProps {
+    className?: string;
+}
+
+export default function GlobalSearchWidget({ className }: GlobalSearchWidgetProps) {
     const [showResults, setShowResults] = useState(false);
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -86,7 +90,7 @@ export default function GlobalSearchWidget() {
     };
 
     return (
-        <div ref={wrapperRef} className="relative flex items-center w-full max-w-2xl">
+        <div ref={wrapperRef} className={cn("relative flex items-center w-full max-w-2xl", className)}>
             <div className={cn(
                 "flex items-center transition-all duration-300 ease-in-out border rounded-full bg-background/50 w-full px-3 py-2 shadow-sm border-gray-800 focus-within:ring-1 focus-within:ring-ring focus-within:border-primary",
             )}>

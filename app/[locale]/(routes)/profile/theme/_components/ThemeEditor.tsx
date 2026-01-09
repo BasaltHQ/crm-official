@@ -62,14 +62,39 @@ export interface CustomTheme {
 interface ThemeEditorProps {
     onBack: () => void;
     editingTheme?: CustomTheme | null;
+    activeThemeId?: string;
+    activeCustomTheme?: CustomTheme;
 }
 
-export function ThemeEditor({ onBack, editingTheme }: ThemeEditorProps) {
+export function ThemeEditor({
+    onBack,
+    editingTheme,
+    activeThemeId,
+    activeCustomTheme,
+}: ThemeEditorProps) {
     const router = useRouter();
     const [themeName, setThemeName] = useState(editingTheme?.name || "My Custom Theme");
-    const [colors, setColors] = useState<typeof DEFAULT_CUSTOM_COLORS>(
-        editingTheme?.colors || { ...DEFAULT_CUSTOM_COLORS }
-    );
+
+    // Initialize colors based on priority:
+    // 1. editingTheme (if we are editing a specific custom theme)
+    // 2. activeCustomTheme (if we are creating new but want to start from current custom theme)
+    // 3. activeThemeId (if we are creating new and starting from a preset)
+    // 4. Default fallback
+    const [colors, setColors] = useState<typeof DEFAULT_CUSTOM_COLORS>(() => {
+        if (editingTheme?.colors) return editingTheme.colors;
+
+        if (activeCustomTheme?.colors) return activeCustomTheme.colors;
+
+        if (activeThemeId && activeThemeId in PRESET_COLORS) {
+            return {
+                ...DEFAULT_CUSTOM_COLORS,
+                ...PRESET_COLORS[activeThemeId as ThemePreset],
+            };
+        }
+
+        return { ...DEFAULT_CUSTOM_COLORS };
+    });
+
     const [reducedMotion, setReducedMotion] = useState(false);
 
     // Apply preview styles to document
@@ -425,8 +450,8 @@ export function ThemeEditor({ onBack, editingTheme }: ThemeEditorProps) {
                                 <button
                                     onClick={() => setReducedMotion(true)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${reducedMotion
-                                            ? "bg-primary text-primary-foreground"
-                                            : "bg-muted text-muted-foreground hover:text-foreground"
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted text-muted-foreground hover:text-foreground"
                                         }`}
                                 >
                                     Minimal
@@ -434,8 +459,8 @@ export function ThemeEditor({ onBack, editingTheme }: ThemeEditorProps) {
                                 <button
                                     onClick={() => setReducedMotion(false)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!reducedMotion
-                                            ? "bg-primary text-primary-foreground"
-                                            : "bg-muted text-muted-foreground hover:text-foreground"
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted text-muted-foreground hover:text-foreground"
                                         }`}
                                 >
                                     Balanced
@@ -466,8 +491,8 @@ export function ThemeEditor({ onBack, editingTheme }: ThemeEditorProps) {
                         {/* Readability Check */}
                         <div
                             className={`p-4 rounded-lg border ${contrastResult.passed
-                                    ? "border-green-500/30 bg-green-500/10"
-                                    : "border-yellow-500/30 bg-yellow-500/10"
+                                ? "border-green-500/30 bg-green-500/10"
+                                : "border-yellow-500/30 bg-yellow-500/10"
                                 }`}
                         >
                             <p className="text-sm font-medium mb-2">Readability</p>

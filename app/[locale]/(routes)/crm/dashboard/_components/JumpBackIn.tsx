@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Clock } from "lucide-react";
 import { HistoryItem } from "@/components/RecentActivityTracker";
 
-import GlobalSearchWidget from "./GlobalSearchWidget";
+
 
 export default function JumpBackIn() {
     const { data: session } = useSession(); // Add session hook
@@ -69,7 +69,6 @@ export default function JumpBackIn() {
 
                 <div className="flex items-center justify-between gap-4">
                     <p className="text-sm text-muted-foreground italic">Your recent activity will appear here.</p>
-                    <GlobalSearchWidget />
                 </div>
             </div>
         );
@@ -94,9 +93,6 @@ export default function JumpBackIn() {
                             <ArrowRight className="w-3 h-3 opacity-50" />
                         </Link>
                     ))}
-                </div>
-                <div className="shrink-0 mt-0">
-                    <GlobalSearchWidget />
                 </div>
             </div>
         </div>

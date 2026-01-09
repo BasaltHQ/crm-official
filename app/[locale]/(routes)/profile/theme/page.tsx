@@ -213,7 +213,17 @@ export default function ThemeStudioPage() {
 
     // Show editor if in create mode
     if (isEditorMode) {
-        return <ThemeEditor onBack={closeEditor} editingTheme={editingTheme} />;
+        // Find current custom theme if applicable
+        const currentCustomForEdit = customThemes.find((t) => t.id === (previewTheme || theme));
+
+        return (
+            <ThemeEditor
+                onBack={closeEditor}
+                editingTheme={editingTheme}
+                activeThemeId={previewTheme || theme}
+                activeCustomTheme={currentCustomForEdit}
+            />
+        );
     }
 
     const currentTheme = previewTheme || theme || "obsidian-gold";
@@ -351,8 +361,8 @@ export default function ThemeStudioPage() {
                                 <div
                                     key={customTheme.id}
                                     className={`relative flex flex-col gap-3 p-4 rounded-xl border transition-all cursor-pointer ${currentTheme === customTheme.id
-                                            ? "border-primary ring-2 ring-primary/30"
-                                            : "border-border/50 hover:border-border"
+                                        ? "border-primary ring-2 ring-primary/30"
+                                        : "border-border/50 hover:border-border"
                                         } bg-card/50 hover:bg-card/80`}
                                     onClick={() => applyCustomTheme(customTheme)}
                                 >
