@@ -45,12 +45,8 @@ export const columns: ColumnDef<Lead>[] = [
     ),
 
     cell: ({ row }) => (
-      <div className="w-[150px] truncate" title={row.getValue("assigned_to_user")?.name ?? "Unassigned"}>
-        {
-          //@ts-ignore
-          //TODO: fix this
-          row.getValue("assigned_to_user")?.name ?? "Unassigned"
-        }
+      <div className="w-[150px] truncate" title={row.original.assigned_to_user?.name ?? "Unassigned"}>
+        {row.original.assigned_to_user?.name ?? "Unassigned"}
       </div>
     ),
     enableSorting: true,

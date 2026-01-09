@@ -13,15 +13,15 @@ const updateRoleSchema = z.object({
 // PUT - Update a custom role
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: roleId } = await params;
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const roleId = params.id;
         const body = await req.json();
         const data = updateRoleSchema.parse(body);
 
@@ -69,15 +69,14 @@ export async function PUT(
 // DELETE - Delete a custom role
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: roleId } = await params;
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
-        const roleId = params.id;
 
         // Get the role to verify team membership
         const existingRole = await prismadb.customRole.findUnique({

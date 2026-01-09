@@ -48,7 +48,7 @@ const TeamStatusCard = ({ teamId, currentStatus, currentReason }: { teamId: stri
             if (res.error) {
                 toast.error(res.error);
             } else {
-                toast.success(res.success);
+                toast.success(res.success || "Status updated successfully");
                 router.refresh();
             }
         } catch (error) {

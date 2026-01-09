@@ -7,17 +7,13 @@ import SuspenseLoading from "@/components/loadings/suspense";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getDictionary } from "@/dictionaries";
+import { redirect } from "next/navigation";
 
 const EmailRoute = async () => {
   const session = await getServerSession(authOptions);
 
   if (!session) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
+    redirect("/");
   }
   //Get user language
   const lang = session.user.userLanguage;

@@ -44,7 +44,7 @@ export async function POST(req: Request) {
             messages: [{ role: 'user', content: prompt }],
         });
 
-        return result.toDataStreamResponse();
+        return result.toTextStreamResponse();
 
     } catch (error) {
         console.log("[EMAIL_ENHANCE_AI]", error);

@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Container from "../../components/ui/Container";
@@ -14,12 +15,7 @@ const FormSubmissionsPage = async ({ params }: { params: Promise<{ locale: strin
     const session = await getServerSession(authOptions);
 
     if (!session) {
-        return {
-            redirect: {
-                destination: "/",
-                permanent: false,
-            },
-        };
+        redirect("/");
     }
 
     const teamId = (session.user as any).team_id;

@@ -26,7 +26,7 @@ import {
     listPhoneNumbers,
     requestPhoneNumber,
     associatePhoneNumberWithCampaign,
-    LEDGER1_BRAND_CONFIG,
+    BASALT_BRAND_CONFIG,
     PORTAL_MESSAGE_CAMPAIGN_CONFIG,
 } from "../lib/aws/eum-10dlc";
 
@@ -147,10 +147,10 @@ async function handleInitiate(opts: Record<string, string>) {
     }
 
     console.log("Brand Configuration:");
-    console.log("  Company:", LEDGER1_BRAND_CONFIG.companyName);
-    console.log("  Website:", LEDGER1_BRAND_CONFIG.websiteUrl);
-    console.log("  Vertical:", LEDGER1_BRAND_CONFIG.vertical);
-    console.log("  Type:", LEDGER1_BRAND_CONFIG.companyType);
+    console.log("  Company:", BASALT_BRAND_CONFIG.companyName);
+    console.log("  Website:", BASALT_BRAND_CONFIG.websiteUrl);
+    console.log("  Vertical:", BASALT_BRAND_CONFIG.vertical);
+    console.log("  Type:", BASALT_BRAND_CONFIG.companyType);
     console.log();
 
     console.log("Campaign Configuration:");
@@ -307,7 +307,7 @@ function printConfig() {
     console.log("📋 Predefined Configuration\n");
 
     console.log("=== BRAND CONFIGURATION ===");
-    console.log(JSON.stringify(LEDGER1_BRAND_CONFIG, null, 2));
+    console.log(JSON.stringify(BASALT_BRAND_CONFIG, null, 2));
 
     console.log("\n=== CAMPAIGN CONFIGURATION ===");
     console.log(JSON.stringify(PORTAL_MESSAGE_CAMPAIGN_CONFIG, null, 2));

@@ -9,8 +9,9 @@ import { prismadb } from "@/lib/prisma";
  */
 export async function DELETE(
     req: Request,
-    { params }: { params: { projectId: string; memberId: string } }
+    { params }: { params: Promise<{ projectId: string; memberId: string }> }
 ) {
+    const { projectId, memberId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -40,8 +41,8 @@ export async function DELETE(
         // Verify membership exists
         const membership = await prismadb.projectMember.findFirst({
             where: {
-                id: params.memberId,
-                project: params.projectId,
+                id: memberId,
+                project: projectId,
             },
         });
 
@@ -54,7 +55,7 @@ export async function DELETE(
 
         // Delete membership
         await prismadb.projectMember.delete({
-            where: { id: params.memberId },
+            where: { id: memberId },
         });
 
         return NextResponse.json({ success: true }, { status: 200 });

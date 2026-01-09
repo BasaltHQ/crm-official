@@ -44,7 +44,7 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
   const { toast } = useToast();
 
   const formSchema = z.object({
-    id: z.string().default(initialData.id),
+    id: z.string(),
     title: z.string().min(3).max(255),
     description: z.string().min(3).max(500),
     visibility: z.string().min(3).max(255),
@@ -56,7 +56,14 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
 
   const form = useForm<NewAccountFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData,
+    defaultValues: {
+      id: initialData.id || "",
+      title: initialData.title || "",
+      description: initialData.description || "",
+      visibility: initialData.visibility || "",
+      brand_logo_url: initialData.brand_logo_url || "",
+      brand_primary_color: initialData.brand_primary_color || "",
+    },
   });
 
   useEffect(() => {

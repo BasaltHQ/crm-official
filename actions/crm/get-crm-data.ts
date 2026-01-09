@@ -19,7 +19,7 @@ export const getAllCrmData = async () => {
   // Previous logic for users was just Active. Now we should filter by Team?
   // Prismadb.users has team_id.
   const usersWhere = {
-    userStatus: "ACTIVE",
+    userStatus: "ACTIVE" as any,
     ...(teamInfo?.isGlobalAdmin ? {} : { team_id: teamInfo?.teamId })
   };
 

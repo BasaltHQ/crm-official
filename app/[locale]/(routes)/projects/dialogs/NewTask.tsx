@@ -66,13 +66,21 @@ const NewTaskDialog = ({ users, boards, customTrigger }: Props) => {
     board: z.string().min(3).max(255),
     priority: z.string().min(3).max(10),
     content: z.string().min(3).max(500),
-    dueDateAt: z.date().default(new Date()),
+    dueDateAt: z.date(),
   });
 
   type NewAccountFormValues = z.infer<typeof formSchema>;
 
   const form = useForm<NewAccountFormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      user: "",
+      board: "",
+      priority: "",
+      content: "",
+      dueDateAt: new Date(),
+    },
   });
 
   useEffect(() => {

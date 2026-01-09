@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import Container from "../components/ui/Container";
 import SuspenseLoading from "@/components/loadings/suspense";
 import { getServerSession } from "next-auth";
@@ -12,12 +13,7 @@ const MessagesRoute = async () => {
     const session = await getServerSession(authOptions);
 
     if (!session) {
-        return {
-            redirect: {
-                destination: "/",
-                permanent: false,
-            },
-        };
+        redirect("/");
     }
 
     const lang = session.user.userLanguage;

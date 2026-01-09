@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { SWRSessionProvider } from "@/components/providers/swr-session-provider";
 import LeadsView from "./LeadsView";
 import ProcessPanel from "./ProcessPanel";
 import DialerPanel from "../../dialer/DialerPanel";
@@ -55,18 +54,9 @@ const addLeadCard = {
 };
 
 export default function LeadsManagerTabs({ leads: initialLeads, crmData, defaultTab = "all", isMember = false }: Props) {
-  return (
-    <SWRSessionProvider>
-      <LeadsManagerTabsContent leads={initialLeads} crmData={crmData} defaultTab={defaultTab} isMember={isMember} />
-    </SWRSessionProvider>
-  );
-}
-
-function LeadsManagerTabsContent({ leads: initialLeads, crmData, defaultTab, isMember }: Props) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const { data: leadsData } = useSWR('/api/leads/list', fetcher, {
-    fallbackData: initialLeads,
-    revalidateOnFocus: false
+    fallbackData: initialLeads
   });
 
   const leads = leadsData || [];

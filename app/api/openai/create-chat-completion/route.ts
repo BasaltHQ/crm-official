@@ -38,10 +38,9 @@ export async function POST(req: Request) {
     const result = streamText({
       model: model,
       messages,
-      maxSteps: 5, // Optional: for tool usage
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
 
   } catch (error) {
     console.log("[CHAT_COMPLETION]", error);

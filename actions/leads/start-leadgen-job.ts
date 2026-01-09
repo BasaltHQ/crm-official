@@ -66,7 +66,7 @@ export async function startLeadGenJob(
   // Validate wizard payload
   const parsed = LeadGenWizardSchema.safeParse(wizard);
   if (!parsed.success) {
-    const msg = parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
+    const msg = parsed.error.issues.map((e) => `${String(e.path.join("."))}: ${e.message}`).join("; ");
     throw new Error(`Invalid wizard input - ${msg}`);
   }
 

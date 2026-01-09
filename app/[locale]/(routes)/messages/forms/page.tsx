@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Container from "../../components/ui/Container";
@@ -15,12 +16,7 @@ const FormsPage = async ({ params }: { params: Promise<{ locale: string }> }) =>
     const session = await getServerSession(authOptions);
 
     if (!session) {
-        return {
-            redirect: {
-                destination: "/",
-                permanent: false,
-            },
-        };
+        redirect("/");
     }
 
     // Get team ID properly using the team-utils function

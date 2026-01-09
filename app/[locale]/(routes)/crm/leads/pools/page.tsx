@@ -75,7 +75,7 @@ export default function LeadPoolsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [icpModalPool, setIcpModalPool] = useState<LeadPool | null>(null);
   const { data, error, isLoading, mutate } = useSWR<PoolsResponse>("/api/leads/pools", fetcher, {
-    refreshInterval: 10000,
+    refreshInterval: 30000,
   });
   const { data: projectsData } = useSWR<{ projects: { id: string; title: string }[] }>("/api/projects", fetcher, { refreshInterval: 120000 });
   const [wizardOpen, setWizardOpen] = useState(false);

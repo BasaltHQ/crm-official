@@ -46,7 +46,7 @@ export function SupportInboxModal({ isOpen, onClose }: SupportInboxModalProps) {
                         : t
                 ));
                 if (selectedTicket?.id === ticketId) {
-                    setSelectedTicket(prev => ({ ...prev, status: "JIRA_CREATED", jiraTicketId: data.jiraId }));
+                    setSelectedTicket((prev: any) => ({ ...prev, status: "JIRA_CREATED", jiraTicketId: data.jiraId }));
                 }
             } else {
                 alert("Failed to push to Jira");
