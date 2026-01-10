@@ -100,9 +100,9 @@ function EntityCard({ entity, delay = 0, showArrow = true, onClick }: EntityCard
                 whileTap={{ scale: 0.98 }}
                 onClick={onClick}
                 className={cn(
-                    "flex-1 p-4 rounded-xl border backdrop-blur-sm cursor-pointer",
-                    "bg-card/50 border-border/50",
-                    "hover:shadow-lg hover:border-primary/30 transition-all",
+                    "flex-1 p-4 rounded-xl border cursor-pointer",
+                    "bg-card border-border",
+                    "hover:shadow-lg hover:border-primary/50 transition-all",
                     "group"
                 )}
             >
@@ -181,7 +181,7 @@ export default function EntityRelationshipView() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20"
+                    className="p-4 rounded-lg bg-card border border-border"
                 >
                     <h4 className="font-semibold text-sm text-blue-500 flex items-center gap-2">
                         <Sparkles className="w-4 h-4" />
@@ -197,7 +197,7 @@ export default function EntityRelationshipView() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20"
+                    className="p-4 rounded-lg bg-card border border-border"
                 >
                     <h4 className="font-semibold text-sm text-emerald-500 flex items-center gap-2">
                         <Sparkles className="w-4 h-4" />

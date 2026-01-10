@@ -679,12 +679,14 @@ export function FormBuilderView({ forms: initialForms, projects, baseUrl, curren
                             className="pl-9"
                         />
                     </div>
-                    <ViewToggle value={viewMode} onChange={setViewMode} />
                 </div>
-                <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Create Form
-                </Button>
+                <div className="flex items-center gap-3">
+                    <ViewToggle value={viewMode} onChange={setViewMode} />
+                    <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Create Form
+                    </Button>
+                </div>
             </div>
 
             {/* Forms List */}

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
     BookOpen,
     Video,
@@ -201,7 +202,7 @@ export default function UniversityDashboard() {
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.4, delay: 0.1 }}
                         >
-                            <Card className="bg-gradient-to-r from-blue-500/10 via-violet-500/5 to-transparent border-none overflow-hidden">
+                            <Card className="bg-card border-border overflow-hidden">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <Workflow className="w-6 h-6 text-primary" />
@@ -287,7 +288,7 @@ export default function UniversityDashboard() {
                         transition={{ duration: 0.3 }}
                         className="space-y-6"
                     >
-                        <Card className="bg-gradient-to-r from-emerald-500/10 to-transparent border-none">
+                        <Card className="bg-card border-border">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Layers className="w-6 h-6 text-emerald-500" />
@@ -363,7 +364,7 @@ export default function UniversityDashboard() {
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.3 }}
-                                    className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20"
+                                    className="p-4 rounded-lg bg-card border border-border"
                                 >
                                     <h4 className="font-semibold text-sm text-blue-500">Lead → Contact</h4>
                                     <p className="text-sm text-muted-foreground mt-2">
@@ -375,7 +376,7 @@ export default function UniversityDashboard() {
                                     initial={{ opacity: 0, x: 10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.4 }}
-                                    className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20"
+                                    className="p-4 rounded-lg bg-card border border-border"
                                 >
                                     <h4 className="font-semibold text-sm text-emerald-500">Lead → Account</h4>
                                     <p className="text-sm text-muted-foreground mt-2">
@@ -428,7 +429,7 @@ export default function UniversityDashboard() {
                         className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
                     >
                         {/* Welcome Card */}
-                        <Card className="col-span-full bg-gradient-to-r from-primary/10 to-transparent border-none">
+                        <Card className="col-span-full bg-card border-border">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <GraduationCap className="w-6 h-6 text-primary" />
@@ -562,18 +563,30 @@ export default function UniversityDashboard() {
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium">Touches</label>
-                                                <Input type="number" value={touches} onChange={(e) => setTouches(e.target.value)} min={0} />
+                                                <Input
+                                                    type="number"
+                                                    value={touches}
+                                                    onChange={(e) => setTouches(e.target.value)}
+                                                    min={0}
+                                                    className="[color-scheme:dark]"
+                                                />
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium">Days to Book</label>
-                                                <Input type="number" value={daysToBooking} onChange={(e) => setDaysToBooking(e.target.value)} min={0} />
+                                                <Input
+                                                    type="number"
+                                                    value={daysToBooking}
+                                                    onChange={(e) => setDaysToBooking(e.target.value)}
+                                                    min={0}
+                                                    className="[color-scheme:dark]"
+                                                />
                                             </div>
                                         </div>
 
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg"
+                                            className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/10 border rounded-lg"
                                         >
                                             <div className="text-center">
                                                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Base</div>
@@ -635,7 +648,7 @@ export default function UniversityDashboard() {
                                         <CardTitle>Achievements & Milestones</CardTitle>
                                         <CardDescription>Unlock badges by hitting these targets.</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="space-y-4 text-sm">
+                                    <CardContent className="space-y-3 pt-6">
                                         {[
                                             { name: "Momentum Builder", badge: "10 Leads > Identify", variant: "secondary" as const },
                                             { name: "Human Whisperer", badge: "5 Leads > Human", variant: "secondary" as const },
@@ -648,15 +661,17 @@ export default function UniversityDashboard() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: 0.3 + index * 0.1 }}
                                                 whileHover={{ scale: 1.02, x: 4 }}
-                                                className="flex items-center justify-between p-2 border rounded hover:bg-muted/50 cursor-pointer transition-colors"
+                                                className="flex items-center justify-between p-4 rounded-lg bg-card border border-border hover:border-primary/50 cursor-pointer transition-all"
                                             >
-                                                <span className="font-semibold">{achievement.name}</span>
-                                                <Badge
-                                                    variant={achievement.variant}
-                                                    className={achievement.special ? "border-primary text-primary" : ""}
+                                                <span className="font-semibold text-foreground">{achievement.name}</span>
+                                                <span
+                                                    className={cn(
+                                                        "text-sm font-medium",
+                                                        achievement.special ? "text-primary font-bold" : "text-muted-foreground"
+                                                    )}
                                                 >
                                                     {achievement.badge}
-                                                </Badge>
+                                                </span>
                                             </motion.div>
                                         ))}
                                     </CardContent>

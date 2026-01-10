@@ -56,17 +56,50 @@ function ChartCard({ title, children, delay = 0, className }: ChartCardProps) {
     );
 }
 
+const CustomTooltip = ({ payload, active, label }: any) => {
+    if (!active || !payload) return null;
+    return (
+        <div className="w-56 rounded-lg border border-border bg-card p-2 shadow-sm">
+            {label && (
+                <div className="border-b border-border pb-2 mb-2 px-2">
+                    <p className="font-medium text-foreground">{label}</p>
+                </div>
+            )}
+            <div className="space-y-1">
+                {payload.map((category: any, idx: number) => (
+                    <div key={idx} className="flex flex-1 items-center justify-between px-2">
+                        <div className="flex items-center space-x-2">
+                            <span
+                                className="h-2 w-2 rounded-full"
+                                style={{ backgroundColor: category.color }}
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                {category.dataKey}
+                            </p>
+                        </div>
+                        <p className="font-medium text-foreground tabular-nums">
+                            {category.value}
+                            {category.unit}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export function PipelineDistributionChart() {
     return (
         <ChartCard title="Pipeline Stage Distribution" delay={0}>
             <DonutChart
-                className="h-48"
+                className="h-48 [&_text]:!fill-foreground"
                 data={PIPELINE_STAGE_DATA}
                 category="value"
                 index="name"
                 colors={["sky", "blue", "indigo", "violet", "pink", "emerald"]}
                 valueFormatter={valueFormatter}
                 showAnimation={true}
+                customTooltip={CustomTooltip}
             />
         </ChartCard>
     );
@@ -83,6 +116,7 @@ export function ConversionRatesChart() {
                 colors={["blue"]}
                 valueFormatter={percentFormatter}
                 showAnimation={true}
+                customTooltip={CustomTooltip}
             />
         </ChartCard>
     );
@@ -99,6 +133,7 @@ export function OutreachTrendChart() {
                 colors={["blue", "emerald", "violet"]}
                 valueFormatter={valueFormatter}
                 showAnimation={true}
+                customTooltip={CustomTooltip}
             />
         </ChartCard>
     );

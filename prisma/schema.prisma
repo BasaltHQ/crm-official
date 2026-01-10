@@ -829,6 +829,7 @@ model Users {
   username             String?
   userStatus           ActiveStatus          @default(PENDING)
   userLanguage         Language              @default(en)
+  mustChangePassword   Boolean               @default(false)
   tasksComment         tasksComments[]
   created_by_documents Documents[]           @relation(name: "created_by_user")
   assigned_documents   Documents[]           @relation(name: "assigned_to_user")
@@ -878,6 +879,7 @@ model Users {
   team_id                    String?   @db.ObjectId
   assigned_team              Team?     @relation(fields: [team_id], references: [id])
   team_role                  String?   @default("MEMBER") // OWNER, ADMIN, MEMBER, VIEWER
+  assigned_modules           String[]
   custom_role_id             String?   @db.ObjectId
   custom_role                CustomRole? @relation(fields: [custom_role_id], references: [id])
 }

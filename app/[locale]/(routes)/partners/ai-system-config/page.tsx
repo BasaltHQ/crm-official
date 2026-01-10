@@ -5,6 +5,8 @@ import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import UnifiedAiCard from "@/app/[locale]/cms/(dashboard)/_components/UnifiedAiCard";
 import { redirect } from "next/navigation";
 import { prismadb } from "@/lib/prisma";
+import { PartnersNavigation } from "../_components/PartnersNavigation";
+import { getPlans } from "@/actions/plans/plan-actions";
 
 export default async function PartnerAiConfigPage() {
     const session = await getServerSession(authOptions);
@@ -20,12 +22,21 @@ export default async function PartnerAiConfigPage() {
         return redirect("/admin");
     }
 
+    const plans = await getPlans();
+
     return (
         <Container
             title="System AI Configuration"
             description="Manage the Platform's System API Keys and Default Models. These keys are used by teams unless they provide their own."
         >
-            <div className="max-w-5xl space-y-8">
+            <div className="p-4 space-y-6 max-w-5xl">
+                <PartnersNavigation
+                    availablePlans={plans as any}
+                    showBackButton={true}
+                    hideCreateTeam={true}
+                    hideSystemKeys={true}
+                    hideManagePlans={true}
+                />
                 <UnifiedAiCard />
             </div>
         </Container>

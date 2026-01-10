@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const FormSubmissionsPage = async ({ params }: { params: Promise<{ locale: string }> }) => {
+const FormSubmissionsPage = async ({ params, searchParams }: { params: Promise<{ locale: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) => {
     const { locale } = await params;
     const session = await getServerSession(authOptions);
 
@@ -21,11 +21,15 @@ const FormSubmissionsPage = async ({ params }: { params: Promise<{ locale: strin
     const teamId = (session.user as any).team_id;
     const userId = session.user.id;
 
+    const searchParamsObj = await searchParams;
+    const formFilter = typeof searchParamsObj.form === 'string' && searchParamsObj.form !== 'all' ? searchParamsObj.form : undefined;
+
     // Fetch form submissions with form info
     // Filter by visibility: PUBLIC forms show to all, PRIVATE forms only to creator
     const submissions = teamId ? await (prismadb as any).formSubmission.findMany({
         where: {
             team_id: teamId,
+            ...(formFilter ? { form_id: formFilter } : {}),
             form: {
                 OR: [
                     { visibility: "PUBLIC" },
@@ -83,6 +87,7 @@ const FormSubmissionsPage = async ({ params }: { params: Promise<{ locale: strin
                 <FormSubmissionsView
                     submissions={submissions}
                     forms={forms}
+                    initialFormId={typeof (await searchParams).form === 'string' ? (await searchParams).form as string : "all"}
                 />
             </Suspense>
         </Container>

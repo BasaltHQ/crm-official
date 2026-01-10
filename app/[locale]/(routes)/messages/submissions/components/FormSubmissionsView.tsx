@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { Eye, UserPlus, Check, X, Filter, ChevronDown, ChevronRight, Mail, Phone, Building } from "lucide-react";
+import { Eye, UserPlus, Check, X, Filter, ChevronDown, ChevronRight, Mail, Phone, Building, Trash2, Archive, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useRouter } from "next/navigation";
 
 interface FormSubmission {
     id: string;
@@ -40,15 +41,18 @@ interface Form {
 interface FormSubmissionsViewProps {
     submissions: FormSubmission[];
     forms: Form[];
+    initialFormId?: string;
 }
 
-export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewProps) {
+export function FormSubmissionsView({ submissions, forms, initialFormId = "all" }: FormSubmissionsViewProps) {
     const { toast } = useToast();
-    const [selectedFormId, setSelectedFormId] = useState<string>("all");
+    const router = useRouter();
+    const [selectedFormId, setSelectedFormId] = useState<string>(initialFormId);
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
     const [showDetailDialog, setShowDetailDialog] = useState(false);
     const [isCreatingLead, setIsCreatingLead] = useState<string | null>(null);
+    const [isProcessing, setIsProcessing] = useState<string | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
     const filteredSubmissions = submissions.filter((s) => {
@@ -72,6 +76,33 @@ export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewP
             }
             return next;
         });
+    };
+
+    const handleAction = async (submissionId: string, action: 'delete' | 'archive') => {
+        setIsProcessing(submissionId);
+        try {
+            const res = await fetch("/api/forms/submissions/delete", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ submissionId, action }),
+            });
+
+            if (!res.ok) throw new Error(`Failed to ${action} submission`);
+
+            toast({
+                title: "Success",
+                description: `Submission ${action === 'delete' ? 'moved to trash' : 'archived'}`
+            });
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Operation failed",
+                variant: "destructive"
+            });
+        } finally {
+            setIsProcessing(null);
+        }
     };
 
     const handleCreateLead = async (submission: FormSubmission) => {
@@ -104,7 +135,7 @@ export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewP
             });
 
             // Refresh the page to show updated data
-            window.location.reload();
+            router.refresh();
         } catch (error) {
             toast({
                 title: "Error",
@@ -146,7 +177,13 @@ export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewP
                 </CardHeader>
                 <CardContent className="flex gap-4">
                     <div className="w-[200px]">
-                        <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+                        <Select
+                            value={selectedFormId}
+                            onValueChange={(val) => {
+                                setSelectedFormId(val);
+                                router.push(val === "all" ? window.location.pathname : `${window.location.pathname}?form=${val}`);
+                            }}
+                        >
                             <SelectTrigger>
                                 <SelectValue placeholder="Filter by form" />
                             </SelectTrigger>
@@ -266,8 +303,7 @@ export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewP
                                                             size="sm"
                                                             onClick={() => handleViewDetails(submission)}
                                                         >
-                                                            <Eye className="h-4 w-4 mr-1" />
-                                                            View
+                                                            <Eye className="h-4 w-4" />
                                                         </Button>
                                                         {!submission.lead_id && (
                                                             <Button
@@ -276,10 +312,27 @@ export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewP
                                                                 onClick={() => handleCreateLead(submission)}
                                                                 disabled={isCreatingLead === submission.id}
                                                             >
-                                                                <UserPlus className="h-4 w-4 mr-1" />
-                                                                {isCreatingLead === submission.id ? "Creating..." : "Create Lead"}
+                                                                {isCreatingLead === submission.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
                                                             </Button>
                                                         )}
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                                                            onClick={() => handleAction(submission.id, 'archive')}
+                                                            disabled={isProcessing === submission.id}
+                                                        >
+                                                            <Archive className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                            onClick={() => handleAction(submission.id, 'delete')}
+                                                            disabled={isProcessing === submission.id}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -357,6 +410,33 @@ export function FormSubmissionsView({ submissions, forms }: FormSubmissionsViewP
                                 <UserPlus className="h-4 w-4 mr-2" />
                                 Create Lead
                             </Button>
+                        )}
+                        {selectedSubmission && (
+                            <div className="flex gap-2 ml-auto">
+                                <Button
+                                    variant="outline"
+                                    className="text-orange-500"
+                                    onClick={() => {
+                                        if (selectedSubmission) {
+                                            handleAction(selectedSubmission.id, 'archive');
+                                            setShowDetailDialog(false);
+                                        }
+                                    }}
+                                >
+                                    Archive
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => {
+                                        if (selectedSubmission) {
+                                            handleAction(selectedSubmission.id, 'delete');
+                                            setShowDetailDialog(false);
+                                        }
+                                    }}
+                                >
+                                    Delete
+                                </Button>
+                            </div>
                         )}
                     </DialogFooter>
                 </DialogContent>

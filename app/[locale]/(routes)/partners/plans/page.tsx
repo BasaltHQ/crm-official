@@ -11,6 +11,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prismadb } from "@/lib/prisma";
+import { PartnersNavigation } from "../_components/PartnersNavigation";
 
 const PlansPage = async () => {
     // Access Control
@@ -37,12 +38,14 @@ const PlansPage = async () => {
             description="Manage SaaS tiers, limits, and pricing."
         >
             <div className="p-4 space-y-4">
-                <Link href="/partners">
-                    <Button variant="ghost" className="mb-4">
-                        <ChevronLeft className="w-4 h-4 mr-2" />
-                        Back to Partners
-                    </Button>
-                </Link>
+                <PartnersNavigation
+                    availablePlans={plans as any}
+                    showBackButton={true}
+                    hideCreateTeam={true}
+                    hideSystemKeys={true}
+                    hideModelPricing={true}
+                    hideManagePlans={true}
+                />
                 {/* @ts-expect-error Server Component */}
                 <PlansView initialPlans={plans} />
             </div>

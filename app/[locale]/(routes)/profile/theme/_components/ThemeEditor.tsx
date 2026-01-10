@@ -329,113 +329,121 @@ export function ThemeEditor({
                         <Separator />
 
                         {/* Backgrounds */}
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-3">
-                                Backgrounds
-                            </p>
-                            <div className="space-y-3">
-                                <ColorPicker
-                                    label="Background (bg0)"
-                                    description="App canvas"
-                                    value={colors.background}
-                                    onChange={(v) => updateColor("background", v)}
-                                />
-                                <ColorPicker
-                                    label="Surface (bg1)"
-                                    description="Cards, panels"
-                                    value={colors.surface}
-                                    onChange={(v) => updateColor("surface", v)}
-                                />
-                                <ColorPicker
-                                    label="Elevated (bg2)"
-                                    description="Raised elements"
-                                    value={colors.elevated}
-                                    onChange={(v) => updateColor("elevated", v)}
-                                />
+                        <div className="space-y-8">
+                            {/* Backgrounds */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <div className="w-8 h-[1px] bg-border" />
+                                    Background & Surface
+                                    <div className="flex-1 h-[1px] bg-border" />
+                                </h3>
+                                <div className="space-y-3">
+                                    <ColorPicker
+                                        label="App Background"
+                                        description="Main application canvas color (bg0)"
+                                        value={colors.background}
+                                        onChange={(v) => updateColor("background", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Surface / Cards"
+                                        description="Panels, cards, and content areas (bg1)"
+                                        value={colors.surface}
+                                        onChange={(v) => updateColor("surface", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Elevated Elements"
+                                        description="Modals, dropdowns, sticky headers (bg2)"
+                                        value={colors.elevated}
+                                        onChange={(v) => updateColor("elevated", v)}
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <Separator />
-
-                        {/* Text */}
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-3">
-                                Text
-                            </p>
-                            <div className="space-y-3">
-                                <ColorPicker
-                                    label="Primary (text1)"
-                                    description="Headings, body"
-                                    value={colors.foreground}
-                                    onChange={(v) => updateColor("foreground", v)}
-                                />
-                                <ColorPicker
-                                    label="Muted (text2)"
-                                    description="Labels, descriptions"
-                                    value={colors.mutedForeground}
-                                    onChange={(v) => updateColor("mutedForeground", v)}
-                                />
+                            {/* Text */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <div className="w-8 h-[1px] bg-border" />
+                                    Typography
+                                    <div className="flex-1 h-[1px] bg-border" />
+                                </h3>
+                                <div className="space-y-3">
+                                    <ColorPicker
+                                        label="Primary Text"
+                                        description="Headings, titles, and body text"
+                                        value={colors.foreground}
+                                        onChange={(v) => updateColor("foreground", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Muted Text"
+                                        description="Descriptions, labels, and secondary text"
+                                        value={colors.mutedForeground}
+                                        onChange={(v) => updateColor("mutedForeground", v)}
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <Separator />
-
-                        {/* Accent */}
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-3">
-                                Accent
-                            </p>
-                            <div className="space-y-3">
-                                <ColorPicker
-                                    label="Primary"
-                                    description="Primary brand color"
-                                    value={colors.primary}
-                                    onChange={(v) => updateColor("primary", v)}
-                                />
-                                <ColorPicker
-                                    label="Primary Foreground"
-                                    description="Text on primary buttons"
-                                    value={colors.primaryForeground}
-                                    onChange={(v) => updateColor("primaryForeground", v)}
-                                />
-                                <ColorPicker
-                                    label="Accent"
-                                    description="Secondary accent"
-                                    value={colors.accent}
-                                    onChange={(v) => updateColor("accent", v)}
-                                />
-                                <ColorPicker
-                                    label="Accent Glow"
-                                    description="Glow/highlight"
-                                    value={colors.accentGlow}
-                                    onChange={(v) => updateColor("accentGlow", v)}
-                                />
+                            {/* Brand & Accent */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <div className="w-8 h-[1px] bg-border" />
+                                    Brand & Identity
+                                    <div className="flex-1 h-[1px] bg-border" />
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <ColorPicker
+                                        label="Primary Brand Color"
+                                        description="Main action buttons and links"
+                                        value={colors.primary}
+                                        onChange={(v) => updateColor("primary", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Primary Foreground"
+                                        description="Text color on primary buttons"
+                                        value={colors.primaryForeground}
+                                        onChange={(v) => updateColor("primaryForeground", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Accent"
+                                        description="Secondary highlights and details"
+                                        value={colors.accent}
+                                        onChange={(v) => updateColor("accent", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Accent Glow"
+                                        description="Focus rings and subtle glows"
+                                        value={colors.accentGlow}
+                                        onChange={(v) => updateColor("accentGlow", v)}
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <Separator />
-
-                        {/* Status Colors */}
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-3">
-                                Status Colors
-                            </p>
-                            <div className="space-y-3">
-                                <ColorPicker
-                                    label="Success"
-                                    value={colors.success}
-                                    onChange={(v) => updateColor("success", v)}
-                                />
-                                <ColorPicker
-                                    label="Warning"
-                                    value={colors.warning}
-                                    onChange={(v) => updateColor("warning", v)}
-                                />
-                                <ColorPicker
-                                    label="Error"
-                                    value={colors.error}
-                                    onChange={(v) => updateColor("error", v)}
-                                />
+                            {/* Status System */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <div className="w-8 h-[1px] bg-border" />
+                                    Status System
+                                    <div className="flex-1 h-[1px] bg-border" />
+                                </h3>
+                                <div className="space-y-3">
+                                    <ColorPicker
+                                        label="Success"
+                                        description="Positive actions, completion states"
+                                        value={colors.success}
+                                        onChange={(v) => updateColor("success", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Warning"
+                                        description="Alerts, caution states"
+                                        value={colors.warning}
+                                        onChange={(v) => updateColor("warning", v)}
+                                    />
+                                    <ColorPicker
+                                        label="Error / Destructive"
+                                        description="Errors, destructive actions"
+                                        value={colors.error}
+                                        onChange={(v) => updateColor("error", v)}
+                                    />
+                                </div>
                             </div>
                         </div>
 

@@ -9,10 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prismadb } from "@/lib/prisma";
 import Link from "next/link";
-import { Key, DollarSign, List } from "lucide-react";
-import { NavigationCard } from "./_components/NavigationCard";
-import { CreateTeamCard } from "./_components/CreateTeamCard";
-import { SeedTeamCard } from "./_components/SeedTeamCard";
+import { PartnersNavigation } from "./_components/PartnersNavigation";
 
 const PartnersPage = async () => {
     const session = await getServerSession(authOptions);
@@ -41,55 +38,13 @@ const PartnersPage = async () => {
         getPlans()
     ]);
 
-    const cards = [
-        {
-            title: "System Keys",
-            description: "Manage AI system keys & defaults",
-            icon: Key,
-            color: "from-cyan-500/20 to-blue-500/20",
-            iconColor: "text-cyan-400",
-            href: "/partners/ai-system-config"
-        },
-        {
-            title: "Model Pricing",
-            description: "Configure AI model pricing",
-            icon: DollarSign,
-            color: "from-emerald-500/20 to-green-500/20",
-            iconColor: "text-emerald-400",
-            href: "/partners/ai-pricing"
-        }
-    ];
-
-
-
-
-
     return (
         <Container
             title="Partners"
             description="Manage your Teams and CRM Instances"
         >
             <div className="p-4 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3 flex-shrink-0">
-                    <CreateTeamCard availablePlans={plans as any} />
-                    {cards.map((card, index) => (
-                        <Link key={index} href={card.href} className="block h-full">
-                            <NavigationCard card={card} />
-                        </Link>
-                    ))}
-                    <SeedTeamCard />
-                    <Link href="/partners/plans" className="block h-full">
-                        <NavigationCard
-                            card={{
-                                title: "Manage Plans",
-                                description: "Configure subscription plans",
-                                icon: List,
-                                color: "from-purple-500/20 to-pink-500/20",
-                                iconColor: "text-purple-400"
-                            } as any}
-                        />
-                    </Link>
-                </div>
+                <PartnersNavigation availablePlans={plans as any} />
 
 
                 <Suspense fallback={<div>Loading teams...</div>}>

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { name, email, language } = body;
+    const { name, email, language, assigned_modules } = body;
 
     if (!name || !email || !language) {
       return NextResponse.json(
@@ -88,6 +88,7 @@ export async function POST(req: Request) {
             userStatus: "ACTIVE",
             userLanguage: language,
             password: await hash(password, 12),
+            assigned_modules: assigned_modules || [],
           },
         });
 

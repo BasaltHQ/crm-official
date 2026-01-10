@@ -58,7 +58,7 @@ export default function MessagesWidget({ messages }: MessagesWidgetProps) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-cyan-500">
+                    <DialogTitle className="flex items-center gap-2 text-white">
                         <MessageSquare className="h-5 w-5" />
                         Inbox & Notifications
                     </DialogTitle>
@@ -77,57 +77,57 @@ export default function MessagesWidget({ messages }: MessagesWidgetProps) {
                         )}
 
                         {messages.map((item) => (
-                            <div key={item.id} className="group flex items-start justify-between gap-3 p-3 rounded-lg border bg-card/50 hover:bg-muted/50 transition-colors">
-                                <div className="space-y-1.5 overflow-hidden w-full">
-                                    <div className="flex items-center gap-2">
-                                        {item.type === 'message' ? (
-                                            <Avatar className="h-6 w-6">
-                                                <AvatarImage src={item.sender.avatar || undefined} />
-                                                <AvatarFallback className="text-[10px] bg-cyan-100 text-cyan-700">
-                                                    {item.sender.name.substring(0, 2).toUpperCase()}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        ) : (
-                                            <div className="h-6 w-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                                                <FileText className="h-3 w-3" />
-                                            </div>
+                            <Link key={item.id} href={item.url} className="block group">
+                                <div className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card/50 hover:bg-muted/50 transition-colors">
+                                    <div className="space-y-1.5 overflow-hidden w-full">
+                                        <div className="flex items-center gap-2">
+                                            {item.type === 'message' ? (
+                                                <Avatar className="h-6 w-6">
+                                                    <AvatarImage src={item.sender.avatar || undefined} />
+                                                    <AvatarFallback className="text-[10px] bg-gray-100 text-gray-700">
+                                                        {item.sender.name.substring(0, 2).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            ) : (
+                                                <div className="h-6 w-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                                                    <FileText className="h-3 w-3" />
+                                                </div>
+                                            )}
+
+                                            <span className="font-medium truncate block text-sm text-foreground">
+                                                {item.sender.name}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+                                                {format(new Date(item.createdAt), "MMM d")}
+                                            </span>
+                                        </div>
+
+                                        <div className="font-medium text-sm truncate flex items-center gap-2 text-foreground">
+                                            {item.type === 'form' && <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 border-white/20 text-gray-400">Form</Badge>}
+                                            <span className="text-white">{item.title}</span>
+                                        </div>
+
+                                        {item.body && (
+                                            <p className="text-xs text-muted-foreground line-clamp-2">
+                                                {item.body}
+                                            </p>
                                         )}
-
-                                        <span className="font-medium truncate block text-sm">
-                                            {item.sender.name}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-                                            {format(new Date(item.createdAt), "MMM d")}
-                                        </span>
                                     </div>
 
-                                    <div className="font-medium text-sm truncate flex items-center gap-2">
-                                        {item.type === 'form' && <Badge variant="outline" className="text-[10px] h-4 px-1 py-0">Form</Badge>}
-                                        {item.title}
-                                    </div>
-
-                                    {item.body && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {item.body}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="shrink-0 pt-0.5 self-center">
-                                    <Link href={item.url}>
+                                    <div className="shrink-0 pt-0.5 self-center">
                                         <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <ArrowRight className="h-4 w-4" />
                                         </Button>
-                                    </Link>
+                                    </div>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </ScrollArea>
 
                 <div className="mt-4 pt-4 border-t flex justify-end">
                     <Link href="/messages">
-                        <Button variant="ghost" className="text-cyan-500 hover:text-cyan-600 hover:bg-cyan-500/10">
+                        <Button variant="ghost" className="text-gray-400 hover:text-white hover:bg-white/10">
                             Go to Inbox <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     </Link>

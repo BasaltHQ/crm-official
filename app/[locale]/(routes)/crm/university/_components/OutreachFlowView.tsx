@@ -83,7 +83,7 @@ function ChannelCard({ channel, delay = 0 }: ChannelCardProps) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay }}
-            className="p-5 rounded-xl border bg-card/50 backdrop-blur-sm hover:shadow-md transition-all"
+            className="p-5 rounded-xl border bg-card hover:shadow-md transition-all"
         >
             <div className="flex items-start gap-3">
                 <div className={cn(
@@ -138,7 +138,7 @@ export default function OutreachFlowView() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20 flex items-start gap-3"
+                    className="p-4 rounded-lg bg-card border border-border flex items-start gap-3"
                 >
                     <Bot className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                     <div>
@@ -153,7 +153,7 @@ export default function OutreachFlowView() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
-                    className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-start gap-3"
+                    className="p-4 rounded-lg bg-card border border-border flex items-start gap-3"
                 >
                     <Clock className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                     <div>
@@ -168,7 +168,7 @@ export default function OutreachFlowView() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.8 }}
-                    className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-3"
+                    className="p-4 rounded-lg bg-card border border-border flex items-start gap-3"
                 >
                     <Zap className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                     <div>

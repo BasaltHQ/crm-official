@@ -4,6 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
     FolderKanban,
     Users,
@@ -32,7 +33,7 @@ export default function ProjectWorkflowGuide() {
         {
             title: "Super Admin",
             icon: Crown,
-            color: "from-amber-500/20 to-yellow-500/20",
+            color: "bg-card",
             borderColor: "border-amber-500/30",
             iconColor: "text-amber-400",
             permissions: [
@@ -45,7 +46,7 @@ export default function ProjectWorkflowGuide() {
         {
             title: "Admin",
             icon: Building2,
-            color: "from-blue-500/20 to-indigo-500/20",
+            color: "bg-card",
             borderColor: "border-blue-500/30",
             iconColor: "text-blue-400",
             permissions: [
@@ -59,7 +60,7 @@ export default function ProjectWorkflowGuide() {
         {
             title: "Member / Sales Rep",
             icon: UserCog,
-            color: "from-emerald-500/20 to-green-500/20",
+            color: "bg-card",
             borderColor: "border-emerald-500/30",
             iconColor: "text-emerald-400",
             permissions: [
@@ -77,7 +78,7 @@ export default function ProjectWorkflowGuide() {
             title: "Project Setup",
             actor: "Admin",
             icon: FolderKanban,
-            color: "bg-blue-500/10 border-blue-500/20",
+            color: "bg-card border-blue-500/20",
             iconColor: "text-blue-400",
             steps: [
                 "Admin creates a new project with a clear name and description",
@@ -92,7 +93,7 @@ export default function ProjectWorkflowGuide() {
             title: "Lead Pool & Assignment",
             actor: "Admin",
             icon: Users,
-            color: "bg-violet-500/10 border-violet-500/20",
+            color: "bg-card border-violet-500/20",
             iconColor: "text-violet-400",
             steps: [
                 "Admin creates a lead pool (collection of leads to contact)",
@@ -107,7 +108,7 @@ export default function ProjectWorkflowGuide() {
             title: "Campaign Execution",
             actor: "Member",
             icon: Rocket,
-            color: "bg-emerald-500/10 border-emerald-500/20",
+            color: "bg-card border-emerald-500/20",
             iconColor: "text-emerald-400",
             steps: [
                 "Member opens 'My Projects' dashboard",
@@ -122,7 +123,7 @@ export default function ProjectWorkflowGuide() {
             title: "Approval (Optional)",
             actor: "Admin decides",
             icon: ShieldCheck,
-            color: "bg-amber-500/10 border-amber-500/20",
+            color: "bg-card border-amber-500/20",
             iconColor: "text-amber-400",
             steps: [
                 "Admin can require approval before campaigns go live",
@@ -137,7 +138,7 @@ export default function ProjectWorkflowGuide() {
             title: "Monitoring",
             actor: "Everyone",
             icon: Bell,
-            color: "bg-rose-500/10 border-rose-500/20",
+            color: "bg-card border-rose-500/20",
             iconColor: "text-rose-400",
             steps: [
                 "Members see stats for their own campaigns",
@@ -174,16 +175,21 @@ export default function ProjectWorkflowGuide() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
             >
-                <Card className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border-none overflow-hidden">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl">
-                            <FolderKanban className="w-6 h-6 text-indigo-400" />
-                            Project Workflow Guide
-                        </CardTitle>
-                        <CardDescription className="text-base">
+                <Card className="bg-gradient-to-br from-card via-background to-muted/20 border-primary/10 shadow-xl shadow-primary/5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-grid-white/[0.02] -z-10" />
+                    <div className="flex flex-col items-center justify-center p-4 text-center space-y-1">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                                <FolderKanban className="w-4 h-4" />
+                            </div>
+                            <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground">
+                                Project Workflow Guide
+                            </h2>
+                        </div>
+                        <p className="text-sm text-muted-foreground w-full">
                             How projects, lead pools, and campaigns flow from admin setup to member execution.
-                        </CardDescription>
-                    </CardHeader>
+                        </p>
+                    </div>
                 </Card>
             </motion.div>
 
@@ -204,7 +210,7 @@ export default function ProjectWorkflowGuide() {
                                 animate="visible"
                                 variants={sectionVariants}
                             >
-                                <Card className={`h-full bg-gradient-to-br ${role.color} ${role.borderColor} border`}>
+                                <Card className={`h-full bg-card ${role.borderColor} border`}>
                                     <CardHeader className="pb-3">
                                         <div className="flex items-center gap-3">
                                             <div className={`p-2.5 rounded-lg bg-background/50 ${role.iconColor}`}>
@@ -236,29 +242,34 @@ export default function ProjectWorkflowGuide() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
             >
-                <Card className="bg-gradient-to-r from-slate-500/5 to-transparent">
-                    <CardHeader>
-                        <CardTitle className="text-base">Quick Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-                            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 py-1.5 px-3">
-                                Admin creates Project
-                            </Badge>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                            <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 py-1.5 px-3">
-                                Admin creates Lead Pool
-                            </Badge>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                            <Badge className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30 py-1.5 px-3">
-                                Admin assigns to Member
-                            </Badge>
-                            <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
-                            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 py-1.5 px-3">
-                                Member runs Campaign
-                            </Badge>
+                <Card className="bg-gradient-to-br from-card via-background to-muted/20 border-primary/10 shadow-xl shadow-primary/5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-grid-white/[0.02] -z-10" />
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-4 p-4 md:p-6">
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap mr-2">
+                            Quick Summary:
+                        </h4>
+                        <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-medium">
+                            {[
+                                { label: "Admin creates Project", color: "border-blue-500 text-blue-500 hover:bg-blue-500" },
+                                { label: "Admin creates Lead Pool", color: "border-violet-500 text-violet-500 hover:bg-violet-500" },
+                                { label: "Admin assigns to Member", color: "border-indigo-500 text-indigo-500 hover:bg-indigo-500" },
+                                { label: "Member runs Campaign", color: "border-emerald-500 text-emerald-500 hover:bg-emerald-500" },
+                            ].map((step, i) => (
+                                <React.Fragment key={step.label}>
+                                    <Badge
+                                        variant="outline"
+                                        className={cn(
+                                            "py-1.5 px-4 text-sm font-medium transition-all duration-300 border bg-background/50 hover:text-white cursor-default",
+                                            step.color
+                                        )}
+                                    >
+                                        {step.label}
+                                    </Badge>
+                                    {i < 3 && <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" />}
+                                </React.Fragment>
+                            ))}
                         </div>
-                    </CardContent>
+                    </div>
                 </Card>
             </motion.div>
 
@@ -268,9 +279,11 @@ export default function ProjectWorkflowGuide() {
                     <Rocket className="w-5 h-5 text-muted-foreground" />
                     Step-by-Step Workflow
                 </h3>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {workflowSteps.map((phase, index) => {
                         const Icon = phase.icon;
+                        const isLast = index === workflowSteps.length - 1;
+
                         return (
                             <motion.div
                                 key={phase.phase}
@@ -278,8 +291,9 @@ export default function ProjectWorkflowGuide() {
                                 initial="hidden"
                                 animate="visible"
                                 variants={sectionVariants}
+                                className={cn(isLast && "md:col-span-2 md:w-2/3 md:mx-auto")}
                             >
-                                <Card className={`${phase.color} border`}>
+                                <Card className={`${phase.color} border h-full`}>
                                     <CardHeader className="pb-3">
                                         <div className="flex items-center justify-between flex-wrap gap-2">
                                             <div className="flex items-center gap-3">
@@ -330,7 +344,7 @@ export default function ProjectWorkflowGuide() {
                                 animate="visible"
                                 variants={sectionVariants}
                             >
-                                <Card className="h-full bg-muted/30">
+                                <Card className="h-full bg-card border-border">
                                     <CardHeader className="pb-2">
                                         <div className="flex items-center gap-2">
                                             <Icon className="w-5 h-5 text-primary" />

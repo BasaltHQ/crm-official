@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Users as UsersIcon, Edit, CalendarClock } from "lucide-react";
+import { Users as UsersIcon, Edit, CalendarClock, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import { updateTeamRenewal } from "@/actions/teams/update-team-renewal";
+import { seedInternalTeam } from "@/actions/teams/seed-team";
 import { toast } from "react-hot-toast";
 
 type Team = {
@@ -70,6 +71,7 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
     const router = useRouter();
     const [teams, setTeams] = useState<Team[]>(initialTeams);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSeeding, setIsSeeding] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("card");
     const isMobile = useIsMobile();
 
@@ -119,10 +121,30 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
         }
     };
 
+    const handleSeed = async () => {
+        try {
+            setIsSeeding(true);
+            const res = await seedInternalTeam();
+            if (res.error) {
+                toast.error(res.error);
+            } else {
+                toast.success(`Internal Team Seeded! Updated ${res.count} users.`);
+                router.refresh();
+            }
+        } catch (error) {
+            toast.error("Failed to seed");
+        } finally {
+            setIsSeeding(false);
+        }
+    };
+
     // Check if current user has access to manage plans (simple client check, real check is server side)
     const hasInternalTeam = teams.some(t => t.slug === 'internal' || t.slug === 'ledger1');
 
-    const pendingCount = teams.filter(t => t.status === 'PENDING').length;
+    // Filter out internal teams from the display list to avoid duplication
+    const filteredTeams = teams.filter(t => t.slug !== 'internal' && t.slug !== 'ledger1' && t.slug !== 'basalthq');
+
+    const pendingCount = filteredTeams.filter(t => t.status === 'PENDING').length;
 
     const getStatusStyle = (status?: string | null) => {
         switch (status) {
@@ -191,22 +213,21 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
             )}
             <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4">
                 <div className="flex flex-wrap gap-2">
-
-                    {teams.find(t => t.slug === 'internal') && (
-                        <LinkHref href={`/partners/${teams.find(t => t.slug === 'internal')?.id}`}>
-                            <Button variant="secondary">
-                                <UsersIcon className="w-4 h-4 mr-2" />
-                                <span className="hidden md:inline">Manage Internal Team</span>
-                                <span className="md:hidden">Manage</span>
-                            </Button>
-                        </LinkHref>
+                    {!hasInternalTeam && (
+                        <Button variant="secondary" onClick={handleSeed} disabled={isSeeding}>
+                            <Lock className={`w-4 h-4 mr-2 ${isSeeding ? "animate-spin" : ""}`} />
+                            <span className="hidden md:inline">Seed Internal Team</span>
+                            <span className="md:hidden">Seed</span>
+                        </Button>
                     )}
+
+                    {/* Manage Internal Team button removed as it's managed in /admin/users */}
 
 
                 </div>
                 {/* View Toggle */}
                 <div className="flex items-center ml-2">
-                    <ViewToggle value={viewMode === "grid" ? "card" : viewMode} onChange={(v) => setViewMode(v === "grid" ? "card" : v)} />
+                    <ViewToggle value={viewMode} onChange={setViewMode} />
                 </div>
             </div>
 
@@ -223,7 +244,7 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {teams.map((team) => (
+                            {filteredTeams.map((team) => (
                                 <TableRow key={team.id}>
                                     <TableCell className="font-medium">
                                         <div>{team.name}</div>
@@ -250,7 +271,7 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {teams.length === 0 && (
+                            {filteredTeams.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
                                         No teams found.
@@ -261,8 +282,8 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                     </Table>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {teams.map((team) => {
+                <div className={`grid gap-6 ${viewMode === "compact" ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
+                    {filteredTeams.map((team) => {
                         const effectiveStatus = getEffectiveStatus(team);
                         return (
                             <Card
@@ -344,7 +365,7 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                     })}
                 </div>
             )}
-            {teams.length === 0 && (
+            {filteredTeams.length === 0 && (
                 <div className="text-center py-10">
                     <h3 className="text-lg font-medium">No teams found</h3>
                     <p>Get started by creating your first team.</p>

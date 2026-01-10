@@ -108,9 +108,7 @@ export default function FlowDiagramCard({
             transition={{ duration: 0.4 }}
         >
             <Card className={cn(
-                "overflow-hidden border backdrop-blur-sm",
-                "bg-gradient-to-br",
-                accentStyles[accentColor],
+                "overflow-hidden border bg-card",
                 className
             )}>
                 <CardHeader className="pb-2">

@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Copy } from "lucide-react";
+import { Copy, Check, Presentation } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { HexColorPicker, HexColorInput } from "react-colorful";
+import { Label } from "@/components/ui/label";
 
 interface ColorPickerProps {
     label: string;
@@ -76,80 +79,136 @@ function hexToHsl(hex: string): string {
             case b:
                 h = ((r - g) / d + 4) / 6;
                 break;
+            case b:
+                h = ((r - g) / d + 4) / 6;
+                break;
         }
     }
 
     return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-export function ColorPicker({ label, description, value, onChange }: ColorPickerProps) {
-    const [hexValue, setHexValue] = useState(() => hslToHex(value));
-    const inputRef = useRef<HTMLInputElement>(null);
+// Preset colors for quick selection
+const PRESETS = [
+    "#ef4444", "#f97316", "#eab308", "#22c55e",
+    "#14b8a6", "#0ea5e9", "#3b82f6", "#8b5cf6",
+    "#d946ef", "#ec4899", "#64748b", "#000000",
+    "#ffffff", "#f4f4f5", "#e4e4e7", "#d4d4d8",
+];
 
+export function ColorPicker({ label, description, value, onChange }: ColorPickerProps) {
+    const [hex, setHex] = useState(() => hslToHex(value));
+    const [justCopied, setJustCopied] = useState(false);
+
+    // Sync if external value changes (e.g. preset loaded)
     useEffect(() => {
-        setHexValue(hslToHex(value));
+        setHex(hslToHex(value));
     }, [value]);
 
-    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const hex = e.target.value;
-        setHexValue(hex);
-        onChange(hexToHsl(hex));
-    };
-
-    const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const hex = e.target.value;
-        setHexValue(hex);
-        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-            onChange(hexToHsl(hex));
-        }
+    const handleColorChange = (newHex: string) => {
+        setHex(newHex);
+        onChange(hexToHsl(newHex));
     };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(hexValue.toUpperCase());
+        navigator.clipboard.writeText(hex.toUpperCase());
+        setJustCopied(true);
+        setTimeout(() => setJustCopied(false), 2000);
     };
 
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card/30 hover:border-border transition-colors">
-            <div className="flex items-center gap-3">
-                {/* Color preview swatch */}
-                <button
-                    onClick={() => inputRef.current?.click()}
-                    className="w-10 h-10 rounded-lg border border-border/50 cursor-pointer overflow-hidden"
-                    style={{ backgroundColor: hexValue }}
-                >
-                    <input
-                        ref={inputRef}
-                        type="color"
-                        value={hexValue}
-                        onChange={handleColorChange}
-                        className="opacity-0 absolute w-0 h-0"
-                    />
-                </button>
-
-                <div>
-                    <p className="font-medium text-foreground text-sm">{label}</p>
-                    {description && (
-                        <p className="text-xs text-muted-foreground">{description}</p>
-                    )}
-                </div>
+        <div className="flex items-center justify-between p-2 rounded-lg border border-border/40 bg-card/30 hover:border-border/80 hover:bg-card/50 transition-all duration-200 group">
+            <div className="flex-1 mr-4">
+                <Label className="text-xs font-medium text-foreground cursor-pointer group-hover:text-primary transition-colors">
+                    {label}
+                </Label>
+                {description && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight line-clamp-1">
+                        {description}
+                    </p>
+                )}
             </div>
 
-            {/* Hex input with copy */}
             <div className="flex items-center gap-2">
-                <input
-                    type="text"
-                    value={hexValue.toUpperCase()}
-                    onChange={handleHexInputChange}
-                    className="w-24 px-3 py-1.5 text-sm font-mono bg-muted/50 border border-border/50 rounded-md text-foreground"
-                />
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={copyToClipboard}
-                >
-                    <Copy className="h-3.5 w-3.5" />
-                </Button>
+                {/* Check / Copy Badge */}
+                {justCopied && (
+                    <span className="text-[10px] text-green-500 font-medium animate-in fade-in zoom-in">Copied!</span>
+                )}
+
+                {/* Hex Display (hidden on very small screens) */}
+                <div className="hidden sm:flex items-center bg-background/50 border border-border/50 rounded px-1.5 py-0.5 gap-1.5">
+                    <span className="text-[10px] font-mono text-muted-foreground">#</span>
+                    <span className="text-[10px] font-mono font-medium text-foreground/80">
+                        {hex.replace("#", "").toUpperCase()}
+                    </span>
+                    <button
+                        onClick={copyToClipboard}
+                        className="ml-0.5 p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                        title="Copy Hex"
+                    >
+                        <Copy className="w-2.5 h-2.5" />
+                    </button>
+                </div>
+
+                {/* Popover Picker */}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <button
+                            className="relative w-8 h-8 rounded-md border border-border/50 shadow-sm transition-transform active:scale-95 hover:scale-105 hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 overflow-hidden flex items-center justify-center bg-background group/easel"
+                            title="Pick color"
+                        >
+                            {/* Easel Leg Effect */}
+                            <div className="absolute bottom-0 w-1 h-3 bg-muted-foreground/30 rounded-full transform translate-y-1" />
+
+                            {/* Canvas Color */}
+                            <div
+                                className="w-4 h-4 rounded-[1px] shadow-sm relative z-10 border border-black/10 dark:border-white/10"
+                                style={{ backgroundColor: hex }}
+                            />
+
+                            {/* Easel Top Frame */}
+                            <Presentation className="absolute w-full h-full text-foreground/20 stroke-[1.5px] z-0 scale-125 pb-0.5" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        className="w-auto p-3 z-[60] bg-neutral-950 border-neutral-800 text-neutral-50 shadow-xl"
+                        align="end"
+                        side="top"
+                        sideOffset={8}
+                        collisionPadding={20}
+                    >
+                        <div className="space-y-3">
+                            <HexColorPicker color={hex} onChange={handleColorChange} />
+
+                            <div className="flex gap-2">
+                                <div className="flex items-center flex-1 border border-neutral-800 rounded-md px-2 bg-neutral-900 h-8">
+                                    <span className="text-neutral-400 text-xs mr-2">#</span>
+                                    <HexColorInput
+                                        color={hex}
+                                        onChange={handleColorChange}
+                                        className="w-full bg-transparent text-xs font-mono focus:outline-none uppercase text-neutral-50 placeholder-neutral-500"
+                                        prefixed={false}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-8 gap-1">
+                                {PRESETS.map((color) => (
+                                    <button
+                                        key={color}
+                                        className={cn(
+                                            "w-5 h-5 rounded-sm border border-white/10 shadow-sm transition-all hover:scale-110",
+                                            hex.toLowerCase() === color.toLowerCase() && "ring-2 ring-white ring-offset-1 ring-offset-black"
+                                        )}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => handleColorChange(color)}
+                                        title={color}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
             </div>
         </div>
     );

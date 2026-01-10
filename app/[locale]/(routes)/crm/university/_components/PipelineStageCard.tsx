@@ -132,7 +132,7 @@ export function PipelineStageCard({
                 className={cn(
                     "flex-1 p-4 rounded-xl border transition-all cursor-pointer",
                     "hover:shadow-lg hover:scale-[1.02]",
-                    stage.bgColor,
+                    "bg-card",
                     stage.borderColor,
                     isActive && "ring-2 ring-primary shadow-lg"
                 )}
@@ -140,7 +140,8 @@ export function PipelineStageCard({
                 <div className="flex items-start gap-3">
                     <div className={cn(
                         "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                        stage.bgColor, stage.borderColor, "border"
+                        "bg-background border",
+                        stage.borderColor
                     )}>
                         <Icon className={cn("w-5 h-5", stage.color)} />
                     </div>
@@ -181,7 +182,7 @@ export function PipelineStageCard({
 
             {showArrow && (
                 <div className="flex items-center px-2">
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+                    <ChevronRight className="w-4 h-4 text-foreground" />
                 </div>
             )}
         </motion.div>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Settings2 } from "lucide-react";
+import { Users, Settings2, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CRM_MODULES } from "@/lib/role-permissions";
 import ConfigureModulesModal from "./ConfigureModulesModal";
+import { DeleteRoleModal } from "./DeleteRoleModal";
 
 interface RoleModuleCardProps {
     roleName: string;
@@ -28,6 +29,7 @@ export default function RoleModuleCard({
     onModulesChange,
 }: RoleModuleCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [modules, setModules] = useState<string[]>(enabledModules);
 
     const handleSave = (newModules: string[]) => {
@@ -42,7 +44,7 @@ export default function RoleModuleCard({
 
     return (
         <>
-            <div className="flex flex-col bg-card/50 backdrop-blur-sm border border-border rounded-xl overflow-hidden hover:border-primary/30 transition-colors">
+            <div className="flex flex-col bg-card/50 backdrop-blur-sm border border-border rounded-xl overflow-hidden hover:border-primary/30 transition-colors group relative">
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-border/50">
                     <div>
@@ -84,7 +86,7 @@ export default function RoleModuleCard({
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-border/50">
+                <div className="p-4 border-t border-border/50 space-y-2">
                     <Button
                         variant="outline"
                         className="w-full"
@@ -92,8 +94,19 @@ export default function RoleModuleCard({
                     >
                         Configure Access
                     </Button>
+
+                    {isCustom && (
+                        <Button
+                            variant="ghost"
+                            className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setIsDeleteModalOpen(true)}
+                        >
+                            <Trash className="w-4 h-4 mr-2" />
+                            Delete Role
+                        </Button>
+                    )}
                 </div>
-            </div>
+            </div >
 
             <ConfigureModulesModal
                 isOpen={isModalOpen}
@@ -101,6 +114,13 @@ export default function RoleModuleCard({
                 roleName={roleName}
                 enabledModules={modules}
                 onSave={handleSave}
+            />
+
+            <DeleteRoleModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                roleId={roleKey}
+                roleName={roleName}
             />
         </>
     );

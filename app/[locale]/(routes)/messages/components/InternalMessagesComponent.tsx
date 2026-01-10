@@ -58,7 +58,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format, formatDistanceToNow } from "date-fns";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -125,9 +125,24 @@ export function InternalMessagesComponent({
     defaultCollapsed = false,
 }: InternalMessagesProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
     const [selectedMessageId, setSelectedMessageId] = React.useState<string | null>(null);
     const [selectedSubmissionId, setSelectedSubmissionId] = React.useState<string | null>(null);
+
+    // Handle URL params for deep linking
+    React.useEffect(() => {
+        const id = searchParams.get("id");
+        const tab = searchParams.get("tab");
+
+        if (tab === "forms" || tab === "submissions") {
+            setActiveNav("submissions");
+            if (id) setSelectedSubmissionId(id);
+        } else if (id && !tab) {
+            // Default to inbox message
+            setSelectedMessageId(id);
+        }
+    }, [searchParams]);
     const [composeOpen, setComposeOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
     const [activeNav, setActiveNav] = React.useState<"inbox" | "sent" | "drafts" | "archive" | "trash" | "submissions">("inbox");

@@ -18,9 +18,10 @@ import { useToast } from "@/components/ui/use-toast";
 import AlertModal from "@/components/modals/alert-modal";
 import { adminUserSchema } from "../table-data/schema";
 import ConfigureModulesModal from "@/app/[locale]/admin/(dashboard)/modules/components/ConfigureModulesModal";
+import { ChangeRoleModal } from "../components/ChangeRoleModal";
+import { AdminResetPasswordModal } from "../components/AdminResetPasswordModal";
 import { ROLE_CONFIGS } from "@/lib/role-permissions";
-
-import { Copy, Edit, MoreHorizontal, Trash, Settings2, UserCheck, UserX, ShieldCheck, ShieldX } from "lucide-react";
+import { Copy, Edit, MoreHorizontal, Trash, Settings2, UserCheck, UserX, ShieldCheck, ShieldX, KeyRound } from "lucide-react";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -35,17 +36,22 @@ export function DataTableRowActions<TData>({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modulesModalOpen, setModulesModalOpen] = useState(false);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   const { toast } = useToast();
 
   // Check if user is super admin (has god mode - no modules option)
   const isSuperAdmin = data.is_admin === true;
 
-  // Get current user's modules based on their role
+  // Get current user's modules (prioritize user-specific modules, then role defaults)
   const userRole = data.team_role as 'ADMIN' | 'MEMBER' | 'VIEWER' | undefined;
-  const userModules = userRole && userRole in ROLE_CONFIGS
-    ? ROLE_CONFIGS[userRole as keyof typeof ROLE_CONFIGS].defaultModules
-    : [];
+
+  // If assigned_modules is present (even empty array), use it. otherwise use defaults.
+  // Note: We might want to treat undefined as "use default" but empty array as "no modules".
+  const userModules = data.assigned_modules !== undefined && data.assigned_modules !== null
+    ? data.assigned_modules
+    : (userRole && userRole in ROLE_CONFIGS ? ROLE_CONFIGS[userRole as keyof typeof ROLE_CONFIGS].defaultModules : []);
 
   const onCopy = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -110,44 +116,12 @@ export function DataTableRowActions<TData>({
     }
   };
 
-  const onActivateAdmin = async () => {
-    try {
-      setLoading(true);
-      await axios.post(`/api/user/activateAdmin/${data.id}`);
-      router.refresh();
-      toast({ title: "Success", description: "User Admin rights activated." });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong while activating admin rights.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const onDeactivateAdmin = async () => {
-    try {
-      setLoading(true);
-      await axios.post(`/api/user/deactivateAdmin/${data.id}`);
-      router.refresh();
-      toast({ title: "Success", description: "User Admin rights deactivated." });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong while deactivating admin rights.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const onSaveModules = async (modules: string[]) => {
     try {
-      // TODO: Implement API endpoint to save user-specific modules
-      // await axios.post(`/api/user/${data.id}/modules`, { modules });
+      // Update user modules via API
+      await axios.post(`/api/user/${data.id}/modules`, { modules });
       toast({
         title: "Modules Updated",
         description: `Custom modules configured for ${data.name}.`,
@@ -171,14 +145,35 @@ export function DataTableRowActions<TData>({
         loading={loading}
       />
 
-      {/* Configure Modules Modal - only for non-super-admins */}
-      {!isSuperAdmin && (
+      {/* Configure Modules Modal - only for non-owners */}
+      {data.team_role !== 'OWNER' && (
         <ConfigureModulesModal
           isOpen={modulesModalOpen}
           onClose={() => setModulesModalOpen(false)}
           roleName={data.name || "User"}
           enabledModules={userModules}
           onSave={onSaveModules}
+        />
+      )}
+
+      {/* Change Role Modal */}
+      {roleModalOpen && (
+        <ChangeRoleModal
+          isOpen={roleModalOpen}
+          onClose={() => setRoleModalOpen(false)}
+          userId={data.id}
+          userName={data.name || "User"}
+          currentRole={userRole || "MEMBER"}
+        />
+      )}
+
+      {/* Admin Reset Password Modal */}
+      {passwordModalOpen && (
+        <AdminResetPasswordModal
+          isOpen={passwordModalOpen}
+          onClose={() => setPasswordModalOpen(false)}
+          userId={data.id}
+          userName={data.name || "User"}
         />
       )}
 
@@ -197,8 +192,8 @@ export function DataTableRowActions<TData>({
             Copy ID
           </DropdownMenuItem>
 
-          {/* Configure Modules - only for non-super-admins */}
-          {!isSuperAdmin && (
+          {/* Configure Modules - Configurable for Admin and Member roles (but not Owner) */}
+          {data.team_role !== 'OWNER' && (
             <DropdownMenuItem onClick={() => setModulesModalOpen(true)}>
               <Settings2 className="mr-2 w-4 h-4" />
               Configure Modules
@@ -218,13 +213,17 @@ export function DataTableRowActions<TData>({
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuItem onClick={onActivateAdmin}>
-            <ShieldCheck className="mr-2 w-4 h-4" />
-            Activate Admin rights
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDeactivateAdmin}>
-            <ShieldX className="mr-2 w-4 h-4" />
-            Deactivate Admin rights
+          {/* Change Role - Configurable for Admin and Member roles (but not Owner) */}
+          {data.team_role !== 'OWNER' && (
+            <DropdownMenuItem onClick={() => setRoleModalOpen(true)}>
+              <ShieldCheck className="mr-2 w-4 h-4" />
+              Change Role
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuItem onClick={() => setPasswordModalOpen(true)}>
+            <KeyRound className="mr-2 w-4 h-4" />
+            Change Password
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
