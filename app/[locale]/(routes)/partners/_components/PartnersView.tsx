@@ -139,10 +139,10 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
     };
 
     // Check if current user has access to manage plans (simple client check, real check is server side)
-    const hasInternalTeam = teams.some(t => t.slug === 'internal' || t.slug === 'ledger1');
+    const hasInternalTeam = teams.some(t => t.slug === 'internal' || t.slug === 'ledger1' || t.slug === 'basalt' || t.slug === 'basalthq');
 
-    // Filter out internal teams from the display list to avoid duplication
-    const filteredTeams = teams.filter(t => t.slug !== 'internal' && t.slug !== 'ledger1' && t.slug !== 'basalthq');
+    // Show all teams including internal ones
+    const filteredTeams = teams;
 
     const pendingCount = filteredTeams.filter(t => t.status === 'PENDING').length;
 
@@ -221,7 +221,15 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                         </Button>
                     )}
 
-                    {/* Manage Internal Team button removed as it's managed in /admin/users */}
+                    {/* Manage Internal Team button restored */}
+                    {hasInternalTeam && (
+                        <LinkHref href={`/partners/${teams.find(t => ['internal', 'ledger1', 'basalt', 'basalthq'].includes(t.slug))?.id}`}>
+                            <Button variant="secondary">
+                                <UsersIcon className="w-4 h-4 mr-2" />
+                                Manage Internal Team
+                            </Button>
+                        </LinkHref>
+                    )}
 
 
                 </div>

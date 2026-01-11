@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Key, DollarSign, List, ChevronLeft } from "lucide-react";
 import { NavigationCard } from "./NavigationCard";
 import { CreateTeamCard } from "./CreateTeamCard";
+import { SeedTeamCard } from "./SeedTeamCard";
 import { Button } from "@/components/ui/button";
 
 type PartnersNavigationProps = {
@@ -67,15 +68,16 @@ export const PartnersNavigation = ({
                     <Link href="/partners">
                         <Button variant="ghost" className="pl-0 hover:pl-2 transition-all">
                             <ChevronLeft className="w-4 h-4 mr-1" />
-                            Back to Partners
+                            Back to Platform
                         </Button>
                     </Link>
                 </div>
             )}
 
             {(visibleCards.length > 0 || !hideCreateTeam) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                     {!hideCreateTeam && <CreateTeamCard availablePlans={availablePlans} />}
+                    {!hideCreateTeam && <SeedTeamCard />}
                     {visibleCards.map((card) => (
                         <Link key={card.key} href={card.href} className="block h-full">
                             <NavigationCard card={card} />

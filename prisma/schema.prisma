@@ -853,6 +853,7 @@ model Users {
   notion_account       secondBrain_notions[]
   openAi_key           openAi_keys[]
   gmail_tokens         gmail_Tokens[]
+  microsoft_tokens     microsoft_Tokens[]
   assigned_invoices    Invoices[]
   assigned_contracts   crm_Contracts[]
   boards               Boards[]              @relation(name: "assigned_user")
@@ -931,6 +932,7 @@ model Team {
   message_portals     crm_Message_Portal[] @relation(name: "PortalTeam")
   
   ai_config           TeamAiConfig?
+  email_config        TeamEmailConfig?
   sms_config          TeamSmsConfig?
   custom_roles        CustomRole[]
 }
@@ -1045,6 +1047,34 @@ model gmail_Tokens {
   updatedAt     DateTime? @updatedAt @db.Date
 
   assigned_user Users?   @relation(fields: [user], references: [id])
+}
+
+model microsoft_Tokens {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?     @map("__v")
+  user          String   @db.ObjectId
+  provider      String   @default("microsoft")
+  access_token  String
+  refresh_token String
+  scope         String?
+  expiry_date   DateTime? @db.Date
+  createdAt     DateTime? @default(now()) @db.Date
+  updatedAt     DateTime? @updatedAt @db.Date
+
+  assigned_user Users?   @relation(fields: [user], references: [id])
+}
+
+model TeamEmailConfig {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  team_id             String   @unique @db.ObjectId
+  from_email          String
+  aws_region          String   @default("us-east-1")
+  verification_status String   @default("PENDING") // PENDING, VERIFIED, FAILED
+  
+  createdAt           DateTime @default(now()) @db.Date
+  updatedAt           DateTime @updatedAt @db.Date
+  
+  assigned_team       Team     @relation(fields: [team_id], references: [id])
 }
 
 model systemServices {

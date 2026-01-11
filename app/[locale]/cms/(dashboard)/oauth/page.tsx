@@ -43,7 +43,7 @@ export default function OAuthPage() {
             icon: "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg",
             description: "Enterprise integration for Outlook and Teams.",
             connected: false,
-            status: "coming_soon",
+            status: "active",
             isBeta: true,
         },
         {
@@ -82,6 +82,31 @@ export default function OAuthPage() {
             if (provider.id === 'google') {
                 // Trigger real Google Sign In
                 await signIn('google', { callbackUrl: '/en/cms/oauth' });
+            } else if (provider.id === 'microsoft') {
+                // Trigger Microsoft Sign In logic
+                // Since we don't have a next-auth provider for "microsoft" configured in auth options (likely "azure-ad"),
+                // we will use our manual flow URL if next-auth isn't utilized for this specific token.
+                // However, "signIn" suggests next-auth.
+                // The plan dictated manual flow: `getMicrosoftAuthUrl`.
+                // So we should redirect there.
+                try {
+                    // We need the userId. In client comp, session.user.id
+                    // If session not ready, toast error.
+                    if (!session?.user?.id) {
+                        toast.error("Please sign in first");
+                        return;
+                    }
+                    // Redirect to our manual auth flow
+                    // We can't synchronously get the URL here easily without an API call or server action.
+                    // Let's call an API that returns the URL.
+                    // Or just construct it if client ID is public (not ideal).
+                    // Best practice: Fetch auth URL from API.
+                    // But for speed, let's assume we implement a quick API to get the URL.
+                    // Actually, we can just hardcode the redirect to an API route that redirects to MS.
+                    window.location.href = `/api/microsoft/auth?userId=${session.user.id}`;
+                } catch (e) {
+                    toast.error("Failed to start Microsoft connection");
+                }
             } else if (provider.id === 'twitter') {
                 // Trigger real Twitter Sign In
                 await signIn('twitter', { callbackUrl: '/en/cms/oauth' });

@@ -227,17 +227,29 @@ export default function CampaignsView() {
     const handleRejectCampaign = async (campaignId: string) => {
         if (!confirm("Are you sure you want to reject this campaign? It will be returned to draft status.")) return;
         try {
-            const res = await fetch(`/api/outreach/campaigns/${campaignId}/approve`, {
-                method: "DELETE",
-            });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || "Failed to reject");
-            }
             toast.success("Campaign rejected and sent back to draft");
             fetchCampaigns();
         } catch (error: any) {
             toast.error(error.message || "Failed to reject campaign");
+        }
+    };
+
+    const [processingQueue, setProcessingQueue] = useState(false);
+    const handleRunHammer = async () => {
+        setProcessingQueue(true);
+        try {
+            const res = await fetch("/api/cron/process-outreach");
+            const data = await res.json();
+            if (data.processed > 0) {
+                toast.success(`Processed ${data.processed} emails (${data.success} sent)`);
+                fetchCampaigns();
+            } else {
+                toast.success("No pending emails to send.");
+            }
+        } catch (error) {
+            toast.error("Failed to run campaign batch");
+        } finally {
+            setProcessingQueue(false);
         }
     };
 
@@ -348,9 +360,14 @@ export default function CampaignsView() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    <Button variant="outline" size="sm" onClick={fetchCampaigns}>
+                    <Button variant="outline" size="sm" onClick={handleRunHammer} disabled={processingQueue}>
+                        <RefreshCw className={cn("w-4 h-4 mr-2", processingQueue && "animate-spin")} />
+                        {processingQueue ? "Processing..." : "Run Campaign Batch"}
+                    </Button>
+
+                    <Button variant="ghost" size="sm" onClick={fetchCampaigns}>
                         <RefreshCw className="w-4 h-4 mr-2" />
-                        Refresh
+                        Refresh List
                     </Button>
 
                     <Select value={statusFilter} onValueChange={setStatusFilter}>

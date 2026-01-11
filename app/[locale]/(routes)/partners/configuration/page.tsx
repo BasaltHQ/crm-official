@@ -20,7 +20,7 @@ export default async function PartnerAiConfigPage() {
 
     // Strict check for Basalt team or Admin
     // (Reusing logic from PartnersPage)
-    const isInternalTeam = user?.assigned_team?.slug === "ledger1";
+    const isInternalTeam = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
     const isAdmin = user?.is_admin;
 
     if (!isAdmin && !isInternalTeam) {
@@ -36,7 +36,7 @@ export default async function PartnerAiConfigPage() {
                 <div className="flex gap-4 mb-6">
                     <Link href="/partners">
                         <Button variant="outline">
-                            &larr; Back to Partners
+                            &larr; Back to Platform
                         </Button>
                     </Link>
                     <Link href="/partners/ai-pricing">

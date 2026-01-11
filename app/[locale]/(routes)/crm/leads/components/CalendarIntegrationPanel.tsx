@@ -75,7 +75,7 @@ const DateTimePickerButton: React.FC<{
         el.showPicker();
         return;
       }
-    } catch {}
+    } catch { }
     // Fallback: open lightweight popover
     setOpen(true);
   };
@@ -93,7 +93,7 @@ const DateTimePickerButton: React.FC<{
         variant="ghost"
         title="Pick date/time"
         onClick={handleClick}
-className="absolute inset-y-0 right-2 my-auto h-7 w-7 p-0 z-50"
+        className="absolute inset-y-0 right-2 my-auto h-7 w-7 p-0 z-50"
         aria-label="Pick date/time"
       >
         <svg
@@ -259,13 +259,13 @@ export default function CalendarIntegrationPanel() {
       } else if (google === 'error') {
         toast.error('Google connection failed');
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Initial connection status check against token presence
   useEffect(() => {
     checkGoogleStatus();
-     
+
   }, []);
 
   const checkGoogleStatus = async () => {
@@ -273,10 +273,10 @@ export default function CalendarIntegrationPanel() {
     try {
       const res = await fetch('/api/google/status');
       if (res.ok) {
-      const j = await res.json();
-      setConnected(!!j.connected);
-      setHasRequiredScopes(typeof j.hasRequiredScopes === 'boolean' ? j.hasRequiredScopes : null);
-      setMissingScopes(Array.isArray(j.missingScopes) ? j.missingScopes : []);
+        const j = await res.json();
+        setConnected(!!j.connected);
+        setHasRequiredScopes(typeof j.hasRequiredScopes === 'boolean' ? j.hasRequiredScopes : null);
+        setMissingScopes(Array.isArray(j.missingScopes) ? j.missingScopes : []);
       } else {
         setConnected(false);
       }
@@ -330,8 +330,8 @@ export default function CalendarIntegrationPanel() {
         selectedIds.length > 0
           ? Array.from(new Set([...selectedIds, defaultId].filter(Boolean)))
           : (calendars.length > 0
-              ? Array.from(new Set(calendars.map((c) => c.id).filter(Boolean)))
-              : (defaultId ? [defaultId] : ["primary"]));
+            ? Array.from(new Set(calendars.map((c) => c.id).filter(Boolean)))
+            : (defaultId ? [defaultId] : ["primary"]));
       if (idsToQuery.length > 0) {
         url += `&calendarIds=${encodeURIComponent(idsToQuery.join(','))}`;
       }
@@ -421,7 +421,7 @@ export default function CalendarIntegrationPanel() {
       <div className="border rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-semibold">Calendar Preferences</h4>
-<div className="relative overflow-visible">
+          <div className="relative overflow-visible">
             <Button onClick={savePreferences} disabled={prefsLoading}>
               {prefsLoading ? 'Saving…' : 'Save'}
             </Button>
@@ -497,11 +497,17 @@ export default function CalendarIntegrationPanel() {
           <Button onClick={connectGoogle} variant={connected ? 'outline' : 'default'}>
             {connected ? (hasRequiredScopes ? 'Reconnect Google' : 'Grant Permissions') : 'Connect Google'}
           </Button>
-          <Button onClick={checkGoogleStatus} variant="outline">Refresh Status</Button>
-          {/* Disconnect not implemented; requires token revocation + DB delete */}
-          <Button disabled variant="secondary" title="Coming soon">
-            Disconnect
+
+          <Button
+            onClick={() => window.location.href = "/api/microsoft/auth"}
+            variant="outline"
+            className="border-blue-200 hover:bg-blue-50 text-blue-700"
+          >
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft Logo" className="w-4 h-4 mr-2" />
+            Connect Outlook
           </Button>
+
+          <Button onClick={checkGoogleStatus} variant="outline">Refresh Status</Button>
         </div>
       </div>
 
@@ -514,10 +520,10 @@ export default function CalendarIntegrationPanel() {
               {availLoading ? 'Checking…' : 'Check'}
             </Button>
           </div>
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-<label className="text-xs text-muted-foreground">Start</label>
-<div className="relative overflow-visible isolate z-20 min-h-[2.75rem]">
+              <label className="text-xs text-muted-foreground">Start</label>
+              <div className="relative overflow-visible isolate z-20 min-h-[2.75rem]">
                 <Input
                   ref={availStartRef}
                   type="datetime-local"
@@ -526,12 +532,12 @@ export default function CalendarIntegrationPanel() {
                   className="pr-16"
                   step="300"
                 />
-<DateTimePickerButton inputRef={availStartRef} value={availStartLocal} onChange={setAvailStartLocal} />
+                <DateTimePickerButton inputRef={availStartRef} value={availStartLocal} onChange={setAvailStartLocal} />
               </div>
             </div>
             <div className="space-y-1">
-<label className="text-xs text-muted-foreground">End</label>
-<div className="relative overflow-visible isolate z-10 min-h-[2.75rem]">
+              <label className="text-xs text-muted-foreground">End</label>
+              <div className="relative overflow-visible isolate z-10 min-h-[2.75rem]">
                 <Input
                   ref={availEndRef}
                   type="datetime-local"
@@ -540,7 +546,7 @@ export default function CalendarIntegrationPanel() {
                   className="pr-16"
                   step="300"
                 />
-<DateTimePickerButton inputRef={availEndRef} value={availEndLocal} onChange={setAvailEndLocal} />
+                <DateTimePickerButton inputRef={availEndRef} value={availEndLocal} onChange={setAvailEndLocal} />
               </div>
             </div>
           </div>
@@ -590,7 +596,7 @@ export default function CalendarIntegrationPanel() {
             </Button>
           </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Title</label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -601,10 +607,10 @@ export default function CalendarIntegrationPanel() {
             </div>
           </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-<label className="text-xs text-muted-foreground">Start</label>
-<div className="relative overflow-visible isolate z-20 min-h-[2.75rem]">
+              <label className="text-xs text-muted-foreground">Start</label>
+              <div className="relative overflow-visible isolate z-20 min-h-[2.75rem]">
                 <Input
                   ref={schedStartRef}
                   type="datetime-local"
@@ -613,12 +619,12 @@ export default function CalendarIntegrationPanel() {
                   className="pr-16"
                   step="300"
                 />
-<DateTimePickerButton inputRef={schedStartRef} value={schedStartLocal} onChange={setSchedStartLocal} />
+                <DateTimePickerButton inputRef={schedStartRef} value={schedStartLocal} onChange={setSchedStartLocal} />
               </div>
             </div>
             <div className="space-y-1">
-<label className="text-xs text-muted-foreground">End</label>
-<div className="relative overflow-visible isolate z-10 min-h-[2.75rem]">
+              <label className="text-xs text-muted-foreground">End</label>
+              <div className="relative overflow-visible isolate z-10 min-h-[2.75rem]">
                 <Input
                   ref={schedEndRef}
                   type="datetime-local"
@@ -627,7 +633,7 @@ export default function CalendarIntegrationPanel() {
                   className="pr-16"
                   step="300"
                 />
-<DateTimePickerButton inputRef={schedEndRef} value={schedEndLocal} onChange={setSchedEndLocal} />
+                <DateTimePickerButton inputRef={schedEndRef} value={schedEndLocal} onChange={setSchedEndLocal} />
               </div>
             </div>
           </div>

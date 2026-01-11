@@ -26,7 +26,7 @@ const PartnersPage = async () => {
         return redirect("/");
     }
 
-    const isInternalTeam = user.assigned_team?.slug === "ledger1";
+    const isInternalTeam = user.assigned_team?.slug === "ledger1" || user.assigned_team?.slug === "basalt" || user.assigned_team?.slug === "basalthq";
     const isAdmin = user.is_admin;
 
     if (!isAdmin && !isInternalTeam) {
@@ -40,7 +40,7 @@ const PartnersPage = async () => {
 
     return (
         <Container
-            title="Partners"
+            title="Platform"
             description="Manage your Teams and CRM Instances"
         >
             <div className="p-4 space-y-6">

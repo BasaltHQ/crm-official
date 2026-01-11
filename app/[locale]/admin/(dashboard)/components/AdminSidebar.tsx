@@ -9,6 +9,7 @@ import {
     Package,
     ChevronLeft,
     ChevronRight,
+    Mail,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -45,6 +46,7 @@ export default function AdminSidebar({ showModules = false }: AdminSidebarProps)
     const navItems = [
         { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
         { label: "Users", href: "/admin/users", icon: Users },
+        { label: "Email Settings", href: "/admin/settings", icon: Mail },
         ...(showModules ? [{ label: "Modules", href: "/admin/modules", icon: Package }] : []),
     ];
 
