@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - cms
+name: Build and deploy  - BasaltCRM
 
 on:
   push:
@@ -13,124 +13,49 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout! (Retry 3: Final Force Push)
+      contents: read #This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install system dependencies for canvas
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
 
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
           node-version: "24.x"
-          cache: "pnpm"
+          cache: "npm"
 
-      # Disabled cache to force clean build with Next.js 16.1.1
-      # - name: Next.js cache
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ${{ github.workspace }}/.next/cache
-      #     key: ${{ runner.os }}-nextjs-${{ #hashFiles('**/pnpm-lock.yaml') }}-${{ #hashFiles('**.[jt]s', '**.[jt]sx') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-nextjs-${{ #hashFiles('**/pnpm-lock.yaml') }}-
-
-      - name: pnpm install, build, and test
+      - name: Next.js cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+      - name: npm install, build, and test
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GOOGLE_ID: ${{ secrets.GOOGLE_ID }}
           GOOGLE_SECRET: ${{ secrets.GOOGLE_SECRET }}
         run: |
-          pnpm install
-          echo "Verifying Next.js version:"
-          cat node_modules/next/package.json | grep '"version"'
-          npx prisma generate
-          pnpm add -D @types/react@latest @types/react-dom@latest
-          pnpm run build
-
-      - name: Prepare standalone build
+          npm install
+          npm run build --if-present
+          npm run test --if-present
+      - name: Prepare Standalone Build
         run: |
-          mkdir -p .next/standalone/.next/static
           cp -r public .next/standalone/public
+          mkdir -p .next/standalone/.next
           cp -r .next/static .next/standalone/.next/static
-          rm -rf .next/standalone/node_modules/styled-jsx
-          cp -rL node_modules/styled-jsx .next/standalone/node_modules/
-          rm -rf .next/standalone/node_modules/@swc
-          cp -rL node_modules/@swc .next/standalone/node_modules/
-          rm -rf .next/standalone/node_modules/@next
-          cp -rL node_modules/@next .next/standalone/node_modules/
-          # Copy @next/env directly from pnpm store (wildcard for version toggle)
-          cp -r node_modules/.pnpm/@next+env*/node_modules/@next/env .next/standalone/node_modules/@next/
-
-          # Copy the main 'next' package (required by standalone server.js)
-          rm -rf .next/standalone/node_modules/next
-          cp -rL node_modules/next .next/standalone/node_modules/
-
-
-          # Manually copy generated Prisma client (dynamically locate it)
-          PRISMA_DIR=$(find node_modules -type d -name ".prisma" | head -n 1)
-          if [ -n "$PRISMA_DIR" ]; then
-            cp -r "$PRISMA_DIR" .next/standalone/node_modules/
-          else
-            echo "WARNING: .prisma directory not found!"
-          fi
-
-          # Manually copy node-gyp-build (for bcrypt)
-          NODE_GYP_BUILD_DIR=$(find node_modules -type d -name "node-gyp-build" | head -n 1)
-          if [ -n "$NODE_GYP_BUILD_DIR" ]; then
-            # Ensure parent dir exists (it likely does, but safe is better)
-            mkdir -p .next/standalone/node_modules/node-gyp-build
-            cp -r "$NODE_GYP_BUILD_DIR/"* .next/standalone/node_modules/node-gyp-build/
-          else
-             echo "WARNING: node-gyp-build directory not found!"
-          fi
-
-          mkdir deployment
-          rsync -aL .next/standalone/ deployment/ || echo "Rsync: Some files could not be copied (likely broken symlinks)"
-
-          # Explicitly create destination directories to avoid ambiguity with 'cp'
-          mkdir -p deployment/public
-          mkdir -p deployment/.next/static
-
-          # Copy assets into the created directories
-          # Note: 'cp -r src/. dest/' puts contents of src into dest.
-          cp -rL public/. deployment/public/ || true
-          cp -rL .next/static/. deployment/.next/static/ || true
-
-          cd deployment
-          # Compress node_modules to tar.gz (flat archive) 
-          # We cd into node_modules so the tarball doesn't contain the 'node_modules' folder itself, but just its contents.
-          # Azure extracts this into /node_modules, so we want the contents directly there.
-          cd node_modules && tar -czf ../node_modules.tar.gz . && cd ..
-          rm -rf node_modules
-
-          # Create Oryx manifest for Azure to detect and extract tarball
-          cat > oryx-manifest.toml << 'MANIFEST'
-          NodeVersion = "24"
-          CompressedNodeModulesFile = "node_modules.tar.gz"
-          MANIFEST
-          echo "Created oryx-manifest.toml:"
-          cat oryx-manifest.toml
-
-          zip -r ../release.zip .
-          cd ..
-
-          # Verify the manifest is in the zip
-          echo "========================================="
-          echo "Contents of release.zip (top-level files):"
-          unzip -l release.zip | head -30
-          echo "========================================="
-          echo "Checking specifically for oryx-manifest.toml:"
-          unzip -l release.zip | grep -i oryx || echo "WARNING: oryx-manifest.toml NOT FOUND IN ZIP!"
-          echo "========================================="
-
+          # Ensure start command is correct for Azure Service Plan
+          cd .next/standalone
+          npm pkg set scripts.start="node server.js"
+          cd ../..
+          # Debug: Verify .next/standalone/.next exists and has content
+          ls -la .next/standalone/.next
+          # Zip the standalone directory to preserve all files including hidden ones
+          cd .next/standalone
+          zip -r ../../release.zip .
+          cd ../..
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
@@ -140,15 +65,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: "Production"
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
+
+      - name: "Login via Azure CLI"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: "Deploy to Azure Web App"
         id: deploy-to-webapp
@@ -157,4 +84,5 @@ jobs:
           app-name: "basalt-crm"
           slot-name: "Production"
           package: release.zip
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_137383BE76624C3C93A060F403D700C3 }}
