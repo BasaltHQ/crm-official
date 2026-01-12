@@ -64,7 +64,7 @@ const NewTaskInProjectDialog = ({ users, boardId, sections }: Props) => {
   const formSchema = z.object({
     title: z.string().min(3).max(255),
     user: z.string().min(3).max(255),
-    dueDateAt: z.date().default(new Date()),
+    dueDateAt: z.date(),
     priority: z.string().min(3).max(10),
     section: z.string().min(3).max(255),
     content: z.string().min(3).max(500),
@@ -74,6 +74,14 @@ const NewTaskInProjectDialog = ({ users, boardId, sections }: Props) => {
 
   const form = useForm<NewAccountFormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      user: "",
+      dueDateAt: new Date(),
+      priority: "",
+      section: "",
+      content: "",
+    },
   });
 
   useEffect(() => {

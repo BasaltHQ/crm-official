@@ -45,7 +45,7 @@ const LeadsView = ({ data, crmData }: any) => {
             <CardDescription></CardDescription>
           </div>
           <div className="flex space-x-2">
-            <RightViewModal label={"+"} title="Create new lead" description="">
+            <RightViewModal label={"+"} title="Create New Lead" description="">
               <NewLeadForm users={users} accounts={accounts} />
             </RightViewModal>
           </div>

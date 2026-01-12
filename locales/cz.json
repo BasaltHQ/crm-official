@@ -1,54 +1,51 @@
 {
   "RootLayout": {
-    "title": "Ledger1CRM",
-    "description": "Ledger1CRM je open source CRM vytvořené na frameworku NextJS."
+    "title": "BasaltCRM",
+    "description": "BasaltCRM is an open source CRM build on top of NextJS."
   },
   "ModuleMenu": {
-    "dashboard": "Přehled",
+    "dashboard": "Dashboard",
     "crm": {
-      "title": "Obchod",
-      "accounts": "Firmy",
-      "opportunities": "Obchody",
-      "contacts": "Kontakty",
-      "leads": "Leady",
-      "contracts": "Smlouvy"
+      "title": "Sales",
+      "accounts": "Companies",
+      "opportunities": "Opportunities",
+      "contacts": "Contacts",
+      "leads": "Leads",
+      "contracts": "Contracts"
     },
-    "projects": "Projekty",
-    "emails": "Pošta",
-    "tasks": "Úkoly",
-    "invoices": "Faktury",
-    "reports": "Reporty",
-    "documents": "Dokumenty",
-    "storage": "Úložiště",
-    "settings": "Nastavení"
+    "projects": "Projects",
+    "emails": "E-mails",
+    "tasks": "Tasks",
+    "invoices": "Invoices",
+    "reports": "Reports",
+    "documents": "Documents",
+    "storage": "Storage",
+    "settings": "Administration"
   },
   "DashboardPage": {
-    "containerTitle": "Přehled",
-    "containerDescription": "Vítejte v Ledger1CRM, zde můžete vidět všechny důležité informace o vašem podniku.",
-    "totalRevenue": "Celkový obrat",
-    "expectedRevenue": "Očekávaný obrat",
-    "activeUsers": "Aktivní uživatelé",
-    "accounts": "Firmy",
-    "opportunities": "Obchody",
-    "contacts": "Kontakty",
-    "leads": "Leady",
-    "projects": "Projekty",
-    "tasks": "Úkoly",
-    "myTasks": "Moje úkoly",
-    "invoices": "Faktury",
-    "documents": "Dokumenty",
-    "storage": "Úložiště"
+    "containerTitle": "Dashboard",
+    "totalRevenue": "Total revenue",
+    "containerDescription": "Welcome to BasaltCRM, here you can see all important information about your business.",
+    "expectedRevenue": "Expected revenue",
+    "activeUsers": "Active users",
+    "accounts": "Companies",
+    "opportunities": "Deals",
+    "contacts": "Contacts",
+    "leads": "Leads",
+    "projects": "Projects",
+    "tasks": "Tasks",
+    "myTasks": "My tasks",
+    "invoices": "Invoices",
+    "documents": "Documents",
+    "storage": "Storage"
   },
   "RegisterComponent": {
-    "cardTitle": "Vytvořit nový účet",
-    "cardDescription": "Vytvořte si účet přihlášením pomocí",
-    "label": "Jazyk",
-    "locale": "{locale, select, de {Němčina} en {Angličtina} cz {Čeština} uk {Ukrainian} other {Neznámý}}"
+    "cardTitle": "Create new account",
+    "cardDescription": "Create account by login with",
+    "label": "Language",
+    "locale": "{locale, select, de {German} en {English} cz {Czech} uk {Ukrainian} other {Unknown}}"
   },
   "CrmModuleMenuComponent": {
-    "menuTitle": "Obchod",
-    "cardDescription": "Vytvořte si účet přihlášením pomocí",
-    "label": "Jazyk",
-    "locale": "{locale, select, de {Němčina} en {Angličtina} cz {Čeština} other {Neznámý}}"
+    "menuTitle": "Sales"
   }
 }

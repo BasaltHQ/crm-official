@@ -11,7 +11,7 @@ export async function generateCareerPost(jobTitle: string) {
     }
 
     const prompt = `
-    You are an expert HR Specialist and Recruiter for Ledger1CRM.
+    You are an expert HR Specialist and Recruiter for BasaltCRM.
     Your goal is to write a compelling, inclusive, and professional job description for the role: "${jobTitle}".
     
     Content Requirements:
@@ -39,6 +39,7 @@ export async function generateCareerPost(jobTitle: string) {
                 department: z.string().describe("The department this role belongs to (e.g., Engineering, Sales, Marketing)."),
                 location: z.string().describe("Remote, Hybrid, or specific location."),
                 employmentType: z.enum(["Full-time", "Part-time", "Contract", "Internship"]).describe("Type of employment."),
+                summary: z.string().describe("A brief one-paragraph summary of the role."),
                 content: z.string().describe("The full job description in clean Markdown."),
             }),
             messages: [
@@ -48,7 +49,11 @@ export async function generateCareerPost(jobTitle: string) {
             temperature: isReasoningModel(model.modelId) ? undefined : 1,
         });
 
-        return object;
+        // Return with type alias for backwards compatibility
+        return {
+            ...object,
+            type: object.employmentType,
+        };
     } catch (error) {
         console.error("Error generating career post:", error);
         throw new Error("Failed to generate career post");

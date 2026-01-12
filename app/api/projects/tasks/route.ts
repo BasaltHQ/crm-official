@@ -3,6 +3,52 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// GET all tasks (used by calendar)
+export async function GET() {
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    return new NextResponse("Unauthenticated", { status: 401 });
+  }
+
+  try {
+    const tasks = await prismadb.tasks.findMany({
+      include: {
+        assigned_section: {
+          select: {
+            id: true,
+            title: true,
+            board: true,
+          },
+        },
+        assigned_user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        dueDateAt: "asc",
+      },
+    });
+
+    // Transform to flatten board info for calendar
+    const transformedTasks = tasks.map(task => ({
+      ...task,
+      board: task.assigned_section ? {
+        id: task.assigned_section.board,
+        title: task.assigned_section.title,
+      } : null,
+    }));
+
+    return NextResponse.json({ tasks: transformedTasks });
+  } catch (error) {
+    console.log("[TASKS_GET]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
 //Update task API endpoint
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);

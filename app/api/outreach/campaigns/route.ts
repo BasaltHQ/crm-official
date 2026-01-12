@@ -135,6 +135,7 @@ export async function POST(req: Request) {
             resourceLinks,
             meetingLink,
             includeResearch,
+            status, // Accept status from request for approval workflow
         } = body;
 
         // Validation
@@ -151,12 +152,15 @@ export async function POST(req: Request) {
             select: { team_id: true },
         });
 
+        // Use provided status or default to DRAFT
+        const campaignStatus = status || "DRAFT";
+
         // Create the campaign
         const campaign = await prisma.crm_Outreach_Campaigns.create({
             data: {
                 name,
                 description: description || null,
-                status: "DRAFT",
+                status: campaignStatus,
                 user: session.user.id,
                 team_id: user?.team_id || null,
                 project: projectId || null,
@@ -232,17 +236,35 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
 
-        // Get user's team
+        // Get user's team and role
         const user = await prisma.users.findUnique({
             where: { id: session.user.id },
-            select: { team_id: true },
+            select: { team_id: true, team_role: true },
         });
 
-        // Fetch campaigns for the user's team
+        const isMember = user?.team_role === "MEMBER";
+
+        // Build where clause based on role
+        let whereClause: any;
+        if (isMember) {
+            // Members: See only campaigns they created OR are assigned to
+            whereClause = {
+                OR: [
+                    { user: session.user.id },
+                    { assigned_users: { has: session.user.id } }
+                ]
+            };
+        } else if (user?.team_id) {
+            // Admins/Owners: See all team campaigns
+            whereClause = { team_id: user.team_id };
+        } else {
+            // Fallback: Own campaigns only
+            whereClause = { user: session.user.id };
+        }
+
+        // Fetch campaigns
         const campaigns = await prisma.crm_Outreach_Campaigns.findMany({
-            where: user?.team_id
-                ? { team_id: user.team_id }
-                : { user: session.user.id },
+            where: whereClause,
             include: {
                 assigned_user: {
                     select: {

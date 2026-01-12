@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import moment from "moment";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -110,11 +110,11 @@ export function TeamConversations({
         </CardHeader>
         <CardContent className="grid gap-6">
           {comments?.map((comment: any) => (
-            <>
+            <Fragment key={comment.id}>
               {/*               <pre>
                 <code>{JSON.stringify(comment, null, 2)}</code>
               </pre> */}
-              <div key={comment.id} className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4">
                 <Avatar>
                   <AvatarImage
                     src={comment.assigned_user?.avatar || "/images/nouser.png"}
@@ -135,7 +135,7 @@ export function TeamConversations({
                   </div>
                 </div>
               </div>
-            </>
+            </Fragment>
           ))}
         </CardContent>
       </Card>

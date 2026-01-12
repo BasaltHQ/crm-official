@@ -106,7 +106,7 @@ export function NewOpportunityForm({
   const formSchema = z.object({
     name: z.string(),
     close_date: z.date({
-      required_error: "A expected close date is required.",
+      message: "An expected close date is required.",
     }),
     description: z.string(),
     type: z.string(),
@@ -190,7 +190,7 @@ export function NewOpportunityForm({
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="New Ledger1CRM functionality"
+                      placeholder="New BasaltCRM functionality"
                       {...field}
                     />
                   </FormControl>
@@ -248,7 +248,7 @@ export function NewOpportunityForm({
                   <FormControl>
                     <Textarea
                       disabled={isLoading}
-                      placeholder="New Ledger1CRM functionality"
+                      placeholder="New BasaltCRM functionality"
                       {...field}
                     />
                   </FormControl>

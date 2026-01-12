@@ -59,6 +59,9 @@ export async function getAiClient(teamId: string) {
         // Use System Key & Configs
         apiKey = systemConfig?.apiKey || process.env[`${modelRecord.provider}_API_KEY`] || null;
         baseURL = systemConfig?.baseUrl || null;
+        if (baseURL && baseURL.endsWith("/")) {
+            baseURL = baseURL.slice(0, -1);
+        }
         providerConfig = systemConfig?.configuration as any || {};
     }
 

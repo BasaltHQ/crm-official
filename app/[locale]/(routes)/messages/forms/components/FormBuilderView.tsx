@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import {
     Plus, Copy, Code, Eye, Trash2, Settings, ChevronDown, ChevronRight,
     GripVertical, FileText, Lock, Globe, Users, Sparkles, Braces, Loader2,
-    Palette, RefreshCw
+    Palette, RefreshCw, Search, BarChart3, ExternalLink, MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +18,17 @@ import { Switch } from "@/components/ui/switch";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ViewToggle, type ViewMode } from "@/components/ViewToggle";
 
 interface FormField {
     id: string;
@@ -122,8 +131,10 @@ const LEAD_FIELD_MAPPINGS = [
     { value: "country", label: "Country" },
 ];
 
-export function FormBuilderView({ forms, projects, baseUrl, currentUserId }: FormBuilderViewProps) {
+export function FormBuilderView({ forms: initialForms, projects, baseUrl, currentUserId }: FormBuilderViewProps) {
     const { toast } = useToast();
+    const router = useRouter();
+    const [forms, setForms] = useState<Form[]>(initialForms);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showEmbedDialog, setShowEmbedDialog] = useState(false);
     const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
@@ -131,6 +142,12 @@ export function FormBuilderView({ forms, projects, baseUrl, currentUserId }: For
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingTheme, setIsSavingTheme] = useState(false);
     const [expandedForms, setExpandedForms] = useState<Set<string>>(new Set());
+
+    // NEW: View toggle, search, and delete state
+    const [viewMode, setViewMode] = useState<ViewMode>("table");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [deleteConfirmForm, setDeleteConfirmForm] = useState<Form | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Theme customization state
     const [formTheme, setFormTheme] = useState<FormTheme>(DEFAULT_THEME);
@@ -151,6 +168,44 @@ export function FormBuilderView({ forms, projects, baseUrl, currentUserId }: For
     const [jsonError, setJsonError] = useState<string | null>(null);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [aiPrompt, setAiPrompt] = useState("");
+
+    // Filter forms based on search query
+    const filteredForms = useMemo(() => {
+        if (!searchQuery.trim()) return forms;
+        const query = searchQuery.toLowerCase();
+        return forms.filter(form =>
+            form.name.toLowerCase().includes(query) ||
+            (form.description?.toLowerCase().includes(query))
+        );
+    }, [forms, searchQuery]);
+
+    // Calculate stats
+    const stats = useMemo(() => ({
+        total: forms.length,
+        totalSubmissions: forms.reduce((sum, f) => sum + (f._count?.submissions || 0), 0),
+        active: forms.filter(f => f.status === "ACTIVE").length,
+    }), [forms]);
+
+    // Delete form function
+    const handleDeleteForm = async () => {
+        if (!deleteConfirmForm) return;
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/forms/${deleteConfirmForm.id}`, {
+                method: "DELETE",
+            });
+            if (!response.ok) {
+                throw new Error("Failed to delete form");
+            }
+            setForms(prev => prev.filter(f => f.id !== deleteConfirmForm.id));
+            toast({ title: "Success", description: "Form deleted successfully" });
+            setDeleteConfirmForm(null);
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message || "Failed to delete form", variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const toggleFormExpanded = (id: string) => {
         setExpandedForms((prev) => {
@@ -575,118 +630,368 @@ export function FormBuilderView({ forms, projects, baseUrl, currentUserId }: For
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <p className="text-muted-foreground">
-                        {forms.length} form{forms.length !== 1 ? "s" : ""} created
-                    </p>
+            {/* Stats Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/20 rounded-lg">
+                            <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold">{stats.total}</p>
+                            <p className="text-xs text-muted-foreground">Total Forms</p>
+                        </div>
+                    </div>
                 </div>
-                <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Form
-                </Button>
+                <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/20 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-500/20 rounded-lg">
+                            <BarChart3 className="h-5 w-5 text-green-500" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold">{stats.totalSubmissions}</p>
+                            <p className="text-xs text-muted-foreground">Total Submissions</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border border-cyan-500/20 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-cyan-500/20 rounded-lg">
+                            <Globe className="h-5 w-5 text-cyan-500" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold">{stats.active}</p>
+                            <p className="text-xs text-muted-foreground">Active Forms</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Toolbar: Search + ViewToggle + Create */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <div className="flex flex-1 gap-3 items-center w-full sm:w-auto">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search forms..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <ViewToggle value={viewMode} onChange={setViewMode} />
+                    <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Create Form
+                    </Button>
+                </div>
             </div>
 
             {/* Forms List */}
-            <div className="space-y-4">
-                {forms.length === 0 ? (
-                    <Card>
-                        <CardContent className="py-12 text-center">
-                            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <h3 className="font-semibold mb-2">No forms yet</h3>
-                            <p className="text-muted-foreground mb-4">
-                                Create your first form to start capturing leads from your website.
-                            </p>
-                            <Button onClick={() => setShowCreateDialog(true)}>
-                                <Plus className="h-4 w-4 mr-2" />
+            {filteredForms.length === 0 ? (
+                <Card className="border-dashed">
+                    <CardContent className="py-16 text-center">
+                        <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                            <FileText className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="font-semibold text-lg mb-2">
+                            {searchQuery ? "No forms match your search" : "No forms yet"}
+                        </h3>
+                        <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                            {searchQuery
+                                ? "Try adjusting your search terms"
+                                : "Create your first form to start capturing leads from your website."
+                            }
+                        </p>
+                        {!searchQuery && (
+                            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                                <Plus className="h-4 w-4" />
                                 Create Form
                             </Button>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    forms.map((form) => (
-                        <Card key={form.id}>
-                            <CardHeader
-                                className="cursor-pointer"
-                                onClick={() => toggleFormExpanded(form.id)}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                        )}
+                    </CardContent>
+                </Card>
+            ) : viewMode === "table" ? (
+                /* List / Table View */
+                <div className="space-y-3">
+                    {filteredForms.map((form) => (
+                        <Card
+                            key={form.id}
+                            className="group hover:shadow-md hover:border-primary/30 transition-all duration-200"
+                        >
+                            <CardHeader className="pb-3">
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                    <div
+                                        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+                                        onClick={() => toggleFormExpanded(form.id)}
+                                    >
                                         {expandedForms.has(form.id) ? (
-                                            <ChevronDown className="h-5 w-5" />
+                                            <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                                         ) : (
-                                            <ChevronRight className="h-5 w-5" />
+                                            <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                                         )}
-                                        <div>
-                                            <CardTitle className="text-lg">{form.name}</CardTitle>
+                                        <div className="min-w-0">
+                                            <CardTitle className="text-base truncate">{form.name}</CardTitle>
                                             {form.description && (
-                                                <CardDescription>{form.description}</CardDescription>
+                                                <CardDescription className="truncate">{form.description}</CardDescription>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                                        <Badge variant={form.visibility === "PUBLIC" ? "default" : "secondary"}>
+                                    <div className="flex flex-wrap items-center gap-2 pl-8 lg:pl-0">
+                                        <Badge variant={form.visibility === "PUBLIC" ? "default" : "secondary"} className="text-xs">
                                             {form.visibility === "PUBLIC" ? (
                                                 <><Globe className="h-3 w-3 mr-1" /> Public</>
                                             ) : (
                                                 <><Lock className="h-3 w-3 mr-1" /> Private</>
                                             )}
                                         </Badge>
-                                        <Badge variant={form.status === "ACTIVE" ? "outline" : "secondary"}>
+                                        <Badge variant={form.status === "ACTIVE" ? "outline" : "secondary"} className="text-xs">
                                             {form.status}
                                         </Badge>
-                                        <Badge variant="outline">
+                                        <Badge variant="outline" className="text-xs">
+                                            <BarChart3 className="h-3 w-3 mr-1" />
                                             {form._count.submissions} submissions
                                         </Badge>
-                                        <Button variant="outline" size="sm" onClick={() => showCustomize(form)}>
-                                            <Palette className="h-4 w-4 mr-1" />
-                                            Customize
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => showEmbed(form)}>
-                                            <Code className="h-4 w-4 mr-1" />
-                                            Get Code
-                                        </Button>
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(e) => { e.stopPropagation(); router.push(`/messages/forms/${form.id}/submissions`); }}
+                                                className="h-8 px-2"
+                                            >
+                                                <ExternalLink className="h-4 w-4 mr-1" />
+                                                <span className="hidden sm:inline">Submissions</span>
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); showCustomize(form); }} className="h-8 px-2">
+                                                <Palette className="h-4 w-4 mr-1" />
+                                                <span className="hidden sm:inline">Customize</span>
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); showEmbed(form); }} className="h-8 px-2">
+                                                <Code className="h-4 w-4 mr-1" />
+                                                <span className="hidden sm:inline">Embed</span>
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmForm(form); }}
+                                                className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </CardHeader>
                             {expandedForms.has(form.id) && (
-                                <CardContent className="border-t pt-4">
-                                    <div className="space-y-4">
-                                        <div className="text-sm text-muted-foreground">
-                                            <strong>Slug:</strong> {form.slug}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                            <strong>Created:</strong> {format(new Date(form.createdAt), "PPpp")}
+                                <CardContent className="border-t pt-4 bg-muted/30">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <div className="text-sm">
+                                                <span className="text-muted-foreground">Slug:</span>{" "}
+                                                <code className="bg-muted px-2 py-0.5 rounded text-xs">{form.slug}</code>
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                                Created: {format(new Date(form.createdAt), "PPpp")}
+                                            </div>
                                         </div>
                                         <div>
-                                            <strong className="text-sm">Fields ({form.fields.length}):</strong>
-                                            <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-                                                {form.fields.map((field) => (
-                                                    <div
-                                                        key={field.id}
-                                                        className="border rounded p-2 text-sm"
-                                                    >
-                                                        <div className="font-medium">{field.label}</div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {field.field_type}
-                                                            {field.is_required && " • Required"}
-                                                        </div>
-                                                    </div>
+                                            <p className="text-sm font-medium mb-2">Fields ({form.fields.length})</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {form.fields.slice(0, 5).map((field) => (
+                                                    <Badge key={field.id} variant="outline" className="text-xs">
+                                                        {field.label}
+                                                        {field.is_required && <span className="text-destructive ml-1">*</span>}
+                                                    </Badge>
                                                 ))}
+                                                {form.fields.length > 5 && (
+                                                    <Badge variant="outline" className="text-xs">+{form.fields.length - 5} more</Badge>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </CardContent>
                             )}
                         </Card>
-                    ))
-                )}
-            </div>
+                    ))}
+                </div>
+            ) : viewMode === "compact" ? (
+                /* Compact Grid View */
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {filteredForms.map((form) => (
+                        <Card
+                            key={form.id}
+                            className="group cursor-pointer hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-200"
+                            onClick={() => toggleFormExpanded(form.id)}
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-start justify-between gap-2 mb-3">
+                                    <Badge
+                                        variant={form.visibility === "PUBLIC" ? "default" : "secondary"}
+                                        className="text-[10px] px-1.5"
+                                    >
+                                        {form.visibility === "PUBLIC" ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                                    </Badge>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => router.push(`/messages/forms/${form.id}/submissions`)}>
+                                                <ExternalLink className="h-4 w-4 mr-2" /> View Submissions
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => showCustomize(form)}>
+                                                <Palette className="h-4 w-4 mr-2" /> Customize
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => showEmbed(form)}>
+                                                <Code className="h-4 w-4 mr-2" /> Get Code
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => setDeleteConfirmForm(form)}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                                <h3 className="font-semibold text-sm truncate mb-1">{form.name}</h3>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                        <BarChart3 className="h-3 w-3" />
+                                        {form._count.submissions}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{form.fields.length} fields</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            ) : (
+                /* Card Grid View */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredForms.map((form) => (
+                        <Card
+                            key={form.id}
+                            className="group hover:shadow-xl hover:border-primary/40 hover:-translate-y-1 transition-all duration-300"
+                        >
+                            <CardHeader className="pb-3">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                        <CardTitle className="text-lg truncate">{form.name}</CardTitle>
+                                        {form.description && (
+                                            <CardDescription className="line-clamp-2 mt-1">{form.description}</CardDescription>
+                                        )}
+                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => router.push(`/messages/forms/${form.id}/submissions`)}>
+                                                <ExternalLink className="h-4 w-4 mr-2" /> View Submissions
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => showCustomize(form)}>
+                                                <Palette className="h-4 w-4 mr-2" /> Customize
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => showEmbed(form)}>
+                                                <Code className="h-4 w-4 mr-2" /> Get Code
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => setDeleteConfirmForm(form)}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <Badge variant={form.visibility === "PUBLIC" ? "default" : "secondary"}>
+                                        {form.visibility === "PUBLIC" ? (
+                                            <><Globe className="h-3 w-3 mr-1" /> Public</>
+                                        ) : (
+                                            <><Lock className="h-3 w-3 mr-1" /> Private</>
+                                        )}
+                                    </Badge>
+                                    <Badge variant={form.status === "ACTIVE" ? "outline" : "secondary"}>
+                                        {form.status}
+                                    </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold">{form._count.submissions}</p>
+                                        <p className="text-xs text-muted-foreground">Submissions</p>
+                                    </div>
+                                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                                        <p className="text-2xl font-bold">{form.fields.length}</p>
+                                        <p className="text-xs text-muted-foreground">Fields</p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => router.push(`/messages/forms/${form.id}/submissions`)}
+                                    >
+                                        <ExternalLink className="h-4 w-4 mr-1" />
+                                        Submissions
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1"
+                                        onClick={() => showEmbed(form)}
+                                    >
+                                        <Code className="h-4 w-4 mr-1" />
+                                        Embed
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            )}
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!deleteConfirmForm} onOpenChange={(open) => !open && setDeleteConfirmForm(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Form</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{deleteConfirmForm?.name}&quot;? This action cannot be undone.
+                            All {deleteConfirmForm?._count?.submissions || 0} submissions will also be permanently deleted.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteForm}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Deleting...</>
+                            ) : (
+                                <><Trash2 className="h-4 w-4 mr-2" /> Delete</>
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Create Form Dialog */}
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-                <DialogContent className="max-w-3xl max-h-[90vh]">
+                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
                     <DialogHeader>
                         <DialogTitle>Create New Form</DialogTitle>
                         <DialogDescription>
@@ -694,69 +999,71 @@ export function FormBuilderView({ forms, projects, baseUrl, currentUserId }: For
                         </DialogDescription>
                     </DialogHeader>
 
-                    {/* Mode Toggle */}
-                    <div className="flex items-center justify-between border-b pb-4">
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant={editorMode === "basic" ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => editorMode === "advanced" ? switchToBasic() : null}
-                            >
-                                <Settings className="h-4 w-4 mr-1" />
-                                Basic
-                            </Button>
-                            <Button
-                                variant={editorMode === "advanced" ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => editorMode === "basic" ? switchToAdvanced() : null}
-                            >
-                                <Braces className="h-4 w-4 mr-1" />
-                                Advanced (JSON)
-                            </Button>
+                    {/* Scrollable Content Area */}
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-4" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+                        {/* Mode Toggle */}
+                        <div className="flex items-center justify-between border-b pb-4">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant={editorMode === "basic" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => editorMode === "advanced" ? switchToBasic() : null}
+                                >
+                                    <Settings className="h-4 w-4 mr-1" />
+                                    Basic
+                                </Button>
+                                <Button
+                                    variant={editorMode === "advanced" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => editorMode === "basic" ? switchToAdvanced() : null}
+                                >
+                                    <Braces className="h-4 w-4 mr-1" />
+                                    Advanced (JSON)
+                                </Button>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* AI Prompt Input */}
-                    <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                        <div className="flex items-start gap-3">
-                            <Sparkles className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
-                            <div className="flex-1 space-y-3">
-                                <div>
-                                    <Label className="text-sm font-medium">Generate or Enhance with AI</Label>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Describe the form you want to create, or leave empty to enhance the current form
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Input
-                                        value={aiPrompt}
-                                        onChange={(e) => setAiPrompt(e.target.value)}
-                                        placeholder="e.g., Contact form for a dental clinic, Real estate inquiry form, Newsletter signup..."
-                                        className="flex-1"
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" && !isEnhancing) {
-                                                enhanceWithAI();
-                                            }
-                                        }}
-                                    />
-                                    <Button
-                                        onClick={enhanceWithAI}
-                                        disabled={isEnhancing}
-                                        className="gap-2"
-                                    >
-                                        {isEnhancing ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="h-4 w-4" />
-                                        )}
-                                        {aiPrompt && newForm.fields.length <= 1 ? "Generate" : "Enhance"}
-                                    </Button>
+                        {/* AI Prompt Input */}
+                        <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                            <div className="flex items-start gap-3">
+                                <Sparkles className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 space-y-3">
+                                    <div>
+                                        <Label className="text-sm font-medium">Generate or Enhance with AI</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Describe the form you want to create, or leave empty to enhance the current form
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={aiPrompt}
+                                            onChange={(e) => setAiPrompt(e.target.value)}
+                                            placeholder="e.g., Contact form for a dental clinic, Real estate inquiry form, Newsletter signup..."
+                                            className="flex-1"
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && !isEnhancing) {
+                                                    enhanceWithAI();
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            onClick={enhanceWithAI}
+                                            disabled={isEnhancing}
+                                            className="gap-2"
+                                        >
+                                            {isEnhancing ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Sparkles className="h-4 w-4" />
+                                            )}
+                                            {aiPrompt && newForm.fields.length <= 1 ? "Generate" : "Enhance"}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <ScrollArea className="max-h-[60vh] pr-4">
+                        {/* Form Content */}
                         {editorMode === "advanced" ? (
                             /* Advanced JSON Editor */
                             <div className="space-y-4">
@@ -973,7 +1280,7 @@ export function FormBuilderView({ forms, projects, baseUrl, currentUserId }: For
                                 </div>
                             </div>
                         )}
-                    </ScrollArea>
+                    </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                             Cancel

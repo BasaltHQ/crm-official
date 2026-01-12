@@ -13,10 +13,14 @@ import {
     Target,
     FileText,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
 } from "lucide-react";
 
-export default function CrmSidebar() {
+interface CrmSidebarProps {
+    isMember?: boolean;
+}
+
+export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -44,18 +48,20 @@ export default function CrmSidebar() {
     };
 
     const navItems = [
-        { label: "Dashboard", href: "/crm/dashboard", icon: LayoutDashboard },
-        { label: "My Dashboard", href: "/crm/dashboard/user", icon: LayoutDashboard },
-        { label: "Overview", href: "/crm", icon: PieChart },
-        { label: "Companies", href: "/crm/accounts", icon: Building2 },
+        { label: "Overview", href: "/crm/sales-command", icon: LayoutDashboard },
+        { label: "Accounts", href: "/crm/accounts", icon: Building2 },
         { label: "Contacts", href: "/crm/contacts", icon: Contact },
-        { label: "Leads Manager", href: "/crm/leads", icon: Users },
-        { label: "Dialer", href: "/crm/dialer", icon: Phone },
-        { label: "Opportunities", href: "/crm/opportunities", icon: Target },
         { label: "Contracts", href: "/crm/contracts", icon: FileText },
+        { label: "Dialer", href: "/crm/dialer", icon: Phone },
+        { label: "Leads Manager", href: "/crm/leads", icon: Users },
+        { label: "Opportunities", href: "/crm/opportunities", icon: Target },
     ];
 
-
+    // Hide CrmSidebar for Members (they use DashboardNavGrid) or on /crm/university
+    const isUniversityPage = pathname.includes("/crm/university");
+    if (isMember || isUniversityPage) {
+        return null;
+    }
 
     return (
         <>
@@ -63,7 +69,7 @@ export default function CrmSidebar() {
             <div
                 className={cn(
                     "hidden md:flex shrink-0 relative group z-20",
-                    isCollapsed ? "w-16" : "w-56"
+                    isCollapsed ? "w-16" : "w-48"
                 )}
             >
                 {/* Sidebar content */}
@@ -87,11 +93,13 @@ export default function CrmSidebar() {
                                 key={item.label}
                                 onClick={() => router.push(item.href)}
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors text-left w-full relative",
+                                    "flex items-center gap-3 text-sm font-medium transition-all text-left relative rounded-lg",
                                     isActive
                                         ? "bg-primary/10 text-primary border-r-2 border-primary"
                                         : "text-muted-foreground hover:bg-muted/20 hover:text-foreground",
-                                    isCollapsed && "justify-center px-2"
+                                    isCollapsed
+                                        ? "w-9 h-9 justify-center hover:ring-1 hover:ring-primary/50 mx-auto"
+                                        : "px-4 py-2 w-full"
                                 )}
                                 title={isCollapsed ? item.label : undefined}
                             >

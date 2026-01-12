@@ -83,19 +83,49 @@ export async function getLeadsStageCounts(userId: string): Promise<{
     prismadb.crm_Lead_Activities.count({ where: { user: userId as any, type: { contains: "call", mode: "insensitive" }, lead: { in: myLeadIds as any } } }),
   ]);
 
-  const overall: OverallSummary = {
-    counts: { total: myLeads.length, byStage: overallByStage },
-    metrics: { emailsPresent, phonesPresent, emailSent, callsInitiated },
-  };
-
   // User's pools
   const pools = await prismadb.crm_Lead_Pools.findMany({
     where: { user: userId as any },
     select: { id: true, name: true },
   });
+
+  // Fetch Opportunities assigned to user to include in Total Pipeline Value (Active Deals)
+  // We want to include:
+  // 1. CRM Opportunities (status = ACTIVE) assigned to user
+  // 2. Project Opportunities (status = OPEN) created by/assigned to user?? 
+  //    Actually Project_Opportunities has assignedTo field.
+  const [activeCrmOpps, activeProjectOpps] = await Promise.all([
+    prismadb.crm_Opportunities.count({
+      where: {
+        assigned_to: userId as any,
+        status: "ACTIVE" as any
+      }
+    }),
+    (prismadb.project_Opportunities as any).count({
+      where: {
+        OR: [
+          { assignedTo: userId as any },
+          { createdBy: userId as any }
+        ],
+        status: "OPEN"
+      }
+    })
+  ]);
+
+
+
+  const overall: OverallSummary = {
+    counts: {
+      total: myLeads.length + activeCrmOpps + activeProjectOpps, // LEADS + OPPORTUNITIES
+      byStage: overallByStage
+    },
+    metrics: { emailsPresent, phonesPresent, emailSent, callsInitiated },
+  };
+
   if (pools.length === 0) return { overall, pools: [] };
 
   const poolIds = pools.map((p) => p.id);
+
 
   // Fetch all pool<->lead mappings in one go
   const poolMaps = await prismadb.crm_Lead_Pools_Leads.findMany({
@@ -117,9 +147,9 @@ export async function getLeadsStageCounts(userId: string): Promise<{
   // Fetch all leads involved in those pools once
   const poolLeads = unionLeadIds.length
     ? await prismadb.crm_Leads.findMany({
-        where: { id: { in: unionLeadIds as any } },
-        select: { id: true, assigned_to: true, email: true, phone: true, pipeline_stage: true },
-      })
+      where: { id: { in: unionLeadIds as any } },
+      select: { id: true, assigned_to: true, email: true, phone: true, pipeline_stage: true },
+    })
     : [];
 
   // Index by lead id
@@ -133,15 +163,15 @@ export async function getLeadsStageCounts(userId: string): Promise<{
 
   const [poolEmailActs, poolCallActs] = assignedUnionIds.length
     ? await Promise.all([
-        prismadb.crm_Lead_Activities.findMany({
-          where: { user: userId as any, type: "email_sent", lead: { in: assignedUnionIds as any } },
-          select: { lead: true },
-        }),
-        prismadb.crm_Lead_Activities.findMany({
-          where: { user: userId as any, type: { contains: "call", mode: "insensitive" }, lead: { in: assignedUnionIds as any } },
-          select: { lead: true },
-        }),
-      ])
+      prismadb.crm_Lead_Activities.findMany({
+        where: { user: userId as any, type: "email_sent", lead: { in: assignedUnionIds as any } },
+        select: { lead: true },
+      }),
+      prismadb.crm_Lead_Activities.findMany({
+        where: { user: userId as any, type: { contains: "call", mode: "insensitive" }, lead: { in: assignedUnionIds as any } },
+        select: { lead: true },
+      }),
+    ])
     : [[], []];
 
   // Build leadId -> counts maps

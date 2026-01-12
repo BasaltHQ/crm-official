@@ -129,14 +129,14 @@ const PlansView = ({ initialPlans }: Props) => {
 
         try {
             setIsLoading(true);
-            let res;
+            let res: { error?: string; success?: string };
             if (editingPlan) {
                 res = await updatePlan(editingPlan.id, formData);
             } else {
                 res = await createPlan(formData);
             }
 
-            if (res.error) {
+            if ('error' in res && res.error) {
                 toast.error(res.error);
             } else {
                 toast.success(editingPlan ? "Plan updated" : "Plan created");
@@ -155,7 +155,7 @@ const PlansView = ({ initialPlans }: Props) => {
         try {
             setIsLoading(true);
             const res = await deletePlan(id);
-            if (res.error) {
+            if ('error' in res && res.error) {
                 toast.error(res.error);
             } else {
                 toast.success("Plan deleted");

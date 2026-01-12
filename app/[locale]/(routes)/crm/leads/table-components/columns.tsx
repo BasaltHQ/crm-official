@@ -45,12 +45,8 @@ export const columns: ColumnDef<Lead>[] = [
     ),
 
     cell: ({ row }) => (
-      <div className="w-[150px]">
-        {
-          //@ts-ignore
-          //TODO: fix this
-          row.getValue("assigned_to_user")?.name ?? "Unassigned"
-        }
+      <div className="w-[150px] truncate" title={row.original.assigned_to_user?.name ?? "Unassigned"}>
+        {row.original.assigned_to_user?.name ?? "Unassigned"}
       </div>
     ),
     enableSorting: true,
@@ -63,7 +59,7 @@ export const columns: ColumnDef<Lead>[] = [
     ),
 
     cell: ({ row }) => (
-      <div className="">
+      <div className="max-w-[200px] truncate" title={row.getValue("company") as string}>
         {
           //@ts-ignore
           //TODO: fix this
@@ -80,13 +76,12 @@ export const columns: ColumnDef<Lead>[] = [
       <DataTableColumnHeader column={column} title="Name" />
     ),
 
-    cell: ({ row }) => (
-      <div>
-        {row.original.firstName
-          ? row.getValue("firstName")
-          : "" + " " + row.original.lastName}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const name = row.original.firstName
+        ? row.getValue("firstName")
+        : "" + " " + row.original.lastName;
+      return <div className="max-w-[150px] truncate" title={name as string}>{name as string}</div>;
+    },
     enableSorting: false,
     enableHiding: true,
   },
@@ -96,7 +91,7 @@ export const columns: ColumnDef<Lead>[] = [
       <DataTableColumnHeader column={column} title="E-mail" />
     ),
 
-    cell: ({ row }) => <div className="w-[150px]">{row.getValue("email")}</div>,
+    cell: ({ row }) => <div className="max-w-[200px] truncate" title={row.getValue("email")}>{row.getValue("email")}</div>,
     enableSorting: true,
     enableHiding: true,
   },

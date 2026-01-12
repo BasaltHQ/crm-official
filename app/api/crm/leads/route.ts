@@ -29,7 +29,10 @@ export async function POST(req: Request) {
       description,
       lead_source,
       refered_by,
-      campaign,
+      //campaign, // Replaced by social profiles
+      social_twitter,
+      social_facebook,
+      social_linkedin,
       assigned_to,
       accountIDs,
     } = body;
@@ -38,6 +41,23 @@ export async function POST(req: Request) {
 
     const teamInfo = await getCurrentUserTeamId();
     const teamId = teamInfo?.teamId;
+
+    // Check for duplicate email in the same team
+    if (email) {
+      const existingLead = await (prismadb.crm_Leads as any).findFirst({
+        where: {
+          email: email,
+          team_id: teamId,
+        },
+      });
+
+      if (existingLead) {
+        return new NextResponse(
+          JSON.stringify({ message: "Lead already exists", leadId: existingLead.id }),
+          { status: 409 }
+        );
+      }
+    }
 
     const newLead = await (prismadb.crm_Leads as any).create({
       data: {
@@ -54,7 +74,10 @@ export async function POST(req: Request) {
         description,
         lead_source,
         refered_by,
-        campaign,
+        campaign: "", // Deprecated
+        social_twitter,
+        social_facebook,
+        social_linkedin,
         assigned_to: assigned_to || userId,
         accountsIDs: accountIDs,
         status: "NEW",
@@ -124,6 +147,9 @@ export async function PUT(req: Request) {
       accountIDs,
       status,
       type,
+      social_twitter,
+      social_facebook,
+      social_linkedin,
     } = body;
 
     const updatedLead = await prismadb.crm_Leads.update({
@@ -143,6 +169,9 @@ export async function PUT(req: Request) {
         lead_source,
         refered_by,
         campaign,
+        social_twitter,
+        social_facebook,
+        social_linkedin,
         assigned_to: assigned_to || userId,
         accountsIDs: accountIDs,
         status,

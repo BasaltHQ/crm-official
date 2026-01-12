@@ -41,11 +41,11 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
             <Link href={href} onClick={onClick}>
                 <div
                     className={cn(
-                        "relative w-full flex items-center p-3 rounded-xl transition-all duration-200 group text-sm font-medium",
-                        !isOpen && "justify-center",
+                        "relative w-full flex items-center rounded-xl transition-all duration-200 group text-sm font-medium",
+                        isOpen ? "py-2 px-3" : "py-1 px-2 justify-center",
                         isActive
                             ? "text-primary"
-                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                            : cn("text-muted-foreground", isOpen && "hover:text-foreground hover:bg-white/5")
                     )}
                 >
                     {/* Active State Background - No layoutId, just conditional render */}
@@ -54,11 +54,16 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
                     )}
 
                     {/* Icon */}
-                    <div className="relative z-10 flex items-center justify-center min-w-[24px]">
+                    <div className={cn(
+                        "relative z-10 flex items-center justify-center min-w-[24px]",
+                        !isOpen && "w-8 h-8 rounded-md transition-all duration-200 hover:bg-white/10 hover:ring-1 hover:ring-white/70 group/icon"
+                    )}>
                         <Icon
                             className={cn(
                                 "w-5 h-5 transition-colors duration-200",
-                                isActive ? "text-primary" : "group-hover:text-primary"
+                                isActive
+                                    ? "text-primary"
+                                    : (isOpen ? "group-hover:text-primary" : "group-hover/icon:text-primary text-muted-foreground")
                             )}
                         />
                     </div>

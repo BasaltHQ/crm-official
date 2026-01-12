@@ -116,6 +116,11 @@ model crm_Leads {
   lead_activities    crm_Lead_Activities[] @relation(name: "LeadActivitiesToLead")
   outreach_items     crm_Outreach_Items[]  @relation(name: "OutreachItemsLead")
 
+  // Social profiles
+  social_twitter      String?
+  social_facebook     String?
+  social_linkedin     String?
+
   // Link to a Project/Board for tagging and association
   project            String?       @db.ObjectId
   assigned_project   Boards?       @relation(name: "LeadsAssignedProject", fields: [project], references: [id])
@@ -171,6 +176,8 @@ model crm_Opportunities {
   assigned_campaings   crm_campaigns?                  @relation(fields: [campaign], references: [id])
   connected_documents  String[]                        @db.ObjectId
   documents            Documents[]                     @relation(fields: [connected_documents], references: [id])
+  invoiceIDs           String[]                        @db.ObjectId
+  invoices             Invoices[]                      @relation(fields: [invoiceIDs], references: [id])
   connected_contacts   String[]                        @db.ObjectId
   contacts             crm_Contacts[]                  @relation(fields: [connected_contacts], references: [id])
 
@@ -197,6 +204,7 @@ model crm_campaigns {
 // Outreach Campaigns for Email/SMS tracking
 enum OutreachCampaignStatus {
   DRAFT
+  PENDING_APPROVAL
   ACTIVE
   PAUSED
   COMPLETED
@@ -219,6 +227,9 @@ model crm_Outreach_Campaigns {
   // Owner/Team
   user              String                   @db.ObjectId
   team_id           String?                  @db.ObjectId
+  
+  // Members assigned to work on this campaign (for collaboration)
+  assigned_users    String[]                 @db.ObjectId
   
   // Project/Context association
   project           String?                  @db.ObjectId
@@ -413,6 +424,14 @@ enum crm_Contracts_Status {
   SIGNED
 }
 
+enum ProjectStatus {
+  DRAFT
+  READY
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
 model Boards {
   id                String    @id @default(auto()) @map("_id") @db.ObjectId
   v                 Int       @map("__v")
@@ -434,7 +453,21 @@ model Boards {
   brand_logo_url     String?
   brand_primary_color String?
 
-  //Create watchers field for board. It will be array of users
+  // Project Status & Workflow
+  status              ProjectStatus  @default(DRAFT)
+  require_approval    Boolean        @default(false)
+
+  // Project Context for Campaigns
+  target_industries   String[]
+  target_geos         String[]
+  target_titles       String[]
+  campaign_brief      String?
+  messaging_tone      String?  // formal, casual, technical
+  key_value_props     String[]
+  meeting_link        String?
+  signature_template  String?
+
+  // Watchers
   watchers       String[] @db.ObjectId
   assigned_user  Users?   @relation(name: "assigned_user", fields: [user], references: [id])
   watchers_users Users[]  @relation(name: "watching_users", fields: [watchers], references: [id])
@@ -443,9 +476,22 @@ model Boards {
   assigned_leads      crm_Leads[]            @relation(name: "LeadsAssignedProject")
   outreach_campaigns  crm_Outreach_Campaigns[] @relation(name: "OutreachCampaignsProject")
   message_portals     crm_Message_Portal[]   @relation(name: "PortalProject")
+  project_members     ProjectMember[]        @relation(name: "ProjectMembers")
 
   team_id             String?                @db.ObjectId
   assigned_team       Team?                  @relation(fields: [team_id], references: [id])
+}
+
+model ProjectMember {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  project     String   @db.ObjectId
+  user        String   @db.ObjectId
+  role        String   @default("MEMBER") // LEAD, MEMBER
+  assignedAt  DateTime @default(now()) @db.Date
+  assignedBy  String   @db.ObjectId
+
+  board       Boards   @relation(name: "ProjectMembers", fields: [project], references: [id])
+  member      Users    @relation(name: "ProjectMemberUser", fields: [user], references: [id])
 }
 
 model Employees {
@@ -577,6 +623,12 @@ model Invoices {
   connected_documents           String[]        @db.ObjectId
   documents                     Documents[]     @relation(fields: [connected_documents], references: [id])
 
+  opportunityIDs                String[]                @db.ObjectId
+  opportunities                 crm_Opportunities[]     @relation(fields: [opportunityIDs], references: [id])
+
+  projectOpportunityIDs         String[]                @db.ObjectId
+  project_opportunities         Project_Opportunities[] @relation(fields: [projectOpportunityIDs], references: [id])
+
   team_id                       String?         @db.ObjectId
   assigned_team                 Team?           @relation(fields: [team_id], references: [id])
 }
@@ -602,6 +654,7 @@ model Documents {
   favourite              Boolean?
   document_file_mimeType String
   document_file_url      String
+  hash                   String?
   status                 String?
   visibility             String?
   tags                   Json?
@@ -783,8 +836,10 @@ model Users {
   name                 String?
   password             String?
   username             String?
+  phone                String?
   userStatus           ActiveStatus          @default(PENDING)
   userLanguage         Language              @default(en)
+  mustChangePassword   Boolean               @default(false)
   tasksComment         tasksComments[]
   created_by_documents Documents[]           @relation(name: "created_by_user")
   assigned_documents   Documents[]           @relation(name: "assigned_to_user")
@@ -799,6 +854,7 @@ model Users {
   notion_account       secondBrain_notions[]
   openAi_key           openAi_keys[]
   gmail_tokens         gmail_Tokens[]
+  microsoft_tokens     microsoft_Tokens[]
   assigned_invoices    Invoices[]
   assigned_contracts   crm_Contracts[]
   boards               Boards[]              @relation(name: "assigned_user")
@@ -813,6 +869,7 @@ model Users {
   lead_activities      crm_Lead_Activities[] @relation(name: "LeadActivitiesToUser")
   system_activities    SystemActivity[]      @relation(name: "UserSystemActivities")
   outreach_campaigns   crm_Outreach_Campaigns[] @relation(name: "OutreachCampaignsUser")
+  project_memberships  ProjectMember[]          @relation(name: "ProjectMemberUser")
 
   // Outreach, signature, resources, and prompt settings
   meeting_link               String?
@@ -832,7 +889,10 @@ model Users {
   // Team / Partner
   team_id                    String?   @db.ObjectId
   assigned_team              Team?     @relation(fields: [team_id], references: [id])
-  team_role                  String?   @default("MEMBER") // OWNER, ADMIN, MEMBER
+  team_role                  String?   @default("MEMBER") // OWNER, ADMIN, MEMBER, VIEWER
+  assigned_modules           String[]
+  custom_role_id             String?   @db.ObjectId
+  custom_role                CustomRole? @relation(fields: [custom_role_id], references: [id])
 }
 
 model Team {
@@ -873,7 +933,25 @@ model Team {
   message_portals     crm_Message_Portal[] @relation(name: "PortalTeam")
   
   ai_config           TeamAiConfig?
+  email_config        TeamEmailConfig?
   sms_config          TeamSmsConfig?
+  custom_roles        CustomRole[]
+}
+
+model CustomRole {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  team_id     String   @db.ObjectId
+  team        Team     @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  modules     String[] // enabled module IDs
+  created_at  DateTime @default(now()) @db.Date
+  updated_at  DateTime @updatedAt @db.Date
+  
+  // Users assigned to this role
+  users       Users[]
+  
+  @@unique([team_id, name])
 }
 
 enum BillingCycle {
@@ -970,6 +1048,34 @@ model gmail_Tokens {
   updatedAt     DateTime? @updatedAt @db.Date
 
   assigned_user Users?   @relation(fields: [user], references: [id])
+}
+
+model microsoft_Tokens {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?     @map("__v")
+  user          String   @db.ObjectId
+  provider      String   @default("microsoft")
+  access_token  String
+  refresh_token String
+  scope         String?
+  expiry_date   DateTime? @db.Date
+  createdAt     DateTime? @default(now()) @db.Date
+  updatedAt     DateTime? @updatedAt @db.Date
+
+  assigned_user Users?   @relation(fields: [user], references: [id])
+}
+
+model TeamEmailConfig {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  team_id             String   @unique @db.ObjectId
+  from_email          String
+  aws_region          String   @default("us-east-1")
+  verification_status String   @default("PENDING") // PENDING, VERIFIED, FAILED
+  
+  createdAt           DateTime @default(now()) @db.Date
+  updatedAt           DateTime @updatedAt @db.Date
+  
+  assigned_team       Team     @relation(fields: [team_id], references: [id])
 }
 
 model systemServices {
@@ -1190,6 +1296,9 @@ model crm_Lead_Pools {
 
   team_id       String?           @db.ObjectId
   assigned_team Team?             @relation(fields: [team_id], references: [id])
+
+  // Members assigned to work on this pool
+  assigned_members String[]       @db.ObjectId
 }
 
 model crm_Lead_Gen_Jobs {
@@ -1413,6 +1522,9 @@ model Project_Opportunities {
   relatedTasksIDs String[] @db.ObjectId
 
   assigned_project Boards? @relation(fields: [project], references: [id])
+
+  invoiceIDs       String[]    @db.ObjectId
+  invoices         Invoices[]  @relation(fields: [invoiceIDs], references: [id])
 }
 
 model FooterSection {
@@ -1440,7 +1552,7 @@ model FooterSetting {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   tagline         String   @default("Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.")
   copyrightText   String   @default("© 2025 Ledger AI. All rights reserved.")
-  socialXUrl      String   @default("https://x.com/Ledger1AI")
+  socialXUrl      String   @default("https://x.com/BasaltAI")
   socialDiscordUrl String   @default("https://discord.gg/vARPqF84Zt")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1811,6 +1923,7 @@ model FormSubmission {
   
   // Status
   status          FormSubmissionStatus     @default(NEW)
+  is_deleted      Boolean                  @default(false)
   
   // Converted lead reference
   lead_id         String?                  @db.ObjectId

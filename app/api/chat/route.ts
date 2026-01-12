@@ -25,7 +25,7 @@ function buildCrmAgentSystemPrompt(timezone?: string): string {
         timeZoneName: "short",
     });
 
-    return `You are the Chief CRM Agent for Ledger1 CRM—an intelligent, autonomous AI assistant purpose-built to help sales teams, account managers, and business operators manage their customer relationships, sales pipelines, and business operations with maximum efficiency.
+    return `You are the Chief CRM Agent for Basalt CRM—an intelligent, autonomous AI assistant purpose-built to help sales teams, account managers, and business operators manage their customer relationships, sales pipelines, and business operations with maximum efficiency.
 
 ## CURRENT CONTEXT
 - **Current Time**: ${formattedTime}
@@ -304,7 +304,7 @@ export async function POST(req: Request) {
                     content: extractMessageContent(m),
                 }))
                 .filter((m: any) => m.content); // Filter out messages with empty content
-            
+
             // Check if there's already a system message; if not, prepend our CRM agent system prompt
             const hasSystemMessage = convertedMessages.some((m: any) => m.role === "system");
             if (hasSystemMessage) {
@@ -319,7 +319,7 @@ export async function POST(req: Request) {
                     ...convertedMessages,
                 ];
             }
-            
+
             // Find the last user message content
             const lastUserMessage = [...incomingMessages].reverse().find((m: any) => m.role === "user");
             if (!lastUserContent && lastUserMessage) {

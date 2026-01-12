@@ -3,13 +3,13 @@ import { prismadb } from "@/lib/prisma";
 
 /**
  * GET /api/integration/status
- * Ledger1CRM integration status endpoint for VoiceHub connection and softphone config.
+ * BasaltCRM integration status endpoint for VoiceHub connection and softphone config.
  *
  * Response:
  * {
  *   voicehub_connected: boolean,
- *   iframeSrc: string,     // e.g., https://ledger1crm.my.connect.aws/ccp-v2/
- *   iframeOrigin: string,  // e.g., https://ledger1crm.my.connect.aws
+ *   iframeSrc: string,     // e.g., https://basaltcrm.my.connect.aws/ccp-v2/
+ *   iframeOrigin: string,  // e.g., https://basaltcrm.my.connect.aws
  *   queueId?: string,
  *   flowId?: string
  * }
@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest) {
       const configuredBase = String(process.env.VOICEHUB_BASE_URL || process.env.NEXT_PUBLIC_VOICEHUB_BASE_URL || "").trim();
       voicehubConnected = !!(configuredBase || (svc?.serviceUrl && String(svc.serviceUrl).trim()));
       voicehubWallet = svc?.serviceId ? String(svc.serviceId).trim().toLowerCase() : null;
-    } catch {}
+    } catch { }
 
     const iframeSrc = `${base.replace(/\/+$/, "")}/ccp-v2/`;
     const iframeOrigin = base.replace(/\/+$/, "");

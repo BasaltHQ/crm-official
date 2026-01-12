@@ -16,7 +16,7 @@ const PartnerMenu = ({ open, isMobile = false }: Props) => {
         <MenuItem
             href="/partners"
             icon={Users}
-            title="Partners"
+            title="Platform"
             isOpen={open}
             isActive={isPath}
             isMobile={isMobile}

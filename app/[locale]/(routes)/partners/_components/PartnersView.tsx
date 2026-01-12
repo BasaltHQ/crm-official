@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Users as UsersIcon, Edit, Lock, List, CalendarClock } from "lucide-react";
+import { Users as UsersIcon, Edit, CalendarClock, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 import {
     Card,
@@ -27,17 +26,9 @@ import {
     CardTitle
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 
-import { createTeam } from "@/actions/teams/create-team";
-import { seedInternalTeam } from "@/actions/teams/seed-team";
 import { updateTeamRenewal } from "@/actions/teams/update-team-renewal";
+import { seedInternalTeam } from "@/actions/teams/seed-team";
 import { toast } from "react-hot-toast";
 
 type Team = {
@@ -63,60 +54,40 @@ type Props = {
     availablePlans: any[];
 };
 
+import { ViewToggle, type ViewMode } from "@/components/ViewToggle";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+
 const LinkHref = Link as any;
 
 const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
     const router = useRouter();
     const [teams, setTeams] = useState<Team[]>(initialTeams);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSeeding, setIsSeeding] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>("card");
+    const isMobile = useIsMobile();
+
+    useEffect(() => {
+        if (isMobile) {
+            setViewMode("card");
+        }
+    }, [isMobile]);
 
     // Create Modal State
-    const [open, setOpen] = useState(false);
-    const [name, setName] = useState("");
-    const [slug, setSlug] = useState("");
-    const [planId, setPlanId] = useState("");
+    // Logic moved to CreateTeamCard component
 
-    const handleCreate = async () => {
-        try {
-            setIsLoading(true);
-            const res = await createTeam(name, slug, planId || undefined);
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success("Team created!");
-                setOpen(false);
-                router.refresh();
-            }
-        } catch (error) {
-            toast.error("Something went wrong");
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
-    const handleSeed = async () => {
-        try {
-            setIsLoading(true);
-            const res = await seedInternalTeam();
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success(`Internal Team Seeded! Updated ${res.count} users.`);
-                router.refresh();
-            }
-        } catch (error) {
-            toast.error("Failed to seed");
-        } finally {
-            setIsLoading(false);
-        }
-    }
 
-    // Auto-generate slug
-    useEffect(() => {
-        if (name) {
-            setSlug(name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
-        }
-    }, [name]);
+
+
 
     // Renewal Dialog State
     const [renewalOpen, setRenewalOpen] = useState(false);
@@ -150,10 +121,30 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
         }
     };
 
-    // Check if current user has access to manage plans (simple client check, real check is server side)
-    const hasInternalTeam = teams.some(t => t.slug === 'internal' || t.slug === 'ledger1');
+    const handleSeed = async () => {
+        try {
+            setIsSeeding(true);
+            const res = await seedInternalTeam();
+            if (res.error) {
+                toast.error(res.error);
+            } else {
+                toast.success(`Internal Team Seeded! Updated ${res.count} users.`);
+                router.refresh();
+            }
+        } catch (error) {
+            toast.error("Failed to seed");
+        } finally {
+            setIsSeeding(false);
+        }
+    };
 
-    const pendingCount = teams.filter(t => t.status === 'PENDING').length;
+    // Check if current user has access to manage plans (simple client check, real check is server side)
+    const hasInternalTeam = teams.some(t => t.slug === 'internal' || t.slug === 'ledger1' || t.slug === 'basalt' || t.slug === 'basalthq');
+
+    // Show all teams including internal ones
+    const filteredTeams = teams;
+
+    const pendingCount = filteredTeams.filter(t => t.status === 'PENDING').length;
 
     const getStatusStyle = (status?: string | null) => {
         switch (status) {
@@ -220,28 +211,19 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                     </div>
                 </div>
             )}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Teams & Partners</h2>
-                    <p className="text-muted-foreground">Manage your organizations and their access.</p>
-                </div>
+            <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4">
                 <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={handleSeed} disabled={isLoading}>
-                        <Lock className="w-4 h-4 mr-2" />
-                        Seed Internal Team
-                    </Button>
-
-                    {hasInternalTeam && (
-                        <LinkHref href="/partners/plans">
-                            <Button variant="outline">
-                                <List className="w-4 h-4 mr-2" />
-                                Manage Plans
-                            </Button>
-                        </LinkHref>
+                    {!hasInternalTeam && (
+                        <Button variant="secondary" onClick={handleSeed} disabled={isSeeding}>
+                            <Lock className={`w-4 h-4 mr-2 ${isSeeding ? "animate-spin" : ""}`} />
+                            <span className="hidden md:inline">Seed Internal Team</span>
+                            <span className="md:hidden">Seed</span>
+                        </Button>
                     )}
 
-                    {teams.find(t => t.slug === 'internal') && (
-                        <LinkHref href={`/partners/${teams.find(t => t.slug === 'internal')?.id}`}>
+                    {/* Manage Internal Team button restored */}
+                    {hasInternalTeam && (
+                        <LinkHref href={`/partners/${teams.find(t => ['internal', 'ledger1', 'basalt', 'basalthq'].includes(t.slug))?.id}`}>
                             <Button variant="secondary">
                                 <UsersIcon className="w-4 h-4 mr-2" />
                                 Manage Internal Team
@@ -249,149 +231,149 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                         </LinkHref>
                     )}
 
-                    <Dialog open={open} onOpenChange={setOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Team
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Create New Team</DialogTitle>
-                                <DialogDescription>
-                                    Add a new partner organization or team instance.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Team Name</label>
-                                    <Input
-                                        placeholder="e.g. Acme Corp"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Brand Key (Slug)</label>
-                                    <Input
-                                        placeholder="e.g. acme-corp"
-                                        value={slug}
-                                        onChange={(e) => setSlug(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Subscription Plan</label>
-                                    <Select
-                                        value={planId}
-                                        onValueChange={(val) => setPlanId(val)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Plan" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none" disabled>Select Plan</SelectItem>
-                                            {availablePlans.map((plan) => (
-                                                <SelectItem key={plan.id} value={plan.id}>
-                                                    {plan.name} ({plan.currency} {plan.price})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                                <Button onClick={handleCreate} disabled={isLoading}>Create Team</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+
+                </div>
+                {/* View Toggle */}
+                <div className="flex items-center ml-2">
+                    <ViewToggle value={viewMode} onChange={setViewMode} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {teams.map((team) => {
-                    const effectiveStatus = getEffectiveStatus(team);
-                    return (
-                        <Card
-                            key={team.id}
-                            className="transition-all duration-300 border-2"
-                            style={getStatusStyle(effectiveStatus)}
-                        >
-                            <CardHeader className="pb-2">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <CardTitle className="leading-tight">{team.name}</CardTitle>
-                                            {effectiveStatus === "PENDING" && (
-                                                <Badge variant="destructive" className="animate-pulse">Pending</Badge>
-                                            )}
-                                            {effectiveStatus === "SUSPENDED" && (
-                                                <Badge variant="destructive">Suspended</Badge>
-                                            )}
-                                            {effectiveStatus === "OVERDUE" && (
-                                                <Badge className="bg-pink-500 hover:bg-pink-600 animate-pulse text-white border-none">Overdue</Badge>
-                                            )}
-                                        </div>
-                                        <CardDescription className="font-mono text-xs mt-1 text-muted-foreground/70">{team.slug}</CardDescription>
-                                    </div>
-                                    <Badge variant="outline" className="shrink-0">{team.members.length} Users</Badge>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex -space-x-2 overflow-hidden py-2">
-                                    {team.members.slice(0, 5).map((member) => (
-                                        <div key={member.id} className="h-8 w-8 rounded-full ring-2 ring-background bg-slate-200 flex items-center justify-center overflow-hidden" title={member.name || member.email}>
-                                            {member.avatar ? (
-                                                <img src={member.avatar} alt={member.name || "User"} className="h-full w-full object-cover" />
-                                            ) : (
-                                                <span className="text-xs font-semibold text-slate-500">{(member.name || member.email)[0].toUpperCase()}</span>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {team.members.length > 5 && (
-                                        <div className="h-8 w-8 rounded-full ring-2 ring-background bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">
-                                            +{team.members.length - 5}
-                                        </div>
-                                    )}
-                                    {team.members.length === 0 && (
-                                        <span className="text-sm text-muted-foreground italic pl-2">No members yet</span>
-                                    )}
-                                </div>
-                            </CardContent>
-                            <CardFooter className="flex justify-between items-center border-t p-4 bg-muted/20">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground flex flex-col">
-                                        <span>Since {new Date(team.created_at).toLocaleDateString()}</span>
-                                        {team.renewal_date && (
-                                            <span className="text-muted-foreground/70">
-                                                Refreshes: {new Date(team.renewal_date).toLocaleDateString()}
-                                            </span>
-                                        )}
-                                    </span>
-                                    {team.assigned_plan && (
-                                        <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-xs shadow-sm border border-slate-200 dark:border-slate-700">
-                                            {team.assigned_plan.name}
+            {viewMode === "table" ? (
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Members</TableHead>
+                                <TableHead>Renewal</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredTeams.map((team) => (
+                                <TableRow key={team.id}>
+                                    <TableCell className="font-medium">
+                                        <div>{team.name}</div>
+                                        <div className="text-xs text-muted-foreground">{team.slug}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={team.status === "ACTIVE" ? "default" : "secondary"}>
+                                            {team.status || "ACTIVE"}
                                         </Badge>
-                                    )}
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openRenewalDialog(team)}>
-                                        <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                    <LinkHref href={`/partners/${team.id}`}>
-                                        <Button variant="ghost" size="sm">
-                                            <Edit className="w-4 h-4 mr-2" />
-                                            Manage
+                                    </TableCell>
+                                    <TableCell>{team.members.length} Users</TableCell>
+                                    <TableCell>
+                                        {team.renewal_date ? new Date(team.renewal_date).toLocaleDateString() : "N/A"}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRenewalDialog(team)}>
+                                                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                            <LinkHref href={`/partners/${team.id}`}>
+                                                <Button variant="ghost" size="sm">Manage</Button>
+                                            </LinkHref>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {filteredTeams.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">
+                                        No teams found.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            ) : (
+                <div className={`grid gap-6 ${viewMode === "compact" ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
+                    {filteredTeams.map((team) => {
+                        const effectiveStatus = getEffectiveStatus(team);
+                        return (
+                            <Card
+                                key={team.id}
+                                className="transition-all duration-300 border-2"
+                                style={getStatusStyle(effectiveStatus)}
+                            >
+                                <CardHeader className="pb-2">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <CardTitle className="leading-tight">{team.name}</CardTitle>
+                                                {effectiveStatus === "PENDING" && (
+                                                    <Badge variant="destructive" className="animate-pulse">Pending</Badge>
+                                                )}
+                                                {effectiveStatus === "SUSPENDED" && (
+                                                    <Badge variant="destructive">Suspended</Badge>
+                                                )}
+                                                {effectiveStatus === "OVERDUE" && (
+                                                    <Badge className="bg-pink-500 hover:bg-pink-600 animate-pulse text-white border-none">Overdue</Badge>
+                                                )}
+                                            </div>
+                                            <CardDescription className="font-mono text-xs mt-1 text-muted-foreground/70">{team.slug}</CardDescription>
+                                        </div>
+                                        <Badge variant="outline" className="shrink-0">{team.members.length} Users</Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex -space-x-2 overflow-hidden py-2">
+                                        {team.members.slice(0, 5).map((member) => (
+                                            <div key={member.id} className="h-8 w-8 rounded-full ring-2 ring-background bg-primary/10 flex items-center justify-center overflow-hidden" title={member.name || member.email}>
+                                                {member.avatar ? (
+                                                    <img src={member.avatar} alt={member.name || "User"} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xs font-semibold text-primary/80">{(member.name || member.email)[0].toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {team.members.length > 5 && (
+                                            <div className="h-8 w-8 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                                                +{team.members.length - 5}
+                                            </div>
+                                        )}
+                                        {team.members.length === 0 && (
+                                            <span className="text-sm text-muted-foreground italic pl-2">No members yet</span>
+                                        )}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex justify-between items-center border-t p-4 bg-muted/20">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground flex flex-col">
+                                            <span>Since {new Date(team.created_at).toLocaleDateString()}</span>
+                                            {team.renewal_date && (
+                                                <span className="text-muted-foreground/70">
+                                                    Refreshes: {new Date(team.renewal_date).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </span>
+                                        {team.assigned_plan && (
+                                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs shadow-sm">
+                                                {team.assigned_plan.name}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openRenewalDialog(team)}>
+                                            <CalendarClock className="h-4 w-4 text-muted-foreground" />
                                         </Button>
-                                    </LinkHref>
-                                </div>
-                            </CardFooter>
-                        </Card>
-                    );
-                })}
-            </div>
-            {teams.length === 0 && (
+                                        <LinkHref href={`/partners/${team.id}`}>
+                                            <Button variant="ghost" size="sm">
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Manage
+                                            </Button>
+                                        </LinkHref>
+                                    </div>
+                                </CardFooter>
+                            </Card>
+                        );
+                    })}
+                </div>
+            )}
+            {filteredTeams.length === 0 && (
                 <div className="text-center py-10">
                     <h3 className="text-lg font-medium">No teams found</h3>
                     <p>Get started by creating your first team.</p>

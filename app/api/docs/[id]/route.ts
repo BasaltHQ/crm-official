@@ -5,13 +5,14 @@ import { logActivity } from "@/actions/audit";
 
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        if (!params.id) return new NextResponse("Doc ID is required", { status: 400 });
+        const { id } = await params;
+        if (!id) return new NextResponse("Doc ID is required", { status: 400 });
 
         const doc = await prismadb.docArticle.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         return NextResponse.json(doc);
@@ -23,14 +24,15 @@ export async function GET(
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await req.json();
         const { title, slug, category, order, content, videoUrl, resources } = body;
 
         const doc = await prismadb.docArticle.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 title,
                 slug,
@@ -55,11 +57,12 @@ export async function PATCH(
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const doc = await prismadb.docArticle.delete({
-            where: { id: params.id },
+            where: { id },
         });
 
         revalidatePath('/docs');

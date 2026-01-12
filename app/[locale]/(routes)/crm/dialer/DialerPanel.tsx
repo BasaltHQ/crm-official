@@ -91,33 +91,33 @@ export default function DialerPanel() {
         // Optional wallet forwarding to include prompt in agent config if available (stored by Prompt push)
         walletOverride = (localStorage.getItem('voicehub:wallet') || '').toLowerCase();
         if (walletOverride) headers['x-wallet'] = walletOverride;
-      } catch {}
-        // Silent credit check prior to start
+      } catch { }
+      // Silent credit check prior to start
+      try {
+        await fetch('/api/voicehub/credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletOverride: walletOverride || undefined }),
+        });
+      } catch { }
+      // Auto-start VoiceHub session when dialing
+      try {
+        await fetch('/api/voicehub/control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: 'start', payload: { leadId }, walletOverride: walletOverride || undefined }),
+        });
+        // Open VoiceHub Console to surface credit approval modal on user gesture (Dial Now)
         try {
-          await fetch('/api/voicehub/credits', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletOverride: walletOverride || undefined }),
-          });
-        } catch {}
-        // Auto-start VoiceHub session when dialing
-        try {
-          await fetch('/api/voicehub/control', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: 'start', payload: { leadId }, walletOverride: walletOverride || undefined }),
-          });
-          // Open VoiceHub Console to surface credit approval modal on user gesture (Dial Now)
-          try {
-            const vhBase = String(process.env.NEXT_PUBLIC_VOICEHUB_BASE_URL || '').trim();
-            if (vhBase) {
-              const win = window.open(`${vhBase}/console`, '_blank', 'noopener,noreferrer');
-              if (!win) {
-                toast('Enable popups to approve credits');
-              }
+          const vhBase = String(process.env.NEXT_PUBLIC_VOICEHUB_BASE_URL || '').trim();
+          if (vhBase) {
+            const win = window.open(`${vhBase}/console`, '_blank', 'noopener,noreferrer');
+            if (!win) {
+              toast('Enable popups to approve credits');
             }
-          } catch {}
-        } catch {}
+          }
+        } catch { }
+      } catch { }
       const res = await fetch('/api/voice/engage/start', {
         method: 'POST',
         headers,
@@ -176,7 +176,7 @@ export default function DialerPanel() {
         try {
           walletOverride = (localStorage.getItem('voicehub:wallet') || '').toLowerCase();
           if (walletOverride) headers['x-wallet'] = walletOverride;
-        } catch {}
+        } catch { }
         // Silent credit check prior to start
         try {
           await fetch('/api/voicehub/credits', {
@@ -184,7 +184,7 @@ export default function DialerPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ walletOverride: walletOverride || undefined }),
           });
-        } catch {}
+        } catch { }
         // Auto-start VoiceHub session when dialing list entries
         try {
           await fetch('/api/voicehub/control', {
@@ -201,8 +201,8 @@ export default function DialerPanel() {
                 toast('Enable popups to approve credits');
               }
             }
-          } catch {}
-        } catch {}
+          } catch { }
+        } catch { }
         const res = await fetch('/api/voice/engage/start', {
           method: 'POST',
           headers,
@@ -290,9 +290,7 @@ export default function DialerPanel() {
 
   return (
     <div className="w-full px-1 py-2 space-y-4">
-      <div className="microtext text-muted-foreground">
-        Dialer uses Amazon Connect CCP (Streams SDK) for outbound calls. Ledger1CRM controls dialing and sequencing.
-      </div>
+
 
       {/* Connect CCP Softphone */}
       <section className="rounded-md border bg-card p-4">

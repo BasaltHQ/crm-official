@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 
 import { updateTeam } from "@/actions/teams/update-team";
 import { deleteTeam } from "@/actions/teams/delete-team";
+import AlertModal from "@/components/modals/alert-modal";
 
 type Team = {
     id: string;
@@ -48,7 +49,7 @@ const TeamStatusCard = ({ teamId, currentStatus, currentReason }: { teamId: stri
             if (res.error) {
                 toast.error(res.error);
             } else {
-                toast.success(res.success);
+                toast.success(res.success || "Status updated successfully");
                 router.refresh();
             }
         } catch (error) {
@@ -138,6 +139,7 @@ type Props = {
 const TeamSettingsForm = ({ team, availablePlans = [] }: Props) => {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [open, setOpen] = useState(false);
     const [formData, setFormData] = useState({
         name: team.name,
         slug: team.slug,
@@ -273,14 +275,15 @@ const TeamSettingsForm = ({ team, availablePlans = [] }: Props) => {
                     <p className="text-sm text-muted-foreground mb-4">
                         Deleting this team will remove it permanently. Members will be unassigned but not deleted.
                     </p>
-                    <Button variant="destructive" onClick={async () => {
-                        if (confirm("Are you absolutely sure accessing this team?")) {
-                            // Double confirm
-                            if (confirm("This action cannot be undone. Delete team?")) {
-                                await handleDelete();
-                            }
-                        }
-                    }} disabled={isLoading}>
+                    <AlertModal
+                        isOpen={open}
+                        onClose={() => setOpen(false)}
+                        onConfirm={handleDelete}
+                        loading={isLoading}
+                        title="Are you sure you want to delete this team?"
+                        description="This action cannot be undone. This will permanently delete the team and remove all data."
+                    />
+                    <Button variant="destructive" onClick={() => setOpen(true)} disabled={isLoading}>
                         Delete Team
                     </Button>
                 </CardContent>

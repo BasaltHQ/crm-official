@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         }
 
         const results: { recipientId: string; success: boolean; error?: string }[] = [];
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://app.ledger1.ai";
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://app.basalt.ai";
 
         for (const recipient of recipients) {
             if (!recipient.phone) {
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
             // Build the SMS message
             const smsText = buildNotificationSms(
                 recipient.first_name,
-                message.sender_name || portal.portal_name || "Ledger1",
+                message.sender_name || portal.portal_name || "BasaltCRM",
                 portalLink
             );
 

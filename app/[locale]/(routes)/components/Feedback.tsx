@@ -17,7 +17,6 @@ const Feedback = () => {
       <PopoverTrigger asChild className="hidden sm:flex">
         <Button
           variant={"outline"}
-          className="border-accent text-accent hover:bg-accent/10 dark:border-accent dark:text-accent"
           onClick={() => setOpen(false)}
         >
           <ChatBubbleIcon className="w-4 h-4 mr-2" />

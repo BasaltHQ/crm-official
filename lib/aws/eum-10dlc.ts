@@ -85,7 +85,7 @@ export async function registerBrand(input: BrandRegistrationInput): Promise<{
     const createCmd = new CreateRegistrationCommand({
         RegistrationType: "TEN_DLC_BRAND",
         Tags: [
-            { Key: "Application", Value: "Ledger1CRM" },
+            { Key: "Application", Value: "BasaltCRM" },
             { Key: "CreatedBy", Value: "10DLC-Registration" },
         ],
     });
@@ -158,7 +158,7 @@ export async function registerCampaign(input: CampaignRegistrationInput): Promis
     const createCmd = new CreateRegistrationCommand({
         RegistrationType: "TEN_DLC_CAMPAIGN",
         Tags: [
-            { Key: "Application", Value: "Ledger1CRM" },
+            { Key: "Application", Value: "BasaltCRM" },
             { Key: "UseCase", Value: input.useCase },
             { Key: "BrandRegistrationId", Value: input.brandRegistrationId },
         ],
@@ -320,7 +320,7 @@ export async function requestPhoneNumber(options: {
             NumberType: options.numberType,
             RegistrationId: options.registrationId,
             Tags: [
-                { Key: "Application", Value: "Ledger1CRM" },
+                { Key: "Application", Value: "BasaltCRM" },
                 { Key: "CreatedBy", Value: "10DLC-Registration" },
             ],
         });
@@ -379,19 +379,19 @@ export async function associatePhoneNumberWithCampaign(
 // ============================================================================
 
 /**
- * Ledger1 CRM Portal Message Campaign
+ * BasaltCRM Portal Message Campaign
  * This is the standard campaign configuration for portal message notifications
  */
 export const PORTAL_MESSAGE_CAMPAIGN_CONFIG: Omit<CampaignRegistrationInput, "brandRegistrationId"> = {
     useCase: "ACCOUNT_NOTIFICATION",
     campaignDescription:
-        "Ledger1 CRM Message Portal Notifications. " +
+        "BasaltCRM Message Portal Notifications. " +
         "When users send outreach messages to business contacts, " +
         "the recipient receives an SMS notification with a secure link " +
         "to view the full message in a web portal. " +
         "This is used for B2B sales outreach and investor communications.",
     messageFlow:
-        "Recipients opt-in when they are added as a lead/contact in Ledger1 CRM. " +
+        "Recipients opt-in when they are added as a lead/contact in BasaltCRM. " +
         "Business users initiate outreach through the CRM's Push to Outreach feature. " +
         "Recipients can opt-out at any time by replying STOP or clicking unsubscribe in the portal.",
     sampleMessages: [
@@ -400,10 +400,10 @@ export const PORTAL_MESSAGE_CAMPAIGN_CONFIG: Omit<CampaignRegistrationInput, "br
         "New business communication from {Company}. Read the full message: {PortalLink}. Text STOP to unsubscribe.",
     ],
     helpMessage:
-        "Ledger1 CRM Message Portal: You're receiving notifications about secure business messages. " +
-        "Reply STOP to opt out. Contact support@ledger1.ai for help.",
+        "BasaltCRM Message Portal: You're receiving notifications about secure business messages. " +
+        "Reply STOP to opt out. Contact support@basalt.ai for help.",
     optOutMessage:
-        "You've been unsubscribed from Ledger1 message notifications. " +
+        "You've been unsubscribed from BasaltCRM message notifications. " +
         "You will no longer receive SMS alerts. Reply START to re-subscribe.",
     optInKeywords: ["START", "YES", "SUBSCRIBE", "OPTIN"],
     optOutKeywords: ["STOP", "UNSUBSCRIBE", "QUIT", "CANCEL", "END", "OPTOUT"],
@@ -420,11 +420,11 @@ export const PORTAL_MESSAGE_CAMPAIGN_CONFIG: Omit<CampaignRegistrationInput, "br
 /**
  * Ledger1 CRM Brand Configuration
  */
-export const LEDGER1_BRAND_CONFIG: Omit<BrandRegistrationInput, "ein"> = {
+export const BASALT_BRAND_CONFIG: BrandRegistrationInput = {
     companyName: "The Utility Company LLC",
     vertical: "TECHNOLOGY",
     companyType: "PRIVATE_PROFIT",
-    websiteUrl: "https://ledger1.ai",
+    websiteUrl: "https://basalt.ai",
     address: {
         street: "1005 Wellesley Dr. SE",
         city: "Albuquerque",
@@ -434,7 +434,7 @@ export const LEDGER1_BRAND_CONFIG: Omit<BrandRegistrationInput, "ein"> = {
     },
     contactEmail: "founders@theutilitycompany.co",
     contactPhone: "+15059999999", // Replace with actual number
-    supportEmail: "support@ledger1.ai",
+    supportEmail: "support@basalt.ai",
 };
 
 // Export a convenience function to start the full registration process
@@ -446,7 +446,7 @@ export async function initiate10DLCRegistration(ein?: string): Promise<{
 }> {
     // Step 1: Register brand
     const brandConfig: BrandRegistrationInput = {
-        ...LEDGER1_BRAND_CONFIG,
+        ...BASALT_BRAND_CONFIG,
         ein,
     };
 

@@ -1,4 +1,5 @@
 import { prismadb } from "@/lib/prisma";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 export type PipelineStage = "Identify" | "Engage_AI" | "Engage_Human" | "Offering" | "Finalizing" | "Closed";
 
@@ -106,17 +107,41 @@ function stageOrder(s: PipelineStage): number {
 }
 
 export async function getTeamAnalytics(): Promise<TeamAnalytics> {
-  // Active team members
+  // Get team context for filtering
+  const teamInfo = await getCurrentUserTeamId();
+  const teamId = teamInfo?.teamId;
+  const isGlobalAdmin = teamInfo?.isGlobalAdmin;
+  const isMember = teamInfo?.teamRole === "MEMBER" || teamInfo?.teamRole === "VIEWER";
+  const userId = teamInfo?.userId;
+
+  // Build user filter - global admins see all, others see only their team
+  const userWhere: any = { userStatus: "ACTIVE" as any };
+  if (!isGlobalAdmin && teamId) {
+    userWhere.team_id = teamId;
+  }
+
+  // Active team members (filtered by team)
   const users = await prismadb.users.findMany({
-    where: { userStatus: "ACTIVE" as any },
+    where: userWhere,
     select: { id: true, name: true, email: true, avatar: true },
     orderBy: { name: "asc" },
   });
 
   const userIds = users.map((u) => u.id);
 
-  // Pre-fetch all leads to build team overview
+  // Build lead filter - team filter + member filter
+  const leadWhere: any = {};
+  if (!isGlobalAdmin && teamId) {
+    leadWhere.team_id = teamId;
+  }
+  // Members only see their assigned leads
+  if (isMember && userId) {
+    leadWhere.assigned_to = userId;
+  }
+
+  // Pre-fetch leads (filtered by team/member)
   const allLeads = await prismadb.crm_Leads.findMany({
+    where: leadWhere,
     select: {
       id: true,
       assigned_to: true,

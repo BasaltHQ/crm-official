@@ -47,7 +47,7 @@ const LoadingComponent = () => {
       {/* Center logo with filter and motion */}
       <div className="relative z-10 flex flex-col items-center gap-3">
         <Image
-          src="/BasaltCRM.png"
+          src="/BasaltCRMWide.png"
           alt="CRM Loading"
           width={150}
           height={40}

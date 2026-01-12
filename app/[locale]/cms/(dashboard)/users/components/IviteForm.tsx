@@ -27,21 +27,28 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Icons } from "@/components/ui/icons";
 
+import ConfigureModulesModal from "@/app/[locale]/admin/(dashboard)/modules/components/ConfigureModulesModal";
+import { ROLE_CONFIGS } from "@/lib/role-permissions";
+import { Settings2 } from "lucide-react";
+
 const FormSchema = z.object({
   name: z.string().min(3).max(50),
   email: z.string().email(),
   language: z
     .string({
-      required_error: "Please select a user language.",
+      message: "Please select a user language.",
     })
     .min(2),
 });
 
 export function InviteForm() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showModulesModal, setShowModulesModal] = useState(false);
+
+  // Default to MEMBER modules
+  const [selectedModules, setSelectedModules] = useState<string[]>(ROLE_CONFIGS.MEMBER.defaultModules);
 
   const router = useRouter();
-
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -51,7 +58,11 @@ export function InviteForm() {
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setIsLoading(true);
     try {
-      const response = await axios.post("/api/user/inviteuser", data);
+      const payload = {
+        ...data,
+        assigned_modules: selectedModules
+      };
+      const response = await axios.post("/api/user/inviteuser", payload);
 
       if (response.data.error) {
         toast({
@@ -79,76 +90,104 @@ export function InviteForm() {
         email: "",
         language: "en",
       });
+      // Reset modules to default
+      setSelectedModules(ROLE_CONFIGS.MEMBER.defaultModules);
       router.refresh();
       setIsLoading(false);
     }
   }
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full p-5 items-end"
-      >
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem className="w-full">
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input disabled={isLoading} placeholder="jdoe" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem className="w-full">
-              <FormLabel>E-mail</FormLabel>
-              <FormControl>
-                <Input
-                  disabled={isLoading}
-                  placeholder="name@domain.com"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="language"
-          render={({ field }) => (
-            <FormItem className="w-full">
-              <FormLabel>Language</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+    <>
+      <ConfigureModulesModal
+        isOpen={showModulesModal}
+        onClose={() => setShowModulesModal(false)}
+        roleName="New User"
+        enabledModules={selectedModules}
+        onSave={async (modules) => {
+          setSelectedModules(modules);
+          setShowModulesModal(false);
+          toast({ title: "Modules Selected", description: `${modules.length} modules configured for invite.` });
+        }}
+      />
+
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full p-5 items-end"
+        >
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a user language" />
-                  </SelectTrigger>
+                  <Input disabled={isLoading} placeholder="jdoe" {...field} />
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="cz">Czech</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button className="w-full" type="submit" disabled={isLoading}>
-          {isLoading ? (
-            <Icons.spinner className="animate-spin" />
-          ) : (
-            "Invite user"
-          )}
-        </Button>
-      </form>
-    </Form>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>E-mail</FormLabel>
+                <FormControl>
+                  <Input
+                    disabled={isLoading}
+                    placeholder="name@domain.com"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="language"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Language</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a user language" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="cz">Czech</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="px-3"
+              onClick={() => setShowModulesModal(true)}
+              title="Configure Modules"
+            >
+              <Settings2 className="w-4 h-4" />
+            </Button>
+            <Button className="w-full" type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <Icons.spinner className="animate-spin" />
+              ) : (
+                "Invite user"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </>
   );
 }

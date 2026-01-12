@@ -31,7 +31,19 @@ export const getOpportunities = async () => {
 
 //Get opportunities by month for chart
 export const getOpportunitiesByMonth = async () => {
+  const teamInfo = await getCurrentUserTeamId();
+  if (!teamInfo?.teamId && !teamInfo?.isGlobalAdmin) return {};
+
+  const whereClause: any = {};
+  if (!teamInfo?.isGlobalAdmin) {
+    whereClause.team_id = teamInfo?.teamId;
+  }
+  if (teamInfo?.teamRole === "MEMBER" || teamInfo?.teamRole === "VIEWER") {
+    whereClause.assigned_to = teamInfo?.userId;
+  }
+
   const opportunities = await prismadb.crm_Opportunities.findMany({
+    where: whereClause,
     select: {
       created_on: true,
     },
@@ -64,7 +76,19 @@ export const getOpportunitiesByMonth = async () => {
 
 //Get opportunities by sales_stage name for chart
 export const getOpportunitiesByStage = async () => {
+  const teamInfo = await getCurrentUserTeamId();
+  if (!teamInfo?.teamId && !teamInfo?.isGlobalAdmin) return {};
+
+  const whereClause: any = {};
+  if (!teamInfo?.isGlobalAdmin) {
+    whereClause.team_id = teamInfo?.teamId;
+  }
+  if (teamInfo?.teamRole === "MEMBER" || teamInfo?.teamRole === "VIEWER") {
+    whereClause.assigned_to = teamInfo?.userId;
+  }
+
   const opportunities = await prismadb.crm_Opportunities.findMany({
+    where: whereClause,
     select: {
       assigned_sales_stage: {
         select: {

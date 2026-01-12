@@ -157,7 +157,7 @@ export async function POST(req: Request) {
       // Try to auto-create a Google Meet link if possible
       conferenceData: {
         createRequest: {
-          requestId: "ledger1crm-" + Math.random().toString(36).slice(2),
+          requestId: "basaltcrm-" + Math.random().toString(36).slice(2),
           conferenceSolutionKey: { type: "hangoutsMeet" },
         },
       },
@@ -172,7 +172,7 @@ export async function POST(req: Request) {
         sendUpdates: "all",
       });
     } catch (err) {
-       
+
       console.error("[CALENDAR_EVENTS_INSERT]", (err as any)?.message || err);
       return NextResponse.json(
         { ok: false, error: (err as any)?.message || String(err), calendarIdUsed: targetCalendarId },
@@ -249,7 +249,7 @@ export async function POST(req: Request) {
           } as any,
         });
       } catch (e) {
-         
+
         console.error("[CALENDAR_SCHEDULE_LEAD_UPDATE]", (e as any)?.message || e);
         // Return the error but still include the event details since the event was created
         return NextResponse.json(
@@ -286,7 +286,7 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (e: any) {
-     
+
     console.error("[CALENDAR_SCHEDULE_POST]", e?.message || e);
     return new NextResponse("Failed to schedule event", { status: 500 });
   }

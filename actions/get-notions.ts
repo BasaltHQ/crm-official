@@ -23,7 +23,7 @@ export async function fetchDatabaseItems(
   retries: number = 3
 ) {
   try {
-    const response = await notion.databases.query({
+    const response = await (notion.databases as any).query({
       database_id: notionDbId,
       start_cursor: startCursor,
       page_size: 100,
@@ -98,15 +98,15 @@ export const getNotions = async (): Promise<any[] | null> => {
 
     const notionItems = databases.map(
       (item: any) =>
-        ({
-          id: item.id,
-          createdAt: moment(item.created_time).format("YYYY-MM-DD"),
-          title:
-            item.properties.Tweet.title[0].plain_text.substring(0, 60) + " ...",
-          urlShort:
-            item.properties["Tweet Link"]?.url?.substring(0, 40) + " ...",
-          url: item.properties["Tweet Link"]?.url,
-        } as NotionItem)
+      ({
+        id: item.id,
+        createdAt: moment(item.created_time).format("YYYY-MM-DD"),
+        title:
+          item.properties.Tweet.title[0].plain_text.substring(0, 60) + " ...",
+        urlShort:
+          item.properties["Tweet Link"]?.url?.substring(0, 40) + " ...",
+        url: item.properties["Tweet Link"]?.url,
+      } as NotionItem)
     );
 
     return notionItems;

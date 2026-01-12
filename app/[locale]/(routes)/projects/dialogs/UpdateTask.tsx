@@ -143,71 +143,67 @@ const UpdateTaskDialog = ({ users, boards, boardId, initialData, onDone }: Props
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="flex items-center justify-between mb-6 px-1">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Edit Task</h2>
-          <p className="text-xs text-muted-foreground">ID: {initialData.id}</p>
-        </div>
+      <div className="flex items-center justify-between mb-4 px-1">
+        <p className="text-xs text-muted-foreground">ID: {initialData.id}</p>
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-2"
+          className="h-7 gap-1.5 text-xs"
           onClick={() => router.push(`/projects/tasks/viewtask/${initialData.id}`)}
         >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Open Full Page
+          <ExternalLink className="w-3 h-3" />
+          Full Page
         </Button>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-1">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Main Content - Left Column */}
-            <div className="md:col-span-8 space-y-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase text-muted-foreground">Task Title</FormLabel>
-                    <FormControl>
-                      <Input
-                        disabled={isLoading}
-                        placeholder="Enter task name"
-                        className="font-medium text-lg h-10"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <div className="space-y-4">
+            {/* Task Title */}
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold uppercase text-muted-foreground">Task Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      disabled={isLoading}
+                      placeholder="Enter task name"
+                      className="font-medium text-lg h-10"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="content"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-semibold uppercase text-muted-foreground">Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        disabled={isLoading}
-                        placeholder="Add more details to this task..."
-                        className="min-h-[200px] resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {/* Description */}
+            <FormField
+              control={form.control}
+              name="content"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold uppercase text-muted-foreground">Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      disabled={isLoading}
+                      placeholder="Add more details to this task..."
+                      className="min-h-[120px] resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            {/* Sidebar - Right Column */}
-            <div className="md:col-span-4 space-y-6">
-              <div className="p-4 rounded-lg border bg-muted/10 space-y-4">
-                <h3 className="font-medium text-sm mb-2">Details</h3>
+            {/* Details Section */}
+            <div className="p-3 rounded-lg border bg-muted/10 space-y-3">
+              <h3 className="font-medium text-sm">Details</h3>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
                   name="user"
@@ -320,13 +316,14 @@ const UpdateTaskDialog = ({ users, boards, boardId, initialData, onDone }: Props
                   )}
                 />
               </div>
+            </div>
 
-              <div className="pt-4">
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? <Icons.spinner className="animate-spin mr-2" /> : null}
-                  Save Changes
-                </Button>
-              </div>
+            {/* Submit Button */}
+            <div className="pt-2">
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? <Icons.spinner className="animate-spin mr-2" /> : null}
+                Save Changes
+              </Button>
             </div>
           </div>
         </form>

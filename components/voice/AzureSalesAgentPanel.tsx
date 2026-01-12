@@ -19,7 +19,7 @@ import CustomCCP from "@/components/voice/CustomCCP";
  */
 export default function AzureSalesAgentPanel({ leadId, contactId }: { leadId?: string; contactId?: string }) {
   const [prompt, setPrompt] = useState<string>(`
-You are a senior SDR on a live sales call for Ledger1CRM.
+You are a senior SDR on a live sales call for BasaltCRM.
 - Keep conversations concise and persuasive.
 - Follow discovery: intro, needs, value mapping, objections, next steps.
 - Ask for the meeting or next step explicitly.
@@ -79,12 +79,12 @@ You are a senior SDR on a live sales call for Ledger1CRM.
   async function generateFromLead() {
     try {
       // Lightweight prefill using known IDs; in future, fetch more context (company, last activity, etc.)
-      const base = `You are a Ledger1CRM voice agent.`;
+      const base = `You are a BasaltCRM voice agent.`;
       const leadLine = leadId ? ` Focus on lead ${leadId}.` : ``;
       const contactLine = contactId ? ` Contact reference: ${contactId}.` : ``;
       const guidance = ` Keep responses concise (<=10s). Ask open questions, confirm understanding, propose next step.`;
       setPrompt(`${base}${leadLine}${contactLine}\n- Intro politely; confirm name and role.\n- Explore needs; map value to pain points.\n- Handle objections briefly; offer options.\n- Close with clear next step (date/time).` + guidance);
-    } catch {}
+    } catch { }
   }
 
   // Powerhouse Prompt (Azure OpenAI + auto context from Lead/Project/Activities)
@@ -105,14 +105,14 @@ You are a senior SDR on a live sales call for Ledger1CRM.
         })
       });
       if (!res.ok) {
-        const txt = await res.text().catch(()=> "error");
+        const txt = await res.text().catch(() => "error");
         throw new Error(txt || `Prompt generation failed (${res.status})`);
       }
-      const data = await res.json().catch(()=> ({}));
+      const data = await res.json().catch(() => ({}));
       const text = String((data as any)?.prompt || "");
       if (!text) throw new Error("Empty prompt returned from generator");
       setPrompt(text);
-    } catch (e:any) {
+    } catch (e: any) {
       setError(e?.message || "Failed to generate prompt");
       setTimeout(() => setError(null), 3000);
     } finally {
@@ -131,7 +131,7 @@ You are a senior SDR on a live sales call for Ledger1CRM.
       try {
         setConnLoading(true);
         const res = await fetch("/api/integration/status");
-        const j: any = await res.json().catch(()=> ({}));
+        const j: any = await res.json().catch(() => ({}));
         if (!cancelled) {
           setVoicehubConnected(!!j?.voicehub_connected);
           setVoicehubWallet((j?.voicehub_wallet || null) as any);
@@ -148,7 +148,7 @@ You are a senior SDR on a live sales call for Ledger1CRM.
   async function pushToVoiceHub() {
     try {
       const w = String(voicehubWallet || "").trim().toLowerCase();
-      if (!w) { setError("No connected VoiceHub wallet"); setTimeout(()=>setError(null), 2500); return; }
+      if (!w) { setError("No connected VoiceHub wallet"); setTimeout(() => setError(null), 2500); return; }
       const meta = { roleKey, customRoleName, roleNotes, language, leadId, contactId, source: "AzureSalesAgentPanel" };
       const res = await fetch("/api/crm/prompt/push", {
         method: "POST",
@@ -156,12 +156,12 @@ You are a senior SDR on a live sales call for Ledger1CRM.
         body: JSON.stringify({ prompt, meta })
       });
       if (!res.ok) {
-        const t = await res.text().catch(()=> "");
+        const t = await res.text().catch(() => "");
         throw new Error(t || `Push failed (${res.status})`);
       }
-    } catch (e:any) {
+    } catch (e: any) {
       setError(e?.message || "Failed to push prompt");
-      setTimeout(()=> setError(null), 3000);
+      setTimeout(() => setError(null), 3000);
     }
   }
 
@@ -304,8 +304,8 @@ You are a senior SDR on a live sales call for Ledger1CRM.
         <div className="text-[11px]">
           {connLoading ? (
             <span className="text-muted-foreground">Checking VoiceHub…</span>
-              ) : voicehubConnected ? (
-            <span className="text-green-600">VoiceHub Connected · Wallet {voicehubWallet ? `${voicehubWallet.slice(0,6)}...${voicehubWallet.slice(-4)}` : "-"}</span>
+          ) : voicehubConnected ? (
+            <span className="text-green-600">VoiceHub Connected · Wallet {voicehubWallet ? `${voicehubWallet.slice(0, 6)}...${voicehubWallet.slice(-4)}` : "-"}</span>
           ) : (
             <span className="text-red-600">VoiceHub Not Connected</span>
           )}
@@ -314,7 +314,7 @@ You are a senior SDR on a live sales call for Ledger1CRM.
       <div className="grid grid-cols-1 gap-3">
         <div>
           <div className="text-[11px] font-semibold mb-1">Prompt Text</div>
-          <Textarea rows={8} value={prompt} onChange={(e)=>setPrompt(e.target.value)} />
+          <Textarea rows={8} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Role preset selector */}
@@ -323,7 +323,7 @@ You are a senior SDR on a live sales call for Ledger1CRM.
             <select
               className="text-xs h-7 px-2 border rounded"
               value={roleKey}
-              onChange={(e)=> setRoleKey(e.target.value as any)}
+              onChange={(e) => setRoleKey(e.target.value as any)}
             >
               <option value="sales_agent">Sales Agent</option>
               <option value="solutions_architect">Solutions Architect</option>
@@ -339,13 +339,13 @@ You are a senior SDR on a live sales call for Ledger1CRM.
                 className="text-xs h-7 px-2 border rounded"
                 placeholder="Custom Role Name"
                 value={customRoleName}
-                onChange={(e)=> setCustomRoleName(e.target.value)}
+                onChange={(e) => setCustomRoleName(e.target.value)}
               />
               <input
                 className="text-xs h-7 px-2 border rounded w-48"
                 placeholder="Custom Role Notes"
                 value={roleNotes}
-                onChange={(e)=> setRoleNotes(e.target.value)}
+                onChange={(e) => setRoleNotes(e.target.value)}
               />
             </>
           ) : null}
@@ -356,7 +356,7 @@ You are a senior SDR on a live sales call for Ledger1CRM.
             <input
               className="text-xs h-7 px-2 border rounded w-24"
               value={language}
-              onChange={(e)=> setLanguage(e.target.value)}
+              onChange={(e) => setLanguage(e.target.value)}
               placeholder="English"
             />
           </div>

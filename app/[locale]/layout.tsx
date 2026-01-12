@@ -16,6 +16,7 @@ import NextTopLoader from "nextjs-toploader";
 import { AnalyticsTracker } from "@/components/analytics/AnalyticsTracker";
 import SuspensionCheck from "@/components/SuspensionCheck";
 import { SessionProvider } from "@/app/providers/SessionProvider";
+import { SWRSessionProvider } from "@/components/providers/swr-session-provider";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -66,9 +67,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const title = t("RootLayout.title");
   const description = t("RootLayout.description");
   const siteUrl = getSafeBaseUrl();
+  // Ensure siteUrl is valid. If localhost defaults are causing issues, force a default.
+  const baseUrl = siteUrl || "https://crm.basalthq.com";
 
   return {
-    metadataBase: new URL(siteUrl),
+    metadataBase: new URL(baseUrl),
     title: {
       default: title,
       template: `%s | BasaltCRM`,
@@ -90,26 +93,19 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       siteName: "BasaltCRM",
       locale: locale,
       type: "website",
-      images: [
-        {
-          url: "https://crm.basalthq.com/social-preview.jpg",
-          width: 1200,
-          height: 630,
-          alt: "BasaltCRM – AI Sales & Support Engine",
-        },
-      ],
+      // images handled automatically by opengraph-image.tsx
     },
     twitter: {
       card: "summary_large_image",
       title: "BasaltCRM – AI Sales & Support Engine",
       description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
       creator: "@BasaltHQ",
-      images: ["https://crm.basalthq.com/social-preview.jpg"],
+      // images handled automatically by twitter-image.tsx
     },
     icons: {
-      icon: "/icon.png",
-      shortcut: "/icon.png",
-      apple: "/icon.png",
+      icon: "/favicon-32x32.png",
+      shortcut: "/favicon-32x32.png",
+      apple: "/apple-touch-icon.png",
     },
     manifest: "/site.webmanifest",
     alternates: {
@@ -117,6 +113,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       languages: {
         "en-US": "/en",
         "de-DE": "/de",
+        "cz-CZ": "/cz",
       },
     },
   };
@@ -134,7 +131,7 @@ export default async function RootLayout(props: Props) {
   const session = await getServerSession(authOptions);
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning className="h-full">
       <head>
         <meta
           name="viewport"
@@ -147,12 +144,14 @@ export default async function RootLayout(props: Props) {
         <AnalyticsTracker />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SessionProvider session={session}>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-              {children}
-              {/* Team Suspension Check */}
-              <SuspensionCheck />
-              <ToastProvider />
-            </ThemeProvider>
+            <SWRSessionProvider>
+              <ThemeProvider>
+                {children}
+                {/* Team Suspension Check */}
+                <SuspensionCheck />
+                <ToastProvider />
+              </ThemeProvider>
+            </SWRSessionProvider>
           </SessionProvider>
         </NextIntlClientProvider>
         <Toaster />

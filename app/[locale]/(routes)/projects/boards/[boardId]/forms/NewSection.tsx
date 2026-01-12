@@ -42,6 +42,9 @@ const NewSectionForm = ({ boardId, onClose }: NewSectionFormProps) => {
 
   const form = useForm<NewAccountFormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+    },
   });
 
   useEffect(() => {

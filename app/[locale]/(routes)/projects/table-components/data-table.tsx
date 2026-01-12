@@ -26,10 +26,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StageProgressBar, { type StageDatum } from "@/components/StageProgressBar";
+import { ViewToggle, type ViewMode } from "@/components/ViewToggle";
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { PanelTopClose, PanelTopOpen } from "lucide-react";
+import { PanelTopClose, PanelTopOpen, FolderOpen, FileText, ListTodo } from "lucide-react";
 import { ProjectCard } from "./project-card";
 import { Task } from "../data/schema";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -37,11 +38,16 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  stats?: {
+    activeTasks: number;
+    documents: number;
+  };
 }
 
 export function ProjectsDataTable<TData, TValue>({
   columns,
   data,
+  stats,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -52,7 +58,7 @@ export function ProjectsDataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
   const [projectPools, setProjectPools] = React.useState<Record<string, { poolId: string; name: string; stageData: StageDatum[]; total: number }[]>>({});
-  const [view, setView] = React.useState<"table" | "compact" | "grid">("grid");
+  const [viewMode, setViewMode] = React.useState<ViewMode>("card");
   const [hide, setHide] = React.useState(false);
 
   // Mobile detection using shared hook
@@ -78,10 +84,12 @@ export function ProjectsDataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    columnResizeMode: "onChange",
+    enableColumnResizing: true,
   });
 
-  // Force grid view on mobile
-  const currentView = isMobile ? "grid" : view;
+  // Force card view on mobile, map viewMode to display logic
+  const currentView = isMobile ? "card" : viewMode;
 
   async function toggleExpand(projectId: string) {
     setExpanded((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
@@ -114,32 +122,62 @@ export function ProjectsDataTable<TData, TValue>({
     }
   }
 
+  // Calculate stats
+  const calculatedStats = React.useMemo(() => ({
+    total: data.length,
+    activeTasks: stats?.activeTasks ?? 0,
+    documents: stats?.documents ?? 0,
+  }), [data, stats]);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Stats Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/20 rounded-lg">
+              <FolderOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{calculatedStats.total}</p>
+              <p className="text-xs text-muted-foreground">Total Projects</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <ListTodo className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{calculatedStats.activeTasks}</p>
+              <p className="text-xs text-muted-foreground">Active Tasks</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <FileText className="h-5 w-5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{calculatedStats.documents}</p>
+              <p className="text-xs text-muted-foreground">Documents</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-3">
         <div className="flex-1 w-full">
           <DataTableToolbar table={table} />
         </div>
 
         <div className="flex items-center gap-2 self-end md:self-auto">
-          {/* Layout Toggles (Desktop Only) */}
+          {/* ViewToggle (Desktop Only) */}
           {!isMobile && (
-            <div className="flex items-center border rounded-md p-1 bg-muted/50">
-              <button
-                onClick={() => setView("table")}
-                className={`p-1.5 rounded-sm transition-all ${view === "table" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                title="Table View"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18" /><path d="M3 9h18" /><path d="M3 15h18" /><rect width="18" height="18" x="3" y="3" rx="2" /></svg>
-              </button>
-              <button
-                onClick={() => setView("grid")}
-                className={`p-1.5 rounded-sm transition-all ${view === "grid" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                title="Grid View"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>
-              </button>
-            </div>
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           )}
 
           {hide ? (
@@ -162,7 +200,8 @@ export function ProjectsDataTable<TData, TValue>({
         </div>
       ) : (
         <>
-          {currentView === "grid" ? (
+          {currentView === "card" ? (
+            /* Card Grid View */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
@@ -174,7 +213,34 @@ export function ProjectsDataTable<TData, TValue>({
                 </div>
               )}
             </div>
+          ) : currentView === "compact" ? (
+            /* Compact Grid View */
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => {
+                  const orig: any = row.original;
+                  return (
+                    <a
+                      key={row.id}
+                      href={`/projects/boards/${orig?.id}`}
+                      className="group border rounded-lg p-3 bg-card hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                    >
+                      {orig?.brand_logo_url && (
+                        <img src={orig.brand_logo_url} alt="" className="h-8 w-8 object-contain rounded mb-2" />
+                      )}
+                      <h3 className="font-medium text-sm truncate">{orig?.title || "Untitled"}</h3>
+                      <p className="text-xs text-muted-foreground truncate">{orig?.description || "No description"}</p>
+                    </a>
+                  );
+                })
+              ) : (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  No results found.
+                </div>
+              )}
+            </div>
           ) : (
+            /* Table View */
             <>
               <div className="rounded-md border overflow-x-auto">
                 <Table className="table-fixed w-full">
@@ -184,13 +250,21 @@ export function ProjectsDataTable<TData, TValue>({
                         <TableHead className="w-[50px]"></TableHead>
                         {headerGroup.headers.map((header) => {
                           return (
-                            <TableHead key={header.id}>
+                            <TableHead key={header.id} className="relative" style={{ width: header.getSize() }}>
                               {header.isPlaceholder
                                 ? null
                                 : flexRender(
                                   header.column.columnDef.header,
                                   header.getContext()
                                 )}
+                              {header.column.getCanResize() && (
+                                <div
+                                  onMouseDown={header.getResizeHandler()}
+                                  onTouchStart={header.getResizeHandler()}
+                                  className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none ${header.column.getIsResizing() ? "bg-primary" : "bg-border opacity-0 hover:opacity-100"
+                                    }`}
+                                />
+                              )}
                             </TableHead>
                           );
                         })}

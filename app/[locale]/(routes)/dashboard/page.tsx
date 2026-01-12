@@ -60,7 +60,7 @@ const DashboardPage = async () => {
     projectEntities.push(
       { name: "Projects", value: counts.boards, href: "/projects", iconName: "FolderKanban", color: "cyan" },
       { name: "All Tasks", value: counts.tasks, href: "/projects/tasks", iconName: "CheckSquare", color: "violet" },
-      { name: "My Tasks", value: usersTasks, href: `/projects/tasks/${userId}` , iconName: "Target", color: "emerald" },
+      { name: "My Tasks", value: usersTasks, href: `/projects/tasks/${userId}`, iconName: "Target", color: "emerald" },
     );
   }
 
@@ -87,6 +87,7 @@ const DashboardPage = async () => {
             iconName="DollarSign"
             accentColor="emerald"
             size="default"
+            href="/crm/opportunities"
           />
         </Suspense>
 
@@ -97,6 +98,7 @@ const DashboardPage = async () => {
             subtitle={`${counts.leads} leads, ${counts.opportunities} opportunities`}
             iconName="TrendingUp"
             accentColor="cyan"
+            href="/crm/leads"
           />
         </Suspense>
 
@@ -107,6 +109,7 @@ const DashboardPage = async () => {
             subtitle="Team members"
             iconName="Users2"
             accentColor="violet"
+            href="/settings/team"
           />
         </Suspense>
 
@@ -117,6 +120,7 @@ const DashboardPage = async () => {
             subtitle={`of ${counts.tasks} total tasks`}
             iconName="Zap"
             accentColor="amber"
+            href="/projects/tasks"
           />
         </Suspense>
       </div>
@@ -180,6 +184,7 @@ const DashboardPage = async () => {
               subtitle={`${counts.storageMB} MB stored (${storagePercentage.toFixed(1)}% used)`}
               iconName="HardDrive"
               accentColor={storagePercentage > 80 ? "rose" : "cyan"}
+              href="/documents"
             />
           </Suspense>
         )}
@@ -192,6 +197,7 @@ const DashboardPage = async () => {
               subtitle={`${counts.contracts} active contracts`}
               iconName="FileText"
               accentColor="emerald"
+              href="/invoice"
             />
           </Suspense>
         )}
@@ -207,6 +213,7 @@ const DashboardPage = async () => {
               subtitle="Total employees"
               iconName="Users2"
               accentColor="violet"
+              href="/employees"
             />
           </Suspense>
         )}

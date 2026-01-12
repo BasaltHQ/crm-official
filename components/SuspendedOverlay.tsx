@@ -3,6 +3,7 @@
 import { Ban, Lock, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
+import { clearUserCache } from "@/lib/cache-utils";
 
 type Props = {
     reason?: string | null;
@@ -41,10 +42,10 @@ const SuspendedOverlay = ({ reason }: Props) => {
                 </div>
 
                 <div className="p-6 bg-muted/20 flex flex-col gap-3">
-                    <Button variant="default" className="w-full" onClick={() => window.location.href = "mailto:support@ledger1.ai"}>
+                    <Button variant="default" className="w-full" onClick={() => window.location.href = "mailto:support@basalt.ai"}>
                         Contact Support
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => signOut({ callbackUrl: '/' })}>
+                    <Button variant="outline" className="w-full" onClick={() => { clearUserCache(); signOut({ callbackUrl: '/' }); }}>
                         Sign Out
                     </Button>
                 </div>

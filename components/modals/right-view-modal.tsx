@@ -8,11 +8,12 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Cross1Icon } from "@radix-ui/react-icons";
 
 type Props = {
-  label?: string;
+  label?: string | ReactNode;
   title: string;
   description: string;
   width?: string;
   children: ReactNode;
+  customTrigger?: boolean;
 };
 
 const RightViewModal = ({
@@ -21,6 +22,7 @@ const RightViewModal = ({
   description,
   width,
   children,
+  customTrigger = false,
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -36,13 +38,17 @@ const RightViewModal = ({
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <Button className="mb-5">{label}</Button>
+        {customTrigger ? (
+          <div className="cursor-pointer">{label}</div>
+        ) : (
+          <Button className="mb-5">{label}</Button>
+        )}
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="data-[state=open]:animate-[dialog-overlay-show_1000ms] data-[state=closed]:animate-[dialog-overlay-hide_1000ms] fixed inset-0 bg-black/50" />
         <Dialog.Content
           className={
-            "data-[state=open]:animate-[dialog-content-show_1000ms] data-[state=closed]:animate-[dialog-content-hide_1000ms] fixed top-0 right-0 rounded-md border  h-full bg-white dark:bg-slate-900 shadow-md overflow-hidden"
+            "data-[state=open]:animate-[dialog-content-show_1000ms] data-[state=closed]:animate-[dialog-content-hide_1000ms] fixed top-0 right-0 rounded-md border  h-full bg-background shadow-md overflow-hidden z-[100]"
           }
         >
           <div className={`flex flex-col h-full ${width}`}>
@@ -73,7 +79,7 @@ const RightViewModal = ({
           </div>
         </Dialog.Content>
       </Dialog.Portal>
-    </Dialog.Root>
+    </Dialog.Root >
   );
 };
 

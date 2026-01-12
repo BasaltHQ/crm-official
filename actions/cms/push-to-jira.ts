@@ -20,7 +20,7 @@ export async function pushToJira(applicationId: string) {
         if (app.jiraTicketId) return { success: false, message: "Ticket already exists: " + app.jiraTicketId };
 
         const domain = process.env.JIRA_DOMAIN || "ledger1crm.atlassian.net"; // Fallback/Mock
-        const email = process.env.JIRA_EMAIL || "admin@ledger1.com";
+        const email = process.env.JIRA_EMAIL || "sysadm@basalthq.com";
         const token = process.env.JIRA_API_TOKEN;
         const projectKey = process.env.JIRA_PROJECT_KEY || "HR";
 

@@ -11,7 +11,7 @@ export async function generateDocPost(topic: string) {
     }
 
     const prompt = `
-    You are an expert Technical Writer for Ledger1CRM.
+    You are an expert Technical Writer for BasaltCRM.
     Your goal is to write clear, concise, and helpful documentation on the topic: "${topic}".
 
     Content Requirements:

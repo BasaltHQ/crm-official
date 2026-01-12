@@ -3,7 +3,7 @@
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { checkTeamLimit } from "@/lib/subscription";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 
@@ -11,11 +11,11 @@ export const updateMemberRole = async (userId: string, role: string) => {
     try {
         const currentUser = await getCurrentUserTeamId();
 
-        // Security Check for SUPER_ADMIN
-        if (role === "SUPER_ADMIN") {
-            const isAuthorized = currentUser?.isGlobalAdmin; // strictly defined in team-utils as Internal + SUPER_ADMIN
+        // Security Check for PLATFORM_ADMIN
+        if (role === "PLATFORM_ADMIN") {
+            const isAuthorized = currentUser?.isGlobalAdmin; // strictly defined in team-utils as Internal + PLATFORM_ADMIN
             if (!isAuthorized) {
-                return { error: "Unauthorized: Only Super Admins can assign this role." };
+                return { error: "Unauthorized: Only Platform Admins can assign this role." };
             }
         }
 
@@ -110,6 +110,22 @@ export const addMember = async (teamId: string, userId: string) => {
 
 export const changePassword = async (userId: string, newPassword: string) => {
     try {
+        const currentUser = await getCurrentUserTeamId();
+        const targetUser = await (prismadb.users as any).findUnique({ where: { id: userId } });
+
+        if (!targetUser) return { error: "User not found" };
+
+        // Security Check:
+        // 1. Super Admin (Global) can change anyone's password.
+        // 2. Team Admin can change password for members of THEIR team.
+        const isGlobalAdmin = currentUser?.isGlobalAdmin;
+        const isTeamAdmin = currentUser?.teamRole === "ADMIN" || currentUser?.teamRole === "OWNER";
+        const isSameTeam = currentUser?.teamId === targetUser.team_id;
+
+        if (!isGlobalAdmin && (!isTeamAdmin || !isSameTeam)) {
+            return { error: "Unauthorized: You do not have permission to change this user's password." };
+        }
+
         const hashedPassword = await bcrypt.hash(newPassword, 12);
         await (prismadb.users as any).update({
             where: { id: userId },

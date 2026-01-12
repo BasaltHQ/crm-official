@@ -1,6 +1,9 @@
 "use client";
 
 import { Row } from "@tanstack/react-table";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,17 +11,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-import { adminUserSchema } from "../table-data/schema";
-import { useRouter } from "next/navigation";
-import AlertModal from "@/components/modals/alert-modal";
-import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import axios from "axios";
-
-import { Copy, Edit, MoreHorizontal, Trash } from "lucide-react";
+import AlertModal from "@/components/modals/alert-modal";
+import { adminUserSchema } from "../table-data/schema";
+import ConfigureModulesModal from "@/app/[locale]/admin/(dashboard)/modules/components/ConfigureModulesModal";
+import { ChangeRoleModal } from "../components/ChangeRoleModal";
+import { AdminResetPasswordModal } from "../components/AdminResetPasswordModal";
+import { ROLE_CONFIGS } from "@/lib/role-permissions";
+import { Copy, Edit, MoreHorizontal, Trash, Settings2, UserCheck, UserX, ShieldCheck, ShieldX, KeyRound } from "lucide-react";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -32,18 +35,32 @@ export function DataTableRowActions<TData>({
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
+  const [modulesModalOpen, setModulesModalOpen] = useState(false);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   const { toast } = useToast();
+
+  // Check if user is super admin (has god mode - no modules option)
+  const isSuperAdmin = data.is_admin === true;
+
+  // Get current user's modules (prioritize user-specific modules, then role defaults)
+  const userRole = data.team_role as 'ADMIN' | 'MEMBER' | 'VIEWER' | undefined;
+
+  // If assigned_modules is present (even empty array), use it. otherwise use defaults.
+  // Note: We might want to treat undefined as "use default" but empty array as "no modules".
+  const userModules = data.assigned_modules !== undefined && data.assigned_modules !== null
+    ? data.assigned_modules
+    : (userRole && userRole in ROLE_CONFIGS ? ROLE_CONFIGS[userRole as keyof typeof ROLE_CONFIGS].defaultModules : []);
+
   const onCopy = (id: string) => {
     navigator.clipboard.writeText(id);
     toast({
       title: "Copied",
-      description: "The URL has been copied to your clipboard.",
+      description: "The ID has been copied to your clipboard.",
     });
   };
 
-  //Action triggered when the delete button is clicked to delete the store
   const onDelete = async () => {
     try {
       setLoading(true);
@@ -57,7 +74,7 @@ export function DataTableRowActions<TData>({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Something went wrong: " + error + ". Please try again.",
+        description: "Something went wrong. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -70,20 +87,15 @@ export function DataTableRowActions<TData>({
       setLoading(true);
       await axios.post(`/api/user/activate/${data.id}`);
       router.refresh();
-      toast({
-        title: "Success",
-        description: "User has been activated.",
-      });
+      toast({ title: "Success", description: "User has been activated." });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description:
-          "Something went wrong while activating user. Please try again.",
+        description: "Something went wrong while activating user.",
       });
     } finally {
       setLoading(false);
-      setOpen(false);
     }
   };
 
@@ -92,63 +104,35 @@ export function DataTableRowActions<TData>({
       setLoading(true);
       await axios.post(`/api/user/deactivate/${data.id}`);
       router.refresh();
-      toast({
-        title: "Success",
-        description: "User has been deactivated.",
-      });
+      toast({ title: "Success", description: "User has been deactivated." });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description:
-          "Something went wrong while deactivating user. Please try again.",
+        description: "Something went wrong while deactivating user.",
       });
     } finally {
       setLoading(false);
-      setOpen(false);
-    }
-  };
-  const onDeactivateAdmin = async () => {
-    try {
-      setLoading(true);
-      await axios.post(`/api/user/deactivateAdmin/${data.id}`);
-      router.refresh();
-      toast({
-        title: "Success",
-        description: "User Admin rights has been deactivated.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description:
-          "Something went wrong while deactivating user as a admin. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-      setOpen(false);
     }
   };
 
-  const onActivateAdmin = async () => {
+
+
+  const onSaveModules = async (modules: string[]) => {
     try {
-      setLoading(true);
-      await axios.post(`/api/user/activateAdmin/${data.id}`);
-      router.refresh();
+      // Update user modules via API
+      await axios.post(`/api/user/${data.id}/modules`, { modules });
       toast({
-        title: "Success",
-        description: "User Admin rights has been activated.",
+        title: "Modules Updated",
+        description: `Custom modules configured for ${data.name}.`,
       });
+      router.refresh();
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description:
-          "Something went wrong while activating uses as a admin. Please try again.",
+        description: "Failed to update user modules.",
       });
-    } finally {
-      setLoading(false);
-      setOpen(false);
     }
   };
 
@@ -160,36 +144,91 @@ export function DataTableRowActions<TData>({
         onConfirm={onDelete}
         loading={loading}
       />
+
+      {/* Configure Modules Modal - only for non-owners */}
+      {data.team_role !== 'OWNER' && (
+        <ConfigureModulesModal
+          isOpen={modulesModalOpen}
+          onClose={() => setModulesModalOpen(false)}
+          roleName={data.name || "User"}
+          enabledModules={userModules}
+          onSave={onSaveModules}
+        />
+      )}
+
+      {/* Change Role Modal */}
+      {roleModalOpen && (
+        <ChangeRoleModal
+          isOpen={roleModalOpen}
+          onClose={() => setRoleModalOpen(false)}
+          userId={data.id}
+          userName={data.name || "User"}
+          currentRole={userRole || "MEMBER"}
+        />
+      )}
+
+      {/* Admin Reset Password Modal */}
+      {passwordModalOpen && (
+        <AdminResetPasswordModal
+          isOpen={passwordModalOpen}
+          onClose={() => setPasswordModalOpen(false)}
+          userId={data.id}
+          userName={data.name || "User"}
+        />
+      )}
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant={"ghost"} className="h-8 w-8 p-0">
+          <Button variant="ghost" className="h-8 w-8 p-0">
             <span className="sr-only">Open menu</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
           <DropdownMenuItem onClick={() => onCopy(data?.id)}>
             <Copy className="mr-2 w-4 h-4" />
             Copy ID
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onActivate()}>
-            <Edit className="mr-2 w-4 h-4" />
+
+          {/* Configure Modules - Configurable for Admin and Member roles (but not Owner) */}
+          {data.team_role !== 'OWNER' && (
+            <DropdownMenuItem onClick={() => setModulesModalOpen(true)}>
+              <Settings2 className="mr-2 w-4 h-4" />
+              Configure Modules
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onClick={onActivate}>
+            <UserCheck className="mr-2 w-4 h-4" />
             Activate
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDeactivate()}>
-            <Edit className="mr-2 w-4 h-4" />
+          <DropdownMenuItem onClick={onDeactivate}>
+            <UserX className="mr-2 w-4 h-4" />
             Deactivate
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onActivateAdmin()}>
-            <Edit className="mr-2 w-4 h-4" />
-            Activate Admin rights
+
+          <DropdownMenuSeparator />
+
+          {/* Change Role - Configurable for Admin and Member roles (but not Owner) */}
+          {data.team_role !== 'OWNER' && (
+            <DropdownMenuItem onClick={() => setRoleModalOpen(true)}>
+              <ShieldCheck className="mr-2 w-4 h-4" />
+              Change Role
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuItem onClick={() => setPasswordModalOpen(true)}>
+            <KeyRound className="mr-2 w-4 h-4" />
+            Change Password
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDeactivateAdmin()}>
-            <Edit className="mr-2 w-4 h-4" />
-            Deactivate Admin rights
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpen(true)}>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onClick={() => setOpen(true)} className="text-destructive focus:text-destructive">
             <Trash className="mr-2 w-4 h-4" />
             Delete
           </DropdownMenuItem>

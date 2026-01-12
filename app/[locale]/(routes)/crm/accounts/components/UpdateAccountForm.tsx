@@ -95,32 +95,32 @@ export function UpdateAccountForm({
     defaultValues: initialData
       ? initialData
       : {
-          id: "",
-          v: 0,
-          name: "",
-          office_phone: "" as string | null,
-          website: "",
-          fax: "",
-          company_id: "",
-          vat: "",
-          email: "",
-          billing_street: "",
-          billing_postal_code: "",
-          billing_city: "",
-          billing_state: "",
-          billing_country: "",
-          shipping_street: "",
-          shipping_postal_code: "",
-          shipping_city: "",
-          shipping_state: "",
-          shipping_country: "",
-          description: "",
-          assigned_to: "",
-          status: "",
-          annual_revenue: "",
-          member_of: "",
-          industry: "",
-        },
+        id: "",
+        v: 0,
+        name: "",
+        office_phone: "" as string | null,
+        website: "",
+        fax: "",
+        company_id: "",
+        vat: "",
+        email: "",
+        billing_street: "",
+        billing_postal_code: "",
+        billing_city: "",
+        billing_state: "",
+        billing_country: "",
+        shipping_street: "",
+        shipping_postal_code: "",
+        shipping_city: "",
+        shipping_state: "",
+        shipping_country: "",
+        description: "",
+        assigned_to: "",
+        status: "",
+        annual_revenue: "",
+        member_of: "",
+        industry: "",
+      },
   });
 
   const onSubmit = async (data: NewAccountFormValues) => {
@@ -181,7 +181,7 @@ export function UpdateAccountForm({
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="Ledger1CRM Inc."
+                      placeholder="BasaltCRM Inc."
                       {...field}
                     />
                   </FormControl>
@@ -198,7 +198,7 @@ export function UpdateAccountForm({
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="+420 ...."
+                      placeholder="+1 555 000 0000"
                       //@ts-ignore
                       value={field.value}
                       onChange={field.onChange}
@@ -268,7 +268,7 @@ export function UpdateAccountForm({
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="CZ1234567890"
+                      placeholder="US123456789"
                       {...field}
                     />
                   </FormControl>
@@ -288,7 +288,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Švábova 772/18"
+                        placeholder="123 Main St"
                         {...field}
                       />
                     </FormControl>
@@ -305,7 +305,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="252 18"
+                        placeholder="10001"
                         {...field}
                       />
                     </FormControl>
@@ -322,7 +322,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Prague"
+                        placeholder="New York"
                         {...field}
                       />
                     </FormControl>
@@ -352,7 +352,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Czechia"
+                        placeholder="USA"
                         {...field}
                       />
                     </FormControl>
@@ -371,7 +371,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Švábova 772/18"
+                        placeholder="123 Main St"
                         {...field}
                       />
                     </FormControl>
@@ -388,7 +388,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="252 18"
+                        placeholder="10001"
                         {...field}
                       />
                     </FormControl>
@@ -405,7 +405,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Prague"
+                        placeholder="New York"
                         {...field}
                       />
                     </FormControl>
@@ -435,7 +435,7 @@ export function UpdateAccountForm({
                     <FormControl>
                       <Input
                         disabled={isLoading}
-                        placeholder="Czechia"
+                        placeholder="USA"
                         {...field}
                       />
                     </FormControl>

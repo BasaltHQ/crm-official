@@ -84,7 +84,7 @@ export default function PoolDetailPage({ params }: { params: Promise<{ poolId: s
   const { data, error, isLoading, mutate } = useSWR<CandidatesResponse>(
     `/api/leads/pools/${poolId}/candidates`,
     fetcher,
-    { refreshInterval: 10000 }
+    { refreshInterval: 30000 }
   );
 
   const { data: teamData } = useSWR<TeamMembersResponse>(

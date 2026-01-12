@@ -7,7 +7,9 @@ import {
     LayoutDashboard,
     FolderKanban,
     ListTodo,
-    PieChart,
+    FileText,
+    BarChart2,
+    CalendarDays,
     ChevronLeft,
     ChevronRight
 } from "lucide-react";
@@ -40,9 +42,11 @@ export default function ProjectsSidebar() {
     };
 
     const navItems = [
-        { label: "Overview", href: "/projects", icon: PieChart },
-        { label: "Dashboard", href: "/projects/dashboard", icon: LayoutDashboard },
-        { label: "Tasks", href: "/projects/tasks", icon: ListTodo },
+        { label: "Overview", href: "/projects", icon: FolderKanban },
+        { label: "All Tasks", href: "/projects/tasks", icon: ListTodo },
+        { label: "All Gantts", href: "/projects/gantt", icon: BarChart2 },
+        { label: "Calendar", href: "/projects/calendar", icon: CalendarDays },
+        { label: "All Documents", href: "/projects/documents", icon: FileText },
     ];
 
     if (!isMounted) return null;
@@ -53,7 +57,7 @@ export default function ProjectsSidebar() {
             <div
                 className={cn(
                     "hidden md:flex shrink-0 relative group z-20",
-                    isCollapsed ? "w-16" : "w-56"
+                    isCollapsed ? "w-16" : "w-48"
                 )}
             >
                 {/* Sidebar content */}
@@ -74,11 +78,13 @@ export default function ProjectsSidebar() {
                                 key={item.label}
                                 onClick={() => router.push(item.href)}
                                 className={cn(
-                                    "flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors text-left w-full relative",
+                                    "flex items-center gap-3 text-sm font-medium transition-all text-left relative rounded-lg",
                                     isActive
                                         ? "bg-primary/10 text-primary border-r-2 border-primary"
                                         : "text-muted-foreground hover:bg-muted/20 hover:text-foreground",
-                                    isCollapsed && "justify-center px-2"
+                                    isCollapsed
+                                        ? "w-9 h-9 justify-center hover:ring-1 hover:ring-primary/50 mx-auto"
+                                        : "px-4 py-2 w-full"
                                 )}
                                 title={isCollapsed ? item.label : undefined}
                             >

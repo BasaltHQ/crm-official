@@ -5,11 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
-    Users,
     Package,
-    Bot,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Mail,
+    MessageSquare,
+    Bot,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -45,9 +46,10 @@ export default function AdminSidebar({ showModules = false }: AdminSidebarProps)
 
     const navItems = [
         { label: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
-        { label: "Users", href: "/admin/users", icon: Users },
+        { label: "Email Settings", href: "/admin/settings", icon: Mail },
+        { label: "SMS Configuration", href: "/admin/sms-config", icon: MessageSquare },
+        { label: "AI Settings", href: "/admin/ai-settings", icon: Bot },
         ...(showModules ? [{ label: "Modules", href: "/admin/modules", icon: Package }] : []),
-        { label: "AI Settings", href: "/admin/ai-setup", icon: Bot },
     ];
 
     if (!isMounted) return null;
@@ -87,7 +89,9 @@ export default function AdminSidebar({ showModules = false }: AdminSidebarProps)
                                 title={isCollapsed ? item.label : undefined}
                             >
                                 <item.icon className="w-4 h-4 shrink-0" />
-                                {!isCollapsed && <span className="truncate">{item.label}</span>}
+                                {!isCollapsed && (
+                                    <span className="truncate">{item.label}</span>
+                                )}
                             </button>
                         );
                     })}

@@ -47,9 +47,9 @@ const DEFAULT_TEST_EMAIL = "founders@theutilitycompany.co";
 // Default PortalPay resource configuration if user has none
 const DEFAULT_RESOURCES: ResourceLink[] = [
   {
-    id: "portalpay",
-    label: "Explore PortalPay",
-    href: "https://pay.ledger1.ai",
+    id: "surge",
+    label: "Explore Surge",
+    href: "https://surge.basalthq.com",
     type: "primary",
     enabled: true,
   },
@@ -107,9 +107,9 @@ function buildUserPrompt(params: {
 
   // Base prompt fallback (shortened/curated from provided Python script)
   const fallbackBase = `
-You are writing a personalized VC outreach email about PortalPay. Use any available company research to tailor the message.
+You are writing a personalized VC outreach email about Surge. Use any available company research to tailor the message.
 
-PortalPay Briefing:
+Surge Briefing:
 - Crypto-native payment gateway enabling physical merchants to accept stablecoins and crypto tokens at checkout (QR scan) with on-chain settlement.
 - Innovations:
   • Multi-Token: USDC, USDT, cbBTC, cbXRP, ETH on Base
@@ -129,7 +129,7 @@ Requirements:
 - Output JSON ONLY with keys "subject" and "body".
 - "body" MUST be plain text (no HTML), 250–300 words.
 - Style: sophisticated, narrative, insight-driven; open with a hook referencing their thesis/portfolio if possible (use company research if present).
-- Personalization: use research when available; connect PortalPay to their focus.
+- Personalization: use research when available; connect Surge to their focus.
 - Use first-person voice ("I"), no third person references to the founder.
 - Avoid headings like "Founder note:" or similar.
 - End with a confident CTA referencing remote availability.
@@ -307,7 +307,7 @@ export async function POST(req: Request) {
 
       // Use pre-generated content if provided (skips AI call - faster for test sends)
       let subject = preGeneratedSubject || "Exploring Partnership Opportunities";
-      let bodyText = preGeneratedBody || "Hello,\n\nI'd like to explore how PortalPay could align with your investment thesis.\n\nThanks.";
+      let bodyText = preGeneratedBody || "Hello,\n\nI'd like to explore how Surge could align with your investment thesis.\n\nThanks.";
 
       // Only call AI if no pre-generated content provided
       if (!preGeneratedSubject || !preGeneratedBody) {
@@ -329,7 +329,7 @@ export async function POST(req: Request) {
 
         } catch (err: any) {
           // Keep defaults on failure
-           
+
           console.error("[OUTREACH_SEND][AI_ERROR]", err?.message || err);
         }
       }
@@ -425,7 +425,7 @@ export async function POST(req: Request) {
 
         results.push({ leadId: lead.id, status: "sent", subject, to: toEmail });
       } catch (err: any) {
-         
+
         console.error("[OUTREACH_SEND][SMTP_ERROR]", err?.message || err);
         results.push({ leadId: lead.id, status: "error", reason: err?.message || "Send failed" });
       }
@@ -441,7 +441,7 @@ export async function POST(req: Request) {
     };
     return NextResponse.json(summary, { status: 200 });
   } catch (error) {
-     
+
     console.error("[OUTREACH_SEND_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

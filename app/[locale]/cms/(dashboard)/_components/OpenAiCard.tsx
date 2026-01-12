@@ -31,7 +31,7 @@ const OpenAiCard = async () => {
     }
   });
 
-  // Only allow Ledger1 team (Internal Team)
+  // Only allow Basalt team (Internal Team)
   if (user?.assigned_team?.slug !== "ledger1") {
     return null;
   }

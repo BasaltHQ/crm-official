@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import useSWR, { mutate } from 'swr';
+import fetcher from '@/lib/fetcher';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -11,7 +13,9 @@ import { STAGE_BADGE_CLASS, formatStageLabel, type PipelineStage } from '@/compo
 import OutreachCampaignWizard from './OutreachCampaignWizard';
 import StageProgressBar, { type StageDatum } from '@/components/StageProgressBar';
 import FollowUpWizard from '@/components/modals/FollowUpWizard';
-import { ExternalLink, Mail, TrendingUp, Target, X, User, Phone, FileText, Info, Activity, Calendar } from 'lucide-react';
+import AIWriterModal from './modals/AIWriterModal';
+import { ViewToggle, type ViewMode } from '@/components/ViewToggle';
+import { ExternalLink, Mail, TrendingUp, Target, X, User, Phone, FileText, Info, Activity, Calendar, Building2, Sparkles, Wand2, PenTool } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +52,7 @@ type Lead = {
 type Props = {
   crmData: any; // unused placeholder for future enrichment
   data: Lead[];
+  isMember?: boolean;
 };
 
 // Ordered pipeline for coloring/activation
@@ -102,106 +107,178 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-export default function LeadsView({ data }: Props) {
+export default function LeadsView({ data, isMember = false }: Props) {
+  // Fetch active projects for assignment
+  const { data: projectsData } = useSWR('/api/projects', fetcher);
+  const projects = useMemo(() => projectsData?.projects || [], [projectsData]);
+
+  async function assignPoolProject(projectId: string) {
+    if (!selectedPoolId || !projectId) return;
+    try {
+      const res = await fetch(`/api/leads/pools/${encodeURIComponent(selectedPoolId)}/assign-project`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      });
+      if (res.ok) {
+        toast.success('Project assigned to pool');
+        mutate('/api/leads/pools');
+      } else {
+        const txt = await res.text();
+        toast.error(`Assignment failed: ${txt}`);
+      }
+    } catch (e: any) {
+      toast.error(`Assignment failed: ${e?.message || e}`);
+    }
+  }
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [testMode, setTestMode] = useState(false);
   const [meetingLinkOverride, setMeetingLinkOverride] = useState('');
   const [promptOverride, setPromptOverride] = useState('');
   const [firstContactOpen, setFirstContactOpen] = useState(false);
-  const [pools, setPools] = useState<any[]>([]);
   const [selectedPoolId, setSelectedPoolId] = useState<string>("");
-  const [poolLeadIdsMap, setPoolLeadIdsMap] = useState<Record<string, Set<string>>>({});
   const [wizardInitialPrompt, setWizardInitialPrompt] = useState<string>("");
   const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
   const [expandedLeadId, setExpandedLeadId] = useState<string>("");
-  const [poolBrandLogoMap, setPoolBrandLogoMap] = useState<Record<string, string>>({});
-  const [poolProjectIdMap, setPoolProjectIdMap] = useState<Record<string, string>>({});
+  const [aiWriterOpen, setAiWriterOpen] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Follow-up wizard state
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpLeadId, setFollowUpLeadId] = useState<string | null>(null);
 
-  // View mode toggle
-  const [viewMode, setViewMode] = useState<'lead' | 'company'>('lead');
+  // View mode toggle: table (default list), compact (grid), card (large cards)
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
 
-  // Outreach eligibility: only when a pool is selected AND that pool has an assigned project
-  const projectAssignedForSelectedPool = useMemo(() => (
-    selectedPoolId ? poolProjectIdMap[selectedPoolId] : undefined
-  ), [selectedPoolId, poolProjectIdMap]);
-  const canBatchSelect = Boolean(selectedPoolId && projectAssignedForSelectedPool);
+  // Optimize data fetching with SWR - 30s polling for fresh pool data
+  const { data: poolsResponse, error: poolsError } = useSWR('/api/leads/pools', fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds for up-to-date pool list
+  });
+  const pools = useMemo(() => Array.isArray(poolsResponse?.pools) ? poolsResponse.pools : [], [poolsResponse]);
+
+  // Column resizing logic
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    lead: 250,
+    email: 200,
+    company: 150,
+    title: 150,
+    stage: 120,
+    status: 120,
+    progress: 200,
+    actions: 180,
+    project: 100
+  });
+  const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/leads/pools");
-        const j = await res.json().catch(() => null);
-        const arr = Array.isArray(j?.pools) ? j.pools : [];
-        setPools(arr);
-        const map: Record<string, Set<string>> = {};
-        for (const p of arr) {
-          try {
-            const r = await fetch(`/api/leads/pools/${encodeURIComponent(p.id)}/leads?mine=true`);
-            if (r.ok) {
-              const jl = await r.json().catch(() => null);
-              const ids: string[] = Array.isArray(jl?.leads) ? jl.leads.map((l: any) => l.id) : [];
-              map[p.id] = new Set(ids);
-            }
-          } catch { }
-        }
-        setPoolLeadIdsMap(map);
-
-        // Build per-pool brand logo map and project id map
-        const logoMap: Record<string, string> = {};
-        const projectMap: Record<string, string> = {};
-        await Promise.all(
-          arr.map(async (p: any) => {
-            try {
-              const projectId = p?.icpConfig?.assignedProjectId;
-              if (projectId) {
-                projectMap[p.id] = projectId;
-                const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/brand`);
-                if (r.ok) {
-                  const jb = await r.json().catch(() => null);
-                  const url = jb?.brand_logo_url || "";
-                  if (url) logoMap[p.id] = url;
-                }
-              }
-            } catch { }
-          })
-        );
-        setPoolBrandLogoMap(logoMap);
-        setPoolProjectIdMap(projectMap);
-      } catch { }
-    })();
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const { col, startX, startWidth } = resizingRef.current;
+      const diff = e.pageX - startX;
+      setColumnWidths((prev) => ({ ...prev, [col]: Math.max(50, startWidth + diff) }));
+    };
+    const handleMouseUp = () => {
+      if (resizingRef.current) {
+        resizingRef.current = null;
+        document.body.style.cursor = '';
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
   }, []);
+
+  const startResize = (e: React.MouseEvent, col: string) => {
+    e.preventDefault();
+    e.stopPropagation(); // Critical to prevent table sorting triggers
+    resizingRef.current = { col, startX: e.pageX, startWidth: columnWidths[col] || 100 };
+    document.body.style.cursor = 'col-resize';
+  };
+
+  // Error handling removed to prevent phantom errors
+  // useEffect(() => {
+  //   // Only show error if we have an error AND no pools data (prevents false positives on successful loads)
+  //   if (poolsError && !poolsResponse?.pools) {
+  //     toast.error("Failed to load pools: " + (poolsError.message || "Unknown error"));
+  //   }
+  // }, [poolsError, poolsResponse]);
+
+  // Outreach eligibility: needed for "Push to Outreach"
+  const projectAssignedForSelectedPool = useMemo(() => {
+    if (!selectedPoolId) return undefined;
+    const p = pools.find((x: any) => x.id === selectedPoolId);
+    return p?.icpConfig?.assignedProjectId;
+  }, [selectedPoolId, pools]);
+
+  // Batch select is enabled as long as a pool is selected (e.g. for Reset Pool)
+  const canBatchSelect = Boolean(selectedPoolId);
+
+
+
+  // Only fetch leads for the SELECTED pool to avoid request storm
+  const { data: selectedPoolLeadsResponse } = useSWR(
+    selectedPoolId ? `/api/leads/pools/${encodeURIComponent(selectedPoolId)}/leads` : null,
+    fetcher
+  );
+
+  // Build the set of lead IDs for the selected pool
+  const selectedPoolLeadIds = useMemo(() => {
+    if (!selectedPoolId || !selectedPoolLeadsResponse?.leads) return new Set<string>();
+    return new Set(selectedPoolLeadsResponse.leads.map((l: any) => l.id));
+  }, [selectedPoolId, selectedPoolLeadsResponse]);
+
+  // Fetch brand logo only for the selected pool's project if needed
+  const selectedPoolProject = useMemo(() => {
+    if (!selectedPoolId) return null;
+    const p = pools.find((x: any) => x.id === selectedPoolId);
+    return p?.icpConfig?.assignedProjectId;
+  }, [selectedPoolId, pools]);
+
+  const { data: brandResponse } = useSWR(
+    selectedPoolProject ? `/api/projects/${encodeURIComponent(selectedPoolProject)}/brand` : null,
+    fetcher
+  );
 
   useEffect(() => {
     if (!selectedPoolId) { setWizardInitialPrompt(""); setBrandLogoUrl(""); return; }
     const p = pools.find((x: any) => x.id === selectedPoolId);
     const tpl = (p?.latestJob?.queryTemplates?.[0]) || (p?.icpConfig?.prompt) || "";
     setWizardInitialPrompt(tpl || "");
-    // fetch project brand logo if assigned
-    const projectId = p?.icpConfig?.assignedProjectId;
-    (async () => {
-      try {
-        if (projectId) {
-          const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/brand`);
-          const j = await res.json().catch(() => null);
-          setBrandLogoUrl(j?.brand_logo_url || "");
-        } else {
-          setBrandLogoUrl("");
-        }
-      } catch { setBrandLogoUrl(""); }
-    })();
-  }, [selectedPoolId, pools]);
+
+    if (brandResponse?.brand_logo_url) {
+      setBrandLogoUrl(brandResponse.brand_logo_url);
+    } else {
+      setBrandLogoUrl("");
+    }
+  }, [selectedPoolId, pools, brandResponse]);
 
   const selectedIds = useMemo(() => Object.entries(selected).filter(([, v]) => v).map(([k]) => k), [selected]);
   const visibleLeads = useMemo(() => {
-    const set = selectedPoolId ? poolLeadIdsMap[selectedPoolId] : undefined;
-    if (!set) return data;
-    return data.filter((lead) => set.has(lead.id));
-  }, [data, selectedPoolId, poolLeadIdsMap]);
+    if (selectedPoolId && selectedPoolLeadsResponse?.leads) {
+      // API now returns full objects
+      return selectedPoolLeadsResponse.leads as Lead[];
+    }
+    return data;
+  }, [data, selectedPoolId, selectedPoolLeadsResponse]);
+
+  // Reset page when pool or limit changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedPoolId, itemsPerPage]);
+
+  const totalItems = visibleLeads.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return visibleLeads.slice(start, start + itemsPerPage);
+  }, [visibleLeads, currentPage, itemsPerPage]);
 
   // Group by company for company view
   const companies = useMemo(() => {
@@ -241,22 +318,32 @@ export default function LeadsView({ data }: Props) {
 
   const selectedInPoolIds = useMemo(
     () => selectedIds.filter((id) => {
-      const set = selectedPoolId ? poolLeadIdsMap[selectedPoolId] : undefined;
-      return set ? set.has(id) : true;
+      if (!selectedPoolId) return true;
+      return selectedPoolLeadIds.has(id);
     }),
-    [selectedIds, selectedPoolId, poolLeadIdsMap]
+    [selectedIds, selectedPoolId, selectedPoolLeadIds]
   );
 
-  const allSelected = selectedInPoolIds.length === visibleLeads.length && visibleLeads.length > 0;
-  const someSelected = selectedInPoolIds.length > 0;
+  // Batch select logic - now applies to PAGINATED leads for "select current page" behavior
+  // heavily simplifying for now to just select visible items on current page
+  const selectedInCurrentPage = useMemo(() => {
+    return paginatedLeads.filter(l => selected[l.id]).map(l => l.id);
+  }, [paginatedLeads, selected]);
+
+  const allSelected = selectedInCurrentPage.length === paginatedLeads.length && paginatedLeads.length > 0;
+  const someSelected = selectedIds.length > 0; // Global selection count for actions
 
   const toggleAll = () => {
     if (!canBatchSelect) return;
     if (allSelected) {
-      setSelected({});
+      // Deselect current page
+      const next = { ...selected };
+      paginatedLeads.forEach(l => delete next[l.id]);
+      setSelected(next);
     } else {
-      const next: Record<string, boolean> = {};
-      for (const lead of visibleLeads) next[lead.id] = true;
+      // Select all on current page
+      const next = { ...selected };
+      paginatedLeads.forEach(l => next[l.id] = true);
       setSelected(next);
     }
   };
@@ -266,6 +353,10 @@ export default function LeadsView({ data }: Props) {
   };
 
   async function pushToOutreachBatch() {
+    if (!projectAssignedForSelectedPool) {
+      toast.error('Selected pool has no assigned project');
+      return;
+    }
     if (!someSelected) {
       toast.error('Select at least one lead');
       return;
@@ -350,15 +441,18 @@ export default function LeadsView({ data }: Props) {
     <div className="space-y-4">
       {/* Bulk toolbar */}
       <div className="rounded-md border bg-card p-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col gap-4">
+
+          {/* Row 1: Filter & Settings */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* Left Group: Selection & Pool */}
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Switch
                   checked={allSelected}
                   onCheckedChange={(c) => toggleAll()}
                   disabled={!canBatchSelect}
-                  title={!canBatchSelect ? "Select a pool with an assigned project to enable batch selection" : undefined}
+                  title={!canBatchSelect ? "Select a pool to enable batch selection" : undefined}
                 />
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Select All</span>
               </div>
@@ -371,8 +465,8 @@ export default function LeadsView({ data }: Props) {
                   onChange={(e) => setSelectedPoolId(e.target.value)}
                 >
                   <option value="">{pools.length ? "All pools" : "No pools"}</option>
-                  {pools.filter((p: any) => !!(poolLeadIdsMap[p.id] && poolLeadIdsMap[p.id].size > 0)).map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                  {pools.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name} {p.candidatesCount > 0 ? `(${p.candidatesCount})` : ''}</option>
                   ))}
                 </select>
                 {selectedPoolId && (
@@ -381,8 +475,7 @@ export default function LeadsView({ data }: Props) {
                     className="text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-600 border border-amber-600 dark:bg-amber-400 dark:text-black transition-colors"
                     onClick={async () => {
                       try {
-                        const poolSet = poolLeadIdsMap[selectedPoolId] || new Set<string>();
-                        const ids = selectedInPoolIds.filter((id) => poolSet.has(id));
+                        const ids = selectedInPoolIds.filter((id) => selectedPoolLeadIds.has(id));
                         if (!ids.length) { toast.error('Select at least one lead in this pool to reset'); return; }
                         const res = await fetch(`/api/outreach/reset-pool/${encodeURIComponent(selectedPoolId)}`, {
                           method: 'POST',
@@ -401,8 +494,12 @@ export default function LeadsView({ data }: Props) {
                     }}
                   >Reset Pool</button>
                 )}
-              </div>
 
+              </div>
+            </div>
+
+            {/* Right Group: View Settings */}
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Switch
                   checked={testMode}
@@ -412,58 +509,111 @@ export default function LeadsView({ data }: Props) {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">View:</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Rows:</span>
                 <select
                   className="h-8 rounded border px-2 text-[10px] uppercase tracking-wider font-semibold bg-background"
-                  value={viewMode}
-                  onChange={(e) => setViewMode(e.target.value as 'lead' | 'company')}
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
                 >
-                  <option value="lead">Lead Name</option>
-                  <option value="company">Company</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
                 </select>
               </div>
-            </div>
 
-            <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:justify-end">
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {/* Row 2: Actions & Context */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
               <Input
-                className="h-8 text-xs"
+                className="h-8 text-xs w-72" // Increased width to fit placeholder
                 placeholder="Meeting link override (optional)"
                 value={meetingLinkOverride}
                 onChange={(e) => setMeetingLinkOverride(e.target.value)}
               />
               <Button
                 size="sm"
-                className="h-8 text-[10px] uppercase tracking-wider font-semibold"
+                className="h-8 text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap"
                 onClick={() => setFirstContactOpen(true)}
-                disabled={!canBatchSelect || selectedInPoolIds.length === 0}
-                title={!canBatchSelect ? "Select a pool with an assigned project to enable outreach" : (selectedInPoolIds.length === 0 ? "Select at least one lead in the chosen pool" : undefined)}
+                disabled={!canBatchSelect || !projectAssignedForSelectedPool || selectedInPoolIds.length === 0}
+                title={!canBatchSelect ? "Select a pool with an assigned project to enable outreach" : (!projectAssignedForSelectedPool ? "Selected pool has no assigned project" : (selectedInPoolIds.length === 0 ? "Select at least one lead in the chosen pool" : undefined))}
               >
                 Push to Outreach
               </Button>
             </div>
+
+            {selectedPoolId && !isMember && (
+              <div className="flex items-center gap-2">
+                {!projectAssignedForSelectedPool ? (
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive">No Project Assigned:</span>
+                ) : (
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Project:</span>
+                )}
+                <select
+                  className={`h-8 rounded border px-2 text-[10px] uppercase tracking-wider font-semibold bg-background ${!projectAssignedForSelectedPool ? 'border-destructive/50' : 'border-input'}`}
+                  value={projectAssignedForSelectedPool || ""}
+                  onChange={(e) => assignPoolProject(e.target.value)}
+                >
+                  <option value="" disabled>Select a project...</option>
+                  {projects.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {!selectedPoolId && (
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+                Select a pool to enable outreach
+              </div>
+            )}
           </div>
 
-          {!canBatchSelect && (
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground text-right">
-              Select a pool with an assigned project to enable outreach
-            </div>
-          )}
-
-          <div className="mt-1">
+          {/* Row 3: Prompt Override */}
+          <div className="w-full">
             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Prompt override (optional)</label>
-            <Textarea
-              className="mt-1 text-xs"
-              rows={2}
-              placeholder="Override the default outreach prompt for this batch..."
-              value={promptOverride}
-              onChange={(e) => setPromptOverride(e.target.value)}
-            />
+            <div className="flex gap-2 mt-1 min-w-0">
+              <Textarea
+                className="text-xs resize-none flex-1"
+                rows={2}
+                placeholder="Override the default outreach prompt for this batch..."
+                value={promptOverride}
+                onChange={(e) => setPromptOverride(e.target.value)}
+              />
+              <div className="flex flex-col gap-2 shrink-0 w-[120px]">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-full flex-1 text-[10px] uppercase tracking-wider gap-1.5 text-indigo-500 hover:text-indigo-600 border-indigo-200 dark:border-indigo-800"
+                  onClick={() => toast.success('Enhance AI coming soon!')}
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Enhance AI
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-full flex-1 text-[10px] uppercase tracking-wider gap-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 shadow-sm"
+                  onClick={() => setAiWriterOpen(true)}
+                >
+                  <Wand2 className="w-3.5 h-3.5" /> Write AI
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      <AIWriterModal
+        isOpen={aiWriterOpen}
+        onClose={() => setAiWriterOpen(false)}
+        onInsert={(text) => setPromptOverride(text)}
+      />
       {firstContactOpen && (
         <OutreachCampaignWizard
-          selectedLeads={visibleLeads.filter(l => selectedInPoolIds.includes(l.id)) as any}
+
+          selectedLeads={visibleLeads.filter(l => selectedIds.includes(l.id)) as any}
           poolId={selectedPoolId}
           projectId={projectAssignedForSelectedPool}
           onClose={() => setFirstContactOpen(false)}
@@ -476,29 +626,56 @@ export default function LeadsView({ data }: Props) {
         poolId={selectedPoolId}
       />
       {/* Leads table */}
-      {viewMode === 'lead' && (
+      {viewMode === 'table' && (
         <>
           {/* Desktop Table View */}
-          <div className="hidden md:block overflow-auto rounded-md border">
-            <table className="min-w-full text-sm">
+          <div className="hidden md:block rounded-md border text-nowrap overflow-x-auto">
+            <table className="min-w-full text-sm table-fixed">
               <thead className="bg-muted">
                 <tr>
                   <th className="p-2 w-[40px]">
                     <Switch checked={allSelected} onCheckedChange={toggleAll} disabled={!canBatchSelect} />
                   </th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Lead</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Email</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Company</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Title</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Stage</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Status</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Progress</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Actions</th>
-                  <th className="p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Project</th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.lead }}>
+                    Lead
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'lead')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.email }}>
+                    Email
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'email')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.company }}>
+                    Company
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'company')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.title }}>
+                    Title
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'title')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.stage }}>
+                    Stage
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'stage')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.status }}>
+                    Status
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'status')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.progress }}>
+                    Progress
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'progress')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.actions }}>
+                    Actions
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'actions')} />
+                  </th>
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.project }}>
+                    Project
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'project')} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {visibleLeads?.map((lead) => {
+                {paginatedLeads?.map((lead) => {
                   const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
                   const canSend =
                     !lead.outreach_status || lead.outreach_status === 'IDLE' || lead.outreach_status === 'PENDING';
@@ -518,12 +695,12 @@ export default function LeadsView({ data }: Props) {
                             disabled={!canBatchSelect}
                           />
                         </td>
-                        <td className="p-2">
-                          <div className="font-medium">{name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}</div>
+                        <td className="p-2 truncate" title={name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}>
+                          <div className="font-medium truncate">{name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}</div>
                         </td>
-                        <td className="p-2 text-muted-foreground">{lead.email || '-'}</td>
-                        <td className="p-2 text-muted-foreground">{lead.company || '-'}</td>
-                        <td className="p-2 text-muted-foreground">{lead.jobTitle || '-'}</td>
+                        <td className="p-2 text-muted-foreground truncate" title={lead.email || ''}>{lead.email || '-'}</td>
+                        <td className="p-2 text-muted-foreground truncate" title={lead.company || ''}>{lead.company || '-'}</td>
+                        <td className="p-2 text-muted-foreground truncate" title={lead.jobTitle || ''}>{lead.jobTitle || '-'}</td>
                         <td className="p-2">
                           <span className={
                             stageKey
@@ -536,7 +713,7 @@ export default function LeadsView({ data }: Props) {
                         <td className="p-2">
                           <StatusBadge status={lead.outreach_status} />
                         </td>
-                        <td className="p-2 w-48 align-top">
+                        <td className="p-2 align-top">
                           <StageProgressBar
                             stages={((): StageDatum[] => {
                               const cur: PipelineStage = stageKey || 'Identify';
@@ -555,16 +732,16 @@ export default function LeadsView({ data }: Props) {
                         </td>
                         <td className="p-2">
                           <div className="flex gap-1 flex-wrap">
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setDetailsLead(lead); }} title="View Details">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-500 hover:text-blue-600" onClick={(e) => { e.stopPropagation(); setDetailsLead(lead); }} title="View Details">
                               <Info className="h-3 w-3" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); openMeeting(lead.id); }} title="Meeting Link">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-purple-500 hover:text-purple-600" onClick={(e) => { e.stopPropagation(); openMeeting(lead.id); }} title="Meeting Link">
                               <ExternalLink className="h-3 w-3" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); composeEmail(lead.email); }} disabled={!canSend} title="Send Email">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-emerald-500 hover:text-emerald-600" onClick={(e) => { e.stopPropagation(); composeEmail(lead.email); }} disabled={!canSend} title="Send Email">
                               <Mail className="h-3 w-3" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setFollowUpLeadId(lead.id); setFollowUpOpen(true); }} disabled={!canFollowup} title="Follow-up">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-indigo-500 hover:text-indigo-600" onClick={(e) => { e.stopPropagation(); setFollowUpLeadId(lead.id); setFollowUpOpen(true); }} disabled={!canFollowup} title="Follow-up">
                               <TrendingUp className="h-3 w-3" />
                             </Button>
                             <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-500 hover:text-amber-600" onClick={async (e) => { e.stopPropagation(); try { const res = await fetch(`/api/outreach/reset/${encodeURIComponent(lead.id)}`, { method: 'POST' }); if (res.ok) { toast.success('Lead reset'); } else { const t = await res.text(); toast.error(t || 'Failed to reset'); } } catch (err: any) { toast.error(err?.message || 'Failed to reset'); } }} title="Reset Lead">
@@ -580,22 +757,13 @@ export default function LeadsView({ data }: Props) {
                             let url = brandLogoUrl;
                             let projectId: string | undefined;
                             if (selectedPoolId) {
-                              projectId = poolProjectIdMap[selectedPoolId];
-                            } else {
-                              // Determine pool for this lead and get its logo + project id
-                              let poolIdForLead: string | undefined;
-                              for (const [pid, set] of Object.entries(poolLeadIdsMap)) {
-                                if (set.has(lead.id)) { poolIdForLead = pid; break; }
-                              }
-                              if (poolIdForLead) {
-                                if (poolBrandLogoMap[poolIdForLead]) {
-                                  url = poolBrandLogoMap[poolIdForLead];
-                                }
-                                if (poolProjectIdMap[poolIdForLead]) {
-                                  projectId = poolProjectIdMap[poolIdForLead];
-                                }
-                              }
+                              // Use the one we fetched
+                              const p = pools.find((x: any) => x.id === selectedPoolId);
+                              projectId = p?.icpConfig?.assignedProjectId;
                             }
+                            // Note: In "All Leads" view, we no longer aggressively search all pools for every lead to show a logo.
+                            // This is a trade-off to stop the massive API request storm.
+
                             if (!url) return null;
                             const img = (
                               <img src={url} alt="Project" className="h-8 w-auto rounded object-contain inline-block hover:opacity-90 transition-opacity" />
@@ -652,7 +820,7 @@ export default function LeadsView({ data }: Props) {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4">
-            {visibleLeads?.map((lead) => {
+            {paginatedLeads?.map((lead) => {
               const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
               const canSend = !lead.outreach_status || lead.outreach_status === 'IDLE' || lead.outreach_status === 'PENDING';
               const canFollowup = (lead.outreach_status === 'SENT' || lead.outreach_status === 'OPENED') && !lead.outreach_meeting_booked_at;
@@ -699,22 +867,22 @@ export default function LeadsView({ data }: Props) {
 
                   <div className="pt-2 border-t flex items-center justify-between">
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDetailsLead(lead)} title="View Details">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-500 hover:text-blue-600" onClick={() => setDetailsLead(lead)} title="View Details">
                         <Info className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openMeeting(lead.id)} title="Meeting Link">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-purple-500 hover:text-purple-600" onClick={() => openMeeting(lead.id)} title="Meeting Link">
                         <ExternalLink className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => composeEmail(lead.email)} disabled={!canSend} title="Send Email">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-500 hover:text-emerald-600" onClick={() => composeEmail(lead.email)} disabled={!canSend} title="Send Email">
                         <Mail className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setFollowUpLeadId(lead.id); setFollowUpOpen(true); }} disabled={!canFollowup} title="Follow-up">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-500 hover:text-indigo-600" onClick={() => { setFollowUpLeadId(lead.id); setFollowUpOpen(true); }} disabled={!canFollowup} title="Follow-up">
                         <TrendingUp className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-500" onClick={async () => { try { const res = await fetch(`/api/outreach/reset/${encodeURIComponent(lead.id)}`, { method: 'POST' }); if (res.ok) { toast.success('Lead reset'); } } catch (err: any) { toast.error(err?.message); } }} title="Reset Lead">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-500 hover:text-amber-600" onClick={async () => { try { const res = await fetch(`/api/outreach/reset/${encodeURIComponent(lead.id)}`, { method: 'POST' }); if (res.ok) { toast.success('Lead reset'); } } catch (err: any) { toast.error(err?.message); } }} title="Reset Lead">
                         <Target className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => closeLead(lead.id)} title="Close">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => closeLead(lead.id)} title="Close">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -722,16 +890,8 @@ export default function LeadsView({ data }: Props) {
                       let url = brandLogoUrl;
                       let projectId: string | undefined;
                       if (selectedPoolId) {
-                        projectId = poolProjectIdMap[selectedPoolId];
-                      } else {
-                        let poolIdForLead: string | undefined;
-                        for (const [pid, set] of Object.entries(poolLeadIdsMap)) {
-                          if (set.has(lead.id)) { poolIdForLead = pid; break; }
-                        }
-                        if (poolIdForLead) {
-                          if (poolBrandLogoMap[poolIdForLead]) url = poolBrandLogoMap[poolIdForLead];
-                          if (poolProjectIdMap[poolIdForLead]) projectId = poolProjectIdMap[poolIdForLead];
-                        }
+                        const p = pools.find((x: any) => x.id === selectedPoolId);
+                        projectId = p?.icpConfig?.assignedProjectId;
                       }
                       if (!url) return null;
                       const img = <img src={url} alt="Project" className="h-8 w-auto rounded object-contain" />;
@@ -748,91 +908,190 @@ export default function LeadsView({ data }: Props) {
         </>
       )}
 
-      {viewMode === 'company' && (
-        <div className="space-y-3">
-          {Array.from(companies.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([company, leadsInCompany]) => {
-            const { stageData, total, activeStageKey, isClosed } = buildCompanyStageData(leadsInCompany);
+      {/* Pagination Controls */}
+      {(viewMode === 'table' || viewMode === 'compact' || viewMode === 'card') && totalItems > 0 && (
+        <div className="flex items-center justify-between px-2 py-4 border-t">
+          <div className="text-xs text-muted-foreground">
+            Showing <span className="font-medium">{Math.min(itemsPerPage * (currentPage - 1) + 1, totalItems)}</span> to <span className="font-medium">{Math.min(itemsPerPage * currentPage, totalItems)}</span> of <span className="font-medium">{totalItems}</span> leads
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-20 text-[10px] uppercase tracking-wider disabled:opacity-50"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-xs font-medium px-2">
+              Page {currentPage} of {Math.max(1, totalPages)}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-20 text-[10px] uppercase tracking-wider disabled:opacity-50"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Compact Grid View */}
+      {viewMode === 'compact' && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {paginatedLeads?.map((lead) => {
+            const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
+            const stageKey = (lead as any).pipeline_stage as PipelineStage | undefined;
             return (
-              <details key={company} className="rounded-md border bg-card overflow-hidden">
-                <summary className="cursor-pointer list-none px-3 py-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium">{company}</div>
-                    <div className="text-xs text-muted-foreground">{leadsInCompany.length} lead{leadsInCompany.length === 1 ? '' : 's'}</div>
+              <div
+                key={lead.id}
+                onClick={() => setDetailsLead(lead)}
+                className="group border rounded-lg bg-card p-3 cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{name || 'Unknown'}</div>
+                    <div className="text-xs text-muted-foreground truncate">{lead.company || '—'}</div>
                   </div>
-                  <div className="w-full sm:w-1/2">
-                    <StageProgressBar
-                      stages={stageData}
-                      total={total}
-                      orientation="horizontal"
-                      nodeSize={12}
-                      showLabelsAndCounts={true}
-                      coloringMode="activated"
-                      activeStageKey={activeStageKey}
-                      isClosed={isClosed}
-                      showMicroStatus
-                      microStatusText={isClosed ? 'Complete' : 'In Progress'}
-                    />
-                  </div>
-                </summary>
-                <div className="px-3 pb-3">
-                  <div className="overflow-auto rounded-md border">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="p-2 text-left">Lead</th>
-                          <th className="p-2 text-left">Email</th>
-                          <th className="p-2 text-left">Title</th>
-                          <th className="p-2 text-left">Stage</th>
-                          <th className="p-2 text-left">Progress</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leadsInCompany.map((lead) => {
-                          const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
-                          const stageKey = (lead as any).pipeline_stage as PipelineStage | undefined;
-                          return (
-                            <tr key={lead.id} className="border-t">
-                              <td className="p-2">
-                                <div className="font-medium">{name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}</div>
-                              </td>
-                              <td className="p-2">{lead.email || '-'}</td>
-                              <td className="p-2">{lead.jobTitle || '-'}</td>
-                              <td className="p-2">
-                                <span className={
-                                  stageKey
-                                    ? STAGE_BADGE_CLASS[stageKey]
-                                    : 'px-2 py-1 rounded text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                                }>
-                                  {formatStageLabel(stageKey)}
-                                </span>
-                              </td>
-                              <td className="p-2 w-64 align-top">
-                                <StageProgressBar
-                                  stages={((): StageDatum[] => {
-                                    const cur: PipelineStage = stageKey || 'Identify';
-                                    return STAGES.map((s) => ({ key: s, label: s.replace('_', ' '), count: s === cur ? 1 : 0 }));
-                                  })()}
-                                  total={1}
-                                  orientation="horizontal"
-                                  nodeSize={10}
-                                  showLabelsAndCounts={false}
-                                  coloringMode="activated"
-                                  activeStageKey={stageKey || 'Identify'}
-                                  isClosed={stageKey === 'Closed'}
-                                  showMicroStatus
-                                  microStatusText={stageKey === 'Closed' ? 'Complete' : 'In Progress'}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <Switch
+                    checked={!!selected[lead.id]}
+                    onCheckedChange={(c) => toggleOne(lead.id, c)}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={!canBatchSelect}
+                    className="scale-75"
+                  />
                 </div>
-              </details>
+                <div className="flex items-center justify-between">
+                  <span className={
+                    stageKey
+                      ? STAGE_BADGE_CLASS[stageKey]
+                      : 'px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                  }>
+                    {formatStageLabel(stageKey)}
+                  </span>
+                  <StatusBadge status={lead.outreach_status} />
+                </div>
+              </div>
             );
           })}
+          {(!paginatedLeads || paginatedLeads.length === 0) && (
+            <div className="col-span-full text-center py-8 text-muted-foreground">No leads found.</div>
+          )}
+        </div>
+      )}
+
+      {/* Card Grid View */}
+      {viewMode === 'card' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {paginatedLeads?.map((lead) => {
+            const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
+            const stageKey = (lead as any).pipeline_stage as PipelineStage | undefined;
+            const canSend = !lead.outreach_status || lead.outreach_status === 'IDLE' || lead.outreach_status === 'PENDING';
+            const canFollowup = (lead.outreach_status === 'SENT' || lead.outreach_status === 'OPENED') && !lead.outreach_meeting_booked_at;
+
+            return (
+              <div key={lead.id} className="border rounded-xl bg-card overflow-hidden hover:shadow-md hover:border-primary/30 transition-all">
+                {/* Card Header */}
+                <div className="p-4 border-b bg-muted/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-base truncate">{name || (lead.company && lead.company.trim()) || lead.email || 'Lead'}</div>
+                      {lead.jobTitle && <div className="text-sm text-muted-foreground truncate">{lead.jobTitle}</div>}
+                    </div>
+                    <Switch
+                      checked={!!selected[lead.id]}
+                      onCheckedChange={(c) => toggleOne(lead.id, c)}
+                      disabled={!canBatchSelect}
+                    />
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-4 space-y-3">
+                  {/* Company & Email */}
+                  <div className="space-y-2">
+                    {lead.company && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{lead.company}</span>
+                      </div>
+                    )}
+                    {lead.email && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{lead.email}</span>
+                      </div>
+                    )}
+                    {lead.phone && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-4 w-4 flex-shrink-0" />
+                        <span>{lead.phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stage & Status */}
+                  <div className="flex items-center justify-between pt-2">
+                    <span className={
+                      stageKey
+                        ? STAGE_BADGE_CLASS[stageKey]
+                        : 'px-2 py-1 rounded text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                    }>
+                      {formatStageLabel(stageKey)}
+                    </span>
+                    <StatusBadge status={lead.outreach_status} />
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="pt-2">
+                    <StageProgressBar
+                      stages={STAGES.map((s) => ({ key: s, label: s.replace('_', ' '), count: s === (stageKey || 'Identify') ? 1 : 0 }))}
+                      total={1}
+                      orientation="horizontal"
+                      nodeSize={8}
+                      showLabelsAndCounts={false}
+                      coloringMode="activated"
+                      activeStageKey={stageKey || 'Identify'}
+                      isClosed={stageKey === 'Closed'}
+                    />
+                  </div>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="px-4 py-3 border-t bg-muted/20 flex items-center justify-between">
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDetailsLead(lead)} title="View Details">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openMeeting(lead.id)} title="Meeting Link">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => composeEmail(lead.email)} disabled={!canSend} title="Send Email">
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setFollowUpLeadId(lead.id); setFollowUpOpen(true); }} disabled={!canFollowup} title="Follow-up">
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-500" onClick={async () => { try { const res = await fetch(`/api/outreach/reset/${encodeURIComponent(lead.id)}`, { method: 'POST' }); if (res.ok) { toast.success('Lead reset'); } } catch (err: any) { toast.error(err?.message); } }} title="Reset Lead">
+                      <Target className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => closeLead(lead.id)} title="Close">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {(!paginatedLeads || paginatedLeads.length === 0) && (
+            <div className="col-span-full text-center py-8 text-muted-foreground">No leads found.</div>
+          )}
         </div>
       )}
 

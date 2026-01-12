@@ -3,7 +3,7 @@ import { prismadb } from "@/lib/prisma";
 
 /**
  * POST /oauth/token
- * Scaffold for Ledger1CRM OAuth Token endpoint (Authorization Code + PKCE).
+ * Scaffold for BasaltCRM OAuth Token endpoint (Authorization Code + PKCE).
  *
  * Expected body (application/json or x-www-form-urlencoded semantics):
  * {

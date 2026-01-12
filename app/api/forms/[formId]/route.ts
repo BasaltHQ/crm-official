@@ -6,9 +6,10 @@ import { prismadb } from "@/lib/prisma";
 // GET - Get single form
 export async function GET(
     req: NextRequest,
-    { params }: { params: { formId: string } }
+    { params }: { params: Promise<{ formId: string }> }
 ) {
     try {
+        const { formId } = await params;
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,7 +22,7 @@ export async function GET(
 
         const form = await (prismadb as any).form.findFirst({
             where: {
-                id: params.formId,
+                id: formId,
                 team_id: teamId,
             },
             include: {
@@ -48,9 +49,10 @@ export async function GET(
 // PATCH - Update form
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { formId: string } }
+    { params }: { params: Promise<{ formId: string }> }
 ) {
     try {
+        const { formId } = await params;
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,7 +77,7 @@ export async function PATCH(
         // Check form exists and belongs to team
         const existingForm = await (prismadb as any).form.findFirst({
             where: {
-                id: params.formId,
+                id: formId,
                 team_id: teamId,
             },
         });
@@ -121,7 +123,7 @@ export async function PATCH(
         if (auto_respond_body !== undefined) updateData.auto_respond_body = auto_respond_body;
 
         const form = await (prismadb as any).form.update({
-            where: { id: params.formId },
+            where: { id: formId },
             data: updateData,
             include: {
                 fields: {
@@ -140,9 +142,10 @@ export async function PATCH(
 // DELETE - Delete form
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { formId: string } }
+    { params }: { params: Promise<{ formId: string }> }
 ) {
     try {
+        const { formId } = await params;
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -156,7 +159,7 @@ export async function DELETE(
         // Check form exists and belongs to team
         const existingForm = await (prismadb as any).form.findFirst({
             where: {
-                id: params.formId,
+                id: formId,
                 team_id: teamId,
             },
         });
@@ -167,7 +170,7 @@ export async function DELETE(
 
         // Delete form (fields and submissions will cascade due to schema)
         await (prismadb as any).form.delete({
-            where: { id: params.formId },
+            where: { id: formId },
         });
 
         return NextResponse.json({ success: true });

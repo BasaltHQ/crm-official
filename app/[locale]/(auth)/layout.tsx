@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 import "@/app/[locale]/globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import Footer from "@/app/[locale]/(routes)/components/Footer";
+import { AuthFooterWrapper } from "./components/AuthFooterWrapper";
 import { DiscordLogoIcon } from "@radix-ui/react-icons";
 
 type Props = {
@@ -60,7 +60,7 @@ const AuthLayout = async ({ children }: { children: React.ReactNode }) => {
       <div className="flex items-center grow h-full overflow-hidden">
         {children}
       </div>
-      <Footer />
+      <AuthFooterWrapper />
     </div>
   );
 };

@@ -26,7 +26,7 @@ export async function getAiSdkModel(userId: string | "system") {
     };
 
     const systemConfig = await getSystemConfig();
-    const systemModelId = systemConfig?.defaultModelId || process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";    
+    const systemModelId = systemConfig?.defaultModelId || process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o";
 
     // Helper to get Azure provider
     const getAzureModel = (modelId: string, apiKey?: string, config?: any) => {
@@ -95,7 +95,7 @@ export async function getAiSdkModel(userId: string | "system") {
         if (systemConfig?.provider === "AZURE") {
             const az = getAzureModel(
                 systemModelId,
-                systemConfig.apiKey,
+                systemConfig.apiKey ?? undefined,
                 systemConfig.configuration
             );
             if (az) {
@@ -111,7 +111,7 @@ export async function getAiSdkModel(userId: string | "system") {
         }
 
         console.debug(`${DEBUG_PREFIX} Selected modelId="${systemModelId}" | Source: SystemConfig/OpenAI (fallback) | userId=system`);
-        return getOpenAIModel(systemModelId, systemConfig?.apiKey);
+        return getOpenAIModel(systemModelId, systemConfig?.apiKey ?? undefined);
     }
 
     // 2. Get user's team
@@ -123,7 +123,7 @@ export async function getAiSdkModel(userId: string | "system") {
     if (!user?.team_id) {
         // Fallback to system logic
         if (systemConfig?.provider === "AZURE") {
-            const az = getAzureModel(systemModelId, systemConfig.apiKey, systemConfig.configuration);
+            const az = getAzureModel(systemModelId, systemConfig.apiKey ?? undefined, systemConfig.configuration);
             if (az) {
                 console.debug(`${DEBUG_PREFIX} Selected modelId="${systemModelId}" | Source: SystemConfig (AZURE, no team) | userId=${userId}`);
                 return az;
@@ -134,7 +134,7 @@ export async function getAiSdkModel(userId: string | "system") {
             return getAzureModel(systemModelId)!;
         }
         console.debug(`${DEBUG_PREFIX} Selected modelId="${systemModelId}" | Source: SystemConfig/OpenAI (no team) | userId=${userId}`);
-        return getOpenAIModel(systemModelId, systemConfig?.apiKey);
+        return getOpenAIModel(systemModelId, systemConfig?.apiKey ?? undefined);
     }
 
     // 3. Get team's AI config
@@ -150,7 +150,7 @@ export async function getAiSdkModel(userId: string | "system") {
         if (teamConfig.provider === "AZURE") {
             if (teamConfig.useSystemKey) {
                 if (systemConfig?.provider === "AZURE") {
-                    const az = getAzureModel(modelId, systemConfig.apiKey, systemConfig.configuration);
+                    const az = getAzureModel(modelId, systemConfig.apiKey ?? undefined, systemConfig.configuration);
                     if (az) {
                         console.debug(`${DEBUG_PREFIX} Selected modelId="${modelId}" | Source: TeamConfig (AZURE, useSystemKey) | userId=${userId} | teamId=${user.team_id}`);
                         return az;
@@ -174,13 +174,13 @@ export async function getAiSdkModel(userId: string | "system") {
                 return getOpenAIModel(modelId, teamConfig.apiKey);
             }
             console.debug(`${DEBUG_PREFIX} Selected modelId="${modelId}" | Source: TeamConfig (OPENAI, systemKey) | userId=${userId} | teamId=${user.team_id}`);
-            return getOpenAIModel(modelId, systemConfig?.apiKey);
+            return getOpenAIModel(modelId, systemConfig?.apiKey ?? undefined);
         }
     }
 
     // FALLBACK
     if (systemConfig?.provider === "AZURE") {
-        const az = getAzureModel(systemModelId, systemConfig.apiKey, systemConfig.configuration);
+        const az = getAzureModel(systemModelId, systemConfig.apiKey ?? undefined, systemConfig.configuration);
         if (az) {
             console.debug(`${DEBUG_PREFIX} Selected modelId="${systemModelId}" | Source: Fallback SystemConfig (AZURE) | userId=${userId}`);
             return az;
@@ -193,5 +193,5 @@ export async function getAiSdkModel(userId: string | "system") {
     }
 
     console.debug(`${DEBUG_PREFIX} Selected modelId="${systemModelId}" | Source: Fallback OpenAI (final) | userId=${userId}`);
-    return getOpenAIModel(systemModelId, systemConfig?.apiKey);
+    return getOpenAIModel(systemModelId, systemConfig?.apiKey ?? undefined);
 }

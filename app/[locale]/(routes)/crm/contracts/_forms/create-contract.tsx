@@ -22,10 +22,12 @@ const CreateContractForm = ({
   users,
   accounts,
   accountId,
+  customTrigger,
 }: {
   users: Users[];
   accounts: crm_Accounts[];
   accountId: string;
+  customTrigger?: React.ReactNode;
 }) => {
   const router = useRouter();
   const closeRef = useRef<ElementRef<"button">>(null);
@@ -79,7 +81,8 @@ const CreateContractForm = ({
 
   return (
     <FormSheet
-      trigger={"+"}
+      trigger={customTrigger ? undefined : "+"}
+      customTrigger={customTrigger}
       title="Create new contract"
       description=""
       onClose={closeRef}
@@ -141,7 +144,7 @@ const CreateContractForm = ({
           {isLoading ? (
             <Loader2 className="h-6 w-6  animate-spin" />
           ) : (
-            "Vytvořit"
+            "Create"
           )}
         </FormSubmit>
       </form>

@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { getTaskDone } from "@/app/[locale]/(routes)/projects/actions/get-task-done";
 import { Badge } from "@/components/ui/badge";
-import { CheckSquare, Pencil } from "lucide-react";
+import { CheckSquare, Pencil, Building, UserPlus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import UpdateTaskDialog from "@/app/[locale]/(routes)/projects/dialogs/UpdateTask";
 import { getActiveUsers } from "@/actions/get-users";
 import { useState } from "react";
 import { Icons } from "@/components/ui/icons";
+import { convertTaskToAccount } from "@/actions/projects/convert-task-to-account";
 
 
 const TaskViewActions = ({
@@ -32,6 +33,7 @@ const TaskViewActions = ({
 
   const [openEdit, setOpenEdit] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
   //console.log(initialData, "initialData");
   //console.log(openEdit, "openEdit");
@@ -51,6 +53,36 @@ const TaskViewActions = ({
       });
     } finally {
       setIsLoading(false);
+      router.refresh();
+    }
+  };
+
+  const onConvert = async () => {
+    setIsConverting(true);
+    try {
+      const result = await convertTaskToAccount(taskId);
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message,
+        });
+        // Optional: Redirect to account?
+        // router.push(`/crm/accounts/${result.accountId}`);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message,
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong during conversion.",
+      });
+    } finally {
+      setIsConverting(false);
       router.refresh();
     }
   };
@@ -77,13 +109,25 @@ const TaskViewActions = ({
       <Badge
         variant={"outline"}
         className="cursor-pointer"
+        onClick={onConvert}
+      >
+        {isConverting ? (
+          <Icons.spinner className="animate-spin w-4 h-4 mr-2" />
+        ) : (
+          <Building className="w-4 h-4 mr-2" />
+        )}
+        Convert to Account
+      </Badge>
+      <Badge
+        variant={"outline"}
+        className="cursor-pointer"
         onClick={() => setOpenEdit(true)}
       >
         <Pencil className="w-4 h-4 mr-2" />
         Edit
       </Badge>
       <Sheet open={openEdit} onOpenChange={(open) => setOpenEdit(open)}>
-        <SheetContent>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto md:overflow-y-hidden">
           <SheetHeader>
             <SheetTitle>Edit Task</SheetTitle>
           </SheetHeader>
@@ -93,11 +137,6 @@ const TaskViewActions = ({
             initialData={initialData}
             onDone={() => setOpenEdit(false)}
           />
-          <div className="flex pt-2 w-full justify-end">
-            <Button onClick={() => setOpenEdit(false)} variant={"destructive"}>
-              Close
-            </Button>
-          </div>
         </SheetContent>
       </Sheet>
     </div>

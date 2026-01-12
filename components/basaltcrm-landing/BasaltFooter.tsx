@@ -18,6 +18,7 @@ const socialLinks = [
     { label: 'Twitter', href: 'https://twitter.com/BasaltHQ' },
     { label: 'LinkedIn', href: 'https://linkedin.com/company/basalthq' },
     { label: 'GitHub', href: 'https://github.com/basalthq' },
+    { label: 'Discord', href: 'https://discord.gg/gcgNugyWkg' },
 ];
 
 export default function BasaltFooter() {
@@ -48,10 +49,10 @@ export default function BasaltFooter() {
                             <span className="text-cyan-500 font-semibold">Your Business. Supercharged.</span> Empowering companies with autonomous AI agents that drive revenue and customer satisfaction.
                         </p>
                         <a
-                            href="mailto:hello@basalthq.com"
+                            href="mailto:info@basalthq.com"
                             className="text-cyan-500 text-sm hover:underline"
                         >
-                            hello@basalthq.com
+                            info@basalthq.com
                         </a>
                     </div>
 

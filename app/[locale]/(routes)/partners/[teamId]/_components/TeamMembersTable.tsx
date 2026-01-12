@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { MoreHorizontal, Shield, User, Trash, Search, Plus, KeyRound, Ban, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Shield, User, Trash, Search, Plus, KeyRound, Ban, CheckCircle, Fingerprint } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,9 +45,10 @@ type Props = {
     teamSlug: string;
     members: Member[];
     isSuperAdmin?: boolean;
+    ownerId?: string | null;
 };
 
-const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) => {
+const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: Props) => {
     // ... existing hook logic ... 
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +63,7 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) =>
     const [passwordOpen, setPasswordOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [newPassword, setNewPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     const handlePasswordChange = async () => {
         if (!selectedUser || !newPassword) return;
@@ -236,13 +238,26 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) =>
                             Enter a new password for this user.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <Input
-                            type="password"
-                            placeholder="New Password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                        />
+                    <div className="space-y-4 py-4 property-wrapper">
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="New Password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="pr-10"
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                disabled={isLoading}
+                            >
+                                <Fingerprint className={`h-4 w-4 ${showPassword ? "text-primary" : "text-muted-foreground"}`} />
+                            </Button>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setPasswordOpen(false)}>Cancel</Button>
@@ -253,65 +268,75 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) =>
 
             <CardContent>
                 <div className="space-y-4">
-                    {members.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg bg-card/50">
-                            <div className="flex items-center gap-4">
-                                <Avatar>
-                                    <AvatarImage src={member.avatar || ""} />
-                                    <AvatarFallback>{(member.name || member.email)[0].toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="font-medium text-sm">{member.name || "Unknown Name"}</p>
-                                    <p className="text-xs text-muted-foreground">{member.email}</p>
+                    {members.map((member) => {
+                        const isOwner = ownerId && member.id === ownerId;
+                        return (
+                            <div key={member.id} className={`flex items-center justify-between p-4 border rounded-lg ${isOwner ? "bg-amber-500/5 border-amber-500/30" : "bg-card/50"}`}>
+                                <div className="flex items-center gap-4">
+                                    <Avatar>
+                                        <AvatarImage src={member.avatar || ""} />
+                                        <AvatarFallback>{(member.name || member.email)[0].toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium text-sm">{member.name || "Unknown Name"}</p>
+                                            {isOwner && (
+                                                <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                                    Owner
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <Badge variant={member.team_role === "PLATFORM_ADMIN" ? "destructive" : member.team_role === "OWNER" ? "default" : member.team_role === "ADMIN" ? "secondary" : "outline"}>
+                                        {member.team_role || "MEMBER"}
+                                    </Badge>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" disabled={isLoading}>
+                                                <MoreHorizontal className="w-4 h-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "ADMIN")}>
+                                                <Shield className="w-4 h-4 mr-2" /> Make Admin
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "MEMBER")}>
+                                                <User className="w-4 h-4 mr-2" /> Make Member
+                                            </DropdownMenuItem>
+
+                                            {/* Super Admin Option - Only if internal team and authorized */}
+                                            {teamSlug === "ledger1" && isSuperAdmin && (
+                                                <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "PLATFORM_ADMIN")} className="text-red-500 font-bold bg-red-50 focus:bg-red-100 mt-1">
+                                                    <Shield className="w-4 h-4 mr-2" /> Make Platform Admin
+                                                </DropdownMenuItem>
+                                            )}
+
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem className="text-red-600" onClick={() => handleRemove(member.id)}>
+                                                <Trash className="w-4 h-4 mr-2" /> Remove from Team
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuLabel>Admin</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => { setSelectedUser(member.id); setPasswordOpen(true); }}>
+                                                <KeyRound className="w-4 h-4 mr-2" /> Change Password
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleToggleStatus(member.id, (member as any).userStatus)}>
+                                                {(member as any).userStatus === "INACTIVE" ? (
+                                                    <><CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Enable Account</>
+                                                ) : (
+                                                    <><Ban className="w-4 h-4 mr-2 text-red-600" /> Disable Account</>
+                                                )}
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <Badge variant={member.team_role === "SUPER_ADMIN" ? "destructive" : member.team_role === "OWNER" ? "default" : member.team_role === "ADMIN" ? "secondary" : "outline"}>
-                                    {member.team_role || "MEMBER"}
-                                </Badge>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" disabled={isLoading}>
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "ADMIN")}>
-                                            <Shield className="w-4 h-4 mr-2" /> Make Admin
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "MEMBER")}>
-                                            <User className="w-4 h-4 mr-2" /> Make Member
-                                        </DropdownMenuItem>
-
-                                        {/* Super Admin Option - Only if internal team and authorized */}
-                                        {teamSlug === "ledger1" && isSuperAdmin && (
-                                            <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "SUPER_ADMIN")} className="text-red-500 font-bold bg-red-50 focus:bg-red-100 mt-1">
-                                                <Shield className="w-4 h-4 mr-2" /> Make Super Admin
-                                            </DropdownMenuItem>
-                                        )}
-
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-red-600" onClick={() => handleRemove(member.id)}>
-                                            <Trash className="w-4 h-4 mr-2" /> Remove from Team
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuLabel>Admin</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => { setSelectedUser(member.id); setPasswordOpen(true); }}>
-                                            <KeyRound className="w-4 h-4 mr-2" /> Change Password
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleToggleStatus(member.id, (member as any).userStatus)}>
-                                            {(member as any).userStatus === "INACTIVE" ? (
-                                                <><CheckCircle className="w-4 h-4 mr-2 text-green-600" /> Enable Account</>
-                                            ) : (
-                                                <><Ban className="w-4 h-4 mr-2 text-red-600" /> Disable Account</>
-                                            )}
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {members.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground">
@@ -320,7 +345,7 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin }: Props) =>
                     )}
                 </div>
             </CardContent>
-        </Card>
+        </Card >
     );
 };
 

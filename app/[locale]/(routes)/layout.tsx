@@ -7,6 +7,7 @@ import Header from "./components/Header";
 import SideBar from "./components/SideBar";
 import Footer from "./components/Footer";
 import { Metadata } from "next";
+import RecentActivityTracker from "@/components/RecentActivityTracker";
 
 function getSafeMetadataBase(): URL {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -81,7 +82,8 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden">
+    <div className="fixed inset-0 flex h-[100dvh] overflow-hidden">
+      <RecentActivityTracker />
       <SideBar />
       <div className="flex flex-col h-full w-full min-w-0 overflow-hidden">
         <Header

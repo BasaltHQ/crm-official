@@ -19,7 +19,7 @@ export const getAllCrmData = async () => {
   // Previous logic for users was just Active. Now we should filter by Team?
   // Prismadb.users has team_id.
   const usersWhere = {
-    userStatus: "ACTIVE",
+    userStatus: "ACTIVE" as any,
     ...(teamInfo?.isGlobalAdmin ? {} : { team_id: teamInfo?.teamId })
   };
 
@@ -34,6 +34,7 @@ export const getAllCrmData = async () => {
     }
   });
   const leads = await prismadb.crm_Leads.findMany({ where: whereClause });
+
   const contacts = await (prismadb.crm_Contacts as any).findMany({ where: whereClause });
   const contracts = await (prismadb.crm_Contracts as any).findMany({ where: whereClause });
 

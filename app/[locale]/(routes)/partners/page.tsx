@@ -9,7 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prismadb } from "@/lib/prisma";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { PartnersNavigation } from "./_components/PartnersNavigation";
 
 const PartnersPage = async () => {
     const session = await getServerSession(authOptions);
@@ -26,38 +26,50 @@ const PartnersPage = async () => {
         return redirect("/");
     }
 
-    const isInternalTeam = user.assigned_team?.slug === "ledger1";
+    const isInternalTeam = user.assigned_team?.slug === "ledger1" || user.assigned_team?.slug === "basalt" || user.assigned_team?.slug === "basalthq";
     const isAdmin = user.is_admin;
 
     if (!isAdmin && !isInternalTeam) {
         return redirect("/");
     }
 
-    const [teams, plans] = await Promise.all([
+    const [teams, plans, totalUsers] = await Promise.all([
         getTeams(),
-        getPlans()
+        getPlans(),
+        prismadb.users.count({
+            where: {
+                team_id: { not: null }
+            }
+        })
     ]);
+
+    const activeTeamsCount = (teams as any[]).filter(t => t.status === 'ACTIVE').length;
+    const totalTeamsCount = (teams as any[]).length;
 
     return (
         <Container
-            title="Partners"
+            title="Platform"
             description="Manage your Teams and CRM Instances"
         >
             <div className="p-4 space-y-6">
-                <div className="flex flex-wrap gap-4">
-                    <Link href="/partners/ai-system-config">
-                        <Button variant="outline" className="text-cyan-400 border-cyan-800 hover:bg-cyan-950">
-                            AI System Keys & Defaults
-                        </Button>
-                    </Link>
-                    <Link href="/partners/ai-pricing">
-                        <Button variant="outline" className="text-cyan-400 border-cyan-800 hover:bg-cyan-950">
-                            AI Model Pricing
-                        </Button>
-                    </Link>
+                <PartnersNavigation availablePlans={plans as any} />
+
+                {/* Global Stats Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-card border rounded-lg shadow-sm">
+                        <div className="text-sm text-muted-foreground font-medium">Total Teams</div>
+                        <div className="text-2xl font-bold">{totalTeamsCount}</div>
+                    </div>
+                    <div className="p-4 bg-card border rounded-lg shadow-sm">
+                        <div className="text-sm text-muted-foreground font-medium">Active Teams</div>
+                        <div className="text-2xl font-bold">{activeTeamsCount}</div>
+                    </div>
+                    <div className="p-4 bg-card border rounded-lg shadow-sm">
+                        <div className="text-sm text-muted-foreground font-medium">Total Users</div>
+                        <div className="text-2xl font-bold">{totalUsers}</div>
+                    </div>
                 </div>
 
-                {/* @ts-expect-error Server Component */}
                 <Suspense fallback={<div>Loading teams...</div>}>
                     <PartnersView initialTeams={teams as any} availablePlans={plans as any} />
                 </Suspense>

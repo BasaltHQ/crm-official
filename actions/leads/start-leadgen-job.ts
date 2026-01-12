@@ -33,6 +33,8 @@ export const LeadGenWizardSchema = z.object({
       maxContactsPerCompany: z.number().int().positive().max(50).default(3).optional(),
     })
     .optional(),
+  // Link to a project (optional)
+  projectId: z.string().optional(),
 });
 
 export type LeadGenWizardInput = z.infer<typeof LeadGenWizardSchema>;
@@ -64,7 +66,7 @@ export async function startLeadGenJob(
   // Validate wizard payload
   const parsed = LeadGenWizardSchema.safeParse(wizard);
   if (!parsed.success) {
-    const msg = parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
+    const msg = parsed.error.issues.map((e) => `${String(e.path.join("."))}: ${e.message}`).join("; ");
     throw new Error(`Invalid wizard input - ${msg}`);
   }
 
@@ -77,6 +79,7 @@ export async function startLeadGenJob(
       icpConfig: {
         ...parsed.data.icp,
         limits: parsed.data.limits ?? {},
+        assignedProjectId: parsed.data.projectId || undefined,
       },
       // status defaults to "ACTIVE"
     },

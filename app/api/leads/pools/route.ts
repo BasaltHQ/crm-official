@@ -18,44 +18,29 @@ export async function GET() {
   }
 
   try {
-    const teamInfo = await getCurrentUserTeamId();
-
-    // Super Admin sees all pools
-    const isGlobalAdmin = teamInfo?.isGlobalAdmin;
-
-    // Team Members see pools assigned to their team
-    const teamId = teamInfo?.teamId;
-
-    const whereClause: any = {};
-    if (!isGlobalAdmin) {
-      if (teamId) {
-        whereClause.OR = [
-          { team_id: teamId },
-          { user: session.user.id }
-        ];
-      } else {
-        whereClause.user = session.user.id;
-      }
-    }
-
-    const pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
-      where: whereClause,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        user: true, // Include user info for admins to see who owns the pool
-      },
+    // Verify user role
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { team_role: true }
     });
 
-    const results = [];
-    for (const p of pools) {
-      const latestJob = await (prismadbCrm as any).crm_Lead_Gen_Jobs.findFirst({
-        where: { pool: p.id },
-        orderBy: { startedAt: "desc" },
+    const isMember = user?.team_role === "MEMBER";
+    const teamInfo = await getCurrentUserTeamId();
+    const isGlobalAdmin = teamInfo?.isGlobalAdmin;
+    const teamId = teamInfo?.teamId;
+
+    const poolSelect = {
+      id: true,
+      name: true,
+      description: true,
+      createdAt: true,
+      updatedAt: true,
+      user: true,
+      icpConfig: true,
+      assigned_members: true,
+      jobs: {
+        take: 1,
+        orderBy: { startedAt: "desc" as const },
         select: {
           id: true,
           status: true,
@@ -64,66 +49,93 @@ export async function GET() {
           counters: true,
           queryTemplates: true,
         },
-      });
+      },
+      _count: {
+        select: { candidates: true },
+      },
+    };
 
-      const candidatesCount = await (prismadbCrm as any).crm_Lead_Candidates.count({
-        where: { pool: p.id },
-      });
+    let pools: any[] = [];
 
-      // Get total contacts count for the pool
-      const contactsCount = await (prismadbCrm as any).crm_Contact_Candidates.count({
-        where: {
-          leadCandidate: {
-            in: await (prismadbCrm as any).crm_Lead_Candidates.findMany({
-              where: { pool: p.id },
-              select: { id: true }
-            }).then((candidates: any[]) => candidates.map(c => c.id))
-          }
-        }
+    if (isGlobalAdmin) {
+      // All pools
+      pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+        orderBy: { createdAt: "desc" },
+        select: poolSelect,
       });
+    } else if (isMember) {
+      // Members: Use two separate queries and merge to avoid OR clause issues
+      console.log("[LEADS_POOLS_GET] Member query - fetching pools for user:", session.user.id);
 
-      // Get preview of first 11 candidates
-      const candidatesPreview = await (prismadbCrm as any).crm_Lead_Candidates.findMany({
-        where: { pool: p.id },
-        orderBy: { score: "desc" },
-        take: 11,
-        select: {
-          id: true,
-          domain: true,
-          companyName: true,
-          industry: true,
-          score: true,
-          contacts: {
-            select: {
-              email: true,
-              phone: true,
-            },
+      // Query 1: Pools created by member
+      const createdPools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+        where: { user: session.user.id },
+        orderBy: { createdAt: "desc" },
+        select: poolSelect,
+      });
+      console.log("[LEADS_POOLS_GET] Created pools count:", createdPools.length);
+
+      // Query 2: Pools where member is assigned
+      const assignedPools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+        where: { assigned_members: { has: session.user.id } },
+        orderBy: { createdAt: "desc" },
+        select: poolSelect,
+      });
+      console.log("[LEADS_POOLS_GET] Assigned pools count:", assignedPools.length);
+
+      // Merge and dedupe by id
+      const poolMap = new Map<string, any>();
+      for (const p of createdPools) poolMap.set(p.id, p);
+      for (const p of assignedPools) poolMap.set(p.id, p);
+      pools = Array.from(poolMap.values());
+
+      // Sort by createdAt desc
+      pools.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      // Admins/Team Owners: Team + Own
+      if (teamId) {
+        pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+          where: {
+            OR: [
+              { team_id: teamId },
+              { user: session.user.id }
+            ]
           },
-        },
-      });
-
-      // Get full pool data including icpConfig
-      const fullPool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
-        where: { id: p.id },
-        select: {
-          icpConfig: true,
-        },
-      });
-
-      results.push({
-        ...p,
-        latestJob: latestJob ?? null,
-        candidatesCount,
-        contactsCount,
-        candidatesPreview,
-        icpConfig: fullPool?.icpConfig ?? null,
-      });
+          orderBy: { createdAt: "desc" },
+          select: poolSelect,
+        });
+      } else {
+        pools = await (prismadbCrm as any).crm_Lead_Pools.findMany({
+          where: { user: session.user.id },
+          orderBy: { createdAt: "desc" },
+          select: poolSelect,
+        });
+      }
     }
 
+    console.log("[LEADS_POOLS_GET] Total pools returned:", pools.length);
+
+    const results = pools.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      user: p.user,
+      icpConfig: p.icpConfig,
+      assignedMembers: p.assigned_members || [],
+      latestJob: p.jobs?.[0] || null,
+      candidatesCount: p._count?.candidates || 0,
+    }));
+
     return NextResponse.json({ pools: results }, { status: 200 });
-  } catch (error) {
-    console.error("[LEADS_POOLS_GET]", error);
-    return new NextResponse("Failed to fetch lead pools", { status: 500 });
+  } catch (error: any) {
+    console.error("[LEADS_POOLS_GET] Error:", error?.message || error);
+    console.error("[LEADS_POOLS_GET] Stack:", error?.stack);
+    return new NextResponse(JSON.stringify({ error: error?.message || "Failed to fetch lead pools" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 }
 
