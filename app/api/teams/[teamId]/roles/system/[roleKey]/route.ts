@@ -21,7 +21,7 @@ export async function PATCH(
             select: { team_role: true, assigned_team: { select: { slug: true } } },
         });
 
-        const isGlobalAdmin = currentUser?.assigned_team?.slug === "ledger1" && currentUser?.team_role === "SUPER_ADMIN";
+        const isGlobalAdmin = currentUser?.assigned_team?.slug === "ledger1" && currentUser?.team_role === "PLATFORM_ADMIN";
         if (!isGlobalAdmin) {
             return NextResponse.json({ error: "Only platform admins can update system roles" }, { status: 403 });
         }

@@ -24,7 +24,7 @@ const PlansPage = async () => {
     });
 
     const isInternalTeam = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
-    const isAdmin = user?.is_admin || (isInternalTeam && (user?.team_role === "SUPER_ADMIN" || user?.team_role === "OWNER"));
+    const isAdmin = user?.is_admin || (isInternalTeam && (user?.team_role === "PLATFORM_ADMIN" || user?.team_role === "OWNER"));
 
     if (!isAdmin) {
         return redirect("/");

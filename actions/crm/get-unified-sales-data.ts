@@ -57,7 +57,7 @@ export const getUnifiedSalesData = async (): Promise<UnifiedSalesData | null> =>
         meta: {
             serverTime: new Date().toISOString(),
             userId,
-            isGlobalAdmin: session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN", // Assuming role structure
+            isGlobalAdmin: session.user.role === "ADMIN" || session.user.role === "PLATFORM_ADMIN", // Assuming role structure
         },
         summary: {
             revenue: summaryCounts.revenue,

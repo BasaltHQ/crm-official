@@ -20,10 +20,11 @@ export const getCurrentUserTeamId = async () => {
     });
 
     const isInternalTeam = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
-    const isSuperAdminRole = user?.team_role === "SUPER_ADMIN";
+    const isPlatformAdminRole = user?.team_role === "PLATFORM_ADMIN";
 
-    // "God Mode" only for SUPER_ADMIN in Internal Team
-    const isGlobalAdmin = isInternalTeam && isSuperAdminRole;
+    // "God Mode" only for PLATFORM_ADMIN in Internal Team
+    const isGlobalAdmin = isInternalTeam && isPlatformAdminRole;
+
 
     return {
         teamId: user?.team_id,

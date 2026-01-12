@@ -35,12 +35,12 @@ async function main() {
             process.exit(1);
         }
 
-        // Assign to internal team and set role to SUPER_ADMIN
+        // Assign to internal team and set role to PLATFORM_ADMIN
         const updated = await prismadb.users.update({
             where: { email },
             data: {
                 team_id: internalTeam.id,
-                team_role: "SUPER_ADMIN"
+                team_role: "PLATFORM_ADMIN"
             }
         });
 

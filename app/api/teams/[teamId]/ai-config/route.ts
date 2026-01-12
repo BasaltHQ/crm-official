@@ -35,8 +35,8 @@ export async function POST(
             },
         });
 
-        const isGlobalAdmin = user?.assigned_team?.slug === "ledger1" && user?.team_role === "SUPER_ADMIN";
-        const isTeamAdmin = user?.team_id === teamId && ["OWNER", "ADMIN", "SUPER_ADMIN"].includes(user?.team_role || "");
+        const isGlobalAdmin = user?.assigned_team?.slug === "ledger1" && user?.team_role === "PLATFORM_ADMIN";
+        const isTeamAdmin = user?.team_id === teamId && ["OWNER", "ADMIN", "PLATFORM_ADMIN"].includes(user?.team_role || "");
 
         if (!isGlobalAdmin && !isTeamAdmin) {
             return NextResponse.json({ error: "Not authorized to modify this team's settings" }, { status: 403 });

@@ -11,11 +11,11 @@ export const updateMemberRole = async (userId: string, role: string) => {
     try {
         const currentUser = await getCurrentUserTeamId();
 
-        // Security Check for SUPER_ADMIN
-        if (role === "SUPER_ADMIN") {
-            const isAuthorized = currentUser?.isGlobalAdmin; // strictly defined in team-utils as Internal + SUPER_ADMIN
+        // Security Check for PLATFORM_ADMIN
+        if (role === "PLATFORM_ADMIN") {
+            const isAuthorized = currentUser?.isGlobalAdmin; // strictly defined in team-utils as Internal + PLATFORM_ADMIN
             if (!isAuthorized) {
-                return { error: "Unauthorized: Only Super Admins can assign this role." };
+                return { error: "Unauthorized: Only Platform Admins can assign this role." };
             }
         }
 

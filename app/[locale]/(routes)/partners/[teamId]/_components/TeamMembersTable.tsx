@@ -290,7 +290,7 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <Badge variant={member.team_role === "SUPER_ADMIN" ? "destructive" : member.team_role === "OWNER" ? "default" : member.team_role === "ADMIN" ? "secondary" : "outline"}>
+                                    <Badge variant={member.team_role === "PLATFORM_ADMIN" ? "destructive" : member.team_role === "OWNER" ? "default" : member.team_role === "ADMIN" ? "secondary" : "outline"}>
                                         {member.team_role || "MEMBER"}
                                     </Badge>
                                     <DropdownMenu>
@@ -310,8 +310,8 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
 
                                             {/* Super Admin Option - Only if internal team and authorized */}
                                             {teamSlug === "ledger1" && isSuperAdmin && (
-                                                <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "SUPER_ADMIN")} className="text-red-500 font-bold bg-red-50 focus:bg-red-100 mt-1">
-                                                    <Shield className="w-4 h-4 mr-2" /> Make Super Admin
+                                                <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "PLATFORM_ADMIN")} className="text-red-500 font-bold bg-red-50 focus:bg-red-100 mt-1">
+                                                    <Shield className="w-4 h-4 mr-2" /> Make Platform Admin
                                                 </DropdownMenuItem>
                                             )}
 
