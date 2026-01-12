@@ -36,7 +36,11 @@ const PartnersPage = async () => {
     const [teams, plans, totalUsers] = await Promise.all([
         getTeams(),
         getPlans(),
-        prismadb.users.count()
+        prismadb.users.count({
+            where: {
+                team_id: { not: null }
+            }
+        })
     ]);
 
     const activeTeamsCount = (teams as any[]).filter(t => t.status === 'ACTIVE').length;

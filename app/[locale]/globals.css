@@ -633,12 +633,22 @@
     @apply border-border;
   }
 
+  html {
+    min-height: 100%;
+    @apply bg-background;
+    /* Ensure overscroll area is dark */
+    background-color: hsl(var(--background));
+  }
+
   body {
+    min-height: 100vh;
     @apply bg-background text-foreground;
     /* BasaltCRM: liquid glass morphism global gradient background */
     background: var(--osiris-gradient);
     background-attachment: fixed;
     background-size: cover;
+    overscroll-behavior-y: none;
+    /* Optional: prevents bounce if desired, but user just asked for no white */
   }
 
   /* Force dark input backgrounds - NO WHITE CONTAINERS */

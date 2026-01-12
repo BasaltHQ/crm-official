@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AiProvider, AiModel, TeamAiConfig } from "@prisma/client";
-import { TeamAiForm } from "./TeamAiForm";
+import { AiConfigManager } from "./AiConfigManager";
 
 interface TeamAiSettingsProps {
     teamId: string;
@@ -50,11 +50,10 @@ export const TeamAiSettings = ({ teamId }: TeamAiSettingsProps) => {
     }
 
     return (
-        <TeamAiForm
+        <AiConfigManager
             teamId={teamId}
-            initialConfig={teamConfig}
-            activeModels={activeModels}
-            enabledProviders={enabledProviders}
+            currentConfig={teamConfig}
+            models={activeModels}
             providersWithSystemKey={providersWithSystemKey}
         />
     );

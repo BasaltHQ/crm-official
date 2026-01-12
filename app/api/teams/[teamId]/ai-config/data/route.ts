@@ -41,7 +41,10 @@ export async function GET(
             .map(c => c.provider);
 
         return NextResponse.json({
-            teamConfig,
+            teamConfig: teamConfig ? {
+                ...teamConfig,
+                apiKey: teamConfig.apiKey ? "********" : null
+            } : null,
             activeModels,
             enabledProviders,
             providersWithSystemKey

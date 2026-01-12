@@ -1,7 +1,7 @@
 
 import { prismadb } from "@/lib/prisma";
 import { AiProvider } from "@prisma/client";
-import { TeamAiForm } from "./TeamAiForm";
+import { AiConfigManager } from "@/components/ai/AiConfigManager";
 
 interface TeamAiSettingsProps {
     teamId: string;
@@ -37,11 +37,10 @@ const TeamAiSettings = async ({ teamId }: TeamAiSettingsProps) => {
         .map(c => c.provider);
 
     return (
-        <TeamAiForm
+        <AiConfigManager
             teamId={teamId}
-            initialConfig={teamConfig}
-            activeModels={activeModels}
-            enabledProviders={enabledProviders}
+            currentConfig={teamConfig}
+            models={activeModels}
             providersWithSystemKey={providersWithSystemKey}
         />
     );

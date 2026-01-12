@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
-import AiSettingsView from "./_components/AiSettingsView";
+import { AiConfigManager } from "@/components/ai/AiConfigManager";
 
 export default async function AdminAiSettingsPage() {
     const session = await getServerSession(authOptions);
@@ -50,23 +50,19 @@ export default async function AdminAiSettingsPage() {
         .filter((c) => c.apiKey && c.apiKey.trim().length > 0)
         .map((c) => c.provider);
 
-    // Filter to only show models from enabled providers
-    const enabledProviders = systemConfigs
-        .filter((c) => c.isActive)
-        .map((c) => c.provider);
-
-    const availableModels = activeModels.filter((m) =>
-        enabledProviders.includes(m.provider)
-    );
+    const availableModels = activeModels;
 
     return (
         <Container
             title="AI Settings"
             description="Configure your team's AI model preferences and API keys"
         >
-            <AiSettingsView
+            <AiConfigManager
                 teamId={teamId}
-                currentConfig={teamConfig}
+                currentConfig={teamConfig ? {
+                    ...teamConfig,
+                    apiKey: teamConfig.apiKey ? "********" : null
+                } : null}
                 models={availableModels}
                 providersWithSystemKey={providersWithSystemKey}
             />

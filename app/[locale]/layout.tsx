@@ -131,7 +131,7 @@ export default async function RootLayout(props: Props) {
   const session = await getServerSession(authOptions);
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning className="h-full">
       <head>
         <meta
           name="viewport"
