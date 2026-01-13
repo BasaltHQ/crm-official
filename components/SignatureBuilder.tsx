@@ -44,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { HexColorPicker } from "react-colorful";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // --- Types ---
@@ -87,12 +87,15 @@ interface SignatureData {
   companyLogoUrl: string;
   companyTagline: string;
   accentColor: string;
-  template: "professional" | "modern" | "minimalist" | "elegant" | "creative" | "banner" | "corporate" | "compact";
+  template: "professional" | "modern" | "minimalist" | "elegant" | "creative" | "banner" | "corporate" | "compact" | "tech" | "classic" | "social" | "dense";
   socialLinks: SocialLink[];
   textColor: string;
   backgroundColor: string;
   highlightLastName: boolean;
+  transparentBackground: boolean;
+
   medallions: Medallion[];
+  imageShape: "circle" | "rounded" | "oval";
 }
 
 interface SignatureBuilderProps {
@@ -182,7 +185,10 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
     textColor: DEFAULT_TEXT_COLOR,
     backgroundColor: DEFAULT_BACKGROUND_COLOR,
     highlightLastName: true,
+    transparentBackground: false,
+
     medallions: [],
+    imageShape: "circle",
   });
 
   const [saving, setSaving] = useState(false);
@@ -200,6 +206,10 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
     banner: ["department", "companyLogoUrl", "companyTagline", "medallions"],
     corporate: ["department", "companyLogoUrl", "medallions"], // No tagline
     compact: ["medallions"], // No dept, logo, tagline
+    tech: ["companyLogoUrl", "medallions"],
+    classic: ["department", "medallions"],
+    social: ["medallions"],
+    dense: ["department", "companyLogoUrl", "medallions"],
   };
 
   const currentVisible = VISIBLE_FIELDS[data.template] || [];
@@ -263,6 +273,8 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             template: meta.template || "professional",
             textColor: meta.textColor || DEFAULT_TEXT_COLOR,
             backgroundColor: meta.backgroundColor || DEFAULT_BACKGROUND_COLOR,
+            transparentBackground: meta.transparentBackground || false,
+            imageShape: meta.imageShape || "circle",
           }));
         }
       } catch (error) {
@@ -406,8 +418,35 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
     const {
       firstName, lastName, title, department, phone, email, website,
       profileImage, companyLogoUrl, companyTagline, accentColor,
-      template, socialLinks, textColor, backgroundColor, highlightLastName, medallions
+      template, socialLinks, textColor, backgroundColor, highlightLastName, transparentBackground, medallions, imageShape
     } = data;
+
+    // Helper: Format Phone Number (+1 XXX-XXX-XXXX)
+    const formatPhoneNumber = (str: string) => {
+      if (!str) return "";
+      const cleaned = ('' + str).replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+      if (match) {
+        return `+1 ${match[1]}-${match[2]}-${match[3]}`;
+      }
+      return str;
+    };
+    const formattedPhone = formatPhoneNumber(phone);
+    const telHref = phone ? `tel:${phone}` : ''; // Keep original for tel or we can sanitize: phone.replace(/[^0-9+]/g, '')
+
+    const getImageStyle = (baseSize: number) => {
+      let style = `object-fit: cover; display: block;`;
+
+      if (imageShape === "rounded") {
+        style += ` border-radius: 10px; width: ${baseSize}px; height: ${baseSize}px; aspect-ratio: 1;`;
+      } else if (imageShape === "oval") {
+        style += ` border-radius: 50%; width: ${baseSize}px; height: ${baseSize * 1.25}px;`;
+      } else {
+        // circle (default)
+        style += ` border-radius: 50%; width: ${baseSize}px; height: ${baseSize}px; aspect-ratio: 1;`;
+      }
+      return style;
+    };
 
     const rgb = hexToRgb(accentColor);
     const textRgb = hexToRgb(textColor);
@@ -417,7 +456,8 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
       : `${firstName} ${lastName}`;
 
     // Wrapper style for background color
-    const wrapperStyle = `background-color: ${backgroundColor}; padding: 20px;`;
+    const bgColorStyle = transparentBackground ? 'background-color: transparent;' : `background-color: ${backgroundColor};`;
+    const wrapperStyle = `${bgColorStyle} padding: 20px;`;
     const wrapperStart = `<div style="${wrapperStyle}">`;
     const wrapperEnd = `</div>`;
 
@@ -488,8 +528,8 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
               <table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   ${showLeftColumn ? `
-                  <td valign="top" style="padding-right: 20px; width: 100px;">
-                    ${profileImage ? `<img src="${profileImage}" width="100" height="100" style="border-radius: 50%; width: 100px; height: 100px; object-fit: cover; display: block; margin-bottom: 12px;" alt="${firstName}" />` : ''}
+                  <td valign="top" style="padding-right: 20px; width: 125px;">
+                    ${profileImage ? `<img src="${profileImage}" width="100" height="${imageShape === 'oval' ? 125 : 100}" style="${getImageStyle(100)} margin-bottom: 12px;" alt="${firstName}" />` : ''}
                     
                     ${companyLogoUrl ? `
                       <img src="${companyLogoUrl}" width="100" style="display: block; width: 100px; height: auto; margin-top: 12px;" alt="Logo" />
@@ -515,7 +555,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                           <td width="24" style="padding-bottom: 6px; vertical-align: middle;">
                             <img src="${getIconUrl('phone', accentColor)}" width="14" height="14" alt="P" style="display: block;" />
                           </td>
-                          <td style="padding-bottom: 6px; vertical-align: middle;"><a href="tel:${phone}" style="color: inherit; text-decoration: none;">${phone}</a></td>
+                          <td style="padding-bottom: 6px; vertical-align: middle;"><a href="${telHref}" style="color: inherit; text-decoration: none;">${formattedPhone}</a></td>
                         </tr>
                       ` : ''}
                       ${email ? `
@@ -560,7 +600,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
           <tr>
             ${profileImage ? `
               <td valign="top" style="padding-right: 12px;">
-                <img src="${profileImage}" width="60" height="60" style="border-radius: 50%; width: 60px; height: 60px; object-fit: cover; display: block;" alt="${firstName}" />
+                <img src="${profileImage}" width="60" height="${imageShape === 'oval' ? 75 : 60}" style="${getImageStyle(60)}" alt="${firstName}" />
               </td>
             ` : ''}
             <td valign="top" style="border-left: 1px solid #ddd; padding-left: 12px;">
@@ -568,7 +608,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
               <div style="font-size: 14px; color: rgba(${textRgb}, 0.7); margin-bottom: 6px;">${title}</div>
 
               <div style="font-size: 12px; line-height: 1.5;">
-                ${phone ? `<div><img src="${getIconUrl('phone', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> ${phone}</div>` : ''}
+                ${phone ? `<div><img src="${getIconUrl('phone', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> ${formattedPhone}</div>` : ''}
                 ${email ? `<div><img src="${getIconUrl('mail', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></div>` : ''}
                 ${website ? `<div><img src="${getIconUrl('globe', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> <a href="https://${website}" style="color:inherit; text-decoration:none;">${website}</a></div>` : ''}
               </div>
@@ -591,13 +631,13 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
           <tr>
             <td align="center" style="padding: 24px;">
               ${profileImage ? `
-                <img src="${profileImage}" width="100" height="100" style="border-radius: 50%; width: 100px; height: 100px; object-fit: cover; display: block; margin-bottom: 16px; border: 4px solid #f7fafc;" alt="${firstName}" />
+                <img src="${profileImage}" width="100" height="${imageShape === 'oval' ? 125 : 100}" style="${getImageStyle(100)} margin-bottom: 16px; border: 4px solid #f7fafc;" alt="${firstName}" />
               ` : ''}
               <div style="font-size: 24px; font-weight: bold; color: ${textColor}; letter-spacing: 0.5px;">${nameHtml}</div>
               <div style="font-size: 14px; color: ${accentColor}; font-style: italic; margin-bottom: 16px;">${title} ${department ? `k &mdash; ${department}` : ''}</div>
 
               <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
-                ${phone ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('phone', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> ${phone}</td></tr>` : ''}
+                ${phone ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('phone', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> ${formattedPhone}</td></tr>` : ''}
                 ${email ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('mail', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td></tr>` : ''}
                 ${website ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('globe', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> <a href="https://${website}" style="color: inherit; text-decoration: none;">${website}</a></td></tr>` : ''}
               </table>
@@ -622,7 +662,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
           <tr>
             <td valign="top" style="background-color: ${accentColor}; padding: 20px; border-radius: 12px 0 0 12px; text-align: center; width: 120px;">
                ${profileImage ? `
-                <img src="${profileImage}" width="80" height="80" style="border-radius: 50%; width: 80px; height: 80px; object-fit: cover; display: block; margin: 0 auto 12px auto; border: 2px solid rgba(255,255,255,0.3);" alt="${firstName}" />
+                <img src="${profileImage}" width="80" height="${imageShape === 'oval' ? 100 : 80}" style="${getImageStyle(80)} margin: 0 auto 12px auto; border: 2px solid rgba(255,255,255,0.3);" alt="${firstName}" />
               ` : ''}
               <div style="font-size: 24px; color: #fff; font-weight: 900; line-height: 1;">${firstName.charAt(0)}${lastName.charAt(0)}</div>
             </td>
@@ -631,7 +671,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
               <div style="color: ${accentColor}; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">${title}</div>
 
               <div style="font-size: 13px; color: rgba(${textRgb}, 0.7); line-height: 1.6;">
-                ${phone ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('phone', accentColor)}" width="14" height="14" /> ${phone}</div>` : ''}
+                ${phone ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('phone', accentColor)}" width="14" height="14" /> ${formattedPhone}</div>` : ''}
                 ${email ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('mail', accentColor)}" width="14" height="14" /> <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></div>` : ''}
                 ${website ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('globe', accentColor)}" width="14" height="14" /> <a href="https://${website}" style="color: inherit; text-decoration: none;">${website}</a></div>` : ''}
               </div>
@@ -658,7 +698,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
 
                <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 12px;">
                  <tr>
-                   ${phone ? `<td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('phone', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${phone}</td>` : ''}
+                   ${phone ? `<td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('phone', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${formattedPhone}</td>` : ''}
                    ${email ? `<td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('mail', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td>` : ''}
                  </tr>
                  <tr>
@@ -696,7 +736,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             ${showLeftColumn ? `
             <td valign="top" width="90" style="padding-right: 16px;">
               ${profileImage ? `
-                 <img src="${profileImage}" width="80" height="80" style="border-radius: 50%; width: 80px; height: 80px; object-fit: cover; display: block; margin-bottom: 12px;" />
+                 <img src="${profileImage}" width="80" height="${imageShape === 'oval' ? 100 : 80}" style="${getImageStyle(80)} margin-bottom: 12px;" />
               ` : ''}
 
               ${medallions && medallions.length > 0 ? `
@@ -719,7 +759,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
           <tr>
             <td colspan="2" style="padding-top: 12px;">
               <div style="font-size: 12px; display: flex; gap: 16px; color: ${textColor};">
-                 ${phone ? `<span><b style="color:${accentColor}">P:</b> ${phone}</span>` : ''}
+                 ${phone ? `<span><b style="color:${accentColor}">P:</b> ${formattedPhone}</span>` : ''}
                  ${email ? `<span><b style="color:${accentColor}">E:</b> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></span>` : ''}
                  ${website ? `<span><b style="color:${accentColor}">W:</b> <a href="https://${website}" style="color:inherit; text-decoration:none;">${website}</a></span>` : ''}
               </div>
@@ -741,7 +781,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
         <div style="font-family: sans-serif; font-size: 12px; color: ${textColor};">
            <div style="font-weight: bold; font-size: 14px;">${nameHtml} <span style="font-weight: normal; color: ${accentColor}; mx-2">|</span> <span style="font-weight: normal; color: #666;">${title}</span></div>
            <div style="margin-top: 4px;">
-              ${phone ? `<a href="tel:${phone}" style="color:inherit; text-decoration:none; margin-right: 8px;">${phone}</a>` : ''}
+              ${phone ? `<a href="${telHref}" style="color:inherit; text-decoration:none; margin-right: 8px;">${formattedPhone}</a>` : ''}
               ${email ? `<a href="mailto:${email}" style="color:inherit; text-decoration:none; margin-right: 8px;">${email}</a>` : ''}
               ${website ? `<a href="https://${website}" style="color:inherit; text-decoration:none;">${website}</a>` : ''}
            </div>
@@ -752,12 +792,19 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
       `;
     }
 
+
     // Template 3: Modern (Bottom bar)
-    return `
+    // NOTE: This acts as our fallback/default return if no specific template matched above, 
+    // OR if template === 'modern' explicitly. 
+    // However, if we added more templates below, we must ensure they are reachable.
+    // Ideally, we make 'modern' an if-block too, and have a final fallback.
+
+    if (template === "modern") {
+      return `
       ${wrapperStart}
       <div style="font-family: sans-serif; max-width: 600px; width: 100%;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-           ${profileImage ? `<img src="${profileImage}" width="64" height="64" style="border-radius: 50%; width: 64px; height: 64px; object-fit: cover;" />` : ''}
+           ${profileImage ? `<img src="${profileImage}" width="64" height="${imageShape === 'oval' ? 80 : 64}" style="${getImageStyle(64)}" />` : ''}
            <div>
              <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: ${textColor};">${nameHtml}</h2>
              <div style="font-size: 14px; color: ${accentColor}; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">${title}</div>
@@ -766,7 +813,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
 
         <div style="border-top: 2px solid ${accentColor}; padding-top: 12px; display:flex; justify-content:space-between; flex-wrap:wrap;">
           <div style="font-size: 12px; color: rgba(${textRgb}, 0.8); line-height: 1.6;">
-            ${phone ? `<div><img src="${getIconUrl('phone', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${phone}</div>` : ''}
+            ${phone ? `<div><img src="${getIconUrl('phone', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${formattedPhone}</div>` : ''}
             ${email ? `<div><img src="${getIconUrl('mail', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${email}</div>` : ''}
             ${website ? `<div><img src="${getIconUrl('globe', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${website}</div>` : ''}
           </div>
@@ -778,6 +825,131 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
       </div>
       ${wrapperEnd}
     `;
+    }
+
+    // Template 9: Tech (Monospace, Code Block)
+    if (template === "tech") {
+      return `
+        ${wrapperStart}
+    <div style="font-family: 'Courier New', Courier, monospace; color: ${textColor}; max-width: 600px; padding: 16px; border: 1px solid ${accentColor}; border-radius: 8px; background-color: ${transparentBackground ? 'rgba(0,0,0,0.8)' : '#1e1e1e'};">
+      <div style="color: ${accentColor}; margin-bottom: 12px;">// ${title}</div>
+      <div style="display: flex; gap: 20px; align-items: flex-start;">
+        ${profileImage ? `<img src="${profileImage}" width="80" height="${imageShape === 'oval' ? 100 : 80}" style="${getImageStyle(80)} border: 2px solid ${accentColor};" />` : ''}
+        <div>
+          <div style="font-size: 20px; font-weight: bold; color: #fff;">const <span style="color: ${accentColor};">Method</span> = "${nameHtml}";</div>
+          ${department ? `<div style="font-size: 13px; color: #888; margin-top: 4px;">// ${department}</div>` : ''}
+
+          <div style="margin-top: 16px; font-size: 12px; color: #ccc;">
+            ${phone ? `<div>phone: <span style="color: #a5d6ff;">"${formattedPhone}"</span>,</div>` : ''}
+            ${email ? `<div>email: <span style="color: #a5d6ff;">"${email}"</span>,</div>` : ''}
+            ${website ? `<div>web: <span style="color: #a5d6ff;">"<a href="https://${website}" style="color:inherit;text-decoration:none;">${website}</a>"</span>,</div>` : ''}
+          </div>
+
+          <div style="margin-top: 16px;">
+            <span style="color: #888;">return</span> [
+            ${activeSocials.map(s => `<a href="${s.url}" style="color: ${accentColor}; text-decoration: none; margin-right: 8px;">${s.platform}</a>`).join(", ")}
+            ];
+          </div>
+          ${medallionsHtml}
+        </div>
+      </div>
+      <div style="margin-top: 12px; color: ${accentColor};">}</div>
+    </div>
+        ${wrapperEnd}
+    `;
+    }
+
+    // Template 10: Classic (Serif, Centered Divider)
+    if (template === "classic") {
+      return `
+         ${wrapperStart}
+    <table cellpadding="0" cellspacing="0" border="0" style="font-family: Georgia, 'Times New Roman', Times, serif; max-width: 600px; width: 100%; text-align: center;">
+      <tr>
+        <td align="center">
+          ${profileImage ? `<img src="${profileImage}" width="100" height="${imageShape === 'oval' ? 125 : 100}" style="${getImageStyle(100)} margin-bottom: 16px;" />` : ''}
+          <div style="font-size: 26px; font-weight: normal; color: ${textColor}; letter-spacing: 1px; text-transform: uppercase;">${nameHtml}</div>
+          <div style="font-size: 14px; color: ${accentColor}; font-style: italic; margin-top: 6px;">${title}</div>
+
+          <div style="width: 40px; height: 2px; background-color: ${accentColor}; margin: 16px auto;"></div>
+
+          <div style="font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1.8;">
+            ${phone ? `${formattedPhone} &nbsp;|&nbsp;` : ''}
+            ${email ? `<a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a>` : ''}
+            ${website ? `&nbsp;|&nbsp; <a href="https://${website}" style="color: inherit; text-decoration: none;">${website}</a>` : ''}
+          </div>
+
+          <div style="margin-top: 16px;">
+            ${socialHtml}
+          </div>
+          ${medallionsHtml}
+        </td>
+      </tr>
+    </table>
+         ${wrapperEnd}
+    `;
+    }
+
+    // Template 11: Social (Icons focus)
+    if (template === "social") {
+      return `
+         ${wrapperStart}
+    <div style="font-family: 'Segoe UI', sans-serif; max-width: 500px;">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        ${profileImage ? `<img src="${profileImage}" width="90" height="${imageShape === 'oval' ? 112 : 90}" style="${getImageStyle(90)} border-radius: 20%;" />` : ''}
+        <div>
+          <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: ${textColor};">${nameHtml}</h2>
+          <div style="font-size: 14px; color: ${accentColor}; font-weight: 700;">@${firstName}${lastName}</div>
+          <div style="font-size: 14px; color: #555; margin-top: 4px;">${title}</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; background: rgba(${rgb}, 0.05); padding: 12px; border-radius: 12px; display: inline-block;">
+        ${socialHtml}
+      </div>
+
+      <div style="margin-top: 12px; font-size: 13px;">
+        ${email ? `<b>E:</b> <a href="mailto:${email}" style="text-decoration:none; color:${textColor};">${email}</a> &nbsp; ` : ''}
+        ${website ? `<b>W:</b> <a href="https://${website}" style="text-decoration:none; color:${textColor};">${website}</a>` : ''}
+      </div>
+      ${medallionsHtml}
+    </div>
+         ${wrapperEnd}
+    `;
+    }
+
+    // Template 12: Dense (Grid layout)
+    if (template === "dense") {
+      return `
+        ${wrapperStart}
+    <table cellpadding="0" cellspacing="0" border="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: ${textColor}; border: 1px solid #ddd; border-left: 5px solid ${accentColor}; padding: 10px;">
+      <tr>
+        ${profileImage ? `<td valign="top" style="padding-right: 12px;"><img src="${profileImage}" width="60" height="${imageShape === 'oval' ? 75 : 60}" style="${getImageStyle(60)}" /></td>` : ''}
+        <td valign="top">
+          <div style="font-weight: bold; font-size: 14px;">${nameHtml}</div>
+          <div style="color: ${accentColor}; font-weight: bold; margin-bottom: 6px;">${title}</div>
+
+          <table cellpadding="0" cellspacing="0" border="0" style="font-size: 11px; color: #555; width: 100%;">
+            <tr>
+              ${phone ? `<td style="padding: 2px 0;"><b>Tel:</b> ${formattedPhone}</td>` : ''}
+              ${email ? `<td style="padding: 2px 0;"><b>Email:</b> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></td>` : ''}
+            </tr>
+            <tr>
+              ${website ? `<td style="padding: 2px 0;"><b>Web:</b> <a href="https://${website}" style="color:inherit; text-decoration:none;">${website}</a></td>` : ''}
+              ${department ? `<td style="padding: 2px 0;"><b>Dept:</b> ${department}</td>` : ''}
+            </tr>
+          </table>
+
+          <div style="margin-top: 8px;">${socialHtml}</div>
+        </td>
+      </tr>
+      ${medallions && medallions.length > 0 ? `<tr><td colspan="2" style="padding-top: 8px; border-top: 1px solid #eee; margin-top: 8px;">${medallionsHtml}</td></tr>` : ''}
+    </table>
+        ${wrapperEnd}
+    `;
+    }
+
+    // Fallback?
+    return ``; // Should catch one of the above
   };
 
   // Handler: Save
@@ -810,7 +982,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
     try {
       const html = generateHTML();
       const blobHtml = new Blob([html], { type: "text/html" });
-      const blobText = new Blob([`${data.firstName} ${data.lastName} - ${data.title}`], { type: "text/plain" }); // Fallback plain
+      const blobText = new Blob([`${data.firstName} ${data.lastName} - ${data.title} `], { type: "text/plain" }); // Fallback plain
 
       const item = new ClipboardItem({
         "text/html": blobHtml,
@@ -1056,119 +1228,119 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label>Colors</Label>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={data.highlightLastName}
-                          onCheckedChange={(c) => startUpdate("highlightLastName", c)}
-                        />
-                        <span className="text-xs text-muted-foreground">Highlight Last Name</span>
+                    <div className="flex flex-col gap-4 mb-4">
+                      <Label>Options</Label>
+                      <div className="flex flex-wrap items-center gap-6">
+                        {/* Highlight Last Name Switch */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={data.highlightLastName}
+                              onCheckedChange={(c) => startUpdate("highlightLastName", c)}
+                            />
+                            <Label className="text-sm font-medium">Highlight Last Name</Label>
+                          </div>
+                        </div>
+
+                        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+                        {/* Transparent Background Toggle */}
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={data.transparentBackground}
+                            onCheckedChange={(c) => startUpdate("transparentBackground", c)}
+                          />
+                          <Label className="text-sm font-medium">Transparent Background</Label>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Colors</Label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                       {/* Accent Color */}
-                      <div className="space-y-2">
-                        <span className="text-xs text-muted-foreground">Accent</span>
-                        <div className="flex items-center gap-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <div
-                                className="w-10 h-8 rounded border cursor-pointer shadow-sm relative overflow-hidden"
-                                style={{ backgroundColor: data.accentColor }}
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-3">
-                              <HexColorPicker color={data.accentColor} onChange={(c) => startUpdate("accentColor", c)} />
-                            </PopoverContent>
-                          </Popover>
-                          <Input value={data.accentColor} onChange={(e) => startUpdate("accentColor", e.target.value)} className="font-mono text-xs h-8" />
-                        </div>
+                      <div className="space-y-3">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pl-1">Accent</span>
+                        <ColorPicker
+                          value={data.accentColor}
+                          onChange={(c) => startUpdate("accentColor", c)}
+                        />
                       </div>
 
                       {/* Text Color */}
-                      <div className="space-y-2">
-                        <span className="text-xs text-muted-foreground">Text</span>
-                        <div className="flex items-center gap-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <div
-                                className="w-10 h-8 rounded border cursor-pointer shadow-sm relative overflow-hidden"
-                                style={{ backgroundColor: data.textColor }}
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-3">
-                              <HexColorPicker color={data.textColor} onChange={(c) => startUpdate("textColor", c)} />
-                            </PopoverContent>
-                          </Popover>
-                          <Input value={data.textColor} onChange={(e) => startUpdate("textColor", e.target.value)} className="font-mono text-xs h-8" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Theme Colors Grid */}
-                    <div className="flex gap-2 flex-wrap pt-2">
-                      {THEME_COLORS.map(color => (
-                        <div
-                          key={color}
-                          onClick={() => startUpdate("accentColor", color)}
-                          className={`
-                              w-5 h-5 rounded-full cursor-pointer hover:scale-110 transition-transform 
-                              ${data.accentColor === color ? 'ring-2 ring-primary ring-offset-2' : ''}
-                            `}
-                          style={{ backgroundColor: color }}
-                          title={color}
+                      <div className="space-y-3">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pl-1">Text</span>
+                        <ColorPicker
+                          value={data.textColor}
+                          onChange={(c) => startUpdate("textColor", c)}
                         />
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  <Separator />
-                  <div className="space-y-3">
-                    <Label>Background Color</Label>
-                    <div className="grid grid-cols-2 gap-4">
                       {/* Background Color */}
-                      <div className="space-y-2">
-                        <span className="text-xs text-muted-foreground">Background</span>
-                        <div className="flex items-center gap-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <div
-                                className="w-10 h-8 rounded border cursor-pointer shadow-sm relative overflow-hidden"
-                                style={{ backgroundColor: data.backgroundColor }}
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 border-none">
-                              <HexColorPicker color={data.backgroundColor} onChange={(c) => startUpdate("backgroundColor", c)} />
-                              <div className="p-2 bg-popover border-t">
-                                <Input
-                                  value={data.backgroundColor}
-                                  onChange={(e) => startUpdate("backgroundColor", e.target.value)}
-                                  className="h-8"
-                                />
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                      <div className={`space-y-3 ${data.transparentBackground ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider pl-1">Background</span>
+                        <ColorPicker
+                          value={data.backgroundColor}
+                          onChange={(c) => startUpdate("backgroundColor", c)}
+                          disabled={data.transparentBackground}
+                        />
                       </div>
                     </div>
                   </div>
 
                   <Separator />
-                  <div className="space-y-3">
-                    <Label>Layout Template</Label>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      {["professional", "modern", "minimalist", "elegant", "creative", "banner", "corporate", "compact"].map((t) => (
+                  <div className="space-y-4">
+                    <Label className="text-base">Profile Picture Shape</Label>
+                    <div className="flex gap-4">
+                      <div
+                        onClick={() => startUpdate("imageShape", "circle")}
+                        className={`
+                          flex-1 px-6 py-4 border-2 rounded-xl cursor-pointer flex flex-col items-center gap-3 transition-all duration-200
+                          ${data.imageShape === 'circle' ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-muted hover:border-border hover:bg-muted/50'}
+                        `}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-foreground/10" />
+                        <span className="text-sm font-semibold">Circle</span>
+                      </div>
+                      <div
+                        onClick={() => startUpdate("imageShape", "rounded")}
+                        className={`
+                          flex-1 px-6 py-4 border-2 rounded-xl cursor-pointer flex flex-col items-center gap-3 transition-all duration-200
+                          ${data.imageShape === 'rounded' ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-muted hover:border-border hover:bg-muted/50'}
+                        `}
+                      >
+                        <div className="w-10 h-10 rounded-[8px] bg-foreground/10" />
+                        <span className="text-sm font-semibold">Rounded</span>
+                      </div>
+                      <div
+                        onClick={() => startUpdate("imageShape", "oval")}
+                        className={`
+                          flex-1 px-6 py-4 border-2 rounded-xl cursor-pointer flex flex-col items-center gap-3 transition-all duration-200
+                          ${data.imageShape === 'oval' ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-muted hover:border-border hover:bg-muted/50'}
+                        `}
+                      >
+                        <div className="w-8 h-10 rounded-[50%] bg-foreground/10" />
+                        <span className="text-sm font-semibold">Oval</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+                  <div className="space-y-4">
+                    <Label className="text-base">Layout Template</Label>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {["professional", "modern", "minimalist", "elegant", "creative", "banner", "corporate", "compact", "tech", "classic", "social", "dense"].map((t) => (
                         <div
                           key={t}
                           onClick={() => startUpdate("template", t as any)}
                           className={`
-                             cursor-pointer rounded-lg border-2 p-3 text-center transition-all hover:bg-accent
-                             ${data.template === t ? "border-primary bg-accent/50" : "border-border"}
+                            cursor-pointer rounded-xl border-2 p-4 py-5 text-center transition-all duration-200 flex items-center justify-center min-h-[70px]
+                            ${data.template === t ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm" : "border-muted hover:border-border hover:bg-muted/30"}
                           `}
                         >
-                          <div className="text-sm font-medium capitalize">{t}</div>
+                          <div className="text-sm font-semibold capitalize tracking-tight">{t}</div>
                         </div>
                       ))}
                     </div>
