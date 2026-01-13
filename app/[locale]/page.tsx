@@ -18,20 +18,11 @@ export const metadata: Metadata = {
         description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
         type: "website",
         url: "https://crm.basalthq.com",
-        images: [
-            {
-                url: "https://crm.basalthq.com/social-preview.jpg",
-                width: 1200,
-                height: 630,
-                alt: "BasaltCRM – AI Sales & Support Engine",
-            },
-        ],
     },
     twitter: {
         card: "summary_large_image",
         title: "BasaltCRM – AI Sales & Support Engine",
         description: "Automated prospecting, social intelligence, and 24/7 AI agents that never sleep.",
-        images: ["https://crm.basalthq.com/social-preview.jpg"],
     },
 };
 

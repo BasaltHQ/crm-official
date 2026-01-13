@@ -1,30 +1,30 @@
 /**
- * Consolidate Mongo data into the ledger1crm database using Prisma with datasource overrides.
+ * Consolidate Mongo data into the BasaltCRM database using Prisma with datasource overrides.
  *
  * This script:
- * - Connects to SOURCE and TARGET Mongo databases (same cluster, different DB names)
- * - Copies all Prisma-modeled collections from SOURCE (e.g., nextcrm) into TARGET (ledger1crm)
- * - Reconciles Users by email, preserving TARGET user IDs when duplicates exist and remapping references
- * - Preserves ObjectId values when inserting new records to maintain relational integrity
- *
+ * - Connects to SOURCE and TARGET Mongo databases(same cluster, different DB names)
+  * - Copies all Prisma - modeled collections from SOURCE(e.g., nextcrm) into TARGET(BasaltCRM)
+    * - Reconciles Users by email, preserving TARGET user IDs when duplicates exist and remapping references
+      * - Preserves ObjectId values when inserting new records to maintain relational integrity
+        *
  * IMPORTANT
- * - Run during a maintenance window or freeze writes to avoid divergence.
+        * - Run during a maintenance window or freeze writes to avoid divergence.
  * - BACKUP your databases before running.
  *
- * Environment variables (provide via CLI when running):
- * - SOURCE_DATABASE_URL  (e.g., .../nextcrm?... )
- * - TARGET_DATABASE_URL  (e.g., .../ledger1crm?... )
- *
- * Example run on Windows (cmd.exe):
- *   set SOURCE_DATABASE_URL="mongodb+srv://user:pass@host/nextcrm?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000" && ^
- *   set TARGET_DATABASE_URL="mongodb+srv://user:pass@host/ledger1crm?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000" && ^
- *   npx ts-node ./scripts/migrate-to-ledger1crm.ts
- *
+ * Environment variables(provide via CLI when running):
+ * - SOURCE_DATABASE_URL(e.g., .../nextcrm?...)
+  * - TARGET_DATABASE_URL(e.g., .../ledger1crm?...)
+  *
+ * Example run on Windows(cmd.exe):
+ * set SOURCE_DATABASE_URL = "mongodb+srv://user:pass@host/nextcrm?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000" && ^
+ * set TARGET_DATABASE_URL = "mongodb+srv://user:pass@host/ledger1crm?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000" && ^
+ * npx ts - node./ scripts / migrate - to - ledger1crm.ts
+  *
  * Safety features:
- * - Skips chat collections from SOURCE (chat_Sessions, chat_Messages) since they’re already in TARGET
- * - Upserts based on id for most models
- * - Users are upserted by email to avoid unique constraint failures, with mapping to keep TARGET IDs canonical
- */
+ * - Skips chat collections from SOURCE(chat_Sessions, chat_Messages) since they’re already in TARGET
+  * - Upserts based on id for most models
+    * - Users are upserted by email to avoid unique constraint failures, with mapping to keep TARGET IDs canonical
+      */
 
 import { PrismaClient } from "@prisma/client";
 
