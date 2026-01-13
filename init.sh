@@ -68,8 +68,8 @@ npm run build
 # This script is used to start the server
 echo "-------------------------------------- START SCRIPT --------------------------------------"
 echo "Starting the server..."
-echo " Instance: https://$instance.nextcrm.online"
+echo " Instance: https://$instance.crm.basalthq.com"
 echo " Port: $port"
 echo "------------------------------------------------------------------------------------------"
-pm2 start npm --name "nextcrm-$instance" -- start -- --port $port
+pm2 start npm --name "basalt-$instance" -- start -- --port $port
 pm2 save

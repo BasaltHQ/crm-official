@@ -30,6 +30,31 @@ import {
 } from "@/components/ui/dialog";
 
 import { updateMemberRole, removeMember, searchUsers, addMember, changePassword, toggleUserStatus } from "@/actions/teams/member-actions";
+import { TeamChangeRoleModal, RoleOption } from "./TeamChangeRoleModal";
+
+// Define base roles available to all teams
+const BASE_ROLES: RoleOption[] = [
+    {
+        value: "ADMIN",
+        label: "Admin",
+        description: "Full access to manage team settings and members.",
+        icon: Shield,
+    },
+    {
+        value: "MEMBER",
+        label: "Member",
+        description: "Can access standard features and modules.",
+        icon: User,
+    },
+];
+
+// Define Platform Admin role
+const PLATFORM_ADMIN_ROLE: RoleOption = {
+    value: "PLATFORM_ADMIN",
+    label: "Platform Admin",
+    description: "Full control over the entire platform (Super Admin).",
+    icon: Shield,
+};
 
 
 type Member = {
@@ -58,6 +83,10 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
+
+    // Role Change State
+    const [roleModalOpen, setRoleModalOpen] = useState(false);
+    const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
     // Password Reset State
     const [passwordOpen, setPasswordOpen] = useState(false);
@@ -105,7 +134,7 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
 
     const handleRoleUpdate = async (userId: string, role: string) => {
         try {
-            setIsLoading(true);
+            // setIsLoading(true); // Handled by modal
             const res = await updateMemberRole(userId, role);
             if (res.error) {
                 toast.error(res.error);
@@ -115,8 +144,6 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
             }
         } catch (error) {
             toast.error("Failed to update");
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -230,6 +257,23 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
 
             </CardHeader>
 
+            {/* Change Role Modal */}
+            {selectedMember && (
+                <TeamChangeRoleModal
+                    isOpen={roleModalOpen}
+                    onClose={() => { setRoleModalOpen(false); setSelectedMember(null); }}
+                    memberId={selectedMember.id}
+                    memberName={selectedMember.name || "User"}
+                    currentRole={selectedMember.team_role || "MEMBER"}
+                    onConfirm={handleRoleUpdate}
+                    allowedRoles={
+                        ["ledger1", "basalthq", "basalt"].includes(teamSlug) && isSuperAdmin
+                            ? [PLATFORM_ADMIN_ROLE, ...BASE_ROLES]
+                            : BASE_ROLES
+                    }
+                />
+            )}
+
             <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -301,17 +345,11 @@ const TeamMembersTable = ({ teamId, teamSlug, members, isSuperAdmin, ownerId }: 
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "ADMIN")}>
-                                                <Shield className="w-4 h-4 mr-2" /> Make Admin
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "MEMBER")}>
-                                                <User className="w-4 h-4 mr-2" /> Make Member
-                                            </DropdownMenuItem>
-
-                                            {/* Super Admin Option - Only if internal team and authorized */}
-                                            {teamSlug === "ledger1" && isSuperAdmin && (
-                                                <DropdownMenuItem onClick={() => handleRoleUpdate(member.id, "PLATFORM_ADMIN")} className="text-red-500 font-bold bg-red-50 focus:bg-red-100 mt-1">
-                                                    <Shield className="w-4 h-4 mr-2" /> Make Platform Admin
+                                            {/* Unified Change Role Option */}
+                                            {/* Hide for OWNER to prevent accidental changes (System-Wide Protection) */}
+                                            {member.team_role !== "OWNER" && (
+                                                <DropdownMenuItem onClick={() => { setSelectedMember(member); setRoleModalOpen(true); }}>
+                                                    <Shield className="w-4 h-4 mr-2" /> Change Role
                                                 </DropdownMenuItem>
                                             )}
 

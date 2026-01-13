@@ -18,7 +18,7 @@ export async function updateTeamStatus(
         include: { assigned_team: true }
     }) as any;
 
-    const isInternalAdmin = user?.assigned_team?.slug === "ledger1" && (user.team_role === "PLATFORM_ADMIN" || user.team_role === "OWNER");
+    const isInternalAdmin = ["ledger1", "basalthq", "basalt"].includes(user?.assigned_team?.slug) && (user.team_role === "PLATFORM_ADMIN" || user.team_role === "OWNER");
 
     if (!isInternalAdmin && !user?.is_admin) {
         return { error: "Forbidden: Only internal admins can update team status." };

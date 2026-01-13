@@ -16,8 +16,9 @@ async function checkAuth() {
         include: { assigned_team: true }
     }) as any;
 
-    const isGlobalAdmin = user?.assigned_team?.slug === "ledger1" && user.team_role === "PLATFORM_ADMIN";
-    const isBoss = user?.assigned_team?.slug === "ledger1" && user.team_role === "OWNER";
+    const isInternalTeam = ["ledger1", "basalthq", "basalt"].includes(user?.assigned_team?.slug);
+    const isGlobalAdmin = isInternalTeam && user.team_role === "PLATFORM_ADMIN";
+    const isBoss = isInternalTeam && user.team_role === "OWNER";
 
     // Also allow legacy global admin flag for now, or just stick to new roles
     const isAdmin = user?.is_admin || isGlobalAdmin || isBoss;
