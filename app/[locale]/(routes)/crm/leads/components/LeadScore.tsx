@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect } from "react";
 import { Activity, TrendingUp, TrendingDown, Minus, Loader2, RefreshCw } from "lucide-react";
 import { useAiScore } from "@/app/hooks/use-ai-score";
