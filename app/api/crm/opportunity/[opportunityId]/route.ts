@@ -27,7 +27,12 @@ export async function PUT(req: Request, props: { params: Promise<{ opportunityId
       where: { id: destination },
     });
 
-    if (newStage?.probability === 100) {
+    if (
+      newStage?.probability === 100 ||
+      newStage?.name === "Complete" ||
+      newStage?.name === "Closed Won" ||
+      newStage?.name === "Realization of the project"
+    ) {
       const opportunity = await prismadb.crm_Opportunities.findUnique({
         where: { id: opportunityId },
       });

@@ -8,7 +8,7 @@ import {
   getUsersCountOverall,
 } from "@/actions/get-users";
 import { AreaChartDemo } from "@/components/tremor/AreaChart";
-import { getTasksByMonth } from "@/actions/projects/get-tasks";
+import { getTasksByMonth } from "@/actions/campaigns/get-tasks";
 import {
   getOpportunitiesByMonth,
   getOpportunitiesByStage,

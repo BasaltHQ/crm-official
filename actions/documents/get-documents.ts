@@ -11,7 +11,7 @@ export const getDocuments = async () => {
 
   const whereClause: any = {};
 
-  if (teamInfo?.isGlobalAdmin) {
+  if (teamInfo?.isGlobalAdmin || teamInfo?.teamRole === 'PLATFORM_ADMIN') {
     // Global admins see all documents
   } else if (teamInfo?.teamRole === "MEMBER") {
     // Members only see their own created or assigned documents

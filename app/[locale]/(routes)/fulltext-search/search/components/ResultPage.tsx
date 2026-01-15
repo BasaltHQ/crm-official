@@ -131,7 +131,7 @@ const ResultPage = ({ results, search }: Props) => {
         renderItem={(item) => ({
           title: item.title,
           subtitle: item.description,
-          href: `/projects/boards/${item.id}`,
+          href: `/campaigns/boards/${item.id}`,
         })}
       />
 

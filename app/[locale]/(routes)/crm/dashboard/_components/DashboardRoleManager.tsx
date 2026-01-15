@@ -71,10 +71,10 @@ const DashboardRoleManager = async () => {
                 { name: "Lead Wizard", value: 0, href: "/crm/lead-wizard", iconName: "Wand2", color: "cyan" }, // Added
                 { name: "Lead Pools", value: 0, href: "/crm/lead-pools", iconName: "Target", color: "blue" }, // Added
                 { name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users", color: "emerald" }, // Added
-                { name: "Campaigns", value: 0, href: "/crm/campaigns", iconName: "Megaphone", color: "orange" }, // Added
+                { name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange" }, // Renamed from Campaigns
                 // "My Projects" was in the screenshot grid, adding here for visual match
-                // "My Projects" was in the screenshot grid, adding here for visual match
-                { name: "My Projects", value: counts.boards, href: "/projects", iconName: "Folder", color: "yellow" },
+                // "My Campaigns" was in the screenshot grid, adding here for visual match
+                { name: "My Campaigns", value: counts.boards, href: "/campaigns", iconName: "Folder", color: "yellow" },
                 // Leads removed as per user request to remove from "main admin panel"
                 { name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "HeartHandshake", color: "amber" },
             );
@@ -83,8 +83,8 @@ const DashboardRoleManager = async () => {
         // Redundancy Removal: Merge Projects into main grid
         if (projectsModule?.enabled) {
             crmEntities.push(
-                { name: "Projects", value: counts.boards, href: "/projects", iconName: "FolderKanban", color: "cyan" },
-                { name: "My Tasks", value: usersTasks, href: `/projects/tasks/${userId}`, iconName: "Target", color: "emerald" },
+                { name: "Campaigns", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" },
+                { name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald" },
             );
         }
 

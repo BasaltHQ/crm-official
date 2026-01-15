@@ -59,7 +59,7 @@ const OpportunitiesView = ({
               onClick={() => router.push("/crm/opportunities")}
               className="cursor-pointer"
             >
-              Opportunities
+              Sales Pipeline
             </CardTitle>
             <CardDescription></CardDescription>
           </div>

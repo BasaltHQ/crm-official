@@ -38,7 +38,7 @@ export default function ProjectOpportunitiesPanel() {
     // Fetch accessible projects
     (async () => {
       try {
-        const res = await fetch("/api/projects", { cache: "no-store" });
+        const res = await fetch("/api/campaigns", { cache: "no-store" });
         if (res.ok) {
           const j = await res.json();
           setProjects((j?.projects || []) as Project[]);
@@ -54,10 +54,10 @@ export default function ProjectOpportunitiesPanel() {
     setIsLoading(true);
     (async () => {
       try {
-        const res = await fetch(`/api/projects/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
+        const res = await fetch(`/api/campaigns/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
         if (res.ok) {
           const j = await res.json();
-          setOpportunities((j?.opportunities || []) as Opportunity[]);
+          setOpportunities(((j?.opportunities || []) as Opportunity[]).filter(o => o.status !== 'ARCHIVED'));
         }
       } catch (e) {
         // ignore
@@ -78,19 +78,19 @@ export default function ProjectOpportunitiesPanel() {
     }
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/projects/${encodeURIComponent(selectedProjectId)}/opportunities`, {
+      const res = await fetch(`/api/campaigns/${encodeURIComponent(selectedProjectId)}/opportunities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, category, description: description || null, valueEstimate: valueEstimate ? Number(valueEstimate) : undefined }),
       });
       if (!res.ok) throw new Error(await res.text());
       const j = await res.json();
-      toast({ title: "Opportunity posted", description: j?.opportunity?.title });
+      toast({ title: "Request submitted", description: j?.opportunity?.title });
       setTitle("");
       setDescription("");
       setValueEstimate("");
       // refresh
-      const res2 = await fetch(`/api/projects/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
+      const res2 = await fetch(`/api/campaigns/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
       const j2 = await res2.json();
       setOpportunities((j2?.opportunities || []) as Opportunity[]);
     } catch (e: any) {
@@ -104,10 +104,10 @@ export default function ProjectOpportunitiesPanel() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-end">
         <div className="w-full md:w-64">
-          <label className="text-sm">Project</label>
+          <label className="text-sm">Campaign</label>
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select project" />
+              <SelectValue placeholder="Select campaign" />
             </SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {projects.map((p) => (
@@ -120,7 +120,7 @@ export default function ProjectOpportunitiesPanel() {
 
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Post New Opportunity</h3>
+          <h3 className="text-sm font-semibold">Create New Request</h3>
           <span className="text-xs text-muted-foreground">Feature buildouts & commissioned work</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -151,13 +151,13 @@ export default function ProjectOpportunitiesPanel() {
           <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description" />
         </div>
         <div className="flex justify-end">
-          <Button disabled={isLoading} onClick={onCreateOpportunity}>Post</Button>
+          <Button disabled={isLoading} onClick={onCreateOpportunity}>Submit Request</Button>
         </div>
       </Card>
 
       <Card className="p-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold">Opportunities</h3>
+          <h3 className="text-sm font-semibold">Posted Requests</h3>
           <span className="text-xs text-muted-foreground">{opportunities.length} items</span>
         </div>
         <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">

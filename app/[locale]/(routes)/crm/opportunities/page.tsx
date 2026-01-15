@@ -19,7 +19,7 @@ const AccountsPage = async () => {
     >
       <div className="space-y-8">
         <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <h2 className="text-lg font-semibold mb-2">Project Opportunities</h2>
+          <h2 className="text-lg font-semibold mb-2">Project Feature Requests</h2>
           <p className="text-sm text-muted-foreground mb-3">
             Sales can post feature buildouts or commissioned work tied to a specific project. These can be referenced from project tasks.
           </p>

@@ -36,7 +36,7 @@ export default function LeadGenWizardPage() {
   const [currentAiField, setCurrentAiField] = useState<keyof WizardState | null>(null);
 
   // Fetch projects for selector
-  const { data: projectsData } = useSWR<{ projects: { id: string; title: string }[] }>("/api/projects", fetcher);
+  const { data: projectsData } = useSWR<{ projects: { id: string; title: string }[] }>("/api/campaigns", fetcher);
 
   // Common State (Top Level)
   const [state, setState] = useState<WizardState>({

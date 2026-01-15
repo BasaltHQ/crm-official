@@ -303,7 +303,7 @@ export default function OutreachCampaignWizard({
         const fetchProject = async () => {
             setLoadingProject(true);
             try {
-                const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/summary`);
+                const res = await fetch(`/api/campaigns/${encodeURIComponent(projectId)}/summary`);
                 if (res.ok) {
                     const data = await res.json();
                     setFetchedProject(data);

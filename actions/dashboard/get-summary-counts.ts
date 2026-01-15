@@ -124,12 +124,16 @@ export const getSummaryCounts = async (): Promise<DashboardCounts> => {
   ]);
 
   // Combine opportunities from both CRM and Project systems
-  const opportunities = crmOpportunities + projectOpportunities;
+  // UPDATE: User requested separation. ONLY Sales Pipeline counts as official "Opportunities" and "Revenue".
+  // Project Requests are just internal tasks.
+  const opportunities = crmOpportunities;
 
   // Combine revenue from both CRM opportunities and Project opportunities
   const crmRevenue = Number((crmRevenueAgg as any)._sum?.expected_revenue ?? 0);
   const projectRevenue = Number((projectRevenueAgg as any)._sum?.valueEstimate ?? 0);
-  const revenue = crmRevenue + projectRevenue;
+
+  // Only count CRM Revenue for the dashboard
+  const revenue = crmRevenue;
 
   const storageBytes = Number((storageAgg as any)._sum?.size ?? 0);
   const storageMB = Math.round((storageBytes / 1_000_000) * 100) / 100;

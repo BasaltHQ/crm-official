@@ -45,8 +45,8 @@ const SideBar = async () => {
     features = getSubscriptionPlan(slug).features;
   }
 
-  const isPartnerAdmin = (user as any).is_admin || (user as any).assigned_team?.slug === "basalt" || (user as any).assigned_team?.slug === "basalthq";
   const teamRole = (user as any)?.team_role || "MEMBER";
+  const isPartnerAdmin = (user as any).is_admin || teamRole === "PLATFORM_ADMIN" || (user as any).assigned_team?.slug === "basalt" || (user as any).assigned_team?.slug === "basalthq";
 
   return <ModuleMenu modules={modules} dict={dict} features={features} isPartnerAdmin={isPartnerAdmin} teamRole={teamRole} />;
 };

@@ -11,11 +11,11 @@ type Props = {
 
 const ProjectModuleMenu = ({ open, title, isMobile = false }: Props) => {
   const pathname = usePathname();
-  const isPath = /^\/([a-z]{2}\/)?projects(\/|$)/.test(pathname);
+  const isPath = /^\/([a-z]{2}\/)?campaigns(\/|$)/.test(pathname);
 
   return (
     <MenuItem
-      href="/projects"
+      href="/campaigns"
       icon={ServerIcon}
       title={title}
       isOpen={open}

@@ -5,8 +5,9 @@ import { prismadb } from "@/lib/prisma";
 
 export async function POST(
     req: Request,
-    { params }: { params: { userId: string } }
+    { params }: { params: Promise<{ userId: string }> }
 ) {
+    const { userId } = await params;
     try {
         const session = await getServerSession(authOptions);
 
@@ -34,7 +35,7 @@ export async function POST(
 
         const user = await prismadb.users.update({
             where: {
-                id: params.userId,
+                id: userId,
             },
             data: {
                 assigned_modules: modules,

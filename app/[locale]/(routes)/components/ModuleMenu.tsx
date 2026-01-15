@@ -159,7 +159,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin, teamRole = "MEMBE
               <div className="my-2 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent opacity-50 mx-2" />
 
               {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && teamRole !== "MEMBER" && (
-                <ProjectModuleMenu open={open} title={dict.ModuleMenu.projects} />
+                <ProjectModuleMenu open={open} title={dict.ModuleMenu.projects?.replace("Projects", "Campaigns") || "Campaigns"} />
               )}
 
               {/* CRM Removed as per user request to be only in Dashboard Grid */}
@@ -219,7 +219,7 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin, teamRole = "MEMBE
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-b from-background/95 via-background/90 to-background/95 backdrop-blur-xl border-t border-white/5 flex flex-row overflow-x-auto items-center justify-between px-4 py-2 gap-4 no-scrollbar safe-area-pb">
         <DashboardMenu open={false} title={dict.ModuleMenu.dashboard} isMobile teamRole={teamRole} />
         {modules.find((m: any) => m.name === "projects" && m.enabled) && hasFeature("projects") && teamRole !== "MEMBER" && (
-          <ProjectModuleMenu open={false} title={dict.ModuleMenu.projects} isMobile />
+          <ProjectModuleMenu open={false} title={dict.ModuleMenu.projects?.replace("Projects", "Campaigns") || "Campaigns"} isMobile />
         )}
         {/* CRM Removed from Mobile Bar too */}
         {/* {modules.find((m: any) => m.name === "crm" && m.enabled) && hasFeature("crm") && (

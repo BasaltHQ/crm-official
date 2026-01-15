@@ -126,8 +126,19 @@ export function NewOpportunityForm({
   const form = useForm<NewAccountFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      sales_stage: selectedStage ? selectedStage : undefined,
-      account: accountId ? accountId : undefined,
+      name: "",
+      // close_date is handled by the calendar component which accepts undefined
+      description: "",
+      type: "",
+      sales_stage: selectedStage ? selectedStage : "",
+      budget: "",
+      currency: "",
+      expected_revenue: "",
+      next_step: "",
+      assigned_to: "",
+      account: accountId ? accountId : "",
+      contact: "",
+      campaign: "",
     },
   });
 

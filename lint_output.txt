@@ -42,23 +42,23 @@
 ./app/[locale]/(routes)/openAi/components/Chat.tsx
 233:6  Warning: React Hook useEffect has a missing dependency: 'loadSessions'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
 
-./app/[locale]/(routes)/projects/boards/[boardId]/components/BrandEditor.tsx
+./app/[locale]/(routes)/campaigns/boards/[boardId]/components/BrandEditor.tsx
 81:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-./app/[locale]/(routes)/projects/boards/[boardId]/components/ProjectEditPanel.tsx
+./app/[locale]/(routes)/campaigns/boards/[boardId]/components/ProjectEditPanel.tsx
 216:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 552:43  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-./app/[locale]/(routes)/projects/boards/[boardId]/page.tsx
+./app/[locale]/(routes)/campaigns/boards/[boardId]/page.tsx
 59:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-./app/[locale]/(routes)/projects/dialogs/NewProject.tsx
+./app/[locale]/(routes)/campaigns/dialogs/NewProject.tsx
 134:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-./app/[locale]/(routes)/projects/forms/UpdateProject.tsx
+./app/[locale]/(routes)/campaigns/forms/UpdateProject.tsx
 112:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-./app/[locale]/(routes)/projects/table-components/columns.tsx
+./app/[locale]/(routes)/campaigns/table-components/columns.tsx
 52:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
 ./app/[locale]/about/page.tsx
