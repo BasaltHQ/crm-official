@@ -109,19 +109,19 @@ function ProgressBar({ value }: { value: number }) {
 
 export default function LeadsView({ data, isMember = false }: Props) {
   // Fetch active projects for assignment
-  const { data: projectsData } = useSWR('/api/campaigns', fetcher);
-  const projects = useMemo(() => projectsData?.projects || [], [projectsData]);
+  const { data: campaignsData } = useSWR('/api/campaigns', fetcher);
+  const campaigns = useMemo(() => campaignsData?.projects || [], [campaignsData]);
 
-  async function assignPoolProject(projectId: string) {
-    if (!selectedPoolId || !projectId) return;
+  async function assignPoolCampaign(campaignId: string) {
+    if (!selectedPoolId || !campaignId) return;
     try {
       const res = await fetch(`/api/leads/pools/${encodeURIComponent(selectedPoolId)}/assign-project`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId: campaignId }),
       });
       if (res.ok) {
-        toast.success('Project assigned to pool');
+        toast.success('Campaign assigned to pool');
         mutate('/api/leads/pools');
       } else {
         const txt = await res.text();
@@ -170,7 +170,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
     status: 120,
     progress: 200,
     actions: 180,
-    project: 100
+    campaign: 100
   });
   const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
 
@@ -211,7 +211,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
   // }, [poolsError, poolsResponse]);
 
   // Outreach eligibility: needed for "Push to Outreach"
-  const projectAssignedForSelectedPool = useMemo(() => {
+  const campaignAssignedForSelectedPool = useMemo(() => {
     if (!selectedPoolId) return undefined;
     const p = pools.find((x: any) => x.id === selectedPoolId);
     return p?.icpConfig?.assignedProjectId;
@@ -234,15 +234,15 @@ export default function LeadsView({ data, isMember = false }: Props) {
     return new Set(selectedPoolLeadsResponse.leads.map((l: any) => l.id));
   }, [selectedPoolId, selectedPoolLeadsResponse]);
 
-  // Fetch brand logo only for the selected pool's project if needed
-  const selectedPoolProject = useMemo(() => {
+  // Fetch brand logo only for the selected pool's campaign if needed
+  const selectedPoolCampaign = useMemo(() => {
     if (!selectedPoolId) return null;
     const p = pools.find((x: any) => x.id === selectedPoolId);
     return p?.icpConfig?.assignedProjectId;
   }, [selectedPoolId, pools]);
 
   const { data: brandResponse } = useSWR(
-    selectedPoolProject ? `/api/campaigns/${encodeURIComponent(selectedPoolProject)}/brand` : null,
+    selectedPoolCampaign ? `/api/campaigns/${encodeURIComponent(selectedPoolCampaign)}/brand` : null,
     fetcher
   );
 
@@ -353,8 +353,8 @@ export default function LeadsView({ data, isMember = false }: Props) {
   };
 
   async function pushToOutreachBatch() {
-    if (!projectAssignedForSelectedPool) {
-      toast.error('Selected pool has no assigned project');
+    if (!campaignAssignedForSelectedPool) {
+      toast.error('Selected pool has no assigned campaign');
       return;
     }
     if (!someSelected) {
@@ -539,8 +539,8 @@ export default function LeadsView({ data, isMember = false }: Props) {
                 size="sm"
                 className="h-8 text-[10px] uppercase tracking-wider font-semibold whitespace-nowrap"
                 onClick={() => setFirstContactOpen(true)}
-                disabled={!canBatchSelect || !projectAssignedForSelectedPool || selectedInPoolIds.length === 0}
-                title={!canBatchSelect ? "Select a pool with an assigned project to enable outreach" : (!projectAssignedForSelectedPool ? "Selected pool has no assigned project" : (selectedInPoolIds.length === 0 ? "Select at least one lead in the chosen pool" : undefined))}
+                disabled={!canBatchSelect || !campaignAssignedForSelectedPool || selectedInPoolIds.length === 0}
+                title={!canBatchSelect ? "Select a pool with an assigned campaign to enable outreach" : (!campaignAssignedForSelectedPool ? "Selected pool has no assigned campaign" : (selectedInPoolIds.length === 0 ? "Select at least one lead in the chosen pool" : undefined))}
               >
                 Push to Outreach
               </Button>
@@ -548,18 +548,18 @@ export default function LeadsView({ data, isMember = false }: Props) {
 
             {selectedPoolId && !isMember && (
               <div className="flex items-center gap-2">
-                {!projectAssignedForSelectedPool ? (
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive">No Project Assigned:</span>
+                {!campaignAssignedForSelectedPool ? (
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive">No Campaign Assigned:</span>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Project:</span>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Campaign:</span>
                 )}
                 <select
-                  className={`h-8 rounded border px-2 text-[10px] uppercase tracking-wider font-semibold bg-background ${!projectAssignedForSelectedPool ? 'border-destructive/50' : 'border-input'}`}
-                  value={projectAssignedForSelectedPool || ""}
-                  onChange={(e) => assignPoolProject(e.target.value)}
+                  className={`h-8 rounded border px-2 text-[10px] uppercase tracking-wider font-semibold bg-background ${!campaignAssignedForSelectedPool ? 'border-destructive/50' : 'border-input'}`}
+                  value={campaignAssignedForSelectedPool || ""}
+                  onChange={(e) => assignPoolCampaign(e.target.value)}
                 >
-                  <option value="" disabled>Select a project...</option>
-                  {projects.map((p: any) => (
+                  <option value="" disabled>Select a campaign...</option>
+                  {campaigns.map((p: any) => (
                     <option key={p.id} value={p.id}>{p.title}</option>
                   ))}
                 </select>
@@ -615,7 +615,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
 
           selectedLeads={visibleLeads.filter(l => selectedIds.includes(l.id)) as any}
           poolId={selectedPoolId}
-          projectId={projectAssignedForSelectedPool}
+          campaignId={campaignAssignedForSelectedPool}
           onClose={() => setFirstContactOpen(false)}
         />
       )}
@@ -668,9 +668,9 @@ export default function LeadsView({ data, isMember = false }: Props) {
                     Actions
                     <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'actions')} />
                   </th>
-                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.project }}>
-                    Project
-                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'project')} />
+                  <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.campaign }}>
+                    Campaign
+                    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'campaign')} />
                   </th>
                 </tr>
               </thead>
@@ -766,7 +766,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
 
                             if (!url) return null;
                             const img = (
-                              <img src={url} alt="Project" className="h-8 w-auto rounded object-contain inline-block hover:opacity-90 transition-opacity" />
+                              <img src={url} alt="Campaign" className="h-8 w-auto rounded object-contain inline-block hover:opacity-90 transition-opacity" />
                             );
                             return projectId ? (
                               <Link href={`/campaigns/boards/${projectId}`} prefetch={false}>{img}</Link>

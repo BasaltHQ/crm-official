@@ -52,7 +52,7 @@ type Lead = {
     assigned_accounts?: Array<{ company_name?: string }>;
 };
 
-type Project = {
+type Campaign = {
     id: string;
     title: string;
     description?: string;
@@ -61,8 +61,8 @@ type Project = {
 type Props = {
     selectedLeads?: Lead[];
     poolId?: string;
-    projectId?: string;
-    project?: Project;
+    campaignId?: string;
+    campaign?: Campaign;
     onClose?: () => void;
 };
 
@@ -79,7 +79,7 @@ Voice and Style:
 - Be concise, confident, and specific; show operator depth and strategic clarity.
 
 {PRODUCT_NAME} Briefing (context for personalization):
-{PROJECT_BRIEFING}
+{CAMPAIGN_BRIEFING}
 
 Meeting Preferences (embed naturally in CTA):
 {MEETING_PREFERENCES}
@@ -115,8 +115,8 @@ Return EXACTLY this JSON object:
 export default function OutreachCampaignWizard({
     selectedLeads = [],
     poolId,
-    projectId,
-    project,
+    campaignId,
+    campaign,
     onClose
 }: Props) {
     const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -127,13 +127,13 @@ export default function OutreachCampaignWizard({
     const [selectedChannels, setSelectedChannels] = useState<string[]>(["EMAIL"]);
     const [leads, setLeads] = useState<Lead[]>(selectedLeads);
 
-    // Step 2: Project Context & Briefing
-    const [projectTitle, setProjectTitle] = useState(project?.title || "");
-    const [projectBriefing, setProjectBriefing] = useState("");
+    // Step 2: Campaign Context & Briefing
+    const [campaignTitle, setCampaignTitle] = useState(campaign?.title || "");
+    const [campaignBriefing, setCampaignBriefing] = useState("");
     const [userName, setUserName] = useState("");
     const [userTitle, setUserTitle] = useState("Founder");
     const [companyName, setCompanyName] = useState("The Utility Company");
-    const [productName, setProductName] = useState(project?.title || "");
+    const [productName, setProductName] = useState(campaign?.title || "");
     const [meetingPreferences, setMeetingPreferences] = useState(
         "- I am based in Santa Fe, New Mexico.\n- I'm available for remote meetings with all investors.\n- In-person meetings only if you're in Albuquerque or Santa Fe, NM."
     );
@@ -151,7 +151,7 @@ export default function OutreachCampaignWizard({
 
     // Loading states
     const [loading, setLoading] = useState(false);
-    const [loadingProject, setLoadingProject] = useState(false);
+    const [loadingCampaign, setLoadingCampaign] = useState(false);
     const [generatingEmail, setGeneratingEmail] = useState(false);
     const [generatingSms, setGeneratingSms] = useState(false);
     const [sendingTestEmail, setSendingTestEmail] = useState(false);
@@ -175,16 +175,16 @@ export default function OutreachCampaignWizard({
         selectedChannels,
         leadsCount: leads.length,
         // Project context (Step 2)
-        productName: productName || projectTitle,
+        productName: productName || campaignTitle,
         companyName,
         userName,
         userTitle,
-        projectTitle,
-        briefing: projectBriefing,
+        campaignTitle,
+        briefing: campaignBriefing,
         meetingPreferences,
-        // Project details (fetched)
-        projectId,
-        projectDescription: fetchedProject?.description || project?.description,
+        // Campaign details (fetched)
+        campaignId,
+        fetchedCampaignDescription: fetchedCampaign?.description || campaign?.description,
     });
 
     // AI Enhancement function
@@ -253,8 +253,8 @@ export default function OutreachCampaignWizard({
         }
     };
 
-    // Fetched project data
-    const [fetchedProject, setFetchedProject] = useState<{
+    // Fetched campaign data
+    const [fetchedCampaign, setFetchedCampaign] = useState<{
         id: string;
         title: string;
         description: string;
@@ -296,23 +296,23 @@ export default function OutreachCampaignWizard({
         checkSmsConfig();
     }, []);
 
-    // Fetch project data when projectId is provided
+    // Fetch campaign data when campaignId is provided
     useEffect(() => {
-        if (!projectId) return;
+        if (!campaignId) return;
 
-        const fetchProject = async () => {
-            setLoadingProject(true);
+        const fetchCampaign = async () => {
+            setLoadingCampaign(true);
             try {
-                const res = await fetch(`/api/campaigns/${encodeURIComponent(projectId)}/summary`);
+                const res = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/summary`);
                 if (res.ok) {
                     const data = await res.json();
-                    setFetchedProject(data);
+                    setFetchedCampaign(data);
 
-                    // Auto-populate fields from project
+                    // Auto-populate fields from campaign
                     if (data.title) {
-                        setProjectTitle(data.title);
+                        setCampaignTitle(data.title);
                         setProductName(data.title);
-                        // Auto-generate campaign name based on project
+                        // Auto-generate campaign name based on campaign
                         if (!campaignName) {
                             const date = new Date();
                             const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -322,9 +322,9 @@ export default function OutreachCampaignWizard({
 
                     // Use campaign_brief if available, otherwise fall back to description
                     if (data.campaign_brief) {
-                        setProjectBriefing(data.campaign_brief);
+                        setCampaignBriefing(data.campaign_brief);
                     } else if (data.description) {
-                        setProjectBriefing(data.description);
+                        setCampaignBriefing(data.description);
                     }
 
                     // Auto-populate meeting link if available
@@ -338,36 +338,36 @@ export default function OutreachCampaignWizard({
                         const currentBriefing = data.campaign_brief || data.description || "";
                         const valuePropsText = `\n\nKey Value Props:\n${data.key_value_props.map((p: string) => `• ${p}`).join("\n")}`;
                         if (!currentBriefing.includes("Key Value Props")) {
-                            setProjectBriefing(currentBriefing + valuePropsText);
+                            setCampaignBriefing(currentBriefing + valuePropsText);
                         }
                     }
                 }
             } catch (error) {
-                console.error("Failed to fetch project:", error);
+                console.error("Failed to fetch campaign:", error);
             } finally {
-                setLoadingProject(false);
+                setLoadingCampaign(false);
             }
         };
 
-        fetchProject();
+        fetchCampaign();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [projectId]);
+    }, [campaignId]);
 
-    // Also handle if project prop is provided directly
+    // Also handle if campaign prop is provided directly
     useEffect(() => {
-        if (project?.description && !projectBriefing) {
-            setProjectBriefing(project.description);
+        if (campaign?.description && !campaignBriefing) {
+            setCampaignBriefing(campaign.description);
         }
-        if (project?.title) {
-            setProjectTitle(project.title);
-            setProductName(project.title);
+        if (campaign?.title) {
+            setCampaignTitle(campaign.title);
+            setProductName(campaign.title);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [project]);
+    }, [campaign]);
 
     const steps = [
         { num: 1, title: "Campaign Basics", icon: Users },
-        { num: 2, title: "Project Context", icon: FileText },
+        { num: 2, title: "Campaign Context", icon: FileText },
         { num: 3, title: "AI Prompt Template", icon: Sparkles },
         { num: 4, title: "Preview & Test", icon: Eye }
     ];
@@ -377,7 +377,7 @@ export default function OutreachCampaignWizard({
             case 1:
                 return campaignName.trim() && leads.length > 0;
             case 2:
-                return projectTitle.trim() && projectBriefing.trim();
+                return campaignTitle.trim() && campaignBriefing.trim();
             case 3:
                 return promptTemplate.trim();
             case 4:
@@ -393,8 +393,8 @@ export default function OutreachCampaignWizard({
             .replace(/{USER_NAME}/g, userName || "{USER_NAME}")
             .replace(/{USER_TITLE}/g, userTitle || "{USER_TITLE}")
             .replace(/{COMPANY_NAME}/g, companyName || "{COMPANY_NAME}")
-            .replace(/{PRODUCT_NAME}/g, productName || projectTitle || "{PRODUCT_NAME}")
-            .replace(/{PROJECT_BRIEFING}/g, projectBriefing || "{PROJECT_BRIEFING}")
+            .replace(/{PRODUCT_NAME}/g, productName || campaignTitle || "{PRODUCT_NAME}")
+            .replace(/{CAMPAIGN_BRIEFING}/g, campaignBriefing || "{CAMPAIGN_BRIEFING}")
             .replace(/{MEETING_PREFERENCES}/g, meetingPreferences || "{MEETING_PREFERENCES}");
     };
 
@@ -428,7 +428,7 @@ export default function OutreachCampaignWizard({
                 channels: selectedChannels,
                 leadIds: leads.map(l => l.id),
                 poolId,
-                projectId,
+                campaignId,
                 promptTemplate,
                 includeResearch,
                 status: "DRAFT",
@@ -437,8 +437,8 @@ export default function OutreachCampaignWizard({
                     userTitle,
                     companyName,
                     productName,
-                    projectTitle,
-                    projectBriefing,
+                    campaignTitle,
+                    campaignBriefing,
                     meetingPreferences,
                     currentStep,
                 }
@@ -474,7 +474,7 @@ export default function OutreachCampaignWizard({
 
         return () => clearTimeout(timeout);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [campaignName, campaignDescription, selectedChannels, promptTemplate, projectBriefing, meetingPreferences]);
+    }, [campaignName, campaignDescription, selectedChannels, promptTemplate, campaignBriefing, meetingPreferences]);
 
     const prevStep = () => {
         if (currentStep > 1) {
@@ -495,8 +495,8 @@ export default function OutreachCampaignWizard({
                 .replace(/{USER_NAME}/g, userName || "User")
                 .replace(/{USER_TITLE}/g, userTitle)
                 .replace(/{COMPANY_NAME}/g, companyName)
-                .replace(/{PRODUCT_NAME}/g, productName || projectTitle)
-                .replace(/{PROJECT_BRIEFING}/g, projectBriefing)
+                .replace(/{PRODUCT_NAME}/g, productName || campaignTitle)
+                .replace(/{CAMPAIGN_BRIEFING}/g, campaignBriefing)
                 .replace(/{MEETING_PREFERENCES}/g, meetingPreferences)
                 .replace(/{LEAD_NAME}/g, selectedLeadForPreview.firstName + " " + selectedLeadForPreview.lastName)
                 .replace(/{LEAD_COMPANY}/g, selectedLeadForPreview.company || selectedLeadForPreview.assigned_accounts?.[0]?.company_name || "")
@@ -541,8 +541,8 @@ export default function OutreachCampaignWizard({
                 .replace(/{USER_NAME}/g, userName || "User")
                 .replace(/{USER_TITLE}/g, userTitle)
                 .replace(/{COMPANY_NAME}/g, companyName)
-                .replace(/{PRODUCT_NAME}/g, productName || projectTitle)
-                .replace(/{PROJECT_BRIEFING}/g, projectBriefing)
+                .replace(/{PRODUCT_NAME}/g, productName || campaignTitle)
+                .replace(/{CAMPAIGN_BRIEFING}/g, campaignBriefing)
                 .replace(/{MEETING_PREFERENCES}/g, meetingPreferences);
 
             const res = await fetch(`/api/outreach/preview/sms/${selectedLeadForPreview.id}`, {
@@ -665,8 +665,8 @@ export default function OutreachCampaignWizard({
     const launchCampaign = async () => {
         setLoading(true);
         try {
-            // Determine campaign status based on project approval requirement
-            const requiresApproval = fetchedProject?.require_approval ?? false;
+            // Determine campaign status based on campaign approval requirement
+            const requiresApproval = fetchedCampaign?.require_approval ?? false;
             const campaignStatus = requiresApproval ? "PENDING_APPROVAL" : "ACTIVE";
 
             const res = await fetch("/api/outreach/campaigns", {
@@ -678,7 +678,7 @@ export default function OutreachCampaignWizard({
                     channels: selectedChannels,
                     leadIds: leads.map(l => l.id),
                     poolId,
-                    projectId,
+                    campaignId,
                     promptOverride: promptTemplate,
                     includeResearch,
                     status: campaignStatus, // Pass status based on approval setting
@@ -705,12 +705,12 @@ export default function OutreachCampaignWizard({
 
     return (
         <div className="w-full min-h-screen p-6 space-y-6">
-            {/* Project Context Header - Shows the company being represented */}
-            {(fetchedProject || loadingProject) && (
+            {/* Campaign Context Header - Shows the company being represented */}
+            {(fetchedCampaign || loadingCampaign) && (
                 <div className="max-w-6xl mx-auto">
                     <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
                         <CardContent className="py-4">
-                            {loadingProject ? (
+                            {loadingCampaign ? (
                                 <div className="flex items-center gap-3 animate-pulse">
                                     <div className="w-16 h-16 bg-muted rounded-lg" />
                                     <div className="space-y-2">
@@ -718,12 +718,12 @@ export default function OutreachCampaignWizard({
                                         <div className="h-4 w-32 bg-muted rounded" />
                                     </div>
                                 </div>
-                            ) : fetchedProject && (
+                            ) : fetchedCampaign && (
                                 <div className="flex items-center gap-4">
-                                    {fetchedProject.brand_logo_url ? (
+                                    {fetchedCampaign.brand_logo_url ? (
                                         <img
-                                            src={fetchedProject.brand_logo_url}
-                                            alt={fetchedProject.title}
+                                            src={fetchedCampaign.brand_logo_url}
+                                            alt={fetchedCampaign.title}
                                             className="w-16 h-16 object-contain rounded-lg bg-white p-1"
                                         />
                                     ) : (
@@ -737,16 +737,16 @@ export default function OutreachCampaignWizard({
                                                 REACHING OUT ON BEHALF OF
                                             </Badge>
                                         </div>
-                                        <h2 className="text-xl font-bold text-primary mt-1">{fetchedProject.title}</h2>
-                                        {fetchedProject.description && (
+                                        <h2 className="text-xl font-bold text-primary mt-1">{fetchedCampaign.title}</h2>
+                                        {fetchedCampaign.description && (
                                             <p className="text-sm text-muted-foreground line-clamp-1 max-w-xl">
-                                                {fetchedProject.description}
+                                                {fetchedCampaign.description}
                                             </p>
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-xs text-muted-foreground uppercase tracking-wider">Project ID</div>
-                                        <div className="text-sm font-mono text-muted-foreground">{fetchedProject.id.slice(0, 8)}...</div>
+                                        <div className="text-xs text-muted-foreground uppercase tracking-wider">Campaign ID</div>
+                                        <div className="text-sm font-mono text-muted-foreground">{fetchedCampaign.id.slice(0, 8)}...</div>
                                     </div>
                                 </div>
                             )}
@@ -791,7 +791,7 @@ export default function OutreachCampaignWizard({
                     <CardTitle className="text-2xl">{steps[currentStep - 1].title}</CardTitle>
                     <CardDescription>
                         {currentStep === 1 && "Set up your campaign basics and select target leads"}
-                        {currentStep === 2 && "Define your project context and product briefing for AI personalization"}
+                        {currentStep === 2 && "Define your campaign context and product briefing for AI personalization"}
                         {currentStep === 3 && "Customize the AI prompt template that will generate personalized messages"}
                         {currentStep === 4 && "Preview generated messages and test send (NEVER to actual lead contacts)"}
                     </CardDescription>
@@ -956,13 +956,13 @@ export default function OutreachCampaignWizard({
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <Label htmlFor="projectBriefing">Product/Project Briefing * (Detailed)</Label>
+                                    <Label htmlFor="campaignBriefing">Product/Campaign Briefing * (Detailed)</Label>
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => enhanceText("briefing", projectBriefing, setProjectBriefing, setEnhancingBriefing)}
-                                        disabled={enhancingBriefing || !projectBriefing.trim()}
+                                        onClick={() => enhanceText("briefing", campaignBriefing, setCampaignBriefing, setEnhancingBriefing)}
+                                        disabled={enhancingBriefing || !campaignBriefing.trim()}
                                         className="h-7 text-xs gap-1"
                                     >
                                         {enhancingBriefing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
@@ -970,7 +970,7 @@ export default function OutreachCampaignWizard({
                                     </Button>
                                 </div>
                                 <Textarea
-                                    id="projectBriefing"
+                                    id="campaignBriefing"
                                     placeholder={`Describe your product in detail. Include:
 - What it does and key innovations
 - Technology stack
@@ -987,12 +987,12 @@ Example from vcrun.py:
 - White-Label Platform: Fully branded portals
 ..."`}
                                     rows={12}
-                                    value={projectBriefing}
-                                    onChange={(e) => setProjectBriefing(e.target.value)}
+                                    value={campaignBriefing}
+                                    onChange={(e) => setCampaignBriefing(e.target.value)}
                                     className="font-mono text-sm"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    {projectBriefing.length} characters • Be comprehensive - this is the core context for personalization
+                                    {campaignBriefing.length} characters • Be comprehensive - this is the core context for personalization
                                 </p>
                             </div>
 
@@ -1044,7 +1044,7 @@ Example from vcrun.py:
                                             variant="default"
                                             size="sm"
                                             onClick={generateUniquePrompt}
-                                            disabled={generatingPrompt || !projectBriefing.trim()}
+                                            disabled={generatingPrompt || !campaignBriefing.trim()}
                                             className="gap-1"
                                         >
                                             {generatingPrompt ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}

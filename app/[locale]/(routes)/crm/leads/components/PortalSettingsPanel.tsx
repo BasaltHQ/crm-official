@@ -56,8 +56,8 @@ interface PortalConfig {
     accent_color?: string;
     logo_url?: string;
     logo_type?: string;
-    project_id?: string;
-    project?: string;
+    campaign_id?: string;
+    campaign?: string;
     theme_mode?: "LIGHT" | "DARK" | "AUTO";
     dark_primary_color?: string;
     dark_secondary_color?: string;
@@ -65,7 +65,7 @@ interface PortalConfig {
     enable_glass_effect?: boolean;
     background_blur?: number;
     team: string;
-    projectInfo?: {
+    campaignInfo?: {
         id: string;
         name: string;
         logo_url?: string;
@@ -102,7 +102,7 @@ export default function PortalSettingsPanel() {
     const [portals, setPortals] = useState<PortalConfig[]>([]);
     const [selectedPortal, setSelectedPortal] = useState<PortalConfig | null>(null);
     const [teamId, setTeamId] = useState<string | null>(null);
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [campaigns, setCampaigns] = useState<Project[]>([]);
     const [previewDark, setPreviewDark] = useState(false);
     const [isCreateMode, setIsCreateMode] = useState(false);
     const [customSlug, setCustomSlug] = useState("");
@@ -121,8 +121,8 @@ export default function PortalSettingsPanel() {
         secondary_color: "#f5f5f5",
         accent_color: "#10b981",
         logo_url: "",
-        logo_type: "custom" as "custom" | "project",
-        project_id: "",
+        logo_type: "custom" as "custom" | "campaign",
+        campaign_id: "",
         theme_mode: "AUTO" as "LIGHT" | "DARK" | "AUTO",
         dark_primary_color: "#0f766e",
         dark_secondary_color: "#1f2937",
@@ -224,7 +224,7 @@ export default function PortalSettingsPanel() {
                 const projectsRes = await fetch("/api/campaigns/with-logos");
                 if (projectsRes.ok) {
                     const projectsData = await projectsRes.json();
-                    setProjects(projectsData.all || []);
+                    setCampaigns(projectsData.all || []);
                 }
             } catch (err) {
                 console.error("Failed to load portal config:", err);
@@ -248,8 +248,8 @@ export default function PortalSettingsPanel() {
             secondary_color: portal.secondary_color || "#f5f5f5",
             accent_color: portal.accent_color || "#10b981",
             logo_url: portal.logo_url || "",
-            logo_type: (portal.logo_type as "custom" | "project") || "custom",
-            project_id: portal.project || portal.project_id || "",
+            logo_type: (portal.logo_type as "custom" | "campaign") || "custom",
+            campaign_id: portal.campaign || portal.campaign_id || "",
             theme_mode: portal.theme_mode || "AUTO",
             dark_primary_color: portal.dark_primary_color || "#0f766e",
             dark_secondary_color: portal.dark_secondary_color || "#1f2937",
@@ -272,7 +272,7 @@ export default function PortalSettingsPanel() {
             accent_color: "#10b981",
             logo_url: "",
             logo_type: "custom",
-            project_id: "",
+            campaign_id: "",
             theme_mode: "AUTO",
             dark_primary_color: "#0f766e",
             dark_secondary_color: "#1f2937",
@@ -283,36 +283,36 @@ export default function PortalSettingsPanel() {
     };
 
     // Get projects that don't have portals yet
-    const getProjectsWithoutPortals = useCallback(() => {
-        const portalProjectIds = new Set(portals.map((p) => p.project || p.project_id).filter(Boolean));
-        return projects.filter((p) => !portalProjectIds.has(p.id));
-    }, [portals, projects]);
+    const getCampaignsWithoutPortals = useCallback(() => {
+        const portalCampaignIds = new Set(portals.map((p) => p.campaign || p.campaign_id).filter(Boolean));
+        return campaigns.filter((p) => !portalCampaignIds.has(p.id));
+    }, [portals, campaigns]);
 
     // When project is selected, auto-populate logo and colors from project
     useEffect(() => {
-        if (formData.project_id && isCreateMode) {
-            const selectedProject = projects.find((p) => p.id === formData.project_id);
-            if (selectedProject) {
-                // Auto-populate branding from project
+        if (formData.campaign_id && isCreateMode) {
+            const selectedCampaign = campaigns.find((p) => p.id === formData.campaign_id);
+            if (selectedCampaign) {
+                // Auto-populate branding from campaign
                 setFormData((prev) => ({
                     ...prev,
-                    logo_url: selectedProject.logo_url || prev.logo_url,
-                    logo_type: selectedProject.logo_url ? "project" : prev.logo_type,
-                    primary_color: selectedProject.primary_color || prev.primary_color,
-                    name: prev.name || `${selectedProject.name} Portal`,
+                    logo_url: selectedCampaign.logo_url || prev.logo_url,
+                    logo_type: selectedCampaign.logo_url ? "campaign" : prev.logo_type,
+                    primary_color: selectedCampaign.primary_color || prev.primary_color,
+                    name: prev.name || `${selectedCampaign.name} Portal`,
                 }));
             }
-        } else if (formData.logo_type === "project" && formData.project_id) {
-            const selectedProject = projects.find((p) => p.id === formData.project_id);
-            if (selectedProject?.logo_url) {
+        } else if (formData.logo_type === "campaign" && formData.campaign_id) {
+            const selectedCampaign = campaigns.find((p) => p.id === formData.campaign_id);
+            if (selectedCampaign?.logo_url) {
                 setFormData((prev) => ({
                     ...prev,
-                    logo_url: selectedProject.logo_url || "",
-                    primary_color: selectedProject.primary_color || prev.primary_color,
+                    logo_url: selectedCampaign.logo_url || "",
+                    primary_color: selectedCampaign.primary_color || prev.primary_color,
                 }));
             }
         }
-    }, [formData.project_id, formData.logo_type, projects, isCreateMode]);
+    }, [formData.campaign_id, formData.logo_type, campaigns, isCreateMode]);
 
     const handleSave = async () => {
         if (!teamId) return;
@@ -332,7 +332,7 @@ export default function PortalSettingsPanel() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         ...formData,
-                        project_id: formData.project_id || undefined,
+                        campaign_id: formData.campaign_id || undefined,
                         custom_slug: customSlug || undefined,
                     }),
                 });
@@ -360,7 +360,7 @@ export default function PortalSettingsPanel() {
                     body: JSON.stringify({
                         ...formData,
                         portal_id: selectedPortal.id,
-                        project: formData.project_id || undefined,
+                        campaign: formData.campaign_id || undefined,
                     }),
                 });
 
@@ -484,9 +484,9 @@ export default function PortalSettingsPanel() {
                                             </span>
                                         ) : selectedPortal ? (
                                             <span className="flex items-center gap-2 truncate">
-                                                {selectedPortal.projectInfo?.logo_url ? (
+                                                {selectedPortal.campaignInfo?.logo_url ? (
                                                     <img
-                                                        src={selectedPortal.projectInfo.logo_url}
+                                                        src={selectedPortal.campaignInfo.logo_url}
                                                         alt=""
                                                         className="w-4 h-4 rounded object-contain"
                                                     />
@@ -509,8 +509,8 @@ export default function PortalSettingsPanel() {
                                 <DropdownMenuContent align="end" className="w-[280px]">
                                     {portals.map((portal) => (
                                         <DropdownMenuItem key={portal.id} onClick={() => selectPortal(portal)} className="flex items-start gap-3 p-3">
-                                            {portal.projectInfo?.logo_url ? (
-                                                <img src={portal.projectInfo.logo_url} alt="" className="w-8 h-8 rounded object-contain flex-shrink-0" />
+                                            {portal.campaignInfo?.logo_url ? (
+                                                <img src={portal.campaignInfo.logo_url} alt="" className="w-8 h-8 rounded object-contain flex-shrink-0" />
                                             ) : (
                                                 <div
                                                     className="w-8 h-8 rounded flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
@@ -521,7 +521,7 @@ export default function PortalSettingsPanel() {
                                             )}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium truncate">{portal.name}</p>
-                                                <p className="text-xs text-muted-foreground truncate">{portal.projectInfo?.name || "No project"}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{portal.campaignInfo?.name || "No campaign"}</p>
                                                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                                     <span>{portal._count?.messages || 0} messages</span>
                                                     <span>•</span>
@@ -542,7 +542,7 @@ export default function PortalSettingsPanel() {
                     </div>
                     <CardDescription>
                         {isCreateMode
-                            ? "Create a new SMS portal for a project."
+                            ? "Create a new SMS portal for a campaign."
                             : portals.length === 0
                                 ? "You don't have any SMS portals yet. Create your first one below."
                                 : `Manage your team's SMS portals. You have ${portals.length} portal${portals.length !== 1 ? "s" : ""}.`}
@@ -657,58 +657,58 @@ export default function PortalSettingsPanel() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <FolderKanban className="w-5 h-5 text-primary" />
-                        <CardTitle>Portal Logo & Project</CardTitle>
+                        <CardTitle>Portal Logo & Campaign</CardTitle>
                     </div>
                     <CardDescription>
-                        {isCreateMode ? "Select a project to link this portal to and auto-populate branding." : "Choose a logo from your projects or upload a custom one."}
+                        {isCreateMode ? "Select a campaign to link this portal to and auto-populate branding." : "Choose a logo from your campaigns or upload a custom one."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* Project Selection for Create Mode */}
+                    {/* Campaign Selection for Create Mode */}
                     {isCreateMode && (
                         <div className="space-y-3 mb-4">
-                            <Label>Link to Project (recommended)</Label>
-                            {getProjectsWithoutPortals().length > 0 ? (
+                            <Label>Link to Campaign (recommended)</Label>
+                            {getCampaignsWithoutPortals().length > 0 ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {getProjectsWithoutPortals().map((project) => (
+                                    {getCampaignsWithoutPortals().map((campaign) => (
                                         <button
-                                            key={project.id}
-                                            onClick={() => setFormData({ ...formData, project_id: project.id })}
-                                            className={`relative p-3 rounded-xl border-2 transition-all ${formData.project_id === project.id ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                                            key={campaign.id}
+                                            onClick={() => setFormData({ ...formData, campaign_id: campaign.id })}
+                                            className={`relative p-3 rounded-xl border-2 transition-all ${formData.campaign_id === campaign.id ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
                                                 }`}
                                         >
-                                            {formData.project_id === project.id && (
+                                            {formData.campaign_id === campaign.id && (
                                                 <div className="absolute top-1 right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
                                                     <Check className="w-3 h-3 text-white" />
                                                 </div>
                                             )}
                                             <div className="flex flex-col items-center gap-2">
-                                                {project.logo_url ? (
-                                                    <img src={project.logo_url} alt={project.name} className="w-12 h-12 rounded-lg object-contain" />
+                                                {campaign.logo_url ? (
+                                                    <img src={campaign.logo_url} alt={campaign.name} className="w-12 h-12 rounded-lg object-contain" />
                                                 ) : (
                                                     <div
                                                         className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
-                                                        style={{ backgroundColor: project.primary_color || "#6b7280" }}
+                                                        style={{ backgroundColor: campaign.primary_color || "#6b7280" }}
                                                     >
-                                                        {project.name[0]}
+                                                        {campaign.name[0]}
                                                     </div>
                                                 )}
-                                                <span className="text-xs font-medium truncate w-full text-center">{project.name}</span>
+                                                <span className="text-xs font-medium truncate w-full text-center">{campaign.name}</span>
                                             </div>
                                         </button>
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">All your projects already have portals, or no projects found.</p>
+                                <p className="text-sm text-muted-foreground">All your campaigns already have portals, or no campaigns found.</p>
                             )}
                         </div>
                     )}
 
                     {/* Logo Type Selection */}
                     <div className="flex gap-4">
-                        <Button variant={formData.logo_type === "project" ? "default" : "outline"} onClick={() => setFormData({ ...formData, logo_type: "project" })} className="flex-1">
+                        <Button variant={formData.logo_type === "campaign" ? "default" : "outline"} onClick={() => setFormData({ ...formData, logo_type: "campaign" })} className="flex-1">
                             <FolderKanban className="w-4 h-4 mr-2" />
-                            From Project
+                            From Campaign
                         </Button>
                         <Button variant={formData.logo_type === "custom" ? "default" : "outline"} onClick={() => setFormData({ ...formData, logo_type: "custom" })} className="flex-1">
                             <Upload className="w-4 h-4 mr-2" />
@@ -716,40 +716,40 @@ export default function PortalSettingsPanel() {
                         </Button>
                     </div>
 
-                    {formData.logo_type === "project" ? (
+                    {formData.logo_type === "campaign" ? (
                         <div className="space-y-3">
-                            <Label>Select Project</Label>
-                            {projects.length > 0 ? (
+                            <Label>Select Campaign</Label>
+                            {campaigns.length > 0 ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {projects.map((project) => (
+                                    {campaigns.map((campaign) => (
                                         <button
-                                            key={project.id}
-                                            onClick={() => setFormData({ ...formData, project_id: project.id })}
-                                            className={`relative p-3 rounded-xl border-2 transition-all ${formData.project_id === project.id ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"}`}
+                                            key={campaign.id}
+                                            onClick={() => setFormData({ ...formData, campaign_id: campaign.id })}
+                                            className={`relative p-3 rounded-xl border-2 transition-all ${formData.campaign_id === campaign.id ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"}`}
                                         >
-                                            {formData.project_id === project.id && (
+                                            {formData.campaign_id === campaign.id && (
                                                 <div className="absolute top-1 right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
                                                     <Check className="w-3 h-3 text-white" />
                                                 </div>
                                             )}
                                             <div className="flex flex-col items-center gap-2">
-                                                {project.logo_url ? (
-                                                    <img src={project.logo_url} alt={project.name} className="w-12 h-12 rounded-lg object-contain" />
+                                                {campaign.logo_url ? (
+                                                    <img src={campaign.logo_url} alt={campaign.name} className="w-12 h-12 rounded-lg object-contain" />
                                                 ) : (
                                                     <div
                                                         className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
-                                                        style={{ backgroundColor: project.primary_color || "#6b7280" }}
+                                                        style={{ backgroundColor: campaign.primary_color || "#6b7280" }}
                                                     >
-                                                        {project.name[0]}
+                                                        {campaign.name[0]}
                                                     </div>
                                                 )}
-                                                <span className="text-xs font-medium truncate w-full text-center">{project.name}</span>
+                                                <span className="text-xs font-medium truncate w-full text-center">{campaign.name}</span>
                                             </div>
                                         </button>
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">No projects found. Create a project with a brand logo first.</p>
+                                <p className="text-sm text-muted-foreground">No campaigns found. Create a campaign with a brand logo first.</p>
                             )}
                         </div>
                     ) : (

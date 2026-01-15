@@ -5,7 +5,7 @@ import CampaignsView from "../leads/components/CampaignsView";
 
 const CampaignsPage = () => {
     return (
-        <Container title="Campaigns" description="Track and manage your marketing campaigns">
+        <Container title="Outreach" description="Track and manage your marketing campaigns">
             <CampaignsView />
         </Container>
     );

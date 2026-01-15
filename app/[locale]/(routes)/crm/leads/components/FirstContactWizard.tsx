@@ -38,7 +38,7 @@ export default function FirstContactWizard({ leadId }: Props) {
     const [emailSubject, setEmailSubject] = useState<string>("");
     const [emailBodyText, setEmailBodyText] = useState<string>("");
     const [emailHtml, setEmailHtml] = useState<string>("");
-    const [emailProject, setEmailProject] = useState<{ title?: string; description?: string } | null>(null);
+    const [emailCampaign, setEmailCampaign] = useState<{ title?: string; description?: string } | null>(null);
     const [emailResearchSummary, setEmailResearchSummary] = useState<string>("");
 
     // SMS preview state
@@ -74,7 +74,7 @@ export default function FirstContactWizard({ leadId }: Props) {
             setEmailSubject(String(j.subject || ""));
             setEmailBodyText(String(j.bodyText || ""));
             setEmailHtml(String(j.html || ""));
-            setEmailProject(j.project || null);
+            setEmailCampaign(j.project || null); // Note: API might still return 'project' key for now
             setEmailResearchSummary(String(j.researchSummary || ""));
             toast.success("Email preview generated");
         } catch (e: any) {
@@ -256,17 +256,17 @@ export default function FirstContactWizard({ leadId }: Props) {
                     <div className="rounded border bg-card p-2 text-sm whitespace-pre-wrap min-h-[120px]">
                         {emailBodyText || "(no body yet)"}
                     </div>
-                    <div className="text-xs font-semibold mt-2">Project & Research References</div>
+                    <div className="text-xs font-semibold mt-2">Campaign & Research References</div>
                     <div className="rounded border bg-card p-2 text-xs">
-                        {emailProject ? (
+                        {emailCampaign ? (
                             <>
-                                <div><span className="font-medium">Project:</span> {emailProject.title || "(untitled)"}</div>
-                                {emailProject.description ? (
-                                    <div className="text-muted-foreground">{emailProject.description}</div>
+                                <div><span className="font-medium">Campaign:</span> {emailCampaign.title || "(untitled)"}</div>
+                                {emailCampaign.description ? (
+                                    <div className="text-muted-foreground">{emailCampaign.description}</div>
                                 ) : null}
                             </>
                         ) : (
-                            <div className="text-muted-foreground">(no project reference)</div>
+                            <div className="text-muted-foreground">(no campaign reference)</div>
                         )}
                         {emailResearchSummary ? (
                             <div className="mt-2">

@@ -74,7 +74,7 @@ export default function CampaignsView() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [projectFilter, setProjectFilter] = useState<string>("all");
+    const [campaignFilter, setCampaignFilter] = useState<string>("all");
     const [poolFilter, setPoolFilter] = useState<string>("all");
 
     // Fetch campaigns from API
@@ -137,9 +137,9 @@ export default function CampaignsView() {
         const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             campaign.description?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === "all" || campaign.status === statusFilter;
-        const matchesProject = projectFilter === "all" || campaign.assigned_project?.id === projectFilter;
+        const matchesCampaign = campaignFilter === "all" || campaign.assigned_project?.id === campaignFilter;
         const matchesPool = poolFilter === "all" || campaign.assigned_pool?.id === poolFilter;
-        return matchesSearch && matchesStatus && matchesProject && matchesPool;
+        return matchesSearch && matchesStatus && matchesCampaign && matchesPool;
     });
 
     // Get unique projects and pools for filter dropdowns
@@ -387,12 +387,12 @@ export default function CampaignsView() {
                     </Select>
 
                     {uniqueProjects.length > 0 && (
-                        <Select value={projectFilter} onValueChange={setProjectFilter}>
+                        <Select value={campaignFilter} onValueChange={setCampaignFilter}>
                             <SelectTrigger className="w-full sm:w-[180px]">
-                                <SelectValue placeholder="Filter by project" />
+                                <SelectValue placeholder="Filter by campaign" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Projects</SelectItem>
+                                <SelectItem value="all">All Campaigns</SelectItem>
                                 {uniqueProjects.map((project) => (
                                     <SelectItem key={project.id} value={project.id}>
                                         {project.title}
@@ -473,7 +473,7 @@ export default function CampaignsView() {
                                                 <>
                                                     <span className="text-xs text-muted-foreground">•</span>
                                                     <Badge variant="outline" className="text-xs">
-                                                        Project: {campaign.assigned_project.title}
+                                                        Campaign: {campaign.assigned_project.title}
                                                     </Badge>
                                                 </>
                                             )}

@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast';
 
 /**
 * Signatures & Resources panel
-* - Resources tab: manage per-user resource buttons, and per-project presets (create, edit, duplicate default)
+* - Resources tab: manage per-user resource buttons, and per-campaign presets (create, edit, duplicate default)
 * - Prompt tab: edit per-user default outreach prompt, save to /api/profile/outreach-prompt
 */
 
@@ -92,9 +92,9 @@ export default function SignaturesResourcesPanel() {
   const [themePrimary, setThemePrimary] = useState<string>('#0f766e');
   const [themeSecondary, setThemeSecondary] = useState<string>('#14b8a6');
 
-  // Projects + presets state
-  const [projects, setProjects] = useState<{ id: string; title: string }[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  // Campaigns + presets state
+  const [campaigns, setCampaigns] = useState<{ id: string; title: string }[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [presetSets, setPresetSets] = useState<any[]>([]);
   const [presetsLoading, setPresetsLoading] = useState<boolean>(false);
   const [editingPreset, setEditingPreset] = useState<Record<string, { name: string; configText: string }>>({});
@@ -124,12 +124,12 @@ export default function SignaturesResourcesPanel() {
           setPromptUpdatedAt(data.updatedAt || null);
         }
 
-        // Projects (boards) accessible to the user
+        // Campaigns (boards) accessible to the user
         const projRes = await fetch('/api/campaigns', { method: 'GET' });
         if (projRes.ok) {
           const j = await projRes.json();
           const list = Array.isArray(j?.projects) ? j.projects : [];
-          setProjects(list);
+          setCampaigns(list);
         }
       } catch (e) {
         console.error('Failed to load settings', e);
@@ -283,17 +283,17 @@ export default function SignaturesResourcesPanel() {
               </div>
             </div>
 
-            {/* Project Presets Builder */}
+            {/* Campaign Presets Builder */}
             <div className="space-y-3 border rounded-lg p-4">
               <div className="flex flex-col gap-3">
-                <h3 className="text-lg font-semibold">Project Presets</h3>
+                <h3 className="text-lg font-semibold">Campaign Presets</h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
                   <select
                     className="rounded border p-2 text-sm bg-background w-full sm:w-auto"
-                    value={selectedProjectId}
+                    value={selectedCampaignId}
                     onChange={async (e) => {
                       const pid = e.target.value;
-                      setSelectedProjectId(pid);
+                      setSelectedCampaignId(pid);
                       if (!pid) return;
                       setPresetsLoading(true);
                       try {
@@ -314,8 +314,8 @@ export default function SignaturesResourcesPanel() {
                       }
                     }}
                   >
-                    <option value="">-- Select project --</option>
-                    {projects.map((p) => (
+                    <option value="">-- Select campaign --</option>
+                    {campaigns.map((p) => (
                       <option key={p.id} value={p.id}>{p.title}</option>
                     ))}
                   </select>
@@ -324,10 +324,10 @@ export default function SignaturesResourcesPanel() {
                       variant="outline"
                       className="text-xs"
                       onClick={async () => {
-                        if (!selectedProjectId) { toast.error('Select a project'); return; }
+                        if (!selectedCampaignId) { toast.error('Select a campaign'); return; }
                         setPresetsLoading(true);
                         try {
-                          const res = await fetch(`/api/campaigns/${selectedProjectId}/button-sets`);
+                          const res = await fetch(`/api/campaigns/${selectedCampaignId}/button-sets`);
                           if (!res.ok) throw new Error(await res.text());
                           const j = await res.json();
                           const sets = Array.isArray(j?.sets) ? j.sets : [];
@@ -349,9 +349,9 @@ export default function SignaturesResourcesPanel() {
                     <Button
                       className="text-xs"
                       onClick={async () => {
-                        if (!selectedProjectId) { toast.error('Select a project'); return; }
+                        if (!selectedCampaignId) { toast.error('Select a campaign'); return; }
                         try {
-                          const res = await fetch(`/api/campaigns/${selectedProjectId}/button-sets`, {
+                          const res = await fetch(`/api/campaigns/${selectedCampaignId}/button-sets`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ name: 'Preset', config: {}, isDefault: false }),
@@ -373,11 +373,11 @@ export default function SignaturesResourcesPanel() {
                       variant="secondary"
                       className="text-xs"
                       onClick={async () => {
-                        if (!selectedProjectId) { toast.error('Select a project'); return; }
+                        if (!selectedCampaignId) { toast.error('Select a campaign'); return; }
                         const def = presetSets.find((s: any) => !!s.isDefault);
                         if (!def) { toast.error('No default preset found'); return; }
                         try {
-                          const res = await fetch(`/api/campaigns/${selectedProjectId}/button-sets/${def.id}/duplicate`, { method: 'POST' });
+                          const res = await fetch(`/api/campaigns/${selectedCampaignId}/button-sets/${def.id}/duplicate`, { method: 'POST' });
                           if (!res.ok) throw new Error(await res.text());
                           const j = await res.json();
                           const created = j?.set;
@@ -398,7 +398,7 @@ export default function SignaturesResourcesPanel() {
               {/* Presets list */}
               <div className="space-y-4">
                 {presetsLoading && <div className="text-sm text-muted-foreground">Loading presets…</div>}
-                {!presetsLoading && presetSets.length === 0 && selectedProjectId && (
+                {!presetsLoading && presetSets.length === 0 && selectedCampaignId && (
                   <div className="text-sm text-muted-foreground">No presets yet.</div>
                 )}
                 {presetSets.map((s: any) => (
@@ -424,7 +424,7 @@ export default function SignaturesResourcesPanel() {
                             try { payloadConfig = JSON.parse(txt); } catch { toast.error('Invalid JSON'); return; }
                           }
                           try {
-                            const res = await fetch(`/api/campaigns/${selectedProjectId}/button-sets/${s.id}`, {
+                            const res = await fetch(`/api/campaigns/${selectedCampaignId}/button-sets/${s.id}`, {
                               method: 'PATCH',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ name: payloadName, config: payloadConfig })
