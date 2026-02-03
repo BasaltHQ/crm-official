@@ -404,7 +404,7 @@ export default function UniversityDashboard() {
                         <div className="mt-8">
                             <FlowDiagramCard
                                 title="Visual Workflow: From Setup to Launch"
-                                description="How projects, pools, and campaigns allow for scalable outreach."
+                                description="How projects, pools, and outreach allow for scalable outreach."
                                 accentColor="blue"
                                 legend={PROJECT_WORKFLOW_LEGEND}
                             >

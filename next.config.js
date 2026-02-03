@@ -34,12 +34,16 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: (() => {
       try {
         const { execSync } = require("child_process");
-        // Get latest commit message and extract version (e.g., "v1.0.9 - chore:" or "1.0.9 - feat:")
-        const commitMsg = execSync("git log -1 --format=%s", { encoding: "utf-8" }).trim();
-        const versionMatch = commitMsg.match(/^v?(\d+\.\d+\.\d+[a-zA-Z0-9-]*)/);
-        if (versionMatch) {
-          return versionMatch[1];
+        // Get generic commit messages to find the most recent version
+        const commitMessages = execSync("git log -n 50 --format=%s", { encoding: "utf-8" }).trim().split('\n');
+
+        for (const msg of commitMessages) {
+          const versionMatch = msg.match(/^v?(\d+\.\d+\.\d+[a-zA-Z0-9-]*)/);
+          if (versionMatch) {
+            return versionMatch[1];
+          }
         }
+
         // Fallback to package.json version
         return require("./package.json").version;
       } catch {

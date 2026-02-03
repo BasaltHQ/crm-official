@@ -364,7 +364,7 @@ export default function MyProjectsView({ userId }: Props) {
                                                             <Link href={`/crm/leads/pools/${pool.id}/campaign`}>
                                                                 <Button size="sm" className="bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white border-none">
                                                                     <Rocket className="w-4 h-4 mr-1" />
-                                                                    Campaign
+                                                                    Outreach
                                                                 </Button>
                                                             </Link>
                                                         </div>
@@ -408,7 +408,7 @@ export default function MyProjectsView({ userId }: Props) {
                                                             <Link href={`/crm/leads/pools/${pool.id}/campaign`} className={viewMode === "compact" ? "flex-1" : ""}>
                                                                 <Button size="sm" className={`bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white border-none ${viewMode === "compact" ? "w-full h-7 text-xs" : ""}`}>
                                                                     <Rocket className="w-4 h-4 mr-1" />
-                                                                    {viewMode === "compact" ? "" : "Campaign"}
+                                                                    {viewMode === "compact" ? "" : "Outreach"}
                                                                 </Button>
                                                             </Link>
                                                         </div>
@@ -438,7 +438,7 @@ export default function MyProjectsView({ userId }: Props) {
                             My Assignments
                         </CardTitle>
                         <CardDescription className="text-sm">
-                            Projects and lead pools assigned to you by your admin. Start campaigns from here.
+                            Projects and lead pools assigned to you by your admin. Start outreach from here.
                         </CardDescription>
                     </CardHeader>
                 </Card>

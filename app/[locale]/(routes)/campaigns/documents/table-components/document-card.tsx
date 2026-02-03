@@ -45,7 +45,7 @@ export function DocumentCard({ row }: DocumentCardProps) {
                 ) : (
                     <div className="flex items-center gap-2 text-muted-foreground/50">
                         <FolderKanban className="h-3.5 w-3.5" />
-                        <span className="italic">Unassigned Campaign</span>
+                        <span className="italic">Unassigned Project</span>
                     </div>
                 )}
                 {doc.document_file_url && /^https?:\/\//i.test(doc.document_file_url) && (

@@ -54,28 +54,40 @@ const AdminDashboard = ({
                     <p className="text-muted-foreground mt-1">This is your Command Center.</p>
                 </div>
 
-                {/* The "Pills" */}
+                {/* The "Pills" - Clickable Quick Actions */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-lg text-indigo-300">
+                    <button
+                        onClick={() => router.push("/crm/leads")}
+                        className="flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-lg text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-pointer"
+                    >
                         <UserPlus className="w-4 h-4" />
                         <span className="text-sm font-medium">New Leads</span>
                         <span className="ml-auto bg-indigo-500/20 px-2 py-0.5 rounded text-xs font-bold">{newLeadsCount}</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-lg text-amber-300">
+                    </button>
+                    <button
+                        onClick={() => router.push("/campaigns")}
+                        className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-lg text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer"
+                    >
                         <FolderPlus className="w-4 h-4" />
                         <span className="text-sm font-medium">New Projects</span>
                         <span className="ml-auto bg-amber-500/20 px-2 py-0.5 rounded text-xs font-bold">{newProjectsCount}</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-lg text-emerald-300">
+                    </button>
+                    <button
+                        onClick={() => router.push("/crm/leads?tab=tasks")}
+                        className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-lg text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer"
+                    >
                         <ClipboardList className="w-4 h-4" />
                         <span className="text-sm font-medium">All Tasks</span>
                         <span className="ml-auto bg-emerald-500/20 px-2 py-0.5 rounded text-xs font-bold">{allTasksCount}</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/20 px-4 py-2 rounded-lg text-cyan-300">
+                    </button>
+                    <button
+                        onClick={() => router.push("/messages")}
+                        className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/20 px-4 py-2 rounded-lg text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer"
+                    >
                         <MessageSquare className="w-4 h-4" />
                         <span className="text-sm font-medium">Messages</span>
                         <span className="ml-auto bg-cyan-500/20 px-2 py-0.5 rounded text-xs font-bold">{messagesCount}</span>
-                    </div>
+                    </button>
                 </div>
             </div>
 

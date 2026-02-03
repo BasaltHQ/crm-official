@@ -40,7 +40,7 @@ export default function ProjectWorkflowGuide() {
                 "View all projects across the entire platform",
                 "Create projects for any team",
                 "Assign admins to projects",
-                "Monitor all campaigns platform-wide",
+                "Monitor all outreach platform-wide",
             ],
         },
         {
@@ -54,7 +54,7 @@ export default function ProjectWorkflowGuide() {
                 "Create projects for your team",
                 "Create and assign lead pools to members",
                 "Assign members to projects",
-                "Toggle campaign approval on/off per project",
+                "Toggle outreach approval on/off per project",
             ],
         },
         {
@@ -65,7 +65,7 @@ export default function ProjectWorkflowGuide() {
             iconColor: "text-emerald-400",
             permissions: [
                 "View only projects assigned to you",
-                "Execute campaigns on assigned lead pools",
+                "Execute outreach on assigned lead pools",
                 "Cannot create lead pools",
                 "Cannot modify project settings",
             ],
@@ -105,7 +105,7 @@ export default function ProjectWorkflowGuide() {
         },
         {
             phase: "Phase 3",
-            title: "Campaign Execution",
+            title: "Outreach Execution",
             actor: "Member",
             icon: Rocket,
             color: "bg-card border-emerald-500/20",
@@ -113,9 +113,9 @@ export default function ProjectWorkflowGuide() {
             steps: [
                 "Member opens 'My Projects' dashboard",
                 "Member sees assigned projects and pools",
-                "Member clicks 'Start Campaign' on an assigned pool",
-                "Campaign wizard opens with project context pre-filled",
-                "Member reviews, customizes, and launches the campaign",
+                "Member clicks 'Start Outreach' on an assigned pool",
+                "Outreach wizard opens with project context pre-filled",
+                "Member reviews, customizes, and launches the outreach",
             ],
         },
         {
@@ -126,9 +126,9 @@ export default function ProjectWorkflowGuide() {
             color: "bg-card border-amber-500/20",
             iconColor: "text-amber-400",
             steps: [
-                "Admin can require approval before campaigns go live",
+                "Admin can require approval before outreach goes live",
                 "This is a toggle in project settings (case by case)",
-                "If ON: member submits campaign for review",
+                "If ON: member submits outreach for review",
                 "Admin approves or requests changes",
                 "If OFF: member can launch immediately",
             ],
@@ -141,8 +141,8 @@ export default function ProjectWorkflowGuide() {
             color: "bg-card border-rose-500/20",
             iconColor: "text-rose-400",
             steps: [
-                "Members see stats for their own campaigns",
-                "Admins see all campaign stats for their team",
+                "Members see stats for their own outreach",
+                "Admins see all outreach stats for their team",
                 "Super Admins see platform-wide analytics",
                 "All leads remain owned by admin for continuity",
             ],
@@ -162,7 +162,7 @@ export default function ProjectWorkflowGuide() {
         },
         {
             title: "Project Context Flows Down",
-            description: "When a member starts a campaign, the project's context (ICP, messaging, etc.) is automatically applied.",
+            description: "When a member starts outreach, the project's context (ICP, messaging, etc.) is automatically applied.",
             icon: ArrowRight,
         },
     ];
@@ -187,7 +187,7 @@ export default function ProjectWorkflowGuide() {
                             </h2>
                         </div>
                         <p className="text-sm text-muted-foreground w-full">
-                            How projects, lead pools, and campaigns flow from admin setup to member execution.
+                            How projects, lead pools, and outreach flow from admin setup to member execution.
                         </p>
                     </div>
                 </Card>
@@ -253,7 +253,7 @@ export default function ProjectWorkflowGuide() {
                                 { label: "Admin creates Project", color: "border-blue-500 text-blue-500 hover:bg-blue-500" },
                                 { label: "Admin creates Lead Pool", color: "border-violet-500 text-violet-500 hover:bg-violet-500" },
                                 { label: "Admin assigns to Member", color: "border-indigo-500 text-indigo-500 hover:bg-indigo-500" },
-                                { label: "Member runs Campaign", color: "border-emerald-500 text-emerald-500 hover:bg-emerald-500" },
+                                { label: "Member runs Outreach", color: "border-emerald-500 text-emerald-500 hover:bg-emerald-500" },
                             ].map((step, i) => (
                                 <React.Fragment key={step.label}>
                                     <Badge

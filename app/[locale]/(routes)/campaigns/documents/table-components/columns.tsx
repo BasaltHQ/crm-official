@@ -66,7 +66,7 @@ export const columns: ColumnDef<Task>[] = [
     {
         accessorKey: "assigned_to_board",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Campaign" />
+            <DataTableColumnHeader column={column} title="Project" />
         ),
         cell: ({ row }) => {
             const board = row.original.assigned_to_board;

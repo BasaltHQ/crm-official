@@ -101,7 +101,7 @@ export function DataTableRowActions<TData>({
                         View
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setAssignOpen(true)}>
-                        Assign to Campaign
+                        Assign to Project
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setOpen(true)}>

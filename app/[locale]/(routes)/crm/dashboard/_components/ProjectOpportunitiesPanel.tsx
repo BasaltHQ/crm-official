@@ -104,10 +104,10 @@ export default function ProjectOpportunitiesPanel() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-end">
         <div className="w-full md:w-64">
-          <label className="text-sm">Campaign</label>
+          <label className="text-sm">Project</label>
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select campaign" />
+              <SelectValue placeholder="Select project" />
             </SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {projects.map((p) => (

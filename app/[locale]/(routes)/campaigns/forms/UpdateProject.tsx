@@ -82,7 +82,7 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
       await axios.put("/api/campaigns/", data);
       toast({
         title: "Success",
-        description: `Campaign: ${data.title}, update successfully`,
+        description: `Project: ${data.title}, updated successfully`,
       });
     } catch (error: any) {
       toast({
@@ -112,7 +112,7 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
               name="brand_logo_url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Campaign logo (optional)</FormLabel>
+                  <FormLabel>Project logo (optional)</FormLabel>
                   <FormControl>
                     <div className="space-y-2">
                       {field.value ? (
@@ -177,11 +177,11 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Campaign name</FormLabel>
+                  <FormLabel>Project name</FormLabel>
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="Enter campaign name"
+                      placeholder="Enter project name"
                       {...field}
                     />
                   </FormControl>
@@ -194,12 +194,12 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Campaign description</FormLabel>
+                  <FormLabel>Project description</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={10}
                       disabled={isLoading}
-                      placeholder="Enter campaign description"
+                      placeholder="Enter project description"
                       {...field}
                     />
                   </FormControl>
@@ -212,14 +212,14 @@ const UpdateProjectForm = ({ initialData, openEdit }: Props) => {
               name="visibility"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Campaign visibility</FormLabel>
+                  <FormLabel>Project visibility</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select campaigns visibility" />
+                        <SelectValue placeholder="Select project visibility" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

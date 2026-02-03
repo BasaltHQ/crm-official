@@ -80,7 +80,7 @@ export const searchUsers = async (query: string) => {
 }
 
 
-export const addMember = async (teamId: string, userId: string) => {
+export const addMember = async (teamId: string, userId: string, role: string = "MEMBER") => {
     try {
         const team = await (prismadb as any).team.findUnique({
             where: { id: teamId },
@@ -98,7 +98,7 @@ export const addMember = async (teamId: string, userId: string) => {
             where: { id: userId },
             data: {
                 team_id: teamId,
-                team_role: "MEMBER"
+                team_role: role
             }
         });
         revalidatePath(`/partners/${teamId}`);
@@ -148,5 +148,37 @@ export const toggleUserStatus = async (userId: string, status: "ACTIVE" | "INACT
     } catch (error) {
         console.error("[TOGGLE_USER_STATUS]", error);
         return { error: "Failed to update status" };
+    }
+};
+
+export const getOrganizationMembers = async (orgId: string) => {
+    try {
+        const users = await (prismadb.users as any).findMany({
+            where: {
+                OR: [
+                    { team_id: orgId },
+                    { assigned_team: { parent_id: orgId } }
+                ]
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                team_id: true,
+                team_role: true,
+                assigned_team: {
+                    select: {
+                        name: true,
+                        team_type: true
+                    }
+                }
+            },
+            orderBy: { name: 'asc' }
+        });
+        return users;
+    } catch (error) {
+        console.error("[GET_ORG_MEMBERS]", error);
+        return [];
     }
 };

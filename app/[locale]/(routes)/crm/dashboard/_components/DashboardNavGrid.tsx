@@ -35,7 +35,7 @@ const navItems = [
         iconColor: "text-emerald-400",
     },
     {
-        title: "Campaigns",
+        title: "Outreach",
         description: "Manage outreach campaigns",
         href: "/crm/leads?tab=campaigns",
         icon: Megaphone,

@@ -156,7 +156,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
       await axios.post("/api/campaigns/", data);
       toast({
         title: "Success",
-        description: `New campaign: ${data.title}, created successfully`,
+        description: `New project: ${data.title}, created successfully`,
       });
     } catch (error: any) {
       toast({
@@ -234,17 +234,17 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
         {customTrigger ? (
           <div className="cursor-pointer" onClick={() => setOpen(true)}>{customTrigger}</div>
         ) : (
-          <Button className="px-2">New campaign</Button>
+          <Button className="px-2">New project</Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderKanban className="w-5 h-5" />
-            New Campaign
+            New Project
           </DialogTitle>
           <DialogDescription>
-            Create a campaign with context for your team's outreach.
+            Create a project with context for your team's outreach.
           </DialogDescription>
         </DialogHeader>
         {isLoading ? (
@@ -280,7 +280,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                       name="title"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Campaign name *</FormLabel>
+                          <FormLabel>Project name *</FormLabel>
                           <FormControl>
                             <Input
                               disabled={isLoading}
@@ -344,10 +344,10 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                           <div className="space-y-0.5">
                             <FormLabel className="flex items-center gap-2">
                               <ShieldCheck className="w-4 h-4 text-amber-500" />
-                              Require Campaign Approval
+                              Require Outreach Approval
                             </FormLabel>
                             <FormDescription className="text-xs">
-                              Members must get admin approval before sending campaigns
+                              Members must get admin approval before sending outreach
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -399,7 +399,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                       name="campaign_brief"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Campaign Brief</FormLabel>
+                          <FormLabel>Project Brief</FormLabel>
                           <FormControl>
                             <Textarea
                               disabled={isLoading}
@@ -512,7 +512,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                       name="brand_logo_url"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Campaign Logo</FormLabel>
+                          <FormLabel>Project Logo</FormLabel>
                           <FormControl>
                             <div className="space-y-3">
                               {field.value && (
@@ -569,7 +569,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                 <DialogTrigger asChild>
                   <Button type="button" variant="outline">Cancel</Button>
                 </DialogTrigger>
-                <Button type="submit">Create Campaign</Button>
+                <Button type="submit">Create Project</Button>
               </div>
             </form>
           </Form>

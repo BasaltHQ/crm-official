@@ -11,6 +11,7 @@ import {
     Mail,
     MessageSquare,
     Bot,
+    Building2,
 } from "lucide-react";
 
 interface AdminSidebarProps {

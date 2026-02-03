@@ -6,17 +6,21 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CRM_MODULES } from "@/lib/role-permissions";
-import ConfigureModulesModal from "./ConfigureModulesModal";
+import { toast } from "sonner";
 import { DeleteRoleModal } from "./DeleteRoleModal";
+import ConfigureModulesModal from "./ConfigureModulesModal";
+
 
 interface RoleModuleCardProps {
     roleName: string;
     roleKey: string;
     description: string;
-    userCount: number;
+    userCount?: number;
     enabledModules: string[];
     isCustom?: boolean;
+    badge?: string;
     onModulesChange?: (roleKey: string, modules: string[]) => void;
+    onUpdate?: (modules: string[]) => Promise<any>;
 }
 
 export default function RoleModuleCard({
@@ -26,14 +30,26 @@ export default function RoleModuleCard({
     userCount,
     enabledModules,
     isCustom = false,
+    badge,
     onModulesChange,
+    onUpdate,
 }: RoleModuleCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [modules, setModules] = useState<string[]>(enabledModules);
 
-    const handleSave = (newModules: string[]) => {
+    const handleSave = async (newModules: string[]) => {
         setModules(newModules);
+
+        if (onUpdate) {
+            const promise = onUpdate(newModules);
+            toast.promise(promise, {
+                loading: "Updating permissions...",
+                success: "Permissions updated successfully",
+                error: "Failed to update permissions"
+            });
+        }
+
         onModulesChange?.(roleKey, newModules);
     };
 
@@ -48,13 +64,22 @@ export default function RoleModuleCard({
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-border/50">
                     <div>
-                        <h3 className="text-lg font-semibold">{roleName}</h3>
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <h3 className="text-lg font-semibold">{roleName}</h3>
+                            {badge && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500/30 text-amber-500 bg-amber-500/5">
+                                    {badge}
+                                </Badge>
+                            )}
+                        </div>
                         <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
                     </div>
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Users className="w-4 h-4" />
-                        <span className="text-sm font-medium">{userCount}</span>
-                    </div>
+                    {userCount !== undefined && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Users className="w-4 h-4" />
+                            <span className="text-sm font-medium">{userCount}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Content */}

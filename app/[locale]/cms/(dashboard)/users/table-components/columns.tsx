@@ -77,6 +77,36 @@ export const columns: ColumnDef<AdminUser>[] = [
     enableHiding: true,
   },
   {
+    id: "department",
+    accessorFn: (row) => row.assigned_department?.name || row.assigned_team?.name || "Organization",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Department" />
+    ),
+    cell: ({ row }) => {
+      // Prioritize department if it exists
+      const dept = row.original.assigned_department;
+      const team = row.original.assigned_team;
+
+      const displayTeam = dept || team;
+      const teamName = displayTeam?.name;
+      const isDept = !!dept || displayTeam?.team_type === 'DEPARTMENT';
+
+      return (
+        <div className="flex items-center gap-2">
+          {isDept && <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-amber-500/50 text-amber-500">Dept</Badge>}
+          <span className={!teamName ? "text-muted-foreground/50 italic" : ""}>
+            {teamName || "Organization"}
+          </span>
+        </div>
+      );
+    },
+    filterFn: (row, id, value) => {
+      return value.includes(row.getValue(id));
+    },
+    enableSorting: true,
+    enableHiding: true,
+  },
+  {
     accessorKey: "lastLoginAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Last Login" />
@@ -124,6 +154,6 @@ export const columns: ColumnDef<AdminUser>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} />,
+    cell: ({ row, table }) => <DataTableRowActions row={row} departments={(table.options.meta as any)?.departments || []} />,
   },
 ];

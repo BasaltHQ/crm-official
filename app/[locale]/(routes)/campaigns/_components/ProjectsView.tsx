@@ -28,15 +28,15 @@ const ProjectsView = async () => {
   // We only define data for the first two cards here as AiAssistantCardWrapper handles its own card data
   const cards: ProjectCardData[] = [
     {
-      title: "New Campaign",
-      description: "Create a new campaign board",
+      title: "New Project",
+      description: "Create a new project board",
       icon: FolderPlus,
       color: "from-emerald-500/20 to-green-500/20",
       iconColor: "text-emerald-400"
     },
     {
       title: "New Task",
-      description: "Add a task to a campaign",
+      description: "Add a task to a project",
       icon: CheckSquare,
       color: "from-orange-500/20 to-red-500/20",
       iconColor: "text-orange-400"

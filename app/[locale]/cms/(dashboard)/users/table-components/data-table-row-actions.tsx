@@ -21,14 +21,17 @@ import ConfigureModulesModal from "@/app/[locale]/admin/(dashboard)/modules/comp
 import { ChangeRoleModal } from "../components/ChangeRoleModal";
 import { AdminResetPasswordModal } from "../components/AdminResetPasswordModal";
 import { ROLE_CONFIGS } from "@/lib/role-permissions";
-import { Copy, Edit, MoreHorizontal, Trash, Settings2, UserCheck, UserX, ShieldCheck, ShieldX, KeyRound } from "lucide-react";
+import { Copy, Edit, MoreHorizontal, Trash, Settings2, UserCheck, UserX, ShieldCheck, ShieldX, KeyRound, Building2 } from "lucide-react";
+import AssignDepartmentModal from "../components/AssignDepartmentModal"; // Import the modal
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
+  departments?: { id: string; name: string; }[];
 }
 
 export function DataTableRowActions<TData>({
   row,
+  departments = [],
 }: DataTableRowActionsProps<TData>) {
   const router = useRouter();
   const data = adminUserSchema.parse(row.original);
@@ -38,6 +41,7 @@ export function DataTableRowActions<TData>({
   const [modulesModalOpen, setModulesModalOpen] = useState(false);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [assignDepartmentModalOpen, setAssignDepartmentModalOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -117,7 +121,6 @@ export function DataTableRowActions<TData>({
   };
 
 
-
   const onSaveModules = async (modules: string[]) => {
     try {
       // Update user modules via API
@@ -153,6 +156,8 @@ export function DataTableRowActions<TData>({
           roleName={data.name || "User"}
           enabledModules={userModules}
           onSave={onSaveModules}
+          teamId={data.team_id || data.assigned_team?.id} // Pass team ID for effective permission fetch
+          userRole={data.team_role} // Pass role
         />
       )}
 
@@ -176,6 +181,17 @@ export function DataTableRowActions<TData>({
           userName={data.name || "User"}
         />
       )}
+
+      {/* Assign Department Modal */}
+      <AssignDepartmentModal
+        isOpen={assignDepartmentModalOpen}
+        onClose={() => setAssignDepartmentModalOpen(false)}
+        userId={data.id}
+        userName={data.name || "User"}
+        currentDepartmentId={data.assigned_team?.team_type === 'DEPARTMENT' ? data.assigned_team.id : null}
+        currentRole={data.team_role as any}
+        departments={departments}
+      />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -202,6 +218,10 @@ export function DataTableRowActions<TData>({
 
           <DropdownMenuSeparator />
 
+
+
+          <DropdownMenuSeparator />
+
           <DropdownMenuItem onClick={onActivate}>
             <UserCheck className="mr-2 w-4 h-4" />
             Activate
@@ -214,12 +234,10 @@ export function DataTableRowActions<TData>({
           <DropdownMenuSeparator />
 
           {/* Change Role - Configurable for Admin and Member roles (but not Owner) */}
-          {data.team_role !== 'OWNER' && (
-            <DropdownMenuItem onClick={() => setRoleModalOpen(true)}>
-              <ShieldCheck className="mr-2 w-4 h-4" />
-              Change Role
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem onClick={() => setAssignDepartmentModalOpen(true)}>
+            <Building2 className="mr-2 w-4 h-4" />
+            Change Role/Team
+          </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => setPasswordModalOpen(true)}>
             <KeyRound className="mr-2 w-4 h-4" />

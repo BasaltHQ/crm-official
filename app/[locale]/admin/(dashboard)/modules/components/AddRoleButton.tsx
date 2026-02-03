@@ -5,11 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddRoleModal } from "./AddRoleModal";
 
-interface AddRoleButtonProps {
-    teamId: string;
+interface DepartmentOption {
+    id: string;
+    name: string;
 }
 
-export function AddRoleButton({ teamId }: AddRoleButtonProps) {
+interface AddRoleButtonProps {
+    teamId: string;
+    departments: DepartmentOption[];
+}
+
+export function AddRoleButton({ teamId, departments }: AddRoleButtonProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -22,6 +28,7 @@ export function AddRoleButton({ teamId }: AddRoleButtonProps) {
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}
                 teamId={teamId}
+                departments={departments}
             />
         </>
     );

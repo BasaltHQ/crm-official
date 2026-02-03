@@ -377,7 +377,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
 
         {activeStage === "Offering" && (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">Campaign documents with live gamma.app links will be shown here for editing and attaching to email.</div>
+            <div className="text-sm text-muted-foreground">Project documents with live gamma.app links will be shown here for editing and attaching to email.</div>
             <div className="rounded border p-3">
               <div className="text-xs font-semibold">Meeting Link</div>
               <div className="text-sm break-all">{activities.find((a: any) => a.type === "email_sent")?.metadata?.meetingLink || selectedLead?.outreach_meeting_link || "(none)"}</div>

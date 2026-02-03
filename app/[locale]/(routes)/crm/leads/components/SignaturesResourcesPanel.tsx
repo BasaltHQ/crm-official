@@ -283,10 +283,10 @@ export default function SignaturesResourcesPanel() {
               </div>
             </div>
 
-            {/* Campaign Presets Builder */}
+            {/* Project Presets Builder */}
             <div className="space-y-3 border rounded-lg p-4">
               <div className="flex flex-col gap-3">
-                <h3 className="text-lg font-semibold">Campaign Presets</h3>
+                <h3 className="text-lg font-semibold">Project Presets</h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
                   <select
                     className="rounded border p-2 text-sm bg-background w-full sm:w-auto"
@@ -324,7 +324,7 @@ export default function SignaturesResourcesPanel() {
                       variant="outline"
                       className="text-xs"
                       onClick={async () => {
-                        if (!selectedCampaignId) { toast.error('Select a campaign'); return; }
+                        if (!selectedCampaignId) { toast.error('Select a project'); return; }
                         setPresetsLoading(true);
                         try {
                           const res = await fetch(`/api/campaigns/${selectedCampaignId}/button-sets`);
@@ -349,7 +349,7 @@ export default function SignaturesResourcesPanel() {
                     <Button
                       className="text-xs"
                       onClick={async () => {
-                        if (!selectedCampaignId) { toast.error('Select a campaign'); return; }
+                        if (!selectedCampaignId) { toast.error('Select a project'); return; }
                         try {
                           const res = await fetch(`/api/campaigns/${selectedCampaignId}/button-sets`, {
                             method: 'POST',
@@ -373,7 +373,7 @@ export default function SignaturesResourcesPanel() {
                       variant="secondary"
                       className="text-xs"
                       onClick={async () => {
-                        if (!selectedCampaignId) { toast.error('Select a campaign'); return; }
+                        if (!selectedCampaignId) { toast.error('Select a project'); return; }
                         const def = presetSets.find((s: any) => !!s.isDefault);
                         if (!def) { toast.error('No default preset found'); return; }
                         try {

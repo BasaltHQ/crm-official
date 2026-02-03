@@ -17,7 +17,8 @@ const Container = ({
     children,
     action,
     sticky = false,
-}: ContainerProps & { sticky?: boolean }) => {
+    fluid = false,
+}: ContainerProps & { sticky?: boolean; fluid?: boolean }) => {
     if (sticky) {
         return (
             <div className="h-[calc(100vh-80px)] md:h-full flex flex-col bg-background">
@@ -46,7 +47,7 @@ const Container = ({
     }
 
     return (
-        <div className="space-y-4 p-4 md:p-6 lg:p-8 pt-6 md:border-l min-w-0">
+        <div className={`space-y-4 p-4 md:p-6 lg:p-8 pt-6 md:border-l min-w-0 ${fluid ? 'w-full max-w-none' : ''}`}>
             {(title || description) && (
                 <div className="shrink-0">
                     <div className="flex items-start justify-between gap-4">

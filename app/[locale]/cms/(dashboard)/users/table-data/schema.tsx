@@ -15,6 +15,17 @@ export const adminUserSchema = z.object({
   team_role: z.string().nullable().optional(),
   assigned_modules: z.array(z.string()).optional(),
   avatar: z.string().nullable().optional(),
+  assigned_team: z.object({
+    id: z.string(),
+    name: z.string().nullable().optional(),
+    team_type: z.string().nullable().optional(),
+  }).optional().nullable(),
+  assigned_department: z.object({
+    id: z.string(),
+    name: z.string().nullable().optional(),
+    team_type: z.string().nullable().optional(),
+  }).optional().nullable(),
+  team_id: z.string().nullable().optional(),
 });
 
 export type AdminUser = z.infer<typeof adminUserSchema>;

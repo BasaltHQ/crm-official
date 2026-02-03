@@ -24,9 +24,13 @@ const TeamDetailsPage = async ({ params }: { params: Promise<{ teamId: string }>
     let ownerInfo = null;
     let roleCounts = { owner: 0, admin: 0, member: 0, viewer: 0 };
     let customRoles: any[] = [];
+    let departments: any[] = [];
 
-    if (currentUserInfo?.isGlobalAdmin && team) {
-        const [resend_key, owner, roleCountsData, customRolesData] = await Promise.all([
+    const isTeamSuperAdmin = currentUserInfo?.teamId === team?.id && (currentUserInfo?.teamRole === 'SUPER_ADMIN' || currentUserInfo?.teamRole === 'OWNER');
+    const canManageTeam = currentUserInfo?.isGlobalAdmin || isTeamSuperAdmin;
+
+    if (canManageTeam && team) {
+        const [resend_key, owner, roleCountsData, customRolesData, departmentsData] = await Promise.all([
             prismadb.systemServices.findFirst({
                 where: { name: "resend_smtp" },
             }),
@@ -48,6 +52,27 @@ const TeamDetailsPage = async ({ params }: { params: Promise<{ teamId: string }>
                 include: { _count: { select: { users: true } } },
                 orderBy: { created_at: "asc" },
             }),
+            // Fetch departments for this team
+            prismadb.team.findMany({
+                where: {
+                    parent_id: team.id,
+                    team_type: "DEPARTMENT",
+                },
+                include: {
+                    members: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            team_role: true,
+                        },
+                    },
+                    _count: {
+                        select: { members: true },
+                    },
+                },
+                orderBy: { name: "asc" },
+            }),
         ]);
 
         systemResendData = {
@@ -64,6 +89,7 @@ const TeamDetailsPage = async ({ params }: { params: Promise<{ teamId: string }>
             viewer: roleCountsData[3],
         };
         customRoles = customRolesData;
+        departments = departmentsData;
     }
 
     if (!team) {
@@ -88,6 +114,7 @@ const TeamDetailsPage = async ({ params }: { params: Promise<{ teamId: string }>
                 ownerInfo={ownerInfo}
                 roleCounts={roleCounts}
                 customRoles={customRoles}
+                departments={departments}
             />
         </div>
     );

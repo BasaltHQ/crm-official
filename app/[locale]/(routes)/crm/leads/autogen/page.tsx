@@ -135,7 +135,7 @@ export default function LeadGenWizardPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.name) {
-      toast.error("Please enter a campaign name");
+      toast.error("Please enter a pool name");
       return;
     }
     setSubmitting(true);
@@ -239,7 +239,7 @@ export default function LeadGenWizardPage() {
         await fetch(`/api/leads/autogen/run/${data.jobId}`, { method: "POST" });
       } catch (err) { console.error(err); }
 
-      toast.success("Campaign started successfully!");
+      toast.success("Lead generation started successfully!");
       router.push("/crm/leads/pools");
 
     } catch (err: any) {
@@ -281,7 +281,7 @@ export default function LeadGenWizardPage() {
       {/* Project Selector */}
       <div className="relative group overflow-hidden rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4 backdrop-blur-md shadow-sm transition-all hover:border-indigo-500/40">
         <label className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400 mb-1.5 block flex items-center gap-1.5">
-          <FolderKanban className="w-3 h-3" /> Link to Campaign
+          <FolderKanban className="w-3 h-3" /> Link to Project
         </label>
         <select
           name="campaignId"
@@ -289,25 +289,25 @@ export default function LeadGenWizardPage() {
           onChange={(e) => setState(prev => ({ ...prev, campaignId: e.target.value }))}
           className="w-full bg-transparent border-none text-sm font-medium focus:ring-0 px-0 cursor-pointer"
         >
-          <option value="">— No Campaign —</option>
+          <option value="">— No Project —</option>
           {(campaignsData?.projects || []).map(p => (
             <option key={p.id} value={p.id}>{p.title}</option>
           ))}
         </select>
-        <div className="text-[10px] text-muted-foreground mt-1">Pool will inherit campaign ICP</div>
+        <div className="text-[10px] text-muted-foreground mt-1">Pool will inherit project ICP</div>
       </div>
 
       {/* Campaign Name */}
       <div className="md:col-span-2 relative group overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-md shadow-sm transition-all hover:bg-white/10">
         <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">
-          Campaign Name (Pool)
+          Pool Name
         </label>
         <input
           name="name"
           value={state.name}
           onChange={onChange}
           className="w-full bg-transparent border-none text-lg font-medium placeholder:text-muted-foreground/50 focus:ring-0 px-0"
-          placeholder="e.g. Q1 SaaS Outreach Campaign..."
+          placeholder="e.g. Q1 SaaS Outreach..."
         />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent to-background/10" />
       </div>
@@ -429,7 +429,7 @@ export default function LeadGenWizardPage() {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400"><FileText className="w-5 h-5" /></div>
-                <h3 className="text-lg font-semibold">Campaign Details</h3>
+                <h3 className="text-lg font-semibold">Pool Details</h3>
               </div>
 
               <TextAreaWithAI label="Description" name="description" placeholder="e.g. We are targeting B2B SaaS companies..." rows={4} />
@@ -474,7 +474,7 @@ export default function LeadGenWizardPage() {
               <div className="flex justify-between pt-4">
                 <button type="button" onClick={() => setStep(2)} className="px-6 py-2.5 border border-white/10 rounded-lg hover:bg-white/5 transition-colors">Back</button>
                 <button type="submit" disabled={submitting} className="px-8 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg shadow-lg hover:shadow-indigo-500/25 transition-all">
-                  {submitting ? "Launching..." : "Launch Campaign"}
+                  {submitting ? "Launching..." : "Launch Lead Gen"}
                 </button>
               </div>
             </div>
@@ -528,7 +528,7 @@ export default function LeadGenWizardPage() {
           <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-zinc-600 via-slate-600 to-zinc-600 bg-[length:200%_auto] animate-gradient" />
           <span className="relative flex items-center justify-center gap-2">
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
-            {submitting ? "Starting..." : "Start Campaign"}
+            {submitting ? "Starting..." : "Start Lead Gen"}
           </span>
         </button>
       </div>

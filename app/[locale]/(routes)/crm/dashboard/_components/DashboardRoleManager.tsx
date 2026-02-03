@@ -73,8 +73,8 @@ const DashboardRoleManager = async () => {
                 { name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users", color: "emerald" }, // Added
                 { name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange" }, // Renamed from Campaigns
                 // "My Projects" was in the screenshot grid, adding here for visual match
-                // "My Campaigns" was in the screenshot grid, adding here for visual match
-                { name: "My Campaigns", value: counts.boards, href: "/campaigns", iconName: "Folder", color: "yellow" },
+                // "My Projects" was in the screenshot grid, adding here for visual match
+                { name: "My Projects", value: counts.boards, href: "/campaigns", iconName: "Folder", color: "yellow" },
                 // Leads removed as per user request to remove from "main admin panel"
                 { name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "HeartHandshake", color: "amber" },
             );
@@ -83,7 +83,7 @@ const DashboardRoleManager = async () => {
         // Redundancy Removal: Merge Projects into main grid
         if (projectsModule?.enabled) {
             crmEntities.push(
-                { name: "Campaigns", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" },
+                { name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" },
                 { name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald" },
             );
         }

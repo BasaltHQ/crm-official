@@ -367,7 +367,7 @@ export default function OutreachCampaignWizard({
 
     const steps = [
         { num: 1, title: "Campaign Basics", icon: Users },
-        { num: 2, title: "Campaign Context", icon: FileText },
+        { num: 2, title: "Project Context", icon: FileText },
         { num: 3, title: "AI Prompt Template", icon: Sparkles },
         { num: 4, title: "Preview & Test", icon: Eye }
     ];

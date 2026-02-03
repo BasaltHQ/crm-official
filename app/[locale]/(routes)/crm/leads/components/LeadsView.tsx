@@ -121,7 +121,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
         body: JSON.stringify({ projectId: campaignId }),
       });
       if (res.ok) {
-        toast.success('Campaign assigned to pool');
+        toast.success('Project assigned to pool');
         mutate('/api/leads/pools');
       } else {
         const txt = await res.text();
@@ -549,16 +549,16 @@ export default function LeadsView({ data, isMember = false }: Props) {
             {selectedPoolId && !isMember && (
               <div className="flex items-center gap-2">
                 {!campaignAssignedForSelectedPool ? (
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive">No Campaign Assigned:</span>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive">No Project Assigned:</span>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Campaign:</span>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Project:</span>
                 )}
                 <select
                   className={`h-8 rounded border px-2 text-[10px] uppercase tracking-wider font-semibold bg-background ${!campaignAssignedForSelectedPool ? 'border-destructive/50' : 'border-input'}`}
                   value={campaignAssignedForSelectedPool || ""}
                   onChange={(e) => assignPoolCampaign(e.target.value)}
                 >
-                  <option value="" disabled>Select a campaign...</option>
+                  <option value="" disabled>Select a project...</option>
                   {campaigns.map((p: any) => (
                     <option key={p.id} value={p.id}>{p.title}</option>
                   ))}
@@ -669,7 +669,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
                     <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'actions')} />
                   </th>
                   <th className="relative p-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider overflow-hidden text-ellipsis select-none" style={{ width: columnWidths.campaign }}>
-                    Campaign
+                    Project
                     <div className="absolute right-0 top-0 bottom-0 w-2 z-10 cursor-col-resize hover:bg-primary/50" onMouseDown={(e) => startResize(e, 'campaign')} />
                   </th>
                 </tr>
@@ -766,7 +766,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
 
                             if (!url) return null;
                             const img = (
-                              <img src={url} alt="Campaign" className="h-8 w-auto rounded object-contain inline-block hover:opacity-90 transition-opacity" />
+                              <img src={url} alt="Project" className="h-8 w-auto rounded object-contain inline-block hover:opacity-90 transition-opacity" />
                             );
                             return projectId ? (
                               <Link href={`/campaigns/boards/${projectId}`} prefetch={false}>{img}</Link>

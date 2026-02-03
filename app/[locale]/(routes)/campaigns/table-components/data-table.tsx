@@ -140,7 +140,7 @@ export function ProjectsDataTable<TData, TValue>({
             </div>
             <div>
               <p className="text-2xl font-bold">{calculatedStats.total}</p>
-              <p className="text-xs text-muted-foreground">Total Campaigns</p>
+              <p className="text-xs text-muted-foreground">Total Projects</p>
             </div>
           </div>
         </div>
@@ -335,7 +335,7 @@ export function ProjectsDataTable<TData, TValue>({
                                         </div>
                                       ))}
                                       {pools.length === 0 && (
-                                        <div className="text-xs text-muted-foreground">No lead pools assigned to this campaign.</div>
+                                        <div className="text-xs text-muted-foreground">No lead pools assigned to this project.</div>
                                       )}
                                     </div>
                                   </div>

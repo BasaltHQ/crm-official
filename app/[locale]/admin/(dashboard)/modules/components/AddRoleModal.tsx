@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import axios from "axios";
+import { Loader2, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CRM_MODULES } from "@/lib/role-permissions";
 
 import {
     Dialog,
@@ -12,27 +15,41 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CRM_MODULES } from "@/lib/role-permissions";
-import { cn } from "@/lib/utils";
-import { Loader2, Plus } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+
+interface DepartmentOption {
+    id: string;
+    name: string;
+}
 
 interface AddRoleModalProps {
     isOpen: boolean;
     onClose: () => void;
-    teamId: string;
+    teamId: string; // The main Org ID
+    departments: DepartmentOption[];
 }
 
-export function AddRoleModal({ isOpen, onClose, teamId }: AddRoleModalProps) {
+export function AddRoleModal({ isOpen, onClose, teamId, departments }: AddRoleModalProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [selectedModules, setSelectedModules] = useState<string[]>([]);
+
+    // Scope state: 'org' means Global (teamId), otherwise it's a specific Department ID
+    const [selectedScopeId, setSelectedScopeId] = useState<string>("org");
 
     const handleModuleToggle = (moduleId: string) => {
         setSelectedModules((prev) =>
@@ -48,13 +65,16 @@ export function AddRoleModal({ isOpen, onClose, teamId }: AddRoleModalProps) {
             return;
         }
 
+        const targetTeamId = selectedScopeId === "org" ? teamId : selectedScopeId;
+
         startTransition(async () => {
             try {
+                // Ensure the target team (department or org) is passed
                 await axios.post("/api/roles", {
                     name: name.trim(),
                     description: description.trim() || undefined,
                     modules: selectedModules,
-                    teamId,
+                    teamId: targetTeamId,
                 });
 
                 toast.success(`Role "${name}" created successfully!`);
@@ -71,6 +91,7 @@ export function AddRoleModal({ isOpen, onClose, teamId }: AddRoleModalProps) {
         setName("");
         setDescription("");
         setSelectedModules([]);
+        setSelectedScopeId("org");
         onClose();
     };
 
@@ -85,16 +106,36 @@ export function AddRoleModal({ isOpen, onClose, teamId }: AddRoleModalProps) {
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
-                    {/* Role Name */}
-                    <div className="space-y-2">
-                        <Label htmlFor="role-name">Role Name</Label>
-                        <Input
-                            id="role-name"
-                            placeholder="e.g., Sales Representative"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="bg-background"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Role Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="role-name">Role Name</Label>
+                            <Input
+                                id="role-name"
+                                placeholder="e.g., Sales Representative"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="bg-background"
+                            />
+                        </div>
+
+                        {/* Scope Selector */}
+                        <div className="space-y-2">
+                            <Label htmlFor="role-scope">Scope (Department)</Label>
+                            <Select value={selectedScopeId} onValueChange={setSelectedScopeId}>
+                                <SelectTrigger className="bg-background">
+                                    <SelectValue placeholder="Select Scope" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="org">Organization (Global)</SelectItem>
+                                    {departments.map((dept) => (
+                                        <SelectItem key={dept.id} value={dept.id}>
+                                            {dept.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     {/* Description */}

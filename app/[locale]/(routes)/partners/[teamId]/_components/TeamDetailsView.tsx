@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { LayoutDashboard, Users, MessageSquare, Mail, Copy, Shield, Phone, AtSign } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquare, Mail, Copy, Shield, Phone, AtSign, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 import TeamSettingsForm from "./TeamSettingsForm";
 import TeamMembersTable from "./TeamMembersTable";
 import SmsConfigForm from "./SmsConfigForm";
 import TeamRolesView from "./TeamRolesView";
+import DepartmentsView from "./DepartmentsView";
 import { TeamEmailSettings } from "@/components/email/TeamEmailSettings";
 import { EmailDeliveryStats } from "@/components/email/EmailDeliveryStats";
 import { TeamAiSettings } from "@/components/ai/TeamAiSettings";
@@ -40,10 +41,16 @@ type Props = {
         viewer: number;
     };
     customRoles?: any[];
+    departments?: any[];
 };
 
-const TeamDetailsView = ({ team, availablePlans, currentUserInfo, systemResendData, ownerInfo, roleCounts, customRoles }: Props) => {
+const TeamDetailsView = ({ team, availablePlans, currentUserInfo, systemResendData, ownerInfo, roleCounts, customRoles, departments }: Props) => {
     const [activeTab, setActiveTab] = useState("overview");
+
+    const isOrgAdmin = currentUserInfo?.isGlobalAdmin || (
+        currentUserInfo?.teamId === team.id &&
+        (currentUserInfo?.teamRole === 'SUPER_ADMIN' || currentUserInfo?.teamRole === 'OWNER')
+    );
 
     const cards = [
         {
@@ -64,7 +71,16 @@ const TeamDetailsView = ({ team, availablePlans, currentUserInfo, systemResendDa
         },
     ];
 
-    if (currentUserInfo?.isGlobalAdmin) {
+    if (isOrgAdmin) {
+        cards.push({
+            id: "departments",
+            title: "Departments",
+            description: "Organize teams",
+            icon: Building2,
+            color: "from-cyan-500/20 to-teal-500/20",
+            iconColor: "text-cyan-400",
+        });
+
         cards.push({
             id: "roles",
             title: "Roles & Modules",
@@ -208,32 +224,41 @@ const TeamDetailsView = ({ team, availablePlans, currentUserInfo, systemResendDa
                         teamId={team.id}
                         teamSlug={team.slug}
                         members={team.members}
-                        isSuperAdmin={currentUserInfo?.isGlobalAdmin}
+                        isSuperAdmin={isOrgAdmin}
                         ownerId={team.owner_id}
                     />
                 )}
-                {activeTab === "roles" && currentUserInfo?.isGlobalAdmin && roleCounts && (
+                {activeTab === "roles" && isOrgAdmin && roleCounts && (
                     <TeamRolesView
                         teamId={team.id}
                         roleCounts={roleCounts}
                         customRoles={customRoles || []}
                     />
                 )}
-                {activeTab === "sms-config" && currentUserInfo?.isGlobalAdmin && (
+                {activeTab === "departments" && isOrgAdmin && (
+                    <DepartmentsView
+                        teamId={team.id}
+                        departments={departments || []}
+                        isSuperAdmin={isOrgAdmin}
+                    />
+                )}
+                {activeTab === "sms-config" && isOrgAdmin && (
                     <SmsConfigForm teamId={team.id} teamName={team.name} />
                 )}
-                {activeTab === "email-config" && currentUserInfo?.isGlobalAdmin && (
+                {activeTab === "email-config" && isOrgAdmin && (
                     <div className="space-y-6">
                         {/* System Resend Config (Global) - Visible to Super Admin */}
-                        <div className="bg-card border rounded-lg p-6">
-                            <h4 className="text-sm font-medium mb-4">System Resend Key (Global)</h4>
-                            <SystemResendConfig {...systemResendData} />
-                        </div>
+                        {currentUserInfo?.isGlobalAdmin && (
+                            <div className="bg-card border rounded-lg p-6">
+                                <h4 className="text-sm font-medium mb-4">System Resend Key (Global)</h4>
+                                <SystemResendConfig {...systemResendData} />
+                            </div>
+                        )}
                         <TeamEmailSettings teamId={team.id} />
                         <EmailDeliveryStats teamId={team.id} />
                     </div>
                 )}
-                {activeTab === "ai-config" && currentUserInfo?.isGlobalAdmin && (
+                {activeTab === "ai-config" && isOrgAdmin && (
                     <div className="bg-card border rounded-lg p-6">
                         <TeamAiSettings teamId={team.id} />
                     </div>

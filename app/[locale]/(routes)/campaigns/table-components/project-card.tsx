@@ -42,13 +42,13 @@ export function ProjectCard({ row }: ProjectCardProps) {
             await axios.delete(`/api/campaigns/${parsedProject.id}`);
             toast({
                 title: "Success",
-                description: `Campaign: ${parsedProject.title}, deleted successfully`,
+                description: `Project: ${parsedProject.title}, deleted successfully`,
             });
             router.refresh();
         } catch (error) {
             toast({
                 variant: "destructive",
-                title: "Error, campaign not deleted. Please try again.",
+                title: "Error, project not deleted. Please try again.",
             });
         } finally {
             setDeleteOpen(false);
@@ -67,7 +67,7 @@ export function ProjectCard({ row }: ProjectCardProps) {
             <Sheet open={editOpen} onOpenChange={() => setEditOpen(false)}>
                 <SheetContent>
                     <SheetHeader>
-                        <SheetTitle>Edit your campaign data</SheetTitle>
+                        <SheetTitle>Edit your project data</SheetTitle>
                         <SheetDescription></SheetDescription>
                     </SheetHeader>
                     <UpdateProjectForm initialData={parsedProject} openEdit={setEditOpen} />

@@ -8,18 +8,32 @@ import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "./data-table-view-options";
 import { ViewToggle, ViewMode } from "@/components/ViewToggle";
 
+import { DataTableFacetedFilter } from "./data-table-faceted-filter"; // Ensure this matches your project structure
+import { Building2 } from "lucide-react";
+
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  departments?: { id: string; name: string; }[];
 }
 
 export function DataTableToolbar<TData>({
   table,
   viewMode,
   onViewModeChange,
+  departments = [],
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
+
+  // Transform departments for the filter
+  const departmentOptions = departments.map(dept => ({
+    label: dept.name,
+    value: dept.name, // Filter by name as that's what's in the column
+    icon: Building2
+  }));
+
+  // Also add "Organization" as an option if needed, but let's stick to explicit depts first.
 
   return (
     <div className="flex items-center justify-between gap-4">
@@ -32,6 +46,14 @@ export function DataTableToolbar<TData>({
           }
           className="h-8 w-[150px] lg:w-[250px]"
         />
+
+        {table.getColumn("department") && departmentOptions.length > 0 && (
+          <DataTableFacetedFilter
+            column={table.getColumn("department")}
+            title="Department"
+            options={departmentOptions}
+          />
+        )}
 
         {isFiltered && (
           <Button

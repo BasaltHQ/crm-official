@@ -34,11 +34,13 @@ import { cn } from "@/lib/utils";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  departments?: { id: string; name: string; }[];
 }
 
 export function AdminUserDataTable<TData, TValue>({
   columns,
   data,
+  departments = [],
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -57,6 +59,9 @@ export function AdminUserDataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
+    },
+    meta: {
+      departments
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
@@ -79,6 +84,7 @@ export function AdminUserDataTable<TData, TValue>({
         table={table}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        departments={departments}
       />
 
       {/* Table View */}

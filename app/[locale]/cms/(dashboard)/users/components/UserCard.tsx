@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNowStrict } from "date-fns";
 import { DataTableRowActions } from "../table-components/data-table-row-actions";
 import { statuses } from "../table-data/data";
-import { Mail, Clock, Shield } from "lucide-react";
+import { Mail, Clock, Shield, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserCardProps {
@@ -89,6 +89,14 @@ export function UserCard({ user, compact = false }: UserCardProps) {
                         <Shield className="w-3 h-3 mr-1.5" /> Role
                     </span>
                     <Badge variant={roleVariant}>{user.team_role || "MEMBER"}</Badge>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-muted/30 rounded-lg">
+                    <span className="text-muted-foreground flex items-center">
+                        <Building className="w-3 h-3 mr-1.5" /> Department
+                    </span>
+                    <span className="text-sm font-medium">
+                        {user.assigned_team?.name || "Organization"}
+                    </span>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-muted/30 rounded-lg">
                     <span className="text-muted-foreground flex items-center">

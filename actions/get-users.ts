@@ -1,4 +1,5 @@
 import { prismadb } from "@/lib/prisma";
+import { Team } from "@prisma/client";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -9,21 +10,56 @@ export const getUsers = async () => {
   const teamInfo = await getCurrentUserTeamId();
   const teamId = teamInfo?.teamId;
 
-  // If super admin, maybe allow seeing all? 
-  // But user request specifically asked for "users listed on your team".
-  // So strictly filtering by team seems correct for this context.
-
   if (!teamId) return [];
 
+  // Fetch users without the invalid defined relation
   const data = await (prismadb.users as any).findMany({
     where: {
-      team_id: teamId,
+      OR: [
+        { team_id: teamId },
+        { assigned_team: { parent_id: teamId } }
+      ]
+    },
+    include: {
+      assigned_team: true
     },
     orderBy: {
       created_on: "desc",
     },
   });
-  return data;
+
+  // Extract all department IDs
+  const departmentIds = data
+    .map((user: any) => user.department_id)
+    .filter((id: any) => id); // Filter out null/undefined
+
+  // Fetch departments if there are any
+  let departments: Team[] = [];
+  if (departmentIds.length > 0) {
+    departments = await prismadb.team.findMany({
+      where: {
+        id: { in: departmentIds },
+        // @ts-ignore - Resolving IDE sync issue, field exists in generated client
+        team_type: 'DEPARTMENT'
+      }
+    });
+  }
+
+  // Create a map for quick lookup
+  const deptMap = new Map(departments.map((d: any) => [d.id, d]));
+
+  // Attach assigned_department to users
+  const enrichedData = data.map((user: any) => {
+    const copy = { ...user };
+    if (user.department_id && deptMap.has(user.department_id)) {
+      copy.assigned_department = deptMap.get(user.department_id);
+    } else {
+      copy.assigned_department = null;
+    }
+    return copy;
+  });
+
+  return enrichedData;
 };
 
 //Get active users for Selects in app etc

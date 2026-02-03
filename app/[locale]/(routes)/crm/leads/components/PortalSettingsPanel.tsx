@@ -521,7 +521,7 @@ export default function PortalSettingsPanel() {
                                             )}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium truncate">{portal.name}</p>
-                                                <p className="text-xs text-muted-foreground truncate">{portal.campaignInfo?.name || "No campaign"}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{portal.campaignInfo?.name || "No project"}</p>
                                                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                                     <span>{portal._count?.messages || 0} messages</span>
                                                     <span>•</span>
@@ -542,7 +542,7 @@ export default function PortalSettingsPanel() {
                     </div>
                     <CardDescription>
                         {isCreateMode
-                            ? "Create a new SMS portal for a campaign."
+                            ? "Create a new SMS portal for a project."
                             : portals.length === 0
                                 ? "You don't have any SMS portals yet. Create your first one below."
                                 : `Manage your team's SMS portals. You have ${portals.length} portal${portals.length !== 1 ? "s" : ""}.`}
@@ -657,17 +657,17 @@ export default function PortalSettingsPanel() {
                 <CardHeader>
                     <div className="flex items-center gap-2">
                         <FolderKanban className="w-5 h-5 text-primary" />
-                        <CardTitle>Portal Logo & Campaign</CardTitle>
+                        <CardTitle>Portal Logo & Project</CardTitle>
                     </div>
                     <CardDescription>
-                        {isCreateMode ? "Select a campaign to link this portal to and auto-populate branding." : "Choose a logo from your campaigns or upload a custom one."}
+                        {isCreateMode ? "Select a project to link this portal to and auto-populate branding." : "Choose a logo from your projects or upload a custom one."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {/* Campaign Selection for Create Mode */}
                     {isCreateMode && (
                         <div className="space-y-3 mb-4">
-                            <Label>Link to Campaign (recommended)</Label>
+                            <Label>Link to Project (recommended)</Label>
                             {getCampaignsWithoutPortals().length > 0 ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {getCampaignsWithoutPortals().map((campaign) => (
@@ -699,7 +699,7 @@ export default function PortalSettingsPanel() {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">All your campaigns already have portals, or no campaigns found.</p>
+                                <p className="text-sm text-muted-foreground">All your projects already have portals, or no projects found.</p>
                             )}
                         </div>
                     )}
@@ -708,7 +708,7 @@ export default function PortalSettingsPanel() {
                     <div className="flex gap-4">
                         <Button variant={formData.logo_type === "campaign" ? "default" : "outline"} onClick={() => setFormData({ ...formData, logo_type: "campaign" })} className="flex-1">
                             <FolderKanban className="w-4 h-4 mr-2" />
-                            From Campaign
+                            From Project
                         </Button>
                         <Button variant={formData.logo_type === "custom" ? "default" : "outline"} onClick={() => setFormData({ ...formData, logo_type: "custom" })} className="flex-1">
                             <Upload className="w-4 h-4 mr-2" />
@@ -718,7 +718,7 @@ export default function PortalSettingsPanel() {
 
                     {formData.logo_type === "campaign" ? (
                         <div className="space-y-3">
-                            <Label>Select Campaign</Label>
+                            <Label>Select Project</Label>
                             {campaigns.length > 0 ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {campaigns.map((campaign) => (
@@ -749,7 +749,7 @@ export default function PortalSettingsPanel() {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">No campaigns found. Create a campaign with a brand logo first.</p>
+                                <p className="text-sm text-muted-foreground">No projects found. Create a project with a brand logo first.</p>
                             )}
                         </div>
                     ) : (

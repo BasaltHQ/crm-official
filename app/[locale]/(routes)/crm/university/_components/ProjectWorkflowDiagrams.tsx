@@ -11,7 +11,7 @@ const NODE_STYLES = `
     classDef projectNode fill:#1e3a5f,stroke:#3b82f6,stroke-width:2px,color:#bfdbfe;
     classDef poolNode fill:#0c4a6e,stroke:#0ea5e9,stroke-width:2px,color:#bae6fd;
     classDef assignNode fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#c7d2fe;
-    classDef campaignNode fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#e9d5ff;
+    classDef outreachNode fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#e9d5ff;
     classDef approvalNode fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#fed7aa,rx:20,ry:20;
     classDef reviewNode fill:#831843,stroke:#ec4899,stroke-width:2px,color:#fbcfe8;
     classDef activeNode fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#bbf7d0;
@@ -40,12 +40,12 @@ graph LR
     Start((Start)):::startNode --> Project[Create Project<br/>Define Context]:::projectNode
     Project --> Pool[Create Lead Pool<br/>Target Audience]:::poolNode
     Pool --> Assign[Assign Members<br/>Team Allocation]:::assignNode
-    Assign --> Campaign[Launch Campaign<br/>Auto-Populated]:::campaignNode
+    Assign --> Outreach[Launch Outreach<br/>Auto-Populated]:::outreachNode
     
-    Campaign --> Approval{Approval<br/>Required?}:::approvalNode
+    Outreach --> Approval{Approval<br/>Required?}:::approvalNode
     
     Approval -->|Yes| Review[Admin Review]:::reviewNode
-    Approval -->|No| Active[Active Campaign]:::activeNode
+    Approval -->|No| Active[Active Outreach]:::activeNode
     
     Review -->|Approved| Active
     Review -->|Rejected| Draft[Back to Draft]:::draftNode
@@ -69,9 +69,9 @@ graph TB
     Start((Start)):::startNode --> Project[Create Project]:::projectNode
     Project --> Pool[Create Lead Pool]:::poolNode
     Pool --> Assign[Assign Members]:::assignNode
-    Assign --> Campaign[Launch Campaign]:::campaignNode
+    Assign --> Outreach[Launch Outreach]:::outreachNode
     
-    Campaign --> Approval{Requires<br/>Approval?}:::approvalNode
+    Outreach --> Approval{Requires<br/>Approval?}:::approvalNode
     
     Approval -->|Yes| Review[Admin Review]:::reviewNode
     Approval -->|No| Active[Active]:::activeNode

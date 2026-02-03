@@ -25,7 +25,7 @@ const CrmModuleMenu = ({ open, localizations, isMobile = false }: Props) => {
   const subItems: SubMenuItemType[] = [
     { label: "LeadGen Wizard", href: "/crm/lead-wizard", icon: Wand2 },
     { label: "Lead Pools", href: "/crm/lead-pools", icon: Target },
-    { label: "Campaigns", href: "/crm/outreach", icon: Megaphone },
+    { label: "Outreach", href: "/crm/outreach", icon: Megaphone },
     { label: "Settings", href: "/crm/leads?tab=settings", icon: Settings },
   ];
 

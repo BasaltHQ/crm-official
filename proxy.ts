@@ -7,7 +7,10 @@ const intlMiddleware = createMiddleware({
 });
 
 export function proxy(request: NextRequest) {
-    return intlMiddleware(request);
+    console.log("Proxy processing:", request.nextUrl.pathname);
+    const response = intlMiddleware(request);
+    console.log("Proxy response status:", response.status);
+    return response;
 }
 
 export const config = {
