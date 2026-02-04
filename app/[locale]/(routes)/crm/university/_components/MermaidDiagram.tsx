@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils";
 interface MermaidDiagramProps {
     chart: string;
     mobileChart?: string;
+    compact?: boolean;
     className?: string;
 }
 
-export function MermaidDiagram({ chart, mobileChart, className }: MermaidDiagramProps) {
+export function MermaidDiagram({ chart, mobileChart, compact, className }: MermaidDiagramProps) {
     const [desktopSvg, setDesktopSvg] = useState<string>("");
     const [mobileSvg, setMobileSvg] = useState<string>("");
     const [error, setError] = useState<string | null>(null);
@@ -37,21 +38,22 @@ export function MermaidDiagram({ chart, mobileChart, className }: MermaidDiagram
                         background: "transparent",
                         mainBkg: "transparent",
                         nodeBorder: "#475569",
-                        clusterBkg: "rgba(30, 41, 59, 0.5)",
-                        clusterBorder: "#334155",
-                        titleColor: "#e2e8f0",
+                        clusterBkg: "rgba(15, 23, 42, 0.4)", // Slightly darker and more transparent for elegance
+                        clusterBorder: "rgba(71, 85, 105, 0.4)",
+                        titleColor: "#94a3b8", // Subdued title color
                         edgeLabelBackground: "transparent",
-                        fontSize: "13px",
-                        fontFamily: "system-ui, sans-serif",
+                        fontSize: "12px", // Slightly smaller font
+                        fontFamily: "var(--font-inter), system-ui, sans-serif",
                     },
                     flowchart: {
                         htmlLabels: true,
-                        curve: "basis",
-                        padding: 12,
-                        nodeSpacing: 30,
-                        rankSpacing: 35,
+                        curve: "basis", // Smoother curves for a "sexier" look
+                        padding: compact ? 12 : 20,
+                        nodeSpacing: compact ? 30 : 60,
+                        rankSpacing: compact ? 220 : 100, // Significantly stretched in compact mode
                         useMaxWidth: true,
                     },
+                    securityLevel: 'loose',
                 });
 
                 // Render desktop version
@@ -76,7 +78,7 @@ export function MermaidDiagram({ chart, mobileChart, className }: MermaidDiagram
         };
 
         renderCharts();
-    }, [chart, mobileChart]);
+    }, [chart, mobileChart, compact]);
 
     if (isLoading) {
         return (
@@ -101,19 +103,19 @@ export function MermaidDiagram({ chart, mobileChart, className }: MermaidDiagram
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
             className={cn(
-                "w-full rounded-lg p-2",
+                "w-full",
                 className
             )}
         >
             {/* Desktop: horizontal chart */}
             <div
-                className="hidden md:block [&_svg]:w-full [&_svg]:h-auto"
+                className="hidden md:flex md:justify-center md:items-center [&_svg]:w-full [&_svg]:max-w-full [&_svg]:h-auto"
                 dangerouslySetInnerHTML={{ __html: desktopSvg }}
             />
             {/* Mobile: vertical chart or scrollable horizontal */}
             {mobileSvg ? (
                 <div
-                    className="block md:hidden flex justify-center items-center [&_svg]:w-full [&_svg]:max-w-[350px] [&_svg]:h-auto"
+                    className="block md:hidden flex justify-center items-center [&_svg]:w-full [&_svg]:max-w-full [&_svg]:h-auto"
                     dangerouslySetInnerHTML={{ __html: mobileSvg }}
                 />
             ) : (

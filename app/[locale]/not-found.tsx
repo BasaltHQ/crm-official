@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MoveLeft } from "lucide-react";
+import { motion } from "framer-motion";
 import GeometricBackground from "@/app/[locale]/components/GeometricBackground";
 
 export default function NotFound() {
@@ -13,50 +14,64 @@ export default function NotFound() {
                 <GeometricBackground />
             </div>
 
-            <div className="relative z-10 flex flex-col items-center text-center p-6 space-y-8 max-w-lg mx-auto">
-                {/* Glitchy 404 Text Effect */}
-                <h1 className="text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 animate-pulse">
-                    404
-                </h1>
+            <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6 text-center">
+                {/* Error Code with Glow */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="relative mb-8"
+                >
+                    <h1 className="text-[12rem] md:text-[16rem] font-black tracking-tighter leading-none select-none text-white/5">
+                        404
+                    </h1>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <h2 className="text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/20 drop-shadow-2xl">
+                            LOST?
+                        </h2>
+                    </div>
+                    {/* Pulsing Glitch Effect */}
+                    <div className="absolute inset-0 bg-primary/20 blur-[100px] animate-pulse rounded-full pointer-events-none" />
+                </motion.div>
 
-                <div className="space-y-4">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-                        Page not found
-                    </h2>
-                    <p className="text-muted-foreground text-lg">
-                        The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
-                    </p>
-                </div>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
+                    className="max-w-2xl space-y-8"
+                >
+                    <div className="space-y-4">
+                        <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-white uppercase font-mono">
+                            <span className="text-primary mr-2">/</span> Signal Lost in Transit
+                        </h3>
+                        <p className="text-gray-400 text-lg md:text-xl leading-relaxed max-w-lg mx-auto">
+                            The requested resource has been moved or purged from the neural network.
+                            Let's get you back to the command center.
+                        </p>
+                    </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Button
-                        asChild
-                        variant="default"
-                        size="lg"
-                        className="group bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full px-8"
-                    >
-                        <Link href="/">
-                            <MoveLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                            Back to Home
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
+                        <Link
+                            href="/"
+                            className="h-14 px-10 flex items-center justify-center text-sm font-black tracking-[0.2em] rounded-xl bg-primary text-black hover:bg-primary/90 shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_50px_rgba(var(--primary-rgb),0.5)] transition-all duration-300 group"
+                        >
+                            <MoveLeft className="mr-3 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                            RETURN TO HOME
                         </Link>
-                    </Button>
 
-                    <Button
-                        asChild
-                        variant="outline"
-                        size="lg"
-                        className="rounded-full px-8 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white"
-                    >
-                        <Link href="/support">
-                            Contact Support
+                        <Link
+                            href="/support"
+                            className="h-14 px-10 flex items-center justify-center text-sm font-black tracking-[0.2em] rounded-xl border border-white/10 text-white hover:bg-white/5 hover:border-white/20 hover:text-white transition-all duration-300 backdrop-blur-md"
+                        >
+                            CONTACT INTEL
                         </Link>
-                    </Button>
-                </div>
+                    </div>
+                </motion.div>
             </div>
 
-            {/* Decorative Elements */}
-            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-[100px] pointer-events-none" />
-            <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px] pointer-events-none" />
+            {/* Premium Decorative Blobs */}
+            <div className="fixed -bottom-48 -left-48 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[150px] pointer-events-none animate-pulse" />
+            <div className="fixed -top-48 -right-48 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
     );
 }

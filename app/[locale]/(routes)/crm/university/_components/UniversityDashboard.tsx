@@ -11,7 +11,6 @@ import {
     BookOpen,
     Video,
     Trophy,
-    Calculator,
     GraduationCap,
     PlayCircle,
     FileText,
@@ -20,9 +19,27 @@ import {
     Workflow,
     FolderKanban,
     BarChart3,
+    ShieldCheck,
+    Database,
+    Share2,
+    Bot,
+    ArrowRight,
+    Medal,
 } from "lucide-react";
 import Heading from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
+
+// New Phase 1 components
+import ComplianceAcademy from "./ComplianceAcademy";
+import DataHealthDashboard from "./DataHealthDashboard";
+
+// New Phase 2 components
+import RevOpsSimulator from "./RevOpsSimulator";
+import IntegrationBlueprints from "./IntegrationBlueprints";
+
+// New Phase 3 components
+import CertificationPaths from "./CertificationPaths";
+import AIPromptLab from "./AIPromptLab";
 
 // New flow components
 import FlowDiagramCard, { PIPELINE_LEGEND, CONVERSION_LEGEND } from "./FlowDiagramCard";
@@ -36,22 +53,7 @@ import ProjectWorkflowGuide from "./ProjectWorkflowGuide";
 import { PROJECT_WORKFLOW_DESKTOP, PROJECT_WORKFLOW_MOBILE, PROJECT_WORKFLOW_LEGEND } from "./ProjectWorkflowDiagrams";
 import TabNavigationCard from "./TabNavigationCard";
 
-// Mirror the weights from get-team-analytics for transparency
-const STAGE_WEIGHTS: Record<string, number> = {
-    Identify: 0,
-    Engage_AI: 10,
-    Engage_Human: 20,
-    Offering: 40,
-    Finalizing: 60,
-    Closed: 100,
-};
-const STAGES = Object.keys(STAGE_WEIGHTS);
-
-function clamp(min: number, val: number, max: number) {
-    return Math.max(min, Math.min(max, val));
-}
-
-type TabId = "flow" | "reference" | "project-workflow" | "lms" | "gamification";
+type TabId = "flow" | "reference" | "project-workflow" | "compliance" | "data-health" | "roi-modeler" | "architecture" | "certification" | "prompt-lab";
 
 // Page transition variants
 const pageVariants = {
@@ -63,38 +65,6 @@ const pageVariants = {
 export default function UniversityDashboard() {
     const [activeTab, setActiveTab] = useState<TabId>("project-workflow");
     const [activeStage, setActiveStage] = useState<string | undefined>(undefined);
-
-    // Calculator state
-    const [stage, setStage] = useState<string>("Closed");
-    const [touches, setTouches] = useState<string>("3");
-    const [daysToBooking, setDaysToBooking] = useState<string>("7");
-
-    const result = useMemo(() => {
-        const base = STAGE_WEIGHTS[stage] || 0;
-        const t = Number(touches) || 0;
-        const d = Number(daysToBooking);
-
-        let effBonus = 0;
-        let speedBonus = 0;
-
-        if (stage === "Closed") {
-            effBonus = clamp(0, (3 - t) / 10, 0.3);
-            if (!Number.isNaN(d)) {
-                speedBonus = clamp(0, (14 - d) / 20, 0.7);
-            }
-        }
-
-        const efficiencyMultiplier = 1 + effBonus;
-        const speedMultiplier = 1 + speedBonus;
-        const total = Math.round(base * efficiencyMultiplier * speedMultiplier);
-
-        return {
-            base,
-            effBonusPct: Math.round(effBonus * 100),
-            speedBonusPct: Math.round(speedBonus * 100),
-            total,
-        };
-    }, [stage, touches, daysToBooking]);
 
     const tabs = [
         {
@@ -116,6 +86,60 @@ export default function UniversityDashboard() {
             shadowColor: "shadow-blue-500/20"
         },
         {
+            id: "compliance" as TabId,
+            label: "Compliance Academy",
+            icon: ShieldCheck,
+            color: "text-blue-400 group-hover:text-blue-300",
+            gradient: "from-blue-600/30 via-blue-500/10 to-transparent",
+            borderColor: "border-blue-500/50 ring-blue-500/20",
+            shadowColor: "shadow-blue-500/20"
+        },
+        {
+            id: "data-health" as TabId,
+            label: "Data Health",
+            icon: Database,
+            color: "text-emerald-400 group-hover:text-emerald-300",
+            gradient: "from-emerald-600/30 via-emerald-500/10 to-transparent",
+            borderColor: "border-emerald-500/50 ring-emerald-500/20",
+            shadowColor: "shadow-emerald-500/20"
+        },
+        {
+            id: "certification" as TabId,
+            label: "Mastery Paths",
+            icon: GraduationCap,
+            color: "text-blue-400 group-hover:text-blue-300",
+            gradient: "from-blue-600/30 via-blue-500/10 to-transparent",
+            borderColor: "border-blue-500/50 ring-blue-500/20",
+            shadowColor: "shadow-blue-500/20"
+        },
+        {
+            id: "prompt-lab" as TabId,
+            label: "Persona Playbook",
+            icon: Bot,
+            color: "text-emerald-400 group-hover:text-emerald-300",
+            gradient: "from-emerald-600/30 via-emerald-500/10 to-transparent",
+            borderColor: "border-emerald-500/50 ring-emerald-500/20",
+            shadowColor: "shadow-emerald-500/20"
+        },
+        {
+            id: "roi-modeler" as TabId,
+            label: "ROI Modeler",
+            icon: BarChart3,
+            color: "text-emerald-400 group-hover:text-emerald-300",
+            gradient: "from-emerald-600/30 via-emerald-500/10 to-transparent",
+            borderColor: "border-emerald-500/50 ring-emerald-500/20",
+            shadowColor: "shadow-emerald-500/20"
+        },
+        {
+            id: "architecture" as TabId,
+            label: "Architecture",
+            icon: Share2,
+            color: "text-violet-400 group-hover:text-violet-300",
+            gradient: "from-violet-600/30 via-violet-500/10 to-transparent",
+            borderColor: "border-violet-500/50 ring-violet-500/20",
+            shadowColor: "shadow-violet-500/20"
+        },
+        {
             id: "reference" as TabId,
             label: "Quick Reference",
             icon: Layers,
@@ -123,24 +147,6 @@ export default function UniversityDashboard() {
             gradient: "from-emerald-600/30 via-emerald-500/10 to-transparent",
             borderColor: "border-emerald-500/50 ring-emerald-500/20",
             shadowColor: "shadow-emerald-500/20"
-        },
-        {
-            id: "lms" as TabId,
-            label: "Learning Center",
-            icon: BookOpen,
-            color: "text-violet-400 group-hover:text-violet-300",
-            gradient: "from-violet-600/30 via-violet-500/10 to-transparent",
-            borderColor: "border-violet-500/50 ring-violet-500/20",
-            shadowColor: "shadow-violet-500/20"
-        },
-        {
-            id: "gamification" as TabId,
-            label: "Gamification",
-            icon: Trophy,
-            color: "text-amber-400 group-hover:text-amber-300",
-            gradient: "from-amber-600/30 via-amber-500/10 to-transparent",
-            borderColor: "border-amber-500/50 ring-amber-500/20",
-            shadowColor: "shadow-amber-500/20"
         },
     ];
 
@@ -165,7 +171,7 @@ export default function UniversityDashboard() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-8 bg-transparent"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-9 gap-3 md:gap-4 mb-8 bg-transparent"
             >
                 {tabs.map((tab, index) => (
                     <TabNavigationCard
@@ -274,6 +280,90 @@ export default function UniversityDashboard() {
                         >
                             <OutreachFlowView />
                         </FlowDiagramCard>
+                    </motion.div>
+                )}
+
+                {/* Compliance Academy Tab */}
+                {activeTab === "compliance" && (
+                    <motion.div
+                        key="compliance"
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ duration: 0.3 }}
+                    >
+                        <ComplianceAcademy />
+                    </motion.div>
+                )}
+
+                {/* Data Health Tab */}
+                {activeTab === "data-health" && (
+                    <motion.div
+                        key="data-health"
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ duration: 0.3 }}
+                    >
+                        <DataHealthDashboard />
+                    </motion.div>
+                )}
+
+                {/* Mastery Paths Tab */}
+                {activeTab === "certification" && (
+                    <motion.div
+                        key="certification"
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ duration: 0.3 }}
+                    >
+                        <CertificationPaths />
+                    </motion.div>
+                )}
+
+                {/* Persona Playbook Tab */}
+                {activeTab === "prompt-lab" && (
+                    <motion.div
+                        key="prompt-lab"
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ duration: 0.3 }}
+                    >
+                        <AIPromptLab />
+                    </motion.div>
+                )}
+
+                {/* ROI Modeler Tab */}
+                {activeTab === "roi-modeler" && (
+                    <motion.div
+                        key="roi-modeler"
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ duration: 0.3 }}
+                    >
+                        <RevOpsSimulator />
+                    </motion.div>
+                )}
+
+                {/* Architecture Tab */}
+                {activeTab === "architecture" && (
+                    <motion.div
+                        key="architecture"
+                        variants={pageVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ duration: 0.3 }}
+                    >
+                        <IntegrationBlueprints />
                     </motion.div>
                 )}
 
@@ -386,6 +476,102 @@ export default function UniversityDashboard() {
                                 </motion.div>
                             </CardContent>
                         </Card>
+
+                        <div className="pt-10 border-t border-white/5 space-y-8">
+                            <div>
+                                <h3 className="text-2xl font-black flex items-center gap-3">
+                                    <GraduationCap className="w-7 h-7 text-primary" />
+                                    Learning Center
+                                </h3>
+                                <p className="text-gray-400 text-sm mt-1">Master BasaltCRM with these essential guides and tutorials.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {/* Video Tutorials */}
+                                <Card className="bg-white/5 border-white/10">
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg flex items-center gap-2 font-bold">
+                                            <Video className="w-5 h-5 text-blue-500" />
+                                            Video Academy
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4">
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-black/20 hover:bg-white/[0.05] transition-all cursor-pointer group"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20">
+                                                <PlayCircle className="w-5 h-5 text-blue-500" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm">CRM Walkthrough</h4>
+                                                <p className="text-[11px] text-gray-500 mt-1">A 5-minute tour of the main dashboard.</p>
+                                            </div>
+                                        </motion.div>
+                                        <motion.div
+                                            whileHover={{ scale: 1.02 }}
+                                            className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-black/20 hover:bg-white/[0.05] transition-all cursor-pointer group"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20">
+                                                <PlayCircle className="w-5 h-5 text-emerald-500" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm">Lead Management</h4>
+                                                <p className="text-[11px] text-gray-500 mt-1">Import, assign, and track effectively.</p>
+                                            </div>
+                                        </motion.div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Written Guides */}
+                                <Card className="bg-white/5 border-white/10">
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg flex items-center gap-2 font-bold">
+                                            <FileText className="w-5 h-5 text-amber-500" />
+                                            Technical Docs
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-3">
+                                        {[
+                                            "Configuring your email signature",
+                                            "Understanding pipeline stages",
+                                            "Using the AI Dialer effectively",
+                                            "Advanced API integrations"
+                                        ].map((title, i) => (
+                                            <motion.div key={i} whileHover={{ x: 4 }} className="flex items-center gap-2 p-2 text-sm font-medium hover:text-white cursor-pointer transition-all border-b border-white/5 last:border-0 pb-3">
+                                                <ArrowRight className="w-3 h-3 text-amber-500" />
+                                                {title}
+                                            </motion.div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+
+                                {/* Best Practices */}
+                                <Card className="bg-white/5 border-white/10">
+                                    <CardHeader className="pb-3">
+                                        <CardTitle className="text-lg flex items-center gap-2 font-bold">
+                                            <Trophy className="w-5 h-5 text-emerald-500" />
+                                            Strategic Advisor
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <p className="text-xs text-gray-400">Advanced strategies for high-performing teams.</p>
+                                        <div className="space-y-3">
+                                            {[
+                                                { label: "The Art of Follow-up", color: "text-blue-400" },
+                                                { label: "Handling Objections", color: "text-red-400" },
+                                                { label: "Closing Techniques", color: "text-emerald-400" }
+                                            ].map((item, i) => (
+                                                <div key={i} className="flex items-center gap-3">
+                                                    <div className={cn("w-1.5 h-1.5 rounded-full bg-current", item.color)} />
+                                                    <span className="text-xs font-bold">{item.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
                     </motion.div>
                 )}
 
@@ -417,269 +603,7 @@ export default function UniversityDashboard() {
                     </motion.div>
                 )}
 
-                {/* LMS Section */}
-                {activeTab === "lms" && (
-                    <motion.div
-                        key="lms"
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        transition={{ duration: 0.3 }}
-                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-                    >
-                        {/* Welcome Card */}
-                        <Card className="col-span-full bg-card border-border">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <GraduationCap className="w-6 h-6 text-primary" />
-                                    Getting Started with BasaltCRM
-                                </CardTitle>
-                                <CardDescription>
-                                    New here? Start with these essential guides to set up your workspace and start closing deals.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
 
-                        {/* Video Tutorials */}
-                        <Card>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Video className="w-5 h-5 text-blue-500" />
-                                    Video Tutorials
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid gap-4">
-                                <motion.div
-                                    whileHover={{ scale: 1.02 }}
-                                    className="flex items-start gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20">
-                                        <PlayCircle className="w-5 h-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-sm">CRM Walkthrough</h4>
-                                        <p className="text-xs text-muted-foreground mt-1">A 5-minute tour of the main dashboard and features.</p>
-                                    </div>
-                                </motion.div>
-                                <motion.div
-                                    whileHover={{ scale: 1.02 }}
-                                    className="flex items-start gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20">
-                                        <PlayCircle className="w-5 h-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-sm">Lead Management 101</h4>
-                                        <p className="text-xs text-muted-foreground mt-1">How to import, assign, and track leads effectively.</p>
-                                    </div>
-                                </motion.div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Written Guides */}
-                        <Card>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <FileText className="w-5 h-5 text-amber-500" />
-                                    Documentation
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid gap-2">
-                                <motion.div whileHover={{ x: 4 }} className="p-3 text-sm font-medium hover:underline cursor-pointer transition-all">
-                                    How to configure your email signature
-                                </motion.div>
-                                <div className="h-px bg-border/50" />
-                                <motion.div whileHover={{ x: 4 }} className="p-3 text-sm font-medium hover:underline cursor-pointer transition-all">
-                                    Understanding pipeline stages
-                                </motion.div>
-                                <div className="h-px bg-border/50" />
-                                <motion.div whileHover={{ x: 4 }} className="p-3 text-sm font-medium hover:underline cursor-pointer transition-all">
-                                    Using the AI Dialer
-                                </motion.div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Best Practices */}
-                        <Card>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    <Trophy className="w-5 h-5 text-emerald-500" />
-                                    Sales Academy
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid gap-2 text-sm text-muted-foreground">
-                                <p>Advanced strategies for high-performing sales teams.</p>
-                                <ul className="list-disc pl-5 space-y-2 mt-2">
-                                    <li>The Art of the Follow-up</li>
-                                    <li>Handling Objections</li>
-                                    <li>Closing Techniques</li>
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
-
-                {/* Gamification Section */}
-                {activeTab === "gamification" && (
-                    <motion.div
-                        key="gamification"
-                        variants={pageVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        transition={{ duration: 0.3 }}
-                        className="space-y-6"
-                    >
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            {/* Points Calculator */}
-                            <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 }}
-                            >
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Calculator className="w-5 h-5" />
-                                            Points Calculator
-                                        </CardTitle>
-                                        <CardDescription>See how much each deal is worth towards your score.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Stage</label>
-                                                <Select value={stage} onValueChange={(v) => setStage(v)}>
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {STAGES.map((s) => (
-                                                            <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Touches</label>
-                                                <Input
-                                                    type="number"
-                                                    value={touches}
-                                                    onChange={(e) => setTouches(e.target.value)}
-                                                    min={0}
-                                                    className="[color-scheme:dark]"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Days to Book</label>
-                                                <Input
-                                                    type="number"
-                                                    value={daysToBooking}
-                                                    onChange={(e) => setDaysToBooking(e.target.value)}
-                                                    min={0}
-                                                    className="[color-scheme:dark]"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/10 border rounded-lg"
-                                        >
-                                            <div className="text-center">
-                                                <div className="text-xs text-muted-foreground uppercase tracking-wider">Base</div>
-                                                <motion.div
-                                                    key={result.base}
-                                                    initial={{ scale: 1.2 }}
-                                                    animate={{ scale: 1 }}
-                                                    className="text-xl font-bold"
-                                                >
-                                                    {result.base}
-                                                </motion.div>
-                                            </div>
-                                            <div className="text-center">
-                                                <div className="text-xs text-muted-foreground uppercase tracking-wider">Eff. Bonus</div>
-                                                <motion.div
-                                                    key={result.effBonusPct}
-                                                    initial={{ scale: 1.2 }}
-                                                    animate={{ scale: 1 }}
-                                                    className="text-xl font-bold text-emerald-500"
-                                                >
-                                                    +{result.effBonusPct}%
-                                                </motion.div>
-                                            </div>
-                                            <div className="text-center">
-                                                <div className="text-xs text-muted-foreground uppercase tracking-wider">Speed Bonus</div>
-                                                <motion.div
-                                                    key={result.speedBonusPct}
-                                                    initial={{ scale: 1.2 }}
-                                                    animate={{ scale: 1 }}
-                                                    className="text-xl font-bold text-blue-500"
-                                                >
-                                                    +{result.speedBonusPct}%
-                                                </motion.div>
-                                            </div>
-                                            <div className="text-center">
-                                                <div className="text-xs text-muted-foreground uppercase tracking-wider">Total</div>
-                                                <motion.div
-                                                    key={result.total}
-                                                    initial={{ scale: 1.3 }}
-                                                    animate={{ scale: 1 }}
-                                                    className="text-2xl font-black text-primary"
-                                                >
-                                                    {result.total}
-                                                </motion.div>
-                                            </div>
-                                        </motion.div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-
-                            {/* Achievement Rules */}
-                            <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.2 }}
-                            >
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Achievements & Milestones</CardTitle>
-                                        <CardDescription>Unlock badges by hitting these targets.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-6">
-                                        {[
-                                            { name: "Momentum Builder", badge: "10 Leads > Identify", variant: "secondary" as const },
-                                            { name: "Human Whisperer", badge: "5 Leads > Human", variant: "secondary" as const },
-                                            { name: "Closer x5", badge: "5 Deals Closed", variant: "outline" as const, special: true },
-                                            { name: "Speedster", badge: "Close w/in 7 days", variant: "secondary" as const },
-                                        ].map((achievement, index) => (
-                                            <motion.div
-                                                key={achievement.name}
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.3 + index * 0.1 }}
-                                                whileHover={{ scale: 1.02, x: 4 }}
-                                                className="flex items-center justify-between p-4 rounded-lg bg-card border border-border hover:border-primary/50 cursor-pointer transition-all"
-                                            >
-                                                <span className="font-semibold text-foreground">{achievement.name}</span>
-                                                <span
-                                                    className={cn(
-                                                        "text-sm font-medium",
-                                                        achievement.special ? "text-primary font-bold" : "text-muted-foreground"
-                                                    )}
-                                                >
-                                                    {achievement.badge}
-                                                </span>
-                                            </motion.div>
-                                        ))}
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        </div>
-                    </motion.div>
-                )}
             </AnimatePresence>
         </div>
     );

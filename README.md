@@ -1,34 +1,23 @@
-<a href="https://nextcrm.app/">
-  <h1 align="center">Ledger1CRM</h1>
-</a>
+# BasaltCRM
 
-<p align="center">
-<img alt="OG" src="public/images/opengraph-image.png" />
-</p>
+[![BasaltCRM Cover](public/images/basalt_cover.png)](https://basalthq.com)
 
-<!-- <p align="center">
-Ledger1CRM is a CRM build on top of the Next.JS 14 using TypeScript, great UI library shadcn, Prisma and MongoDB as a database. Upload things as a S3 blob for document storage.
-</p> -->
+BasaltCRM is a premium open source CRM built on top of Next.js 14 using TypeScript, shadcn/ui, Prisma, and MongoDB. Feature-packed with AI-assisted workflows, intelligent automation, and a next-gen architecture.
 
-<p align="center">
-<a href="https://twitter.com/nextcrmapp">
-<img alt="X (formerly Twitter) URL" src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fnextcrmapp">
-</a>
-  <a href="https://github.com/pdovhomilja/nextcrm-app/blob/main/LICENSE">
-    <img alt="GitHub License" src="https://img.shields.io/github/license/pdovhomilja/nextcrm-app">
-  </a>
-</p>
+[![X (formerly Twitter) URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fx.com%2FBasaltHQ)](https://x.com/BasaltHQ)
+[![GitHub License](https://img.shields.io/github/license/Ledger1-ai/crm-official)](https://github.com/Ledger1-ai/crm-official/blob/main/LICENSE)
 
-<p align="center">
-   <a href="#online-demo"><strong>Introduction</strong></a> ·
-   <a href="#tech-stack--features"><strong>Tech Stack + Features</strong></a> ·
-   <a href="#roadmap"><strong>Roadmap</strong></a> ·
-   <a href="#installation"><strong>Installation</strong></a> ·
-   <a href="#repo-activity"><strong>Repo activity</strong></a> ·
-   <a href="#license"><strong>License</strong></a> ·
-   <a href="https://discord.gg/dHyxhTEzUb"><strong>Discord</strong>
-</p>
-<br/>
+[Introduction](#introduction) · [Tech Stack + Features](#tech-stack--features) · [Roadmap](#roadmap) · [Installation](#installation) · [Repo activity](#repo-activity) · [License](#license) · [Discord](https://discord.gg/gcgNugyWkg)
+
+---
+
+## Introduction
+
+**Your Business. Supercharged.**
+
+BasaltCRM is the first CRM that doesn't just manage your data—it actively works for you. From finding prospects to closing deals with voice AI, BasaltCRM is your unfair advantage.
+
+![Dashboard Preview](public/images/dashboard_final.png)
 
 ## Online Demo
 
@@ -38,192 +27,139 @@ You can try it here [demo.nextcrm.io](https://demo.nextcrm.io), login via Google
 
 ### Frameworks
 
-- [Next.js](https://nextjs.org/) – React framework for building performant apps with the best developer experience
-- [Auth.js](https://authjs.dev/) – Handle user authentication with ease with providers like Google, Twitter, GitHub, etc.
-- [Prisma](https://www.prisma.io/) – Typescript-first ORM for Node.js
-- [React Email](https://react.email/) – Versatile email framework for efficient and flexible email development
+- [Next.js](https://nextjs.org/) – React framework for building performant apps
+- [Auth.js](https://authjs.dev/) – Multi-provider authentication
+- [Prisma](https://www.prisma.io/) – TypeScript-first ORM
+- [React Email](https://react.email/) – Versatile email framework
 
 ### Platforms
 
-- [Vercel](https://vercel.com/) – Easily preview & deploy changes with git
-- [Mongo DB Atlas](https://mongodb.com/) – A database platform for seamless, scalable data management
-- [Resend](https://resend.com/) – A powerful email framework for streamlined email development together with [react.email](https://react.email)
+- [Vercel](https://vercel.com/) – Deployment and previewing
+- [Mongo DB Atlas](https://mongodb.com/) – Scalable data management
+- [Resend](https://resend.com/) – Email delivery infrastructure
 
 ### Data fetching
 
-- [SWR](https://swr.vercel.app/) – React Hooks library for remote data fetching
-- [Axios](https://axios-http.com/) – Promise based HTTP client for the browser and node.js
-- [Server Actions]() - for server side data fetching
-- [Tanstack/react-query](https://react-query.tanstack.com/) - for server/client side data fetching
+- [SWR](https://swr.vercel.app/) – Client-side data fetching
+- [Axios](https://axios-http.com/) – HTTP client
+- [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) – Server-side data mutations
+- [Tanstack/react-query](https://tanstack.com/query) – State management and fetching
 
 ### UI
 
-- [Tailwind CSS](https://tailwindcss.com/) – Utility-first CSS framework for rapid UI development
-- [Shadcn/ui](https://ui.shadcn.com/) – Re-usable components built using Radix UI and Tailwind CSS
-- [Tremor](https://www.tremor.so/) – A platform for creating charts
-- [react.email](https://react.email) - together with [resend.com](https://resend.com)
+- [Tailwind CSS](https://tailwindcss.com/) – Utility-first CSS
+- [Shadcn/ui](https://ui.shadcn.com/) – Headless components
+- [Tremor](https://www.tremor.so/) – Dashboard and charts
+- [react.email](https://react.email) – Email templates
 
 ### AI
 
-- [OpenAI API](https://openai.com/blog/openai-api) - for automated email notifications generated by AI
-- [Rossum](https://rossum.ai/) - for invoice data parsing with AI
-
-![hero](/public/og.png)
+- [OpenAI API](https://openai.com/) – AI-generated communication
+- [Rossum](https://rossum.ai/) – AI invoice parsing
 
 ## Roadmap
 
-1. More AI powered - daily summary of tasks and project (OpenAI integration) - in progress
-2. Email campaigns management - integration with MailChimp and Listmonk - in planning
-3. ~~Docker version - in planning (There will be complete bundle to run Ledger1CRM on-premise)~~
-4. Testing - Jest + Cypress (if anyone want to help I will be very happy) - in planning
-5. Fix all Types issue (no more "any") - in progress
-6. i18n - localization - in progress (if anyone want to help I will be very happy)
-7. Turborepo - in planning
-8. ~~Upgrade to Next.js 14 - in planning~~
-9. Email client - in planning
+### 1. Immediate Focus
+
+- **Effective Automated Outreach**: (Email, Phone, SMS)
+- **Efficiency**: Streamlining visual workflows and simple UX.
+
+### 2. Short Term
+
+- **Sales Pipeline**: Enhanced deal management and forecasting.
+- **AI Models**: Integration of DeepSeek and Anthropic models.
+- **Inbound Calls**: Web-based inbound telephony.
+
+### 3. Long Term
+
+- **Enterprise Scale**: Advanced governance and security tiers.
+- **Innovation**: Continuous AI-native feature evolution.
 
 ## Emails
 
-We use [resend.com](https://resend.com) + [react.email](https://react.email) as primary email sender and email templates.
+We use [Resend](https://resend.com) + [React Email](https://react.email) for templates and delivery.
 
 ## Reports
 
-We use Tremor charts as a tool for creating charts in Ledger1CRM
+We use Tremor for high-performance dashboard analytics.
 
-![hero](/public/reports.png)
-
-## Video (YouTube channel with functions showcase)
-
-[Youtube Channel](https://www.youtube.com/@NextCRM_IO) </br>
-[Invoice module (video)](https://youtu.be/NSMsBMy07Pg)
+![Reports Preview](public/images/reports_final.png)
 
 ## Documentation
 
-Available soon at: http://docs.nextcrm.io
+Available at: [crm.basalthq.com/en/developers](https://crm.basalthq.com/en/developers)
 
 ## Installation
 
-<details><summary><b>Show instructions</b></summary>
+<!-- markdownlint-disable MD033 -->
+<details>
+<summary><b>Show instructions</b></summary>
 
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/pdovhomilja/nextcrm-app.git
-   cd nextcrm-app
+   git clone https://github.com/Ledger1-ai/crm-official.git
+   cd crm-official
    ```
 
-1. Install the preset:
+2. Install dependencies:
 
    ```sh
-   pnpm install
+   npm install
    ```
 
-1. Copy the environment variables to .env
+3. Setup environment variables:
 
    ```sh
    cp .env.example .env
-   ```
-
-   ```sh
    cp .env.local.example .env.local
    ```
 
-   **.env**
-
-   > > - You will need mongodb URI string for Prisma ORM
-
-   **.env.local**
-
-   > > - NextAUTH - for auth
-   > > - uploadthings - for storing files
-   > > - rossum - for invoice data exporting
-   > > - openAI - for automatic Project management assistant
-   > > - SMPT and IMAP for emails
-
-1. Init Prisma
+4. Initialize Prisma:
 
    ```sh
-    pnpm prisma generate
-    pnpm prisma db push
+   npx prisma generate
+   npx prisma db push
    ```
 
-1. Import initial data from initial-data folder
+5. Seed initial data:
 
    ```sh
-   pnpm prisma db seed
+   npx prisma db seed
    ```
 
-1. Run app on local
+6. Run application:
 
    ```sh
-   pnpm run dev
+   npm run dev
    ```
 
-1. http://localhost:3000
+7. Open [http://localhost:3000](http://localhost:3000)
 
 </details>
-
-## Docker installation
-
-[Link to Docker HUB](https://hub.docker.com/repository/docker/nextcrmio/nextcrm/general)
-
-<details>
-<summary><b>Show instructions</b></summary>
-
-1. Make sure you have docker and docker-compose installed
-
-2. Prepare .env and .env.local files
-
-   ```create
-   .env (for Prisma URI string) and .env.local (all others ENVs) file inside docker folder
-   ```
-
-3. build docker image
-
-   ```sh
-   docker build -t nextcrm .
-   ```
-
-4. Run docker container
-
-   ```sh
-   docker run -p 3000:3000 nextcrm
-   ```
-
-5. http://localhost:3000
-</details>
+<!-- markdownlint-enable MD033 -->
 
 ## Contact
 
-[www.dovhomilja.cz](https://www.dovhomilja.cz)
-</br>
-[<img alt="X (formerly Twitter) URL" src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fdovhomilja">
-](https://twitter.com/dovhomilja)
+- [Website](https://basalthq.com)
+- [X (Twitter)](https://x.com/BasaltHQ)
 
 ## Contributing
 
-We are open to the Ledger1CRM community contributions. Every contribution is welcome.
+We welcome community contributions. Please open an issue for bugs or suggestions.
 
-### Issues
+### BasaltCRM Super Heroes
 
-- [Open an issue](https://github.com/pdovhomilja/nextcrm-app/issues) if you find a bug or have a suggestion for improvements.
-
-### Ledger1CRM Super heroes
-
-<a href="https://github.com/pdovhomilja/nextcrm-app/graphs/contributors">
-<img src="https://contrib.rocks/image?repo=pdovhomilja/nextcrm-app" />
-</a>
-
-Made with [contrib.rocks](https://contrib.rocks).
+[![Contributors](https://contrib.rocks/image?repo=Ledger1-ai/crm-official)](https://github.com/Ledger1-ai/crm-official/graphs/contributors)
 
 ## Repo Activity
 
-![Alt](https://repobeats.axiom.co/api/embed/e6bed6e15724f38c278ad2edcf0573a1bb24bed6.svg "Repobeats analytics image")
+![Repo Activity](https://repobeats.axiom.co/api/embed/e6bed6e15724f38c278ad2edcf0573a1bb24bed6.svg)
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=pdovhomilja/nextcrm-app&type=Timeline)](https://star-history.com/#pdovhomilja/nextcrm-app&Timeline)
+[![Star History Chart](https://api.star-history.com/svg?repos=Ledger1-ai/crm-official&type=Timeline)](https://star-history.com/#Ledger1-ai/crm-official&Timeline)
 
 ## License
 
-Licensed under the [MIT license](https://github.com/pdovhomilja/nextcrm-app/blob/main/LICENSE.md).
+Licensed under the [MIT license](https://github.com/Ledger1-ai/crm-official/blob/main/LICENSE).
