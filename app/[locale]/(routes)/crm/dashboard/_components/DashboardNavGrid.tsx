@@ -81,7 +81,7 @@ const navItems = [
     {
         title: "My Projects",
         description: "Your assigned projects & pools",
-        href: "/crm/my-campaigns",
+        href: "/crm/my-projects",
         icon: FolderKanban,
         color: "from-amber-500/20 to-orange-500/20",
         iconColor: "text-amber-400",

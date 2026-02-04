@@ -65,7 +65,7 @@ export default function TabsContainer({ title, description, managerSlot, wizardS
     { id: "manager", label: "Leads Manager", icon: LayoutDashboard },
     { id: "wizard", label: "LeadGen Wizard", icon: Wand2 },
     { id: "pools", label: "Lead Pools", icon: Users },
-    { id: "campaigns", label: "Outreach", icon: Mail },
+    { id: "campaigns", label: "Sequences", icon: Mail },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 

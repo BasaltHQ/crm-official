@@ -38,7 +38,7 @@ export default function ProjectOpportunitiesPanel() {
     // Fetch accessible projects
     (async () => {
       try {
-        const res = await fetch("/api/campaigns", { cache: "no-store" });
+        const res = await fetch("/api/projects", { cache: "no-store" });
         if (res.ok) {
           const j = await res.json();
           setProjects((j?.projects || []) as Project[]);
@@ -54,7 +54,7 @@ export default function ProjectOpportunitiesPanel() {
     setIsLoading(true);
     (async () => {
       try {
-        const res = await fetch(`/api/campaigns/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
+        const res = await fetch(`/api/projects/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
         if (res.ok) {
           const j = await res.json();
           setOpportunities(((j?.opportunities || []) as Opportunity[]).filter(o => o.status !== 'ARCHIVED'));
@@ -78,7 +78,7 @@ export default function ProjectOpportunitiesPanel() {
     }
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/campaigns/${encodeURIComponent(selectedProjectId)}/opportunities`, {
+      const res = await fetch(`/api/projects/${encodeURIComponent(selectedProjectId)}/opportunities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, category, description: description || null, valueEstimate: valueEstimate ? Number(valueEstimate) : undefined }),
@@ -90,7 +90,7 @@ export default function ProjectOpportunitiesPanel() {
       setDescription("");
       setValueEstimate("");
       // refresh
-      const res2 = await fetch(`/api/campaigns/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
+      const res2 = await fetch(`/api/projects/${encodeURIComponent(selectedProjectId)}/opportunities`, { cache: "no-store" });
       const j2 = await res2.json();
       setOpportunities((j2?.opportunities || []) as Opportunity[]);
     } catch (e: any) {

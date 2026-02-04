@@ -1,5 +1,4 @@
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
-import React from "react";
 
 import { BasicView } from "./components/BasicView";
 
@@ -13,6 +12,11 @@ import { getContactsByOpportunityId } from "@/actions/crm/get-contacts-by-opport
 import { getDocumentsByOpportunityId } from "@/actions/documents/get-documents-by-opportunityId";
 import { getAccountsByOpportunityId } from "@/actions/crm/get-accounts-by-opportunityId";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prismadb } from "@/lib/prisma";
+import { getEffectiveRoleModules } from "@/actions/permissions/get-effective-permissions";
+
 const OpportunityView = async (
   props: {
     params: Promise<{ opportunityId: string }>;
@@ -24,11 +28,43 @@ const OpportunityView = async (
     opportunityId
   } = params;
 
-  const opportunity: any = await getOpportunity(opportunityId);
-  const crmData = await getAllCrmData();
-  const accounts = await getAccountsByOpportunityId(opportunityId);
-  const contacts = await getContactsByOpportunityId(opportunityId);
-  const documents = await getDocumentsByOpportunityId(opportunityId);
+  // Permission Logic
+  const session = await getServerSession(authOptions);
+  let permissions: string[] = [];
+  let isSuperAdmin = false;
+
+  if (session?.user?.id) {
+    const user = await prismadb.users.findUnique({
+      where: { id: session.user.id },
+      select: { team_role: true, team_id: true, department_id: true, assigned_modules: true }
+    });
+    isSuperAdmin = user?.team_role === 'SUPER_ADMIN' || user?.team_role === 'OWNER';
+
+    if (isSuperAdmin) {
+      permissions = ['*'];
+    } else if (user) {
+      if (user.assigned_modules && user.assigned_modules.length > 0) {
+        permissions = user.assigned_modules;
+      } else {
+        const contextId = user.department_id || user.team_id;
+        const scope = user.department_id ? 'DEPARTMENT' : 'ORGANIZATION';
+        if (contextId && user.team_role) {
+          permissions = await getEffectiveRoleModules(contextId, user.team_role, scope);
+        }
+      }
+    }
+  }
+
+  const hasAccess = (perm: string) => isSuperAdmin || permissions.includes('*') || permissions.includes(perm);
+
+  const opportunityPromise = getOpportunity(opportunityId);
+  const crmDataPromise = getAllCrmData();
+  const [opportunity, crmData] = await Promise.all([opportunityPromise, crmDataPromise]);
+
+  // Conditional fetching
+  const accounts = hasAccess('opportunities.detail.accounts') ? await getAccountsByOpportunityId(opportunityId) : [];
+  const contacts = hasAccess('opportunities.detail.contacts') ? await getContactsByOpportunityId(opportunityId) : [];
+  const documents = hasAccess('opportunities.detail.documents') ? await getDocumentsByOpportunityId(opportunityId) : [];
 
   if (!opportunity) return <div>Opportunity not found</div>;
 
@@ -38,10 +74,10 @@ const OpportunityView = async (
       description={"Description - " + opportunity.description}
     >
       <div className="space-y-5">
-        <BasicView data={opportunity} />
-        <AccountsView crmData={crmData} data={accounts} />
-        <ContactsView crmData={crmData} data={contacts} />
-        <DocumentsView data={documents} />
+        {hasAccess('opportunities.detail.info') && <BasicView data={opportunity} />}
+        {hasAccess('opportunities.detail.accounts') && <AccountsView crmData={crmData} data={accounts} />}
+        {hasAccess('opportunities.detail.contacts') && <ContactsView crmData={crmData} data={contacts} />}
+        {hasAccess('opportunities.detail.documents') && <DocumentsView data={documents} />}
       </div>
     </Container>
   );

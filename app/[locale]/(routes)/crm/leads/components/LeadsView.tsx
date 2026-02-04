@@ -109,7 +109,7 @@ function ProgressBar({ value }: { value: number }) {
 
 export default function LeadsView({ data, isMember = false }: Props) {
   // Fetch active projects for assignment
-  const { data: campaignsData } = useSWR('/api/campaigns', fetcher);
+  const { data: campaignsData } = useSWR('/api/projects', fetcher);
   const campaigns = useMemo(() => campaignsData?.projects || [], [campaignsData]);
 
   async function assignPoolCampaign(campaignId: string) {
@@ -242,7 +242,7 @@ export default function LeadsView({ data, isMember = false }: Props) {
   }, [selectedPoolId, pools]);
 
   const { data: brandResponse } = useSWR(
-    selectedPoolCampaign ? `/api/campaigns/${encodeURIComponent(selectedPoolCampaign)}/brand` : null,
+    selectedPoolCampaign ? `/api/projects/${encodeURIComponent(selectedPoolCampaign)}/brand` : null,
     fetcher
   );
 

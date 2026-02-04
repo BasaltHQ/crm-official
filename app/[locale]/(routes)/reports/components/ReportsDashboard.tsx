@@ -18,9 +18,10 @@ import {
 } from "@/components/ui/select";
 import { getFinancialsByMonth } from "@/actions/reports/get-financials";
 import { getOpportunitiesByMonth } from "@/actions/crm/get-opportunities";
-import { getTasksByMonth } from "@/actions/campaigns/get-tasks";
+import { getTasksByMonth } from "@/actions/projects/get-tasks";
 import { getLeadsByMonth } from "@/actions/crm/get-leads";
 import { AISummaryModal } from "@/components/reports/AISummaryModal";
+import { CustomReportsPanel } from "@/components/reports/CustomReportsPanel";
 
 // Types
 type DashboardData = {
@@ -30,6 +31,7 @@ type DashboardData = {
     financialsInitial: any[];
     leadsInitial: any[];
     departments: any[];
+    savedReports: any[];
 };
 
 export default function ReportsDashboard({
@@ -38,7 +40,8 @@ export default function ReportsDashboard({
     tasksInitial,
     financialsInitial,
     leadsInitial,
-    departments = []
+    departments = [],
+    savedReports = []
 }: DashboardData) {
     const [date, setDate] = useState<DateRange | undefined>({
         from: subDays(new Date(), 30),
@@ -113,6 +116,7 @@ export default function ReportsDashboard({
                     </Select>
                 </div>
                 <div className="flex space-x-2">
+                    <CustomReportsPanel savedReports={savedReports} />
                     <Button variant="outline" size="sm" onClick={() => handlePrint()}>
                         <Printer className="w-4 h-4 mr-2" />
                         Export PDF

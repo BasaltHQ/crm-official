@@ -40,6 +40,16 @@ const nextConfig = {
         destination: "/echo",
         permanent: true,
       },
+      {
+        source: "/campaigns/:path*",
+        destination: "/projects/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:locale/campaigns/:path*",
+        destination: "/:locale/projects/:path*",
+        permanent: true,
+      },
     ];
   },
   output: "standalone",

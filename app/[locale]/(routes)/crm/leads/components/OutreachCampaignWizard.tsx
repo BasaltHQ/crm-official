@@ -30,15 +30,15 @@ import {
 } from "lucide-react";
 
 /**
- * OutreachCampaignWizard - Comprehensive Prompt Builder & Campaign Manager
+ * OutreachCampaignWizard - Comprehensive Prompt Builder & Sequence Manager
  * 
  * This wizard helps users:
- * 1. Define campaign basics and select leads
+ * 1. Define sequence basics and select leads
  * 2. Build a comprehensive AI prompt template (like vcrun.py)
  * 3. Configure project context and messaging strategy
  * 4. Preview generated messages with real lead data
  * 5. Test send to ANY email/phone (NEVER to the actual lead)
- * 6. Launch the campaign
+ * 6. Launch the sequence
  */
 
 type Lead = {
@@ -121,13 +121,13 @@ export default function OutreachCampaignWizard({
 }: Props) {
     const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-    // Step 1: Campaign Basics
+    // Step 1: Sequence Basics
     const [campaignName, setCampaignName] = useState("");
     const [campaignDescription, setCampaignDescription] = useState("");
     const [selectedChannels, setSelectedChannels] = useState<string[]>(["EMAIL"]);
     const [leads, setLeads] = useState<Lead[]>(selectedLeads);
 
-    // Step 2: Campaign Context & Briefing
+    // Step 2: Sequence Context & Briefing
     const [campaignTitle, setCampaignTitle] = useState(campaign?.title || "");
     const [campaignBriefing, setCampaignBriefing] = useState("");
     const [userName, setUserName] = useState("");
@@ -303,7 +303,7 @@ export default function OutreachCampaignWizard({
         const fetchCampaign = async () => {
             setLoadingCampaign(true);
             try {
-                const res = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/summary`);
+                const res = await fetch(`/api/projects/${encodeURIComponent(campaignId)}/summary`);
                 if (res.ok) {
                     const data = await res.json();
                     setFetchedCampaign(data);
@@ -366,8 +366,8 @@ export default function OutreachCampaignWizard({
     }, [campaign]);
 
     const steps = [
-        { num: 1, title: "Campaign Basics", icon: Users },
-        { num: 2, title: "Project Context", icon: FileText },
+        { num: 1, title: "Sequence Basics", icon: Users },
+        { num: 2, title: "Sequence Context", icon: FileText },
         { num: 3, title: "AI Prompt Template", icon: Sparkles },
         { num: 4, title: "Preview & Test", icon: Eye }
     ];
@@ -444,7 +444,7 @@ export default function OutreachCampaignWizard({
                 }
             };
 
-            const res = await fetch("/api/outreach/campaigns", {
+            const res = await fetch("/api/outreach/sequences", {
                 method: draftCampaignId ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -669,7 +669,7 @@ export default function OutreachCampaignWizard({
             const requiresApproval = fetchedCampaign?.require_approval ?? false;
             const campaignStatus = requiresApproval ? "PENDING_APPROVAL" : "ACTIVE";
 
-            const res = await fetch("/api/outreach/campaigns", {
+            const res = await fetch("/api/outreach/sequences", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -691,13 +691,13 @@ export default function OutreachCampaignWizard({
             }
 
             if (requiresApproval) {
-                toast.success("Campaign submitted for approval! Your admin will review it.");
+                toast.success("Sequence submitted for approval! Your admin will review it.");
             } else {
-                toast.success("Campaign launched successfully!");
+                toast.success("Sequence launched successfully!");
             }
             if (onClose) onClose();
         } catch (error: any) {
-            toast.error(error.message || "Failed to create campaign");
+            toast.error(error.message || "Failed to create sequence");
         } finally {
             setLoading(false);
         }
@@ -745,7 +745,7 @@ export default function OutreachCampaignWizard({
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-xs text-muted-foreground uppercase tracking-wider">Campaign ID</div>
+                                        <div className="text-xs text-muted-foreground uppercase tracking-wider">Sequence ID</div>
                                         <div className="text-sm font-mono text-muted-foreground">{fetchedCampaign.id.slice(0, 8)}...</div>
                                     </div>
                                 </div>
@@ -790,14 +790,14 @@ export default function OutreachCampaignWizard({
                 <CardHeader>
                     <CardTitle className="text-2xl">{steps[currentStep - 1].title}</CardTitle>
                     <CardDescription>
-                        {currentStep === 1 && "Set up your campaign basics and select target leads"}
-                        {currentStep === 2 && "Define your campaign context and product briefing for AI personalization"}
+                        {currentStep === 1 && "Set up your sequence basics and select target leads"}
+                        {currentStep === 2 && "Define your sequence context and product briefing for AI personalization"}
                         {currentStep === 3 && "Customize the AI prompt template that will generate personalized messages"}
                         {currentStep === 4 && "Preview generated messages and test send (NEVER to actual lead contacts)"}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* Step 1: Campaign Basics */}
+                    {/* Step 1: Sequence Basics */}
                     {currentStep === 1 && (
                         <div className="space-y-4">
                             <div className="space-y-2">

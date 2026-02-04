@@ -3,23 +3,25 @@ import Container from "../components/ui/Container";
 import ReportsDashboard from "./components/ReportsDashboard";
 import { getUsersByMonth } from "@/actions/get-users";
 import { getOpportunitiesByMonth } from "@/actions/crm/get-opportunities";
-import { getTasksByMonth } from "@/actions/campaigns/get-tasks";
+import { getTasksByMonth } from "@/actions/projects/get-tasks";
 import { getFinancialsByMonth } from "@/actions/reports/get-financials";
 
 import { getLeadsByMonth } from "@/actions/crm/get-leads";
 import { getDepartments } from "@/actions/departments/get-departments";
+import { getSavedReports } from "@/actions/reports/get-saved-reports";
 
 type Props = {};
 
 const ReportsPage = async (props: Props) => {
   // Fetch initial data (defaults to current year in actions if no dates provided)
-  const [usersData, oppsData, tasksData, financialsData, leadsData, deptsResult] = await Promise.all([
+  const [usersData, oppsData, tasksData, financialsData, leadsData, deptsResult, savedReports] = await Promise.all([
     getUsersByMonth(),
     getOpportunitiesByMonth(),
     getTasksByMonth(),
     getFinancialsByMonth(),
     getLeadsByMonth(),
-    getDepartments()
+    getDepartments(),
+    getSavedReports()
   ]);
 
   const departments = deptsResult.success ? deptsResult.departments || [] : [];
@@ -39,6 +41,7 @@ const ReportsPage = async (props: Props) => {
           financialsInitial={financialsData}
           leadsInitial={leadsData}
           departments={departments}
+          savedReports={savedReports || []}
         />
       </div>
     </Container>

@@ -100,7 +100,7 @@ export default function NewProjectsWidget({ projects }: NewProjectsWidgetProps) 
                 </ScrollArea>
 
                 <div className="mt-4 pt-4 border-t flex justify-end">
-                    <Link href="/crm/my-campaigns">
+                    <Link href="/crm/my-projects">
                         <Button variant="ghost" className="text-amber-500 hover:text-amber-600 hover:bg-amber-500/10">
                             View All My Projects <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>

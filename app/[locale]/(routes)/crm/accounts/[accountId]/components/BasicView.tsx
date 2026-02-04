@@ -29,6 +29,7 @@ import { prismadb } from "@/lib/prisma";
 import Link from "next/link";
 import { EnvelopeClosedIcon, LightningBoltIcon } from "@radix-ui/react-icons";
 import { LucideLandmark } from "lucide-react";
+import { BasicViewActions } from "../../../components/BasicViewActions";
 
 interface OppsViewProps {
   data: any;
@@ -49,11 +50,7 @@ export async function BasicView({ data }: OppsViewProps) {
               <CardDescription>ID:{data.id}</CardDescription>
             </div>
             <div>
-              {
-                //TODO: Add menu
-                //TODO: Add edit button
-              }
-              <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+              <BasicViewActions module="accounts" entityId={data.id} />
             </div>
           </div>
         </CardHeader>
@@ -346,133 +343,5 @@ export async function BasicView({ data }: OppsViewProps) {
         </Card>
       </div>
     </div>
-    /*     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>{data.name}</CardTitle>
-        <CardDescription>ID:{data.id}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-1">
-        <pre>{JSON.stringify(data, null, 2)}</pre>
-        <div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">
-                Opportunity amount
-              </p>
-              <p className="text-sm text-muted-foreground">{data.budget}</p>
-            </div>
-          </div>
-
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <SquareStack className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Sales stage</p>
-              <p className="text-sm text-muted-foreground"></p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <Combine className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Next step</p>
-              <p className="text-sm text-muted-foreground">{data.next_step}</p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <ClipboardList className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Description</p>
-              <p className="text-sm text-muted-foreground">
-                {data.description}
-              </p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <User className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Assigned to</p>
-              <p className="text-sm text-muted-foreground">
-                {data.assigned_to_user.name}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <Landmark className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Account name</p>
-              <p className="text-sm text-muted-foreground"></p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <CalendarDays className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">
-                Expected close date
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {moment(data.close_date).format("MMM DD YYYY")}
-              </p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <CalendarDays className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Created</p>
-              <p className="text-sm text-muted-foreground">
-                {moment(data.created_on).format("MMM DD YYYY")}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Created by</p>
-              <p className="text-sm text-muted-foreground">
-                {users.find((user) => user.id === data.created_by)?.name}
-              </p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <CalendarDays className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Last update</p>
-              <p className="text-sm text-muted-foreground">
-                {moment(data.last_activity).format("MMM DD YYYY")}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Last update by</p>
-              <p className="text-sm text-muted-foreground">
-                {users.find((user) => user.id === data.last_activity_by)?.name}
-              </p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <List className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Type</p>
-              <p className="text-sm text-muted-foreground"></p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <Landmark className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Lead source</p>
-              <p className="text-sm text-muted-foreground">
-                Will be added in the future
-              </p>
-            </div>
-          </div>
-          <div className="-mx-2 flex items-start space-x-4 rounded-md p-2 transition-all hover:bg-accent hover:text-accent-foreground">
-            <Clapperboard className="mt-px h-5 w-5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">Campaign</p>
-              <p className="text-sm text-muted-foreground">
-                Will be added in the future
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card> */
   );
 }

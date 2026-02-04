@@ -13,37 +13,38 @@ import {
     FileText,
     ChevronLeft,
     ChevronRight,
-    Wand2,
-    Megaphone,
-    Settings,
-    ChevronDown,
-    LayoutList,
-    Folder
+    Folder,
+    CheckSquare,
+    GraduationCap,
+    Radio
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
 interface CrmSidebarProps {
     isMember?: boolean;
+    allowedModules?: string[];
 }
 
-export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
+export default function CrmSidebar({ isMember = false, allowedModules = [] }: CrmSidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileExpanded, setIsMobileExpanded] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
-    const [leadsExpanded, setLeadsExpanded] = useState(true); // Default open for visibility
+
+    // Permission Helper
+    const hasAccess = (moduleId: string) => {
+        if (!allowedModules || allowedModules.length === 0) return false;
+        if (allowedModules.includes('*')) return true; // Super Admin wildcard
+
+        // Check exact match (e.g. 'leads') or specific view permission (e.g. 'leads.view')
+        return allowedModules.includes(moduleId) || allowedModules.includes(`${moduleId}.view`);
+    };
 
     useEffect(() => {
         setIsMounted(true);
         const stored = localStorage.getItem("crm-sidebar-collapsed");
         if (stored) {
             setIsCollapsed(stored === "true");
-        }
-
-        // Auto-expand if on leads page
-        if (pathname.includes('/crm/leads') || pathname.includes('/crm/lead-wizard') || pathname.includes('/crm/lead-pools')) {
-            setLeadsExpanded(true);
         }
     }, [pathname]);
 
@@ -59,27 +60,25 @@ export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
         localStorage.setItem("crm-sidebar-collapsed", String(newState));
     };
 
-    const navItems = [
-
-        { label: "Accounts", href: "/crm/accounts", icon: Building2 },
-        { label: "Contacts", href: "/crm/contacts", icon: Contact },
-        { label: "Contracts", href: "/crm/contracts", icon: FileText },
-        { label: "Dialer", href: "/crm/dialer", icon: Phone },
-        // Leads Manager with Subitems
-        {
-            label: "Leads Manager",
-            href: "/crm/leads",
-            icon: Users,
-        },
-        {
-            label: "Projects", href: "/crm/my-campaigns", icon: Folder,
-        },
-        { label: "Opportunities", href: "/crm/opportunities", icon: Target },
+    // Full Nav List relative to permissions
+    const allNavItems = [
+        { id: 'accounts', label: "Accounts", href: "/crm/accounts", icon: Building2 },
+        { id: 'contacts', label: "Contacts", href: "/crm/contacts", icon: Contact },
+        { id: 'contracts', label: "Contracts", href: "/crm/contracts", icon: FileText },
+        { id: 'dialer', label: "Dialer", href: "/crm/dialer", icon: Phone },
+        { id: 'leads', label: "Leads Manager", href: "/crm/leads", icon: Users },
+        { id: 'projects', label: "Projects", href: "/crm/my-projects", icon: Folder },
+        { id: 'opportunities', label: "Opportunities", href: "/crm/opportunities", icon: Target },
+        { id: 'tasks', label: "Tasks", href: "/crm/tasks", icon: CheckSquare },
+        { id: 'sales-command', label: "Sales Command", href: "/crm/sales-command", icon: Radio },
+        { id: 'university', label: "University", href: "/crm/university", icon: GraduationCap },
     ];
 
-    // Hide CrmSidebar for Members (they use DashboardNavGrid) or on /crm/university
+    // Filter items
+    const navItems = allNavItems.filter(item => hasAccess(item.id));
+
     const isUniversityPage = pathname.includes("/crm/university");
-    if (isMember || isUniversityPage) {
+    if (isUniversityPage) {
         return null;
     }
 
@@ -105,10 +104,6 @@ export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
                                 ? pathname === "/crm"
                                 : pathname.startsWith(item.href);
 
-                        // Special rendering for expandable items
-
-
-                        // Standard Item Rendering
                         return (
                             <button
                                 key={item.label}
@@ -149,7 +144,6 @@ export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
                 onClick={() => setIsMobileExpanded(!isMobileExpanded)}
             >
                 {navItems.map((item) => {
-                    // Mobile doesn't support deep testing easily in this compact view, simplified to main items
                     const isActive =
                         item.href === "/crm"
                             ? pathname === "/crm"
@@ -159,7 +153,7 @@ export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
                         <button
                             key={item.label}
                             onClick={(e) => {
-                                e.stopPropagation(); // Prevent container click
+                                e.stopPropagation();
                                 if (!isMobileExpanded) {
                                     setIsMobileExpanded(true);
                                     return;
@@ -174,7 +168,6 @@ export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
                         >
                             <item.icon className="w-4 h-4" />
 
-                            {/* Label - Only visible when expanded */}
                             <span className={cn(
                                 "text-[9px] uppercase tracking-wider font-semibold truncate max-w-full px-1 transition-all duration-200",
                                 isMobileExpanded ? "opacity-100 h-auto" : "opacity-0 h-0 overflow-hidden"
@@ -182,7 +175,6 @@ export default function CrmSidebar({ isMember = false }: CrmSidebarProps) {
                                 {item.label.split(' ')[0]}
                             </span>
 
-                            {/* Top Cursor Animation */}
                             {isActive && (
                                 <div className="absolute top-0 w-8 h-0.5 bg-primary rounded-b-full" />
                             )}

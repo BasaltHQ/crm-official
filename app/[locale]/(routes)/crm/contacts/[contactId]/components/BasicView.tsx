@@ -23,6 +23,7 @@ import { prismadb } from "@/lib/prisma";
 import Link from "next/link";
 import { EnvelopeClosedIcon } from "@radix-ui/react-icons";
 import { Badge } from "@/components/ui/badge";
+import { BasicViewActions } from "../../../components/BasicViewActions";
 
 interface OppsViewProps {
   data: any;
@@ -45,11 +46,7 @@ export async function BasicView({ data }: OppsViewProps) {
               <CardDescription>ID:{data.id}</CardDescription>
             </div>
             <div>
-              {
-                //TODO: Add menu
-                //TODO: Add edit button
-              }
-              <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+              <BasicViewActions module="contacts" entityId={data.id} />
             </div>
           </div>
         </CardHeader>

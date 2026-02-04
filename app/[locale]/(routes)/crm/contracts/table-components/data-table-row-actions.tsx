@@ -30,6 +30,7 @@ import UpdateContractForm from "../_forms/update-contract";
 import { getUsers } from "@/actions/get-users";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
+import { usePermission } from "@/components/providers/permissions-provider";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -44,6 +45,8 @@ export function DataTableRowActions<TData>({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+
+  const { hasAccess } = usePermission();
 
   const { data: accounts, isLoading: isLoadingAccounts } = useSWR(
     "/api/crm/account",
@@ -79,6 +82,12 @@ export function DataTableRowActions<TData>({
     }
   };
 
+  const canView = hasAccess('contracts.view') || hasAccess('contracts.detail');
+  const canEdit = hasAccess('contracts.actions.edit');
+  const canDelete = hasAccess('contracts.actions.delete');
+
+  if (!canView && !canEdit && !canDelete) return null;
+
   return (
     <>
       <AlertModal
@@ -107,19 +116,25 @@ export function DataTableRowActions<TData>({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem
-            onClick={() => router.push(`/crm/contracts/${contract?.id}`)}
-          >
-            View
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setUpdateOpen(true)}>
-            Update
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setOpen(true)}>
-            Delete
-            <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
-          </DropdownMenuItem>
+          {canView && (
+            <DropdownMenuItem
+              onClick={() => router.push(`/crm/contracts/${contract?.id}`)}
+            >
+              View
+            </DropdownMenuItem>
+          )}
+          {canEdit && (
+            <DropdownMenuItem onClick={() => setUpdateOpen(true)}>
+              Update
+            </DropdownMenuItem>
+          )}
+          {(canView || canEdit) && canDelete && <DropdownMenuSeparator />}
+          {canDelete && (
+            <DropdownMenuItem onClick={() => setOpen(true)}>
+              Delete
+              <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

@@ -38,16 +38,23 @@ const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
                 )}
                 {...props}
             >
-                {/* Giant Watermark Icon (Gray/Muted) - Positioned Right */}
+                {/* Giant Watermark Icon (Colorful) - Positioned Right */}
                 <Icon
-                    className="absolute -right-6 -bottom-6 w-40 h-40 -rotate-12 text-muted-foreground/5 group-hover:text-muted-foreground/10 transition-colors duration-500 pointer-events-none"
+                    className={cn(
+                        "absolute -right-6 -bottom-6 w-40 h-40 -rotate-12 transition-colors duration-500 pointer-events-none",
+                        variant === "default" && "text-muted-foreground/5 group-hover:text-muted-foreground/10",
+                        variant === "success" && "text-emerald-500/10 group-hover:text-emerald-500/20",
+                        variant === "info" && "text-cyan-500/10 group-hover:text-cyan-500/20",
+                        variant === "violet" && "text-violet-500/10 group-hover:text-violet-500/20",
+                        variant === "warning" && "text-amber-500/10 group-hover:text-amber-500/20"
+                    )}
                 />
 
-                <div className={cn("relative z-10 w-full h-full items-center", hideIcon ? "flex flex-col justify-center gap-1" : "grid grid-cols-3")}>
+                <div className={cn("relative z-10 w-full h-full flex flex-col justify-center", hideIcon ? "items-center text-center gap-1" : "items-start pl-2")}>
                     {hideIcon ? (
-                        // Centered Layout
+                        // Centered Layout (Stats/Deep Dive)
                         <>
-                            <h3 className="font-semibold text-[10px] uppercase tracking-widest text-muted-foreground/90 text-center mb-1">
+                            <h3 className="font-semibold text-[10px] uppercase tracking-widest text-muted-foreground/90 mb-1">
                                 {label}
                             </h3>
                             {count !== undefined && (
@@ -56,49 +63,33 @@ const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
                                 </span>
                             )}
                             {description && (
-                                <p className="text-[10px] text-muted-foreground font-medium opacity-80 text-center">
+                                <p className="text-[10px] text-muted-foreground font-medium opacity-80">
                                     {description}
                                 </p>
                             )}
                         </>
                     ) : (
-                        // Original Grid Layout
+                        // Clean List Layout (Entities/Icons) - Left Aligned, No Central Icon
                         <>
-                            {/* Left: Stats */}
-                            <div className="col-span-1 flex flex-col items-start justify-center h-full pl-2">
-                                <div className="flex items-baseline gap-1">
-                                    {count !== undefined && (
-                                        <span className="text-3xl font-bold tracking-tight text-foreground">
-                                            {count}
-                                        </span>
-                                    )}
-                                </div>
-                                {description && (
-                                    <p className="text-[10px] text-muted-foreground font-medium truncate max-w-full opacity-80 mt-1">
-                                        {description}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Center: Icon & Name */}
-                            <div className="col-span-1 flex flex-col items-center justify-center gap-2">
-                                {/* Icon handling inside grid if needed, though hideIcon usually implies we want the other layout */}
-                                <div className="group-hover:scale-110 transition-transform duration-300">
-                                    <div className={cn(
-                                        "w-12 h-12 rounded-xl border border-white/5 bg-white/5 flex items-center justify-center shadow-inner ring-1 ring-white/10",
-                                        "backdrop-blur-sm",
-                                        primaryColor ? primaryColor : variantIconStyles[variant]
-                                    )}>
-                                        <Icon className={cn("w-6 h-6", iconClassName)} />
-                                    </div>
-                                </div>
-                                <h3 className="font-semibold text-[10px] uppercase tracking-widest text-muted-foreground/90 text-center">
+                            <div className="flex items-center gap-3 mb-1">
+                                <h3 className="font-semibold text-[10px] uppercase tracking-widest text-muted-foreground/90">
                                     {label}
                                 </h3>
                             </div>
 
-                            {/* Right: Spacer (Empty to balance grid, acts as padding for Center alignment) */}
-                            <div className="col-span-1" />
+                            <div className="flex items-baseline gap-1">
+                                {count !== undefined && (
+                                    <span className="text-3xl font-bold tracking-tight text-foreground">
+                                        {count}
+                                    </span>
+                                )}
+                            </div>
+
+                            {description && (
+                                <p className="text-[10px] text-muted-foreground font-medium truncate max-w-full opacity-80 mt-1">
+                                    {description}
+                                </p>
+                            )}
                         </>
                     )}
                 </div>

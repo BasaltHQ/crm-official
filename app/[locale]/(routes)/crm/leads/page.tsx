@@ -68,8 +68,8 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
         };
       case "campaigns":
         return {
-          title: "Projects",
-          description: "Track and manage your marketing campaigns"
+          title: "Sequences",
+          description: "Track and manage your marketing sequences"
         };
       case "settings":
         return {

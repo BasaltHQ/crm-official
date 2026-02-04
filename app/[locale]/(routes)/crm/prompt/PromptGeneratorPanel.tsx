@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'react-hot-toast';
 import CustomCCP from '@/components/voice/CustomCCP';
+import { usePermission } from '@/components/providers/permissions-provider';
 
 type RolePreset = {
   key: string;
@@ -81,6 +82,7 @@ function buildPrompt(opts: {
     `- Build rapport and value alignment for ${opts.projectName || 'the project'}.`,
     `- Qualify needs and constraints; offer next steps or scheduling.`,
     `- If requested, draft a follow-up email or summary with action items.`,
+    `- Generated via Prompt Generator Module`,
   ].filter(Boolean).join('\n');
 }
 
@@ -99,6 +101,8 @@ export default function PromptGeneratorPanel({ embedded = false, showSoftphone =
   const [language, setLanguage] = useState('English');
   const [wallet, setWallet] = useState('');
   const [prompt, setPrompt] = useState('');
+
+  const { hasAccess } = usePermission();
 
   const generated = useMemo(
     () =>
@@ -162,6 +166,15 @@ export default function PromptGeneratorPanel({ embedded = false, showSoftphone =
     } catch (e: any) {
       toast.error(e?.message || 'Failed to push prompt');
     }
+  }
+
+  // 1. Module Level Gate
+  if (!hasAccess('ai_lab') && !hasAccess('ai_lab.prompt_generator')) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        You do not have permission to access the Prompt Generator.
+      </div>
+    );
   }
 
   return (
@@ -267,7 +280,9 @@ export default function PromptGeneratorPanel({ embedded = false, showSoftphone =
       {/* Actions */}
       <section className="rounded-md border bg-card p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-wrap">
-          <Button onClick={handleGenerate} className="w-full sm:w-auto">Generate Prompt</Button>
+          {hasAccess('ai_lab.actions.generate') && (
+            <Button onClick={handleGenerate} className="w-full sm:w-auto">Generate Prompt</Button>
+          )}
 
           <div className="flex items-center gap-2 flex-1 w-full sm:w-auto min-w-[200px]">
             <span className="text-xs font-medium whitespace-nowrap">Wallet</span>
@@ -279,9 +294,11 @@ export default function PromptGeneratorPanel({ embedded = false, showSoftphone =
             />
           </div>
 
-          <Button variant="outline" onClick={handlePushToVoiceHub} className="w-full sm:w-auto">
-            Push to VoiceHub
-          </Button>
+          {hasAccess('ai_lab.actions.push_voicehub') && (
+            <Button variant="outline" onClick={handlePushToVoiceHub} className="w-full sm:w-auto">
+              Push to VoiceHub
+            </Button>
+          )}
         </div>
 
         <div className="mt-4">

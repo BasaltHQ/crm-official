@@ -1,166 +1,444 @@
-/**
- * CRM Role Permissions and Module Access Configuration
- * 
- * Defines role types and their default module access for the CRM.
- * Super Admin roles have full access and don't need module configuration.
- * 
- * Role Hierarchy:
- * - SUPER_ADMIN: Full control over organization and all departments
- * - ADMIN: Manages their department, can create MEMBER/VIEWER roles only
- * - MEMBER: Works on assigned resources
- * - VIEWER: Read-only access
- */
+import { LayoutDashboard, Users, User, Phone, Briefcase, FileText, CheckSquare, GraduationCap, Laptop, Bot, LineChart } from "lucide-react";
 
-// Team roles in hierarchical order (OWNER deprecated, use SUPER_ADMIN)
-export type TeamRole = 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'VIEWER';
-
-// Legacy support - OWNER maps to SUPER_ADMIN
-export type LegacyTeamRole = 'OWNER' | TeamRole;
-
-// Role hierarchy levels (higher number = more permissions)
-export const ROLE_HIERARCHY: Record<TeamRole, number> = {
-    SUPER_ADMIN: 100,
-    ADMIN: 75,
-    MEMBER: 50,
-    VIEWER: 25,
-};
-
-// Which roles can each role create/manage
-// This enforces: Admins cannot create other Admins
-export const ROLE_CREATION_MATRIX: Record<TeamRole, TeamRole[]> = {
-    SUPER_ADMIN: ['ADMIN', 'MEMBER', 'VIEWER'],
-    ADMIN: ['MEMBER', 'VIEWER'],  // Cannot create other Admins!
-    MEMBER: [],
-    VIEWER: [],
-};
-
-// CRM Module definition
 export interface CrmModule {
     id: string;
     name: string;
-    route: string;
-    description: string;
-    icon?: string;
+    description?: string;
+    route?: string;
+    children?: CrmModule[];
 }
 
-// All available CRM modules
-export const CRM_MODULES: CrmModule[] = [
-    { id: 'dashboard', name: 'Dashboard', route: '/crm/dashboard', description: 'CRM overview and metrics' },
-    { id: 'accounts', name: 'Accounts', route: '/crm/accounts', description: 'Manage company accounts' },
-    { id: 'contacts', name: 'Contacts', route: '/crm/contacts', description: 'Manage contacts' },
-    { id: 'leads', name: 'Leads', route: '/crm/leads', description: 'Lead management and tracking' },
-    { id: 'opportunities', name: 'Opportunities', route: '/crm/opportunities', description: 'Sales opportunities pipeline' },
-    { id: 'contracts', name: 'Contracts', route: '/crm/contracts', description: 'Contract management' },
-    { id: 'tasks', name: 'Tasks', route: '/crm/tasks', description: 'Task management' },
-    { id: 'projects', name: 'Projects', route: '/crm/my-projects', description: 'Project boards' },
-    { id: 'sales-command', name: 'Sales Command', route: '/crm/sales-command', description: 'Sales automation tools' },
-    { id: 'dialer', name: 'Dialer', route: '/crm/dialer', description: 'Phone dialer integration' },
-    { id: 'university', name: 'University', route: '/crm/university', description: 'Training and resources' },
+// All available CRM modules with Detailed Drill-Down
+
+export type TeamRole = "SUPER_ADMIN" | "ADMIN" | "MEMBER" | "VIEWER";
+
+export const ALL_ROLES: { label: string; value: TeamRole }[] = [
+    { label: "Super Admin", value: "SUPER_ADMIN" },
+    { label: "Admin", value: "ADMIN" },
+    { label: "Member", value: "MEMBER" },
+    { label: "Viewer", value: "VIEWER" },
 ];
 
-// Role metadata
-export interface RoleConfig {
-    label: string;
-    description: string;
-    canEdit: boolean;
-    canDelete: boolean;
-    canManageSettings: boolean;
-    canManageDepartment: boolean;
-    defaultModules: string[]; // Module IDs enabled by default
-}
+export const CRM_MODULES: CrmModule[] = [
 
-// Role configurations (Super Admin has god mode - not included here)
-export const ROLE_CONFIGS: Record<Exclude<TeamRole, 'SUPER_ADMIN'>, RoleConfig> = {
+    {
+        id: 'dashboard',
+        name: 'Dashboard',
+        route: '/crm/dashboard',
+        description: 'CRM overview and metrics',
+        children: [
+            { id: 'dashboard.view', name: 'View Dashboard', description: 'Access the main dashboard page' },
+            {
+                id: 'dashboard.widgets',
+                name: 'Widgets',
+                description: 'Toggle specific dashboard cards',
+                children: [
+                    { id: 'dashboard.widgets.welcome', name: 'Welcome Message', description: 'Greeting card' },
+                    { id: 'dashboard.widgets.stats_overview', name: 'Stats Overview', description: 'Top statistics row' },
+                    { id: 'dashboard.widgets.daily_tasks', name: 'Daily Tasks', description: 'Daily task list' },
+                    { id: 'dashboard.widgets.messages', name: 'Recent Messages', description: 'Recent communications' },
+                    { id: 'dashboard.widgets.my_leads', name: 'My Leads', description: 'Lead summary' },
+                    { id: 'dashboard.widgets.new_projects', name: 'New Projects', description: 'Project summary' },
+                    { id: 'dashboard.widgets.team_analytics', name: 'Team Analytics', description: 'Team performance charts' },
+                    { id: 'dashboard.widgets.gamification', name: 'Gamification', description: 'Leaderboards' },
+                    { id: 'dashboard.widgets.jump_back_in', name: 'Jump Back In', description: 'Recent history' },
+                ]
+            },
+            {
+                id: 'dashboard.actions',
+                name: 'Actions',
+                description: 'Dashboard actions',
+                children: [
+                    { id: 'dashboard.actions.export', name: 'Export Data', description: 'Export dashboard reports' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'leads',
+        name: 'Leads Manager',
+        route: '/crm/leads',
+        description: 'Lead management and tracking',
+        children: [
+            {
+                id: 'leads.tabs',
+                name: 'Tabs Access',
+                description: 'Toggle specific tabs',
+                children: [
+                    { id: 'leads.tabs.all', name: 'All Leads View', description: 'Main list view' },
+                    { id: 'leads.tabs.workspace', name: 'Workspace View', description: 'Pipeline workspace' },
+                    { id: 'leads.tabs.dialer', name: 'Dialer View', description: 'Embedded dialer' },
+                ]
+            },
+            {
+                id: 'leads.components',
+                name: 'Components',
+                description: 'Page components',
+                children: [
+                    { id: 'leads.components.filters', name: 'Filter Sidebar', description: 'Advanced filtering' },
+                    { id: 'leads.components.stats', name: 'Pipeline Stats', description: 'Top stats bar' },
+                ]
+            },
+            {
+                id: 'leads.actions',
+                name: 'Actions',
+                description: 'Lead operations',
+                children: [
+                    { id: 'leads.actions.create', name: 'Create Lead', description: 'Add new leads' },
+                    { id: 'leads.actions.import', name: 'Import Leads', description: 'Import from CSV' },
+                    { id: 'leads.actions.export', name: 'Export Leads', description: 'Export leads list' },
+                    { id: 'leads.actions.assign', name: 'Assign Lead', description: 'Reassign leads' },
+                    { id: 'leads.actions.convert', name: 'Convert to Deal', description: 'Convert lead to opportunity' },
+                    { id: 'leads.actions.delete', name: 'Delete Lead', description: 'Remove leads' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'accounts',
+        name: 'Accounts',
+        route: '/crm/accounts',
+        description: 'Manage company accounts',
+        children: [
+            { id: 'accounts.view', name: 'View Accounts', description: 'Access account list' },
+            { id: 'accounts.detail_view', name: 'Account Detail View', description: 'Access account details page' },
+            {
+                id: 'accounts.detail',
+                name: 'Detail Page Widgets',
+                description: 'Sections on detail page',
+                children: [
+                    { id: 'accounts.detail.info', name: 'Basic Info', description: 'Overview card' },
+                    { id: 'accounts.detail.tasks', name: 'Tasks Widget', description: 'Tasks section' },
+                    { id: 'accounts.detail.contacts', name: 'Contacts Widget', description: 'Associated contacts' },
+                    { id: 'accounts.detail.opportunities', name: 'Opportunities Widget', description: 'Associated deals' },
+                    { id: 'accounts.detail.contracts', name: 'Contracts Widget', description: 'Associated contracts' },
+                    { id: 'accounts.detail.leads', name: 'Leads Widget', description: 'Associated leads' },
+                    { id: 'accounts.detail.documents', name: 'Documents Widget', description: 'Uploaded files' },
+                ]
+            },
+            {
+                id: 'accounts.actions',
+                name: 'Actions',
+                description: 'Account operations',
+                children: [
+                    { id: 'accounts.actions.create', name: 'Create Account', description: 'Add new accounts' },
+                    { id: 'accounts.actions.edit', name: 'Edit Details', description: 'Modify account info' },
+                    { id: 'accounts.actions.delete', name: 'Delete Account', description: 'Remove accounts' },
+                    { id: 'accounts.actions.export', name: 'Export Accounts', description: 'Export account list' },
+                    { id: 'accounts.actions.add_note', name: 'Add Note', description: 'Create timeline note' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'contacts',
+        name: 'Contacts',
+        route: '/crm/contacts',
+        description: 'Manage contacts',
+        children: [
+            { id: 'contacts.view', name: 'View Contacts', description: 'Access contact list' },
+            { id: 'contacts.detail_view', name: 'Contact Detail View', description: 'Access contact details page' },
+            {
+                id: 'contacts.detail',
+                name: 'Detail Page Widgets',
+                description: 'Sections on detail page',
+                children: [
+                    { id: 'contacts.detail.info', name: 'Basic Info', description: 'Profile card' },
+                    { id: 'contacts.detail.communication', name: 'Communication', description: 'Email/SMS history' },
+                    { id: 'contacts.detail.opportunities', name: 'Opportunities Widget', description: 'Associated deals' },
+                    { id: 'contacts.detail.documents', name: 'Documents Widget', description: 'Uploaded files' },
+                    { id: 'contacts.detail.tasks', name: 'Tasks Widget', description: 'Associated tasks' },
+                    { id: 'contacts.detail.accounts', name: 'Linked Accounts', description: 'Associated companies' },
+                ]
+            },
+            {
+                id: 'contacts.actions',
+                name: 'Actions',
+                description: 'Contact operations',
+                children: [
+                    { id: 'contacts.actions.create', name: 'Create Contact', description: 'Add new contacts' },
+                    { id: 'contacts.actions.edit', name: 'Edit Profile', description: 'Modify contact info' },
+                    { id: 'contacts.actions.delete', name: 'Delete Contact', description: 'Remove contacts' },
+                    { id: 'contacts.actions.import', name: 'Import Contacts', description: 'Import from CSV' },
+                    { id: 'contacts.actions.export', name: 'Export Contacts', description: 'Export contact list' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'opportunities',
+        name: 'Opportunities',
+        route: '/crm/opportunities',
+        description: 'Sales pipeline',
+        children: [
+            { id: 'opportunities.view', name: 'Pipeline View', description: 'View opportunities board' },
+            { id: 'opportunities.list_view', name: 'List View', description: 'View opportunities table' },
+            { id: 'opportunities.detail_view', name: 'Detail View', description: 'Access deal details' },
+            {
+                id: 'opportunities.detail',
+                name: 'Detail Widgets',
+                description: 'Sections on detail page',
+                children: [
+                    { id: 'opportunities.detail.info', name: 'Basic Info', description: 'Deal overview' },
+                    { id: 'opportunities.detail.accounts', name: 'Linked Accounts', description: 'Associated accounts' },
+                    { id: 'opportunities.detail.contacts', name: 'Linked Contacts', description: 'Associated contacts' },
+                    { id: 'opportunities.detail.documents', name: 'Documents', description: 'Deal files' },
+                ]
+            },
+            {
+                id: 'opportunities.actions',
+                name: 'Actions',
+                description: 'Opportunity operations',
+                children: [
+                    { id: 'opportunities.actions.create', name: 'Create Deal', description: 'Add new deals' },
+                    { id: 'opportunities.actions.move_stage', name: 'Move Stages', description: 'Drag and drop' },
+                    { id: 'opportunities.actions.won_lost', name: 'Mark Won/Lost', description: 'Close deals' },
+                    { id: 'opportunities.actions.delete', name: 'Delete Deal', description: 'Remove deals' },
+                    { id: 'opportunities.actions.edit', name: 'Edit Deal', description: 'Modify deal info' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'ai_lab',
+        name: 'AI Lab',
+        route: '/crm/prompt',
+        description: 'AI Tools & Prompt Generation',
+        children: [
+            { id: 'ai_lab.prompt_generator', name: 'Prompt Generator', description: 'Access generator tool' },
+            {
+                id: 'ai_lab.actions',
+                name: 'Actions',
+                description: 'AI operations',
+                children: [
+                    { id: 'ai_lab.actions.generate', name: 'Generate Prompt', description: 'Run generation' },
+                    { id: 'ai_lab.actions.push_voicehub', name: 'Push to VoiceHub', description: 'Deploy to voice agent' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'sales-command',
+        name: 'Sales Command',
+        route: '/crm/sales-command',
+        description: 'Sales automation tools',
+        children: [
+            { id: 'sales_command.my_command', name: 'My Command', description: 'Personal dashboard' },
+            { id: 'sales_command.team_command', name: 'Team Command', description: 'Manager dashboard' },
+            { id: 'sales_command.analytics', name: 'Unified Analytics', description: 'Cross-module analytics' },
+            {
+                id: 'sales_command.widgets',
+                name: 'Widgets',
+                description: 'Dashboard widgets',
+                children: [
+                    { id: 'sales_command.widgets.leaderboard', name: 'Leaderboard', description: 'Team rankings' },
+                    { id: 'sales_command.widgets.conversion', name: 'Conversion Charts', description: 'Funnel metrics' },
+                    { id: 'sales_command.widgets.activity', name: 'Activity Feed', description: 'Recent actions' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'contracts',
+        name: 'Contracts',
+        route: '/crm/contracts',
+        description: 'Contract management',
+        children: [
+            { id: 'contracts.view', name: 'View Contracts', description: 'Access contracts list' },
+            {
+                id: 'contracts.detail',
+                name: 'Detail Page',
+                description: 'Contract details',
+                children: [
+                    { id: 'contracts.detail.preview', name: 'PDF Preview', description: 'View document' },
+                    { id: 'contracts.detail.signatures', name: 'Signatures', description: 'Signature status' },
+                ]
+            },
+            {
+                id: 'contracts.actions',
+                name: 'Actions',
+                description: 'Contract operations',
+                children: [
+                    { id: 'contracts.actions.create', name: 'Draft Contract', description: 'Create new' },
+                    { id: 'contracts.actions.edit', name: 'Edit Contract', description: 'Modify contract' },
+                    { id: 'contracts.actions.delete', name: 'Delete Contract', description: 'Remove contract' },
+                    { id: 'contracts.actions.send', name: 'Send for Signature', description: 'Email to client' },
+                    { id: 'contracts.actions.sign', name: 'Sign Contract', description: 'Sign internal' },
+                    { id: 'contracts.actions.void', name: 'Void Contract', description: 'Cancel contract' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'projects',
+        name: 'Projects',
+        route: '/crm/my-projects',
+        description: 'Project boards',
+        children: [
+            { id: 'projects.board_view', name: 'Board View', description: 'Kanban board' },
+            { id: 'projects.list_view', name: 'List View', description: 'Project list' },
+            {
+                id: 'projects.detail',
+                name: 'Detail Page',
+                description: 'Project details',
+                children: [
+                    { id: 'projects.detail.comments', name: 'Comments', description: 'Discussion thread' },
+                    { id: 'projects.detail.attachments', name: 'Attachments', description: 'Files' },
+                ]
+            },
+            {
+                id: 'projects.actions',
+                name: 'Actions',
+                description: 'Project operations',
+                children: [
+                    { id: 'projects.actions.create', name: 'Create Project', description: 'Add new' },
+                    { id: 'projects.actions.edit', name: 'Edit Project', description: 'Modify project' },
+                    { id: 'projects.actions.move', name: 'Move Status', description: 'Change stage' },
+                    { id: 'projects.actions.assign', name: 'Assign Members', description: 'Manage team' },
+                    { id: 'projects.actions.delete', name: 'Delete Project', description: 'Remove project' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'tasks',
+        name: 'Tasks',
+        route: '/crm/tasks',
+        description: 'Global task management',
+        children: [
+            { id: 'tasks.view', name: 'Task List', description: 'List view' },
+            { id: 'tasks.calendar', name: 'Calendar View', description: 'Calendar view' },
+            {
+                id: 'tasks.actions',
+                name: 'Actions',
+                description: 'Task operations',
+                children: [
+                    { id: 'tasks.actions.create', name: 'Create Task', description: 'Add new' },
+                    { id: 'tasks.actions.edit', name: 'Edit Task', description: 'Modify task' },
+                    { id: 'tasks.actions.complete', name: 'Mark Complete', description: 'Finish task' },
+                    { id: 'tasks.actions.delete', name: 'Delete Task', description: 'Remove task' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'dialer',
+        name: 'Dialer',
+        route: '/crm/dialer',
+        description: 'Phone system',
+        children: [
+            { id: 'dialer.view', name: 'Dialer Interface', description: 'Keypad and controls' },
+            { id: 'dialer.history', name: 'Call History', description: 'Logs' },
+            { id: 'dialer.recordings', name: 'Recordings', description: 'Audio files' },
+            {
+                id: 'dialer.actions',
+                name: 'Actions',
+                description: 'Dialer operations',
+                children: [
+                    { id: 'dialer.actions.call', name: 'Make Calls', description: 'Outbound' },
+                    { id: 'dialer.actions.listen', name: 'Listen', description: 'Play recordings' },
+                    { id: 'dialer.actions.download', name: 'Download', description: 'Save recordings' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'university',
+        name: 'University',
+        route: '/crm/university',
+        description: 'Training and resources',
+        children: [
+            { id: 'university.view', name: 'Course View', description: 'Access content' },
+            { id: 'university.progress', name: 'My Progress', description: 'Tracking' },
+            {
+                id: 'university.widgets',
+                name: 'Widgets',
+                description: 'Page sections',
+                children: [
+                    { id: 'university.widgets.workflow_diagrams', name: 'Workflow Diagrams', description: 'Visual guides' },
+                    { id: 'university.widgets.guides', name: 'Guides', description: 'Written content' },
+                ]
+            },
+            {
+                id: 'university.actions',
+                name: 'Actions',
+                description: 'Admin operations',
+                children: [
+                    { id: 'university.actions.manage', name: 'Manage Content', description: 'Upload/Edit' },
+                ]
+            }
+        ]
+    },
+    {
+        id: 'outreach',
+        name: 'Outreach',
+        route: '/crm/outreach',
+        description: 'Marketing sequences',
+        children: [
+            { id: 'outreach.view', name: 'View Sequences', description: 'Access sequences page' },
+            {
+                id: 'outreach.actions',
+                name: 'Actions',
+                description: 'Sequence operations',
+                children: [
+                    { id: 'outreach.actions.create', name: 'Create Sequence', description: 'Add new' },
+                    { id: 'outreach.actions.edit', name: 'Edit Sequence', description: 'Modify' },
+                    { id: 'outreach.actions.delete', name: 'Delete Sequence', description: 'Remove' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'lead_pools',
+        name: 'Lead Pools',
+        route: '/crm/lead-pools',
+        description: 'Lead distribution',
+        children: [
+            { id: 'lead_pools.view', name: 'View Pools', description: 'Access pool settings' },
+            { id: 'lead_pools.actions.manage', name: 'Manage Pools', description: 'Create/Edit pools' }
+        ]
+    },
+    {
+        id: 'lead_wizard',
+        name: 'Lead Wizard',
+        route: '/crm/lead-wizard',
+        description: 'Lead generation tool',
+        children: [
+            { id: 'lead_wizard.view', name: 'Access Wizard', description: 'Use generator' }
+        ]
+    }
+];
+
+export const ROLE_CONFIGS: Record<Exclude<TeamRole, 'SUPER_ADMIN'>, { label: string; description: string; defaultModules: string[] }> = {
     ADMIN: {
-        label: 'Admin',
-        description: 'Full access within their department',
-        canEdit: true,
-        canDelete: true,
-        canManageSettings: false, // Org settings restricted to Super Admin
-        canManageDepartment: true,
-        defaultModules: CRM_MODULES.map(m => m.id), // All modules
+        label: "Admin",
+        description: "Full access to department resources",
+        defaultModules: ['dashboard', 'dashboard.view', 'leads', 'leads.tabs.all', 'accounts', 'accounts.view', 'contacts', 'contacts.view']
     },
     MEMBER: {
-        label: 'Member',
-        description: 'Can manage assigned content but not settings',
-        canEdit: true,
-        canDelete: false,
-        canManageSettings: false,
-        canManageDepartment: false,
-        defaultModules: ['dashboard', 'leads', 'accounts', 'contacts', 'tasks'], // Subset
+        label: "Member",
+        description: "Standard access to assigned resources",
+        defaultModules: ['dashboard', 'dashboard.view', 'contacts', 'contacts.view']
     },
     VIEWER: {
-        label: 'Viewer',
-        description: 'Read-only access',
-        canEdit: false,
-        canDelete: false,
-        canManageSettings: false,
-        canManageDepartment: false,
-        defaultModules: [], // No modules enabled by default
-    },
+        label: "Viewer",
+        description: "Read-only access to view data",
+        defaultModules: ['dashboard', 'dashboard.view']
+    }
 };
 
-// Super Admin configuration (separate for clarity)
-export const SUPER_ADMIN_CONFIG: RoleConfig = {
-    label: 'Super Admin',
-    description: 'Full control over organization and all departments',
-    canEdit: true,
-    canDelete: true,
-    canManageSettings: true,
-    canManageDepartment: true,
-    defaultModules: CRM_MODULES.map(m => m.id),
+// Role Hierarchy Levels (Higher # = More Privilege)
+export const ROLE_HIERARCHY: Record<TeamRole, number> = {
+    SUPER_ADMIN: 100,
+    ADMIN: 50,
+    MEMBER: 10,
+    VIEWER: 0,
 };
 
-// Helper to check if a role has access to a module
-export function hasModuleAccess(role: TeamRole | LegacyTeamRole, moduleId: string, customModules?: string[]): boolean {
-    // Normalize legacy OWNER to SUPER_ADMIN
-    const normalizedRole = role === 'OWNER' ? 'SUPER_ADMIN' : role;
-
-    // Super Admin always has access
-    if (normalizedRole === 'SUPER_ADMIN') return true;
-
-    // Use custom modules if provided, otherwise use defaults
-    const enabledModules = customModules ?? ROLE_CONFIGS[normalizedRole].defaultModules;
-    return enabledModules.includes(moduleId);
-}
-
-// Helper to get display name for role
-export function getRoleLabel(role: TeamRole | LegacyTeamRole): string {
-    // Normalize legacy OWNER to SUPER_ADMIN
-    const normalizedRole = role === 'OWNER' ? 'SUPER_ADMIN' : role;
-
-    if (normalizedRole === 'SUPER_ADMIN') return 'Super Admin';
-    return ROLE_CONFIGS[normalizedRole].label;
-}
-
-// Helper to check if user has minimum role level
-export function hasMinimumRoleLevel(userRole: TeamRole | LegacyTeamRole, requiredRole: TeamRole): boolean {
-    const normalizedRole = userRole === 'OWNER' ? 'SUPER_ADMIN' : userRole;
-    return ROLE_HIERARCHY[normalizedRole] >= ROLE_HIERARCHY[requiredRole];
-}
-
-// Helper to get roles that a user can create/manage
-export function getManageableRoles(actorRole: TeamRole | LegacyTeamRole): TeamRole[] {
-    const normalizedRole = actorRole === 'OWNER' ? 'SUPER_ADMIN' : actorRole;
-    return ROLE_CREATION_MATRIX[normalizedRole] || [];
-}
-
-// Helper to check if actor can manage target role
-export function canManageRole(actorRole: TeamRole | LegacyTeamRole, targetRole: TeamRole): boolean {
-    return getManageableRoles(actorRole).includes(targetRole);
-}
-
-// Get role config with Super Admin support
-export function getRoleConfig(role: TeamRole | LegacyTeamRole): RoleConfig {
-    const normalizedRole = role === 'OWNER' ? 'SUPER_ADMIN' : role;
-    if (normalizedRole === 'SUPER_ADMIN') return SUPER_ADMIN_CONFIG;
-    return ROLE_CONFIGS[normalizedRole];
-}
-
-// All available roles for UI dropdowns
-export const ALL_ROLES: { value: TeamRole; label: string; description: string }[] = [
-    { value: 'SUPER_ADMIN', label: 'Super Admin', description: 'Full control over organization' },
-    { value: 'ADMIN', label: 'Admin', description: 'Manages their department' },
-    { value: 'MEMBER', label: 'Member', description: 'Works on assigned resources' },
-    { value: 'VIEWER', label: 'Viewer', description: 'Read-only access' },
-];
+// Matrix defining which roles can create which other roles
+export const ROLE_CREATION_MATRIX: Record<TeamRole, TeamRole[]> = {
+    SUPER_ADMIN: ['ADMIN', 'MEMBER', 'VIEWER'],
+    ADMIN: ['MEMBER', 'VIEWER'],
+    MEMBER: [],
+    VIEWER: []
+};

@@ -23,10 +23,10 @@ import { prismadb } from "@/lib/prisma";
 
 interface OppsViewProps {
   data: {
-    assigned_sales_stage: { name: string };
-    assigned_to_user: { name: string };
-    assigned_account: { name: string };
-    assigned_type: { name: string };
+    assigned_sales_stage: { name: string } | null;
+    assigned_to_user: { name: string | null } | null;
+    assigned_account: { name: string } | null;
+    assigned_type: { name: string } | null;
   } & crm_Opportunities;
 }
 
@@ -84,7 +84,7 @@ export async function BasicView({ data }: OppsViewProps) {
             <div className="space-y-1">
               <p className="text-sm font-medium leading-none">Assigned to</p>
               <p className="text-sm text-muted-foreground">
-                {data.assigned_to_user.name}
+                {data.assigned_to_user?.name || "Unassigned"}
               </p>
             </div>
           </div>

@@ -81,7 +81,7 @@ export default function CampaignsView() {
     const fetchCampaigns = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/outreach/campaigns");
+            const res = await fetch("/api/outreach/sequences");
             if (!res.ok) {
                 // Gracefully handle API errors - just show empty state
                 console.warn("Campaigns API returned error, showing empty state");
@@ -181,7 +181,7 @@ export default function CampaignsView() {
         if (!confirm("Are you sure you want to delete this campaign?")) return;
 
         try {
-            const res = await fetch(`/api/outreach/campaigns/${campaignId}`, {
+            const res = await fetch(`/api/outreach/sequences/${campaignId}`, {
                 method: "DELETE",
             });
             if (!res.ok) throw new Error("Failed to delete");
@@ -194,7 +194,7 @@ export default function CampaignsView() {
 
     const handleUpdateStatus = async (campaignId: string, newStatus: CampaignStatus) => {
         try {
-            const res = await fetch("/api/outreach/campaigns", {
+            const res = await fetch("/api/outreach/sequences", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: campaignId, status: newStatus }),
@@ -210,7 +210,7 @@ export default function CampaignsView() {
     // Admin approve/reject campaign
     const handleApproveCampaign = async (campaignId: string) => {
         try {
-            const res = await fetch(`/api/outreach/campaigns/${campaignId}/approve`, {
+            const res = await fetch(`/api/outreach/sequences/${campaignId}/approve`, {
                 method: "POST",
             });
             if (!res.ok) {
@@ -268,7 +268,7 @@ export default function CampaignsView() {
                 <Card className="border-l-4 border-l-primary">
                     <CardHeader className="pb-3">
                         <CardDescription className="text-xs font-medium uppercase tracking-wider">
-                            Active Campaigns
+                            Active Sequences
                         </CardDescription>
                         <CardTitle className="text-3xl font-bold">
                             {campaigns.filter(c => c.status === "ACTIVE").length}
@@ -294,7 +294,7 @@ export default function CampaignsView() {
                     <CardContent>
                         <p className="text-xs text-muted-foreground">
                             <Users className="w-3 h-3 inline mr-1" />
-                            Across all campaigns
+                            Across all sequences
                         </p>
                     </CardContent>
                 </Card>
@@ -348,7 +348,7 @@ export default function CampaignsView() {
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search campaigns by name or description..."
+                            placeholder="Search sequences by name or description..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10 w-full"
@@ -362,7 +362,7 @@ export default function CampaignsView() {
                 <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                     <Button variant="outline" size="sm" onClick={handleRunHammer} disabled={processingQueue}>
                         <RefreshCw className={cn("w-4 h-4 mr-2", processingQueue && "animate-spin")} />
-                        {processingQueue ? "Processing..." : "Run Campaign Batch"}
+                        {processingQueue ? "Processing..." : "Run Sequence Batch"}
                     </Button>
 
                     <Button variant="ghost" size="sm" onClick={fetchCampaigns}>
@@ -389,10 +389,10 @@ export default function CampaignsView() {
                     {uniqueProjects.length > 0 && (
                         <Select value={campaignFilter} onValueChange={setCampaignFilter}>
                             <SelectTrigger className="w-full sm:w-[180px]">
-                                <SelectValue placeholder="Filter by campaign" />
+                                <SelectValue placeholder="Filter by project" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Campaigns</SelectItem>
+                                <SelectItem value="all">All Projects</SelectItem>
                                 {uniqueProjects.map((project) => (
                                     <SelectItem key={project.id} value={project.id}>
                                         {project.title}
@@ -430,12 +430,12 @@ export default function CampaignsView() {
                             </div>
                             <div className="space-y-1">
                                 <h3 className="font-semibold">
-                                    {searchTerm || statusFilter !== "all" ? "No campaigns found" : "No campaigns yet"}
+                                    {searchTerm || statusFilter !== "all" ? "No sequences found" : "No sequences yet"}
                                 </h3>
                                 <p className="text-sm text-muted-foreground max-w-sm">
                                     {searchTerm || statusFilter !== "all"
                                         ? "Try adjusting your search or filter criteria"
-                                        : "Create your first campaign by selecting leads and clicking 'Push to Outreach'"}
+                                        : "Create your first sequence by selecting leads and clicking 'Push to Outreach'"}
                                 </p>
                             </div>
                         </div>
@@ -473,7 +473,7 @@ export default function CampaignsView() {
                                                 <>
                                                     <span className="text-xs text-muted-foreground">•</span>
                                                     <Badge variant="outline" className="text-xs">
-                                                        Campaign: {campaign.assigned_project.title}
+                                                        Project: {campaign.assigned_project.title}
                                                     </Badge>
                                                 </>
                                             )}
@@ -503,7 +503,7 @@ export default function CampaignsView() {
                                             </DropdownMenuItem>
                                             <DropdownMenuItem>
                                                 <Edit className="w-4 h-4 mr-2" />
-                                                Edit Campaign
+                                                Edit Sequence
                                             </DropdownMenuItem>
                                             <DropdownMenuItem>
                                                 <Copy className="w-4 h-4 mr-2" />
@@ -513,17 +513,17 @@ export default function CampaignsView() {
                                             {campaign.status === "ACTIVE" ? (
                                                 <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, "PAUSED")}>
                                                     <Pause className="w-4 h-4 mr-2" />
-                                                    Pause Campaign
+                                                    Pause Sequence
                                                 </DropdownMenuItem>
                                             ) : campaign.status === "PAUSED" ? (
                                                 <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, "ACTIVE")}>
                                                     <Play className="w-4 h-4 mr-2" />
-                                                    Resume Campaign
+                                                    Resume Sequence
                                                 </DropdownMenuItem>
                                             ) : campaign.status === "DRAFT" ? (
                                                 <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, "ACTIVE")}>
                                                     <Play className="w-4 h-4 mr-2" />
-                                                    Launch Campaign
+                                                    Launch Sequence
                                                 </DropdownMenuItem>
                                             ) : null}
                                             <DropdownMenuItem
@@ -636,7 +636,7 @@ export default function CampaignsView() {
                                             onClick={() => handleUpdateStatus(campaign.id, "ACTIVE")}
                                         >
                                             <Play className="w-3 h-3 mr-2" />
-                                            Launch Campaign
+                                            Launch Sequence
                                         </Button>
                                     )}
 
@@ -675,9 +675,9 @@ export default function CampaignsView() {
             {/* Helper text */}
             {filteredCampaigns.length > 0 && (
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                    Showing {filteredCampaigns.length} of {campaigns.length} campaign{campaigns.length !== 1 ? "s" : ""}
+                    Showing {filteredCampaigns.length} of {campaigns.length} sequence{campaigns.length !== 1 ? "s" : ""}
                     {" • "}
-                    Click any campaign to view detailed analytics and manage outreach items
+                    Click any sequence to view detailed analytics and manage outreach items
                 </p>
             )}
         </div>
