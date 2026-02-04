@@ -19,11 +19,12 @@ export const getCurrentUserTeamId = async () => {
         }
     });
 
-    const isInternalTeam = user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
+    const isInternalTeam = user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq" || user?.assigned_team?.slug === "ledger1";
     const isPlatformAdminRole = user?.team_role === "PLATFORM_ADMIN";
 
-    // "God Mode" only for PLATFORM_ADMIN in Internal Team
-    const isGlobalAdmin = isInternalTeam && isPlatformAdminRole;
+    // "God Mode" for PLATFORM_ADMIN - NO TEAM RESTRICTIONS
+    // PLATFORM_ADMIN can see and access ALL data across ALL teams
+    const isGlobalAdmin = isPlatformAdminRole;
 
 
     return {

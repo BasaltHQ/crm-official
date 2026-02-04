@@ -24,7 +24,7 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
 
 
             {/* Toggle Buttons Container */}
-            <div className="flex items-center bg-muted/50 border border-border/50 rounded-md p-1 gap-0.5">
+            <div className="flex items-center bg-background/20 border border-primary/20 rounded-md p-1 gap-0.5 backdrop-blur-sm">
                 {/* Table/List View */}
                 <button
                     type="button"
@@ -32,8 +32,8 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
                     className={cn(
                         "p-1.5 rounded transition-all",
                         value === 'table'
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                     )}
                     title="Table View"
                 >
@@ -64,8 +64,8 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
                     className={cn(
                         "p-1.5 rounded transition-all",
                         value === 'compact'
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                     )}
                     title="Compact Grid"
                 >
@@ -94,8 +94,8 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
                     className={cn(
                         "p-1.5 rounded transition-all",
                         value === 'card'
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                     )}
                     title="Card View"
                 >

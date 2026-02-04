@@ -17,7 +17,8 @@ async function checkAuth() {
     }) as any;
 
     const isInternalTeam = ["ledger1", "basalthq", "basalt"].includes(user?.assigned_team?.slug);
-    const isGlobalAdmin = isInternalTeam && user.team_role === "PLATFORM_ADMIN";
+    // PLATFORM_ADMIN has god mode - no team restriction required
+    const isGlobalAdmin = user.team_role === "PLATFORM_ADMIN";
     const isBoss = isInternalTeam && user.team_role === "OWNER";
 
     // Also allow legacy global admin flag for now, or just stick to new roles

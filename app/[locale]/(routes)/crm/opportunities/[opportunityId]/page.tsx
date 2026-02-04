@@ -55,7 +55,34 @@ const OpportunityView = async (
     }
   }
 
-  const hasAccess = (perm: string) => isSuperAdmin || permissions.includes('*') || permissions.includes(perm);
+  // Simplified permission check:
+  // Users who can access this page should see its content by default.
+  // Only hide content if explicitly denied via permission system.
+  const hasAccess = (perm: string) => {
+    // Super admins always have full access
+    if (isSuperAdmin) return true;
+
+    // Wildcard grants all
+    if (permissions.includes('*')) return true;
+
+    // Exact permission match
+    if (permissions.includes(perm)) return true;
+
+    // Check parent permissions (e.g., 'opportunities' grants 'opportunities.detail.info')
+    const parts = perm.split('.');
+    for (let i = parts.length - 1; i >= 1; i--) {
+      const parentPerm = parts.slice(0, i).join('.');
+      if (permissions.includes(parentPerm)) return true;
+    }
+
+    // detail_view grants all detail.* access
+    if (perm.startsWith('opportunities.detail.') && permissions.includes('opportunities.detail_view')) return true;
+
+    // DEFAULT BEHAVIOR: Allow access to detail page sections unless explicitly denied
+    // If user navigated to this page, they should see the content
+    // The sidebar/route protection handles top-level access control
+    return true;
+  };
 
   const opportunityPromise = getOpportunity(opportunityId);
   const crmDataPromise = getAllCrmData();

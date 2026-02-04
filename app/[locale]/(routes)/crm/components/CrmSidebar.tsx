@@ -78,7 +78,10 @@ export default function CrmSidebar({ isMember = false, allowedModules = [] }: Cr
     const navItems = allNavItems.filter(item => hasAccess(item.id));
 
     const isUniversityPage = pathname.includes("/crm/university");
-    if (isUniversityPage) {
+    const isContractsPage = pathname.includes("/crm/contracts");
+
+    // Hide sidebar on specific pages or when no nav items
+    if (isUniversityPage || isContractsPage || navItems.length === 0) {
         return null;
     }
 

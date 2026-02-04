@@ -53,10 +53,11 @@ export function UpdateAccountForm({
     "/api/crm/industries",
     fetcher
   );
-  const { data: users, isLoading: isLoadingUsers } = useSWR(
-    "/api/user",
+  const { data: usersData, isLoading: isLoadingUsers } = useSWR(
+    "/api/team/members",
     fetcher
   );
+  const users = usersData?.members;
 
   const formSchema = z.object({
     id: z.string().min(5).max(30),
@@ -199,9 +200,7 @@ export function UpdateAccountForm({
                     <Input
                       disabled={isLoading}
                       placeholder="+1 555 000 0000"
-                      //@ts-ignore
-                      value={field.value}
-                      onChange={field.onChange}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

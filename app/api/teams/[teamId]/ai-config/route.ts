@@ -35,7 +35,8 @@ export async function POST(
             },
         });
 
-        const isGlobalAdmin = user?.assigned_team?.slug === "ledger1" && user?.team_role === "PLATFORM_ADMIN";
+        // PLATFORM_ADMIN has god mode - no team restriction
+        const isGlobalAdmin = user?.team_role === "PLATFORM_ADMIN";
         const isTeamAdmin = user?.team_id === teamId && ["OWNER", "ADMIN", "PLATFORM_ADMIN"].includes(user?.team_role || "");
 
         if (!isGlobalAdmin && !isTeamAdmin) {

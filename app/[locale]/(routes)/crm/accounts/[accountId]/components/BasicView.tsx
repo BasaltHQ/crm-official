@@ -104,10 +104,10 @@ export async function BasicView({ data }: OppsViewProps) {
                     <p className="text-sm font-medium leading-none">Email</p>
 
                     <Link
-                      href={`mailto:${data.email}`}
-                      className="flex items-center  gap-5 text-sm text-muted-foreground"
+                      href={data.email ? `/messages?compose=true&email=${encodeURIComponent(data.email)}` : '#'}
+                      className="flex items-center gap-5 text-sm text-muted-foreground hover:text-primary transition-colors"
                     >
-                      {data.email}
+                      {data.email || 'No email'}
                       <EnvelopeClosedIcon />
                     </Link>
                   </div>

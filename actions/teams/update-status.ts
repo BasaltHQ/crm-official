@@ -18,10 +18,12 @@ export async function updateTeamStatus(
         include: { assigned_team: true }
     }) as any;
 
-    const isInternalAdmin = ["ledger1", "basalthq", "basalt"].includes(user?.assigned_team?.slug) && (user.team_role === "PLATFORM_ADMIN" || user.team_role === "OWNER");
+    // PLATFORM_ADMIN has god mode - no team restriction required
+    const isPlatformAdmin = user.team_role === "PLATFORM_ADMIN";
+    const isInternalAdmin = ["ledger1", "basalthq", "basalt"].includes(user?.assigned_team?.slug) && user.team_role === "OWNER";
 
-    if (!isInternalAdmin && !user?.is_admin) {
-        return { error: "Forbidden: Only internal admins can update team status." };
+    if (!isPlatformAdmin && !isInternalAdmin && !user?.is_admin) {
+        return { error: "Forbidden: Only platform admins can update team status." };
     }
 
     try {

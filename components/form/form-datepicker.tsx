@@ -51,8 +51,8 @@ export const FormDatePicker = forwardRef<HTMLInputElement, FormDatePickerProps>(
     const [date, setDate] = useState<Date>(defaultDate || new Date());
 
     return (
-      <div className="space-y-2">
-        <div className="flex flex-col space-y-2">
+      <div className="space-y-1">
+        <div className="flex flex-col space-y-1">
           {label ? (
             <Label
               htmlFor={id}
@@ -63,29 +63,27 @@ export const FormDatePicker = forwardRef<HTMLInputElement, FormDatePickerProps>(
           ) : null}
           <Input
             onBlur={onBlur}
-            defaultValue={defaultDate ? defaultDate.toISOString() : ""}
             ref={ref}
             required={required}
             value={date ? date.toISOString() : ""}
             name={id}
             id={id}
             placeholder={placeholder}
-            type={type}
-            disabled={pending || disabled}
-            className={cn("text-sm px-2 py-1 h-7", className)}
-            aria-describedby={`${id}-error`}
+            type="hidden"
+            readOnly
           />
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 disabled={pending || disabled}
                 variant={"outline"}
+                size="sm"
                 className={cn(
-                  "w-[280px] justify-start text-left font-normal",
+                  "w-full justify-start text-left font-normal h-9 px-3 text-sm",
                   !date && "text-muted-foreground"
                 )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                 {date ? format(date, "PPP") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>

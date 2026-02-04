@@ -65,6 +65,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tremor/react": "^3.18.7",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@xyflow/react": "^12.10.0",
     "ai": "^5.0.117",
     "amazon-chime-sdk-js": "^3.29.0",
     "amazon-connect-streams": "^2.22.0",

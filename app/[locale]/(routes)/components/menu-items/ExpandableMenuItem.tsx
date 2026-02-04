@@ -125,7 +125,7 @@ const ExpandableMenuItem = ({ href, icon: Icon, title, isOpen, isActive, items, 
                             exit={{ opacity: 0, x: -10, scale: 0.95 }}
                             transition={{ duration: 0.15, ease: "easeOut" }}
                             className={cn(
-                                "absolute top-0 z-[100] min-w-[220px] p-2 rounded-xl border border-white/10 shadow-2xl backdrop-blur-xl bg-[#0a0a0a]/95",
+                                "absolute top-0 z-[100] min-w-[220px] max-h-[70vh] overflow-y-auto p-1 rounded-xl border border-white/10 shadow-2xl backdrop-blur-xl bg-[#0a0a0a]/95 custom-scrollbar",
                                 // Positioning: 
                                 // If Expanded: Left = 100% + gap
                                 // If Collapsed: Left = 100% + gap (Icon width + gap)
@@ -133,8 +133,8 @@ const ExpandableMenuItem = ({ href, icon: Icon, title, isOpen, isActive, items, 
                             )}
                         >
                             {/* Header in Flyout (Match parent title) */}
-                            <div className="px-3 py-2 border-b border-white/5 mb-1 cursor-default">
-                                <span className="text-sm font-semibold text-white/90">{title}</span>
+                            <div className="px-3 py-1.5 border-b border-white/5 mb-1 cursor-default shrink-0">
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary/80">{title}</span>
                             </div>
 
                             <div className="flex flex-col gap-0.5">

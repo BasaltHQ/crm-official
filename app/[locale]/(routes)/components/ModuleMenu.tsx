@@ -103,11 +103,11 @@ const ModuleMenu = ({ modules, dict, features, isPartnerAdmin, teamRole = "MEMBE
           animate={open ? "expanded" : "collapsed"}
           variants={sidebarVariants}
           className={cn(
-            "relative h-full flex flex-col border-r shadow-xl group", // Removed overflow-hidden
+            "relative h-full flex flex-col border-r border-primary/20 shadow-xl group", // Added gold border
             // Glassmorphism & Premium Aesthetics
             "bg-gradient-to-b from-background/95 via-background/90 to-background/95", // Subtle gradient
             "backdrop-blur-xl", // Heavy blur for glass effect
-            "border-white/5" // Subtle border
+            "border-white/5" // Subtle border (keeping this for layering if needed, but primary is stronger)
           )}
         >
           {/* Ambient Background Glow */}

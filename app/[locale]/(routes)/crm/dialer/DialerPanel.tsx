@@ -9,6 +9,8 @@ import CustomCCP from '@/components/voice/CustomCCP';
 import PromptGeneratorPanel from '../prompt/PromptGeneratorPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { useVaruniLink } from '@/app/hooks/use-varuni-link';
+import { Zap, Shield, XCircle } from 'lucide-react';
 
 function isE164(num: string) {
   return /^\+[1-9]\d{1,14}$/.test(num);
@@ -43,6 +45,24 @@ export default function DialerPanel({ isCompact = false }: { isCompact?: boolean
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [results, setResults] = useState<{ phone: string; leadId?: string; ok: boolean; transactionId?: string; error?: string }[]>([]);
   const stopRef = useRef<boolean>(false);
+
+  // VaruniLink Integration
+  const { activeBattlecards, processTranscriptStream, dismissBattlecard } = useVaruniLink(null);
+
+  // Simulate transcript stream for demo purposes when running
+  useEffect(() => {
+    if (!running && results.length === 0) return;
+
+    // Mock: emits random keywords every few seconds to test battlecards
+    const mockInterval = setInterval(() => {
+      const keywords = ["competitor", "price", "hubspot", "salesforce", "too expensive"];
+      const randomWord = keywords[Math.floor(Math.random() * keywords.length)];
+      // console.log("Simulating transcript word:", randomWord);
+      processTranscriptStream(`User said something about ${randomWord} just now.`);
+    }, 5000);
+
+    return () => clearInterval(mockInterval);
+  }, [running, results, processTranscriptStream]);
 
   // Gating: require an "email_sent" activity for the lead before enabling calls
   const [gateOkSingle, setGateOkSingle] = useState<boolean>(false);
@@ -314,6 +334,36 @@ export default function DialerPanel({ isCompact = false }: { isCompact?: boolean
             <p className="microtext text-muted-foreground">
               Example lines: +15551234567 or +15551234567,lead-789 or +15551234567|lead-789
             </p>
+          </div>
+        </section>
+      )}
+
+      {/* Active Battlecards (VaruniLink) */}
+      {!isCompact && activeBattlecards.length > 0 && (
+        <section className="rounded-md border-amber-500/30 bg-amber-500/5 p-4 border animate-in slide-in-from-bottom-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-amber-500" />
+            <h3 className="text-sm font-semibold text-amber-600">Live Battlecards (VaruniLink)</h3>
+          </div>
+          <div className="space-y-3">
+            {activeBattlecards.map(card => (
+              <div key={card.id} className="bg-background/80 border border-amber-200/50 p-3 rounded-lg shadow-sm">
+                <div className="flex justify-between items-start">
+                  <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground">{card.trigger_keyword} Detected</span>
+                  <button onClick={() => dismissBattlecard(card.id)}><XCircle className="w-4 h-4 text-slate-400 hover:text-slate-600" /></button>
+                </div>
+                <h4 className="font-bold text-sm mt-1">{card.title}</h4>
+                <p className="text-xs text-slate-600 mt-1">{card.content}</p>
+                <div className="mt-2 space-y-1">
+                  {card.counter_arguments.map((arg, i) => (
+                    <div key={i} className="flex gap-2 text-xs">
+                      <Shield className="w-3 h-3 text-emerald-500 shrink-0" />
+                      <span>{arg}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

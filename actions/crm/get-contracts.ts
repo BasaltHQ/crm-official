@@ -17,19 +17,23 @@ export const getContractsWithIncludes = async () => {
     whereClause.team_id = teamInfo?.teamId;
   }
 
-  const data = await (prismadb.crm_Contracts as any).findMany({
+  const data = await prismadb.crm_Contracts.findMany({
     where: whereClause,
     include: {
-      assigned_to_user: {
-        select: {
-          name: true,
-        },
-      },
       assigned_account: {
         select: {
           name: true,
         },
       },
+      deal_room: {
+        select: {
+          id: true,
+          slug: true,
+          is_active: true,
+          total_views: true,
+          last_viewed_at: true,
+        }
+      }
     },
     orderBy: {
       createdAt: "desc",

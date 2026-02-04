@@ -47,10 +47,10 @@ const Container = ({
     }
 
     return (
-        <div className={`space-y-4 p-4 md:p-6 lg:p-8 pt-6 md:border-l min-w-0 ${fluid ? 'w-full max-w-none' : ''}`}>
+        <div className={`space-y-4 p-4 md:p-6 lg:p-8 pt-6 min-w-0 ${fluid ? 'w-full max-w-none' : ''}`}>
             {(title || description) && (
                 <div className="shrink-0">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-4 border-b border-primary/20 pb-4">
                         <Heading
                             title={title || ""}
                             description={description || ""}
@@ -58,7 +58,6 @@ const Container = ({
                         />
                         {action && <div className="shrink-0">{action}</div>}
                     </div>
-                    <Separator className="mt-4" />
                 </div>
             )}
             <div className="text-sm space-y-5">

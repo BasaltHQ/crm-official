@@ -47,7 +47,8 @@ export async function POST(
             select: { team_role: true, assigned_team: { select: { slug: true } } },
         });
 
-        const isGlobalAdmin = currentUser?.assigned_team?.slug === "ledger1" && currentUser?.team_role === "PLATFORM_ADMIN";
+        // PLATFORM_ADMIN has god mode - no team restriction
+        const isGlobalAdmin = currentUser?.team_role === "PLATFORM_ADMIN";
         if (!isGlobalAdmin) {
             return NextResponse.json({ error: "Only platform admins can create roles" }, { status: 403 });
         }

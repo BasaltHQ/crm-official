@@ -19,18 +19,25 @@ const MessagesRoute = async () => {
     const lang = session.user.userLanguage;
     const dict = await getDictionary(lang as "en" | "cz" | "de");
     const teamId = (session.user as any).team_id;
+    const teamRole = (session.user as any).team_role;
 
-    // Fetch team members
-    const teamMembers = teamId ? await prismadb.users.findMany({
-        where: {
-            team_id: teamId,
-        },
+    // PLATFORM_ADMIN has god mode - fetch ALL team members across teams
+    const isPlatformAdmin = teamRole === "PLATFORM_ADMIN";
+
+    // Fetch team members (god mode for PLATFORM_ADMIN)
+    const teamMembers = await prismadb.users.findMany({
+        where: isPlatformAdmin ? {} : { team_id: teamId || undefined },
         select: {
             id: true,
             name: true,
             email: true,
+            team_id: true,
+            assigned_team: {
+                select: { name: true }
+            }
         },
-    }) : [];
+        take: isPlatformAdmin ? 500 : 100, // Limit for performance
+    });
 
     // Fetch messages from InternalMessage table
     let messages: any[] = [];

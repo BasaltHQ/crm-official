@@ -434,6 +434,9 @@ model crm_Contracts {
 
   team_id       String? @db.ObjectId
   assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Relations
+  deal_room     crm_DealRooms?
 }
 
 enum crm_Contracts_Status {
@@ -2198,3 +2201,33 @@ model SavedReport {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// DealRoom Models (Phase 1)
+model crm_DealRooms {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  contract_id         String   @db.ObjectId @unique
+  contract            crm_Contracts @relation(fields: [contract_id], references: [id])
+  
+  // Security & Validity
+  slug                String   @unique // The UUID/Key for the public URL
+  password_protection String?  // Optional password (hashed or plain if simple)
+  valid_until         DateTime? @db.Date
+  
+  // Customization
+  hero_video_url      String?  // Loom video etc.
+  welcome_message     String?
+  
+  // Pricing Interaction
+  interactive_pricing Boolean @default(true)
+  allowed_addons      Json?   // Array of { name: "Support", price: 500 }
+  selected_addons     Json?   // What the client has currently toggled ON
+  
+  // Analytics Aggregated
+  total_views         Int      @default(0)
+  unique_visitors     Int      @default(0)
+  last_viewed_at      DateTime? @db.Date
+  engagement_score    Float    @default(0)
+
+  // Status
+  is_active           Boolean  @default(true)
+  

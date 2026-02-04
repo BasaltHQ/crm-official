@@ -1,6 +1,6 @@
 import React from "react";
 import { Activity, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
-import { useChatScore } from "@/app/hooks/use-chat-score";
+import { useVaruniLink } from "@/app/hooks/use-varuni-link";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ChatScore({ sessionId }: { sessionId: string }) {
-    const { data, analyzing, analyzeChat } = useChatScore(sessionId);
+    const { insight: data, analyzing, analyzeChat } = useVaruniLink(sessionId);
 
     // Initial state: Show "Analyze" button
     if (!data && !analyzing) {

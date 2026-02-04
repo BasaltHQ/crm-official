@@ -251,8 +251,21 @@ export const CRM_MODULES: CrmModule[] = [
                 description: 'Contract details',
                 children: [
                     { id: 'contracts.detail.preview', name: 'PDF Preview', description: 'View document' },
-                    { id: 'contracts.detail.signatures', name: 'Signatures', description: 'Signature status' },
-                ]
+                    {
+                        id: 'contracts.detail.signatures',
+                        name: 'Signatures',
+                        description: 'Signature status'
+                    },
+                    {
+                        id: 'contracts.deal_room',
+                        name: 'Deal Room (Digital Sales Room)',
+                        description: 'Interactive proposal sites',
+                        children: [
+                            { id: 'contracts.deal_room.view', name: 'View Rooms', description: 'Access Deal Rooms' },
+                            { id: 'contracts.deal_room.create', name: 'Create Room', description: 'Generate new room from contract' },
+                            { id: 'contracts.deal_room.analytics', name: 'Room Analytics', description: 'View tracking data' },
+                        ]
+                    }]
             },
             {
                 id: 'contracts.actions',
