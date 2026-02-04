@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 import { prismadb } from "@/lib/prisma";
 import type { DocumentSystemType } from "@prisma/client";
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const fileNameSafe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
     const key = `uploads/cron/${Date.now()}_${fileNameSafe}`;
 
-    const serviceClient = BlobServiceClient.fromConnectionString(conn);
+    const serviceClient = getBlobServiceClient();
     const containerClient = serviceClient.getContainerClient(container);
     const blobClient = containerClient.getBlockBlobClient(key);
     await blobClient.uploadData(buffer, {

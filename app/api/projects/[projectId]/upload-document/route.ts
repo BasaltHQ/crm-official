@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 
 // POST /api/projects/[projectId]/upload-document
 // Accepts multipart/form-data { file } and uploads to Azure Blob Storage,
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ projectId:
     const key = `projects/${projectId}/${Date.now()}_${fileNameSafe}`;
 
     // Upload to Azure Blob
-    const serviceClient = BlobServiceClient.fromConnectionString(conn);
+    const serviceClient = getBlobServiceClient();
     const containerClient = serviceClient.getContainerClient(container);
     const blobClient = containerClient.getBlockBlobClient(key);
     await blobClient.uploadData(buffer, {

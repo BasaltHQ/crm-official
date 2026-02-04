@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 export const runtime = 'nodejs';
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Azure Blob not configured" }, { status: 500 });
         }
 
-        const serviceClient = BlobServiceClient.fromConnectionString(conn);
+        const serviceClient = getBlobServiceClient();
         const containerClient = serviceClient.getContainerClient(containerName);
 
         const blobs = [];

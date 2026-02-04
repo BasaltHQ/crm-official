@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { validateImageFile } from "@/lib/image-processing";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 
 // Migrate profile photo upload to Azure Blob
 // POST /api/profile/upload-photo
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const fileNameSafe = file.name?.replace(/[^a-zA-Z0-9._-]/g, "_") || `avatar_${Date.now()}`;
     const key = `avatars/${session.user.id}/${Date.now()}_${fileNameSafe}`;
 
-    const serviceClient = BlobServiceClient.fromConnectionString(conn);
+    const serviceClient = getBlobServiceClient();
     const containerClient = serviceClient.getContainerClient(container);
     const blobClient = containerClient.getBlockBlobClient(key);
     await blobClient.uploadData(buffer, {

@@ -1,4 +1,5 @@
 import { authOptions } from "@/lib/auth";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -72,13 +73,11 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
     // We wrap this in a try/catch so that file storage errors DO NOT block the DB deletion.
     if (invoiceData?.invoice_file_url) {
       try {
-        // Lazy load the Azure client to avoid top-level dependency issues
-        const { BlobServiceClient } = require("@azure/storage-blob");
         const connectionString = process.env.BLOB_STORAGE_CONNECTION_STRING;
         const containerName = process.env.BLOB_STORAGE_CONTAINER;
 
         if (connectionString && containerName) {
-          const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+          const blobServiceClient = getBlobServiceClient();
           const containerClient = blobServiceClient.getContainerClient(containerName);
 
           // Naive logic: Extract blob name from URL

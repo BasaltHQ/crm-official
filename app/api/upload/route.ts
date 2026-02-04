@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 // POST /api/upload
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const fileNameSafe = file.name?.replace(/[^a-zA-Z0-9._-]/g, "_") || `upload_${Date.now()}`;
     const key = `uploads/${session.user.id}/${Date.now()}_${fileNameSafe}`;
 
-    const serviceClient = BlobServiceClient.fromConnectionString(conn);
+    const serviceClient = getBlobServiceClient();
     const containerClient = serviceClient.getContainerClient(container);
     // Ensure container exists; do not change access level here
     try {

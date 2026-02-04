@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -96,6 +97,9 @@ interface SignatureData {
 
   medallions: Medallion[];
   imageShape: "circle" | "rounded" | "oval";
+  contactIconSize: number;
+  contactFieldsOrder: ("phone" | "email" | "website")[];
+  showSeparator: boolean;
 }
 
 interface SignatureBuilderProps {
@@ -229,6 +233,9 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
 
     medallions: [],
     imageShape: "circle",
+    contactIconSize: 15,
+    contactFieldsOrder: ["phone", "email", "website"],
+    showSeparator: true,
   });
 
   const [saving, setSaving] = useState(false);
@@ -315,6 +322,9 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             backgroundColor: meta.backgroundColor || DEFAULT_BACKGROUND_COLOR,
             transparentBackground: meta.transparentBackground || false,
             imageShape: meta.imageShape || "circle",
+            contactIconSize: meta.contactIconSize || 15,
+            contactFieldsOrder: meta.contactFieldsOrder || ["phone", "email", "website"],
+            showSeparator: meta.showSeparator !== undefined ? meta.showSeparator : true,
           }));
         }
       } catch (error) {
@@ -365,6 +375,14 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
   // Handler: Reorder Social Links
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
+
+    if (result.type === "contact") {
+      const items = Array.from(data.contactFieldsOrder);
+      const [reorderedItem] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reorderedItem);
+      setData(prev => ({ ...prev, contactFieldsOrder: items as any }));
+      return;
+    }
 
     const items = Array.from(data.socialLinks);
     const [reorderedItem] = items.splice(result.source.index, 1);
@@ -488,7 +506,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
     const {
       firstName, lastName, title, department, phone, email, website,
       profileImage, companyLogoUrl, companyTagline, accentColor,
-      template, socialLinks, textColor, backgroundColor, highlightLastName, transparentBackground, medallions, imageShape
+      template, socialLinks, textColor, backgroundColor, highlightLastName, transparentBackground, medallions, imageShape, contactIconSize
     } = data;
 
     // Helper: Format Phone Number (+1 XXX-XXX-XXXX)
@@ -502,7 +520,13 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
       return str;
     };
     const formattedPhone = formatPhoneNumber(phone);
-    const telHref = phone ? `tel:${phone}` : ''; // Keep original for tel or we can sanitize: phone.replace(/[^0-9+]/g, '')
+    const telHref = phone ? `tel:${phone}` : '';
+
+    const renderContactIcon = (name: string, marginRight: number = 10) => {
+      const src = getIconUrl(name, accentColor);
+      const sizeStr = `${contactIconSize}px !important`;
+      return `<img src="${src}" width="${contactIconSize}" height="${contactIconSize}" alt="${name.charAt(0).toUpperCase()}" style="display: inline-block !important; vertical-align: middle !important; width: ${sizeStr}; height: ${sizeStr}; min-width: ${sizeStr}; min-height: ${sizeStr}; max-width: ${sizeStr}; max-height: ${sizeStr}; border: 0 !important; margin-right: ${marginRight}px !important; outline: none !important; text-decoration: none !important;" />`;
+    };
 
     const getImageStyle = (baseSize: number) => {
       let style = `object-fit: cover; display: block;`;
@@ -524,6 +548,10 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
     const nameHtml = highlightLastName
       ? `${firstName} <span style="color: ${accentColor};">${lastName}</span>`
       : `${firstName} ${lastName}`;
+
+    // Handle multiline text for title and department
+    const displayTitle = title.replace(/\n/g, '<br/>');
+    const displayDepartment = department.replace(/\n/g, '<br/>');
 
     // Wrapper style for background color
     const bgColorStyle = transparentBackground ? 'background-color: transparent;' : `background-color: ${backgroundColor};`;
@@ -612,8 +640,8 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                       ${nameHtml}
                     </h3>
                     <p style="margin: 4px 0 10px 0; font-size: 16px; color: ${accentColor}; font-weight: 600;">
-                      ${title}
-                      ${department ? `<span style="color: rgba(${textRgb}, 0.6); font-weight: normal;"> • ${department}</span>` : ''}
+                      ${displayTitle}
+                      ${department ? `<span style="color: rgba(${textRgb}, 0.6); font-weight: normal;">${data.showSeparator ? ' • ' : '<br/>'}${displayDepartment}</span>` : ''}
                     </p>
 
                     ${companyTagline ? `
@@ -621,30 +649,30 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                     ` : ''}
 
                     <table cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; color: rgba(${textRgb}, 0.8);">
-                      ${phone ? `
-                        <tr>
-                          <td width="24" style="padding-bottom: 6px; vertical-align: middle;">
-                            <img src="${getIconUrl('phone', accentColor)}" width="14" height="14" alt="P" style="display: block;" />
-                          </td>
-                          <td style="padding-bottom: 6px; vertical-align: middle;"><a href="${telHref}" style="color: inherit; text-decoration: none;">${formattedPhone}</a></td>
-                        </tr>
-                      ` : ''}
-                      ${email ? `
-                        <tr>
-                          <td width="24" style="padding-bottom: 6px; vertical-align: middle;">
-                             <img src="${getIconUrl('mail', accentColor)}" width="14" height="14" alt="E" style="display: block;" />
-                          </td>
-                          <td style="padding-bottom: 6px; vertical-align: middle;"><a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td>
-                        </tr>
-                      ` : ''}
-                      ${website ? `
-                        <tr>
-                          <td width="24" style="padding-bottom: 6px; vertical-align: middle;">
-                             <img src="${getIconUrl('globe', accentColor)}" width="14" height="14" alt="W" style="display: block;" />
-                          </td>
-                          <td style="padding-bottom: 6px; vertical-align: middle;"><a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></td>
-                        </tr>
-                      ` : ''}
+                      ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `
+                          <tr>
+                            <td width="${contactIconSize + 10}" style="padding-bottom: 6px; vertical-align: middle; line-height: 1;">
+                              ${renderContactIcon('phone', 10)}
+                            </td>
+                            <td style="padding-bottom: 6px; vertical-align: middle;"><a href="${telHref}" style="color: inherit; text-decoration: none;">${formattedPhone}</a></td>
+                          </tr>`;
+        if (f === 'email' && email) return `
+                          <tr>
+                            <td width="${contactIconSize + 10}" style="padding-bottom: 6px; vertical-align: middle; line-height: 1;">
+                               ${renderContactIcon('mail', 10)}
+                            </td>
+                            <td style="padding-bottom: 6px; vertical-align: middle;"><a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td>
+                          </tr>`;
+        if (f === 'website' && website) return `
+                          <tr>
+                            <td width="${contactIconSize + 10}" style="padding-bottom: 6px; vertical-align: middle; line-height: 1;">
+                               ${renderContactIcon('globe', 10)}
+                            </td>
+                            <td style="padding-bottom: 6px; vertical-align: middle;"><a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></td>
+                          </tr>`;
+        return '';
+      }).join('')}
                     </table>
 
                     ${socialHtml}
@@ -678,13 +706,16 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                 ${nameHtml}
               </h3>
               <p style="margin: 2px 0 8px 0; font-size: 12px; font-weight: 600; color: ${accentColor}; text-transform: uppercase;">
-                 ${title} ${department ? `// ${department}` : ''}
+                 ${displayTitle} ${department ? `// ${displayDepartment}` : ''}
               </p>
 
               <div style="font-size: 12px; line-height: 1.5;">
-                ${phone ? `<div><img src="${getIconUrl('phone', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> ${formattedPhone}</div>` : ''}
-                ${email ? `<div><img src="${getIconUrl('mail', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></div>` : ''}
-                ${website ? `<div><img src="${getIconUrl('globe', accentColor)}" width="10" height="10" style="vertical-align: middle; margin-right: 4px;" /> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a></div>` : ''}
+                ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<div style="margin-bottom: 2px; line-height: 1;">${renderContactIcon('phone', 10)} ${formattedPhone}</div>`;
+        if (f === 'email' && email) return `<div style="margin-bottom: 2px; line-height: 1;">${renderContactIcon('mail', 10)} <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></div>`;
+        if (f === 'website' && website) return `<div style="margin-bottom: 2px; line-height: 1;">${renderContactIcon('globe', 10)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a></div>`;
+        return '';
+      }).join('')}
               </div>
 
                ${socialHtml}
@@ -705,7 +736,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             ${nameHtml}
           </h2>
           <p style="margin: 6px 0 12px 0; font-size: 14px; color: rgba(${textRgb}, 0.7);">
-            ${title} ${department ? `<br/><span style="font-size:12px;">${department}</span>` : ''}
+            ${displayTitle} ${department ? `<br/><span style="font-size:12px;">${displayDepartment}</span>` : ''}
           </p>
 
           <div style="display: flex; align-items: flex-start; gap: 16px;">
@@ -713,9 +744,9 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
              <div style="flex: 1;">
                  ${companyLogoUrl ? `<div style="margin-bottom:8px;"><img src="${companyLogoUrl}" height="24" style="display:block;height:24px;width:auto;" /></div>` : ''}
                  <div style="font-size: 12px; line-height: 1.6;">
-                   ${phone ? `<div>P: ${formattedPhone}</div>` : ''}
-                   ${email ? `<div>E: <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></div>` : ''}
-                   ${website ? `<div>W: <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></div>` : ''}
+                    ${phone ? `<div style="margin-bottom: 4px; line-height: 1;">${renderContactIcon('phone', 6)} ${formattedPhone}</div>` : ''}
+                    ${email ? `<div style="margin-bottom: 4px; line-height: 1;">${renderContactIcon('mail', 6)} <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></div>` : ''}
+                    ${website ? `<div style="margin-bottom: 4px; line-height: 1;">${renderContactIcon('globe', 6)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></div>` : ''}
                  </div>
                  ${socialHtml}
                  ${medallionsHtml}
@@ -737,12 +768,15 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                 <img src="${profileImage}" width="100" height="${imageShape === 'oval' ? 125 : 100}" style="${getImageStyle(100)} margin-bottom: 16px; border: 4px solid #f7fafc;" alt="${firstName}" />
               ` : ''}
               <div style="font-size: 24px; font-weight: bold; color: ${textColor}; letter-spacing: 0.5px;">${nameHtml}</div>
-              <div style="font-size: 14px; color: ${accentColor}; font-style: italic; margin-bottom: 16px;">${title} ${department ? `k &mdash; ${department}` : ''}</div>
+              <div style="font-size: 14px; color: ${accentColor}; font-style: italic; margin-bottom: 16px;">${displayTitle} ${department ? `${data.showSeparator ? ' &mdash; ' : '<br/>'}${displayDepartment}` : ''}</div>
 
               <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
-                ${phone ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('phone', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> ${formattedPhone}</td></tr>` : ''}
-                ${email ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('mail', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td></tr>` : ''}
-                ${website ? `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('globe', accentColor)}" width="12" height="12" style="vertical-align: middle; margin-right: 6px;" /> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></td></tr>` : ''}
+                ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1;">${renderContactIcon('phone', 10)} ${formattedPhone}</td></tr>`;
+        if (f === 'email' && email) return `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1;">${renderContactIcon('mail', 10)} <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td></tr>`;
+        if (f === 'website' && website) return `<tr><td style="padding: 2px 8px; font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1;">${renderContactIcon('globe', 10)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></td></tr>`;
+        return '';
+      }).join('')}
               </table>
 
               <div style="margin-top: 16px;">
@@ -771,12 +805,15 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             </td>
             <td valign="top" style="padding: 20px; border: 1px solid #e2e8f0; border-left: 0; border-radius: 0 12px 12px 0; background-color: #fff;">
               <h3 style="margin: 0; font-size: 20px; color: ${textColor};">${nameHtml}</h3>
-              <div style="color: ${accentColor}; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">${title}</div>
+              <div style="color: ${accentColor}; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">${displayTitle}</div>
 
               <div style="font-size: 13px; color: rgba(${textRgb}, 0.7); line-height: 1.6;">
-                ${phone ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('phone', accentColor)}" width="14" height="14" /> ${formattedPhone}</div>` : ''}
-                ${email ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('mail', accentColor)}" width="14" height="14" /> <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></div>` : ''}
-                ${website ? `<div style="display: flex; align-items: center; gap: 6px;"><img src="${getIconUrl('globe', accentColor)}" width="14" height="14" /> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></div>` : ''}
+                ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<div style="display: flex; align-items: center; gap: 6px; line-height: 1;">${renderContactIcon('phone', 10)} ${formattedPhone}</div>`;
+        if (f === 'email' && email) return `<div style="display: flex; align-items: center; gap: 6px; line-height: 1;">${renderContactIcon('mail', 10)} <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></div>`;
+        if (f === 'website' && website) return `<div style="display: flex; align-items: center; gap: 6px; line-height: 1;">${renderContactIcon('globe', 10)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></div>`;
+        return '';
+      }).join('')}
               </div>
 
                <div style="margin-top: 12px;">${socialHtml}</div>
@@ -797,16 +834,15 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
           <tr>
             <td style="padding-left: 16px;">
                <div style="font-size: 24px; font-weight: 800; color: ${textColor};">${nameHtml}</div>
-               <div style="font-size: 16px; color: ${accentColor}; font-weight: 500; margin-bottom: 8px;">${title} // ${department || 'Team'}</div>
+               <div style="font-size: 16px; color: ${accentColor}; font-weight: 500; margin-bottom: 8px;">${displayTitle} // ${displayDepartment || 'Team'}</div>
 
-               <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 12px;">
-                 <tr>
-                   ${phone ? `<td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('phone', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> ${formattedPhone}</td>` : ''}
-                   ${email ? `<td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('mail', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td>` : ''}
-                  </tr>
-                  <tr>
-                    ${website ? `<td colspan="2" style="padding-top: 4px; font-size: 13px; color: rgba(${textRgb}, 0.8);"><img src="${getIconUrl('globe', accentColor)}" width="11" height="11" style="vertical-align:middle; margin-right:4px;" /> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></td>` : ''}
-                  </tr>
+                <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 12px;">
+                   ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<tr><td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1;">${renderContactIcon('phone', 10)} ${formattedPhone}</td></tr>`;
+        if (f === 'email' && email) return `<tr><td style="padding-right: 12px; font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1;">${renderContactIcon('mail', 10)} <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></td></tr>`;
+        if (f === 'website' && website) return `<tr><td style="padding-top: 4px; font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1;">${renderContactIcon('globe', 10)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></td></tr>`;
+        return '';
+      }).join('')}
                 </table>
 
                <div style="display: flex; align-items: center; gap: 12px;">
@@ -855,16 +891,19 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             ` : ''}
             <td valign="middle" style="border-left: 2px solid #ddd; padding-left: 16px;">
                <div style="font-size: 18px; font-weight: bold; color: ${textColor};">${nameHtml}</div>
-               <div style="font-size: 14px; color: ${accentColor}; font-weight: bold; margin-bottom: 4px;">${title}</div>
-               <div style="font-size: 13px; color: #555;">${department}</div>
+               <div style="font-size: 14px; color: ${accentColor}; font-weight: bold; margin-bottom: 4px;">${displayTitle}</div>
+               <div style="font-size: 13px; color: #555;">${displayDepartment}</div>
             </td>
           </tr>
           <tr>
             <td colspan="2" style="padding-top: 12px;">
-              <div style="font-size: 12px; display: flex; gap: 16px; color: ${textColor};">
-                 ${phone ? `<span><b style="color:${accentColor}">P:</b> ${formattedPhone}</span>` : ''}
-                 ${email ? `<span><b style="color:${accentColor}">E:</b> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></span>` : ''}
-                 ${website ? `<span><b style="color:${accentColor}">W:</b> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a></span>` : ''}
+              <div style="font-size: 12px; display: flex; flex-wrap: wrap; gap: 16px; color: ${textColor}; line-height: 1;">
+                 ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<span style="display: flex; align-items: center; gap: 6px;">${renderContactIcon('phone', 10)} ${formattedPhone}</span>`;
+        if (f === 'email' && email) return `<span style="display: flex; align-items: center; gap: 6px;">${renderContactIcon('mail', 10)} <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></span>`;
+        if (f === 'website' && website) return `<span style="display: flex; align-items: center; gap: 6px;">${renderContactIcon('globe', 10)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a></span>`;
+        return '';
+      }).join('')}
               </div>
               <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
                  ${socialHtml}
@@ -882,11 +921,14 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
       return `
         ${wrapperStart}
         <div style="font-family: sans-serif; font-size: 12px; color: ${textColor};">
-           <div style="font-weight: bold; font-size: 14px;">${nameHtml} <span style="font-weight: normal; color: ${accentColor}; mx-2">|</span> <span style="font-weight: normal; color: #666;">${title}</span></div>
-           <div style="margin-top: 4px;">
-              ${phone ? `<a href="${telHref}" style="color:inherit; text-decoration:none; margin-right: 8px;">${formattedPhone}</a>` : ''}
-              ${email ? `<a href="mailto:${email}" style="color:inherit; text-decoration:none; margin-right: 8px;">${email}</a>` : ''}
-              ${website ? `<a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a>` : ''}
+           <div style="font-weight: bold; font-size: 14px;">${nameHtml} <span style="font-weight: normal; color: ${accentColor}; mx-2">|</span> <span style="font-weight: normal; color: #666;">${displayTitle}</span></div>
+           <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 12px; line-height: 1;">
+              ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<a href="${telHref}" style="color:inherit; text-decoration:none; display: flex; align-items: center; gap: 4px;">${renderContactIcon('phone', 0)} ${formattedPhone}</a>`;
+        if (f === 'email' && email) return `<a href="mailto:${email}" style="color:inherit; text-decoration:none; display: flex; align-items: center; gap: 4px;">${renderContactIcon('mail', 0)} ${email}</a>`;
+        if (f === 'website' && website) return `<a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none; display: flex; align-items: center; gap: 4px;">${renderContactIcon('globe', 0)} ${website}</a>`;
+        return '';
+      }).join('')}
            </div>
            <div style="margin-top: 6px;">${socialHtml}</div>
            ${medallionsHtml}
@@ -904,7 +946,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
       return `
         ${wrapperStart}
     <div style="font-family: 'Courier New', Courier, monospace; color: ${textColor}; max-width: 600px; padding: 16px; border: 1px solid ${accentColor}; border-radius: 8px; background-color: ${transparentBackground ? 'rgba(0,0,0,0.8)' : '#1e1e1e'};">
-      <div style="color: ${accentColor}; margin-bottom: 12px;">// ${title}</div>
+      <div style="color: ${accentColor}; margin-bottom: 12px;">// ${displayTitle}</div>
       <div style="display: flex; gap: 20px; align-items: flex-start;">
         ${profileImage ? `<img src="${profileImage}" width="80" height="${imageShape === 'oval' ? 100 : 80}" style="${getImageStyle(80)} border: 2px solid ${accentColor};" />` : ''}
         <div>
@@ -912,9 +954,12 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
           ${department ? `<div style="font-size: 13px; color: #888; margin-top: 4px;">// ${department}</div>` : ''}
 
           <div style="margin-top: 16px; font-size: 12px; color: #ccc;">
-            ${phone ? `<div>phone: <span style="color: #a5d6ff;">"${formattedPhone}"</span>,</div>` : ''}
-            ${email ? `<div>email: <span style="color: #a5d6ff;">"${email}"</span>,</div>` : ''}
-            ${website ? `<div>web: <span style="color: #a5d6ff;">"<a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit;text-decoration:none;">${website}</a>"</span>,</div>` : ''}
+            ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<div style="line-height: 1; margin-bottom: 4px;">${renderContactIcon('phone', 8)} phone: <span style="color: #a5d6ff;">"${formattedPhone}"</span>,</div>`;
+        if (f === 'email' && email) return `<div style="line-height: 1; margin-bottom: 4px;">${renderContactIcon('mail', 8)} email: <span style="color: #a5d6ff;">"${email}"</span>,</div>`;
+        if (f === 'website' && website) return `<div style="line-height: 1; margin-bottom: 4px;">${renderContactIcon('globe', 8)} web: <span style="color: #a5d6ff;">"<a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit;text-decoration:none;">${website}</a>"</span>,</div>`;
+        return '';
+      }).join('')}
           </div>
 
 
@@ -941,14 +986,17 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
         <td align="center">
           ${profileImage ? `<img src="${profileImage}" width="100" height="${imageShape === 'oval' ? 125 : 100}" style="${getImageStyle(100)} margin-bottom: 16px;" />` : ''}
           <div style="font-size: 26px; font-weight: normal; color: ${textColor}; letter-spacing: 1px; text-transform: uppercase;">${nameHtml}</div>
-          <div style="font-size: 14px; color: ${accentColor}; font-style: italic; margin-top: 6px;">${title}</div>
+          <div style="font-size: 14px; color: ${accentColor}; font-style: italic; margin-top: 6px;">${displayTitle}</div>
 
           <div style="width: 40px; height: 2px; background-color: ${accentColor}; margin: 16px auto;"></div>
 
-          <div style="font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1.8;">
-            ${phone ? `${formattedPhone} &nbsp;|&nbsp;` : ''}
-            ${email ? `<a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a>` : ''}
-            ${website ? `&nbsp;|&nbsp; <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a>` : ''}
+          <div style="font-size: 13px; color: rgba(${textRgb}, 0.8); line-height: 1.8; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+            ${data.contactFieldsOrder.map(f => {
+        if (f === 'phone' && phone) return `<span style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('phone', 0)} ${formattedPhone}</span>`;
+        if (f === 'email' && email) return `<span style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('mail', 0)} <a href="mailto:${email}" style="color: inherit; text-decoration: none;">${email}</a></span>`;
+        if (f === 'website' && website) return `<span style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('globe', 0)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="color: inherit; text-decoration: none;">${website}</a></span>`;
+        return '';
+      }).join('')}
           </div>
 
           <div style="margin-top: 16px;">
@@ -972,7 +1020,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
         <div>
           <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: ${textColor};">${nameHtml}</h2>
           <div style="font-size: 14px; color: ${accentColor}; font-weight: 700;">@${firstName}${lastName}</div>
-          <div style="font-size: 14px; color: #555; margin-top: 4px;">${title}</div>
+          <div style="font-size: 14px; color: #555; margin-top: 4px;">${displayTitle}</div>
         </div>
       </div>
 
@@ -980,9 +1028,12 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
         ${socialHtml}
       </div>
 
-      <div style="margin-top: 12px; font-size: 13px;">
-        ${email ? `<b>E:</b> <a href="mailto:${email}" style="text-decoration:none; color:${textColor};">${email}</a> &nbsp; ` : ''}
-        ${website ? `<b>W:</b> <a href="${ensureAbsoluteUrl(website, 'website')}" style="text-decoration:none; color:${textColor};">${website}</a>` : ''}
+      <div style="margin-top: 12px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 12px; line-height: 1;">
+        ${data.contactFieldsOrder.map(f => {
+        if (f === 'email' && email) return `<span style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('mail', 0)} <a href="mailto:${email}" style="text-decoration:none; color:${textColor};">${email}</a></span>`;
+        if (f === 'website' && website) return `<span style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('globe', 0)} <a href="${ensureAbsoluteUrl(website, 'website')}" style="text-decoration:none; color:${textColor};">${website}</a></span>`;
+        return '';
+      }).join('')}
       </div>
       ${medallionsHtml}
     </div>
@@ -999,16 +1050,16 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
         ${profileImage ? `<td valign="top" style="padding-right: 12px;"><img src="${profileImage}" width="60" height="${imageShape === 'oval' ? 75 : 60}" style="${getImageStyle(60)}" /></td>` : ''}
         <td valign="top">
           <div style="font-weight: bold; font-size: 14px;">${nameHtml}</div>
-          <div style="color: ${accentColor}; font-weight: bold; margin-bottom: 6px;">${title}</div>
+          <div style="color: ${accentColor}; font-weight: bold; margin-bottom: 6px;">${displayTitle}</div>
 
           <table cellpadding="0" cellspacing="0" border="0" style="font-size: 11px; color: #555; width: 100%;">
             <tr>
-              ${phone ? `<td style="padding: 2px 0;"><b>Tel:</b> ${formattedPhone}</td>` : ''}
-              ${email ? `<td style="padding: 2px 0;"><b>Email:</b> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></td>` : ''}
+              ${phone ? `<td style="padding: 2px 0;"><div style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('phone', 0)} <b>Tel:</b> ${formattedPhone}</div></td>` : ''}
+              ${email ? `<td style="padding: 2px 0;"><div style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('mail', 0)} <b>Email:</b> <a href="mailto:${email}" style="color:inherit; text-decoration:none;">${email}</a></div></td>` : ''}
             </tr>
             <tr>
-              ${website ? `<td style="padding: 2px 0;"><b>Web:</b> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a></td>` : ''}
-              ${department ? `<td style="padding: 2px 0;"><b>Dept:</b> ${department}</td>` : ''}
+              ${website ? `<td style="padding: 2px 0;"><div style="display: flex; align-items: center; gap: 4px; line-height: 1;">${renderContactIcon('globe', 0)} <b>Web:</b> <a href="${ensureAbsoluteUrl(website, 'website')}" style="color:inherit; text-decoration:none;">${website}</a></div></td>` : ''}
+              ${department ? `<td style="padding: 2px 0;"><b>Dept:</b> ${displayDepartment}</td>` : ''}
             </tr>
           </table>
 
@@ -1152,29 +1203,41 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                   </div>
                   <div className="space-y-2">
                     <Label>Job Title</Label>
-                    <Input value={data.title} onChange={(e) => startUpdate("title", e.target.value)} placeholder="CEO" />
+                    <Textarea value={data.title} onChange={(e) => startUpdate("title", e.target.value)} placeholder="CEO" className="min-h-[60px]" />
                   </div>
                   {isVisible("department") && (
                     <div className="space-y-2">
                       <Label>Department</Label>
-                      <Input value={data.department} onChange={(e) => startUpdate("department", e.target.value)} placeholder="Engineering" />
+                      <Textarea value={data.department} onChange={(e) => startUpdate("department", e.target.value)} placeholder="Engineering" className="min-h-[60px]" />
                     </div>
                   )}
                   <Separator />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Phone</Label>
-                      <Input type="tel" value={data.phone} onChange={(e) => startUpdate("phone", e.target.value)} placeholder="+1 555 000 0000" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input type="email" value={data.email} onChange={(e) => startUpdate("email", e.target.value)} placeholder="jane@company.com" />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Website</Label>
-                      <Input value={data.website} onChange={(e) => startUpdate("website", e.target.value)} placeholder="company.com" />
-                    </div>
-                  </div>
+                  <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="contact-fields" type="contact">
+                      {(provided) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+                          {data.contactFieldsOrder.map((field, index) => (
+                            <Draggable key={field} draggableId={field} index={index}>
+                              {(provided) => (
+                                <div ref={provided.innerRef} {...provided.draggableProps} className="flex items-start gap-2 bg-muted/30 p-2 rounded-lg border border-dashed hover:bg-muted/50 transition-colors">
+                                  <div {...provided.dragHandleProps} className="mt-8 p-1 cursor-grab">
+                                    <GripVertical className="w-4 h-4 text-muted-foreground" />
+                                  </div>
+                                  <div className="flex-1 space-y-2">
+                                    <Label className="capitalize">{field}</Label>
+                                    {field === "phone" && <Input type="tel" value={data.phone} onChange={(e) => startUpdate("phone", e.target.value)} placeholder="+1 555 000 0000" />}
+                                    {field === "email" && <Input type="email" value={data.email} onChange={(e) => startUpdate("email", e.target.value)} placeholder="jane@company.com" />}
+                                    {field === "website" && <Input value={data.website} onChange={(e) => startUpdate("website", e.target.value)} placeholder="company.com" />}
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1434,6 +1497,50 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
                     </div>
                   </div>
 
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base text-primary">Icon Size (Contact Fields)</Label>
+                      <span className="text-sm font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                        {data.contactIconSize}px
+                      </span>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                      <input
+                        type="range"
+                        min="12"
+                        max="64"
+                        step="1"
+                        value={data.contactIconSize}
+                        onChange={(e) => startUpdate("contactIconSize", Number(e.target.value))}
+                        className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest font-semibold px-1">
+                        <span>Tiny</span>
+                        <span>Huge</span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed italic">
+                      Adjust the size of phone, email, and website icons specifically.
+                    </p>
+                  </div>
+
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Field Separator Dot (•)</Label>
+                      <p className="text-xs text-muted-foreground italic">
+                        Show or hide the separator between title and department.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={data.showSeparator}
+                      onCheckedChange={(checked) => startUpdate("showSeparator", checked)}
+                    />
+                  </div>
+
 
                 </CardContent>
               </Card>
@@ -1535,7 +1642,11 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess }) => {
             {/* The Preview container - Dark theme consistent */}
             <div className="bg-card border rounded-lg shadow-lg p-8 min-h-[300px] flex items-center justify-center transition-all overflow-hidden relative">
               {/* Simulating email client dark mode reading pane */}
-              <div dangerouslySetInnerHTML={{ __html: generateHTML() }} className="w-full signature-preview-wrapper" />
+              <div
+                key={`${data.contactIconSize}-${data.template}-${data.accentColor}-${data.imageShape}-${data.contactFieldsOrder.join(',')}-${data.showSeparator}`}
+                dangerouslySetInnerHTML={{ __html: generateHTML() }}
+                className="w-full signature-preview-wrapper"
+              />
 
               {/* Overlay to ensure clicks don't navigate away in preview */}
               <div className="absolute inset-0 z-10 pointer-events-none" />

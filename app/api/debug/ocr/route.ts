@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "@/lib/azure-storage";
 import Tesseract from "tesseract.js";
 import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         const containerName = process.env.BLOB_STORAGE_CONTAINER;
         if (!conn || !containerName) throw new Error("Azure config missing");
 
-        const serviceClient = BlobServiceClient.fromConnectionString(conn);
+        const serviceClient = getBlobServiceClient();
         const containerClient = serviceClient.getContainerClient(containerName);
         const blobClient = containerClient.getBlockBlobClient(blobName);
 

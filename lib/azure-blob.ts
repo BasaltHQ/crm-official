@@ -1,4 +1,4 @@
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getBlobServiceClient } from "./azure-storage";
 
 export async function deleteBlobIfConfigured(key?: string) {
   try {
@@ -7,7 +7,7 @@ export async function deleteBlobIfConfigured(key?: string) {
     const container = process.env.BLOB_STORAGE_CONTAINER;
     if (!conn || !container) return { skipped: true, reason: "no-azure-config" };
 
-    const serviceClient = BlobServiceClient.fromConnectionString(conn);
+    const serviceClient = getBlobServiceClient();
     const containerClient = serviceClient.getContainerClient(container);
     const blobClient = containerClient.getBlobClient(key);
 
