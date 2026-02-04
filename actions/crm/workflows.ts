@@ -88,7 +88,7 @@ export async function createWorkflow(data: CreateWorkflowData) {
                 name: data.name,
                 description: data.description,
                 trigger_type: data.trigger_type,
-                trigger_config: data.trigger_config ?? Prisma.JsonNull,
+                trigger_config: data.trigger_config ?? null,
                 nodes: data.nodes,
                 edges: data.edges,
                 team_id: data.team_id,

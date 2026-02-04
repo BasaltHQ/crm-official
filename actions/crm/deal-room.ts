@@ -1,3 +1,5 @@
+"use server";
+
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { triggerWorkflowsByType } from "./workflows";
@@ -41,7 +43,7 @@ export async function trackDealRoomActivity(dealRoomId: string, type: string, me
                     last_viewed_at: new Date()
                 }
             });
-            
+
             // Trigger FlowState workflows for DEAL_ROOM_OPENED
             await triggerWorkflowsByType("DEAL_ROOM_OPENED", {
                 dealRoomId,

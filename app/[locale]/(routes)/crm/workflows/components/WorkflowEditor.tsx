@@ -50,7 +50,6 @@ interface WorkflowEditorProps {
 }
 
 // Use Record<string, any> to satisfy React Flow's flexible node type requirements
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const nodeTypes: Record<string, any> = {
     trigger: TriggerNode,
     delay: DelayNode,
