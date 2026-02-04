@@ -30,6 +30,7 @@ import Link from "next/link";
 import { EnvelopeClosedIcon, LightningBoltIcon } from "@radix-ui/react-icons";
 import { LucideLandmark } from "lucide-react";
 import { BasicViewActions } from "../../../components/BasicViewActions";
+import { EmailClickWrapper } from "@/components/EmailClickWrapper";
 
 interface OppsViewProps {
   data: any;
@@ -102,14 +103,10 @@ export async function BasicView({ data }: OppsViewProps) {
                   <EnvelopeClosedIcon className="mt-px h-5 w-5" />
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">Email</p>
-
-                    <Link
-                      href={data.email ? `/messages?compose=true&email=${encodeURIComponent(data.email)}` : '#'}
-                      className="flex items-center gap-5 text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      {data.email || 'No email'}
-                      <EnvelopeClosedIcon />
-                    </Link>
+                    <EmailClickWrapper
+                      email={data.email}
+                      accountName={data.name}
+                    />
                   </div>
                 </div>
                 <p className="pr-20"></p>

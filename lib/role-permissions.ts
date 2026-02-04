@@ -419,6 +419,27 @@ export const CRM_MODULES: CrmModule[] = [
         children: [
             { id: 'lead_wizard.view', name: 'Access Wizard', description: 'Use generator' }
         ]
+    },
+    {
+        id: 'flowstate',
+        name: 'FlowState',
+        route: '/crm/workflows',
+        description: 'Visual workflow automation',
+        children: [
+            { id: 'flowstate.view', name: 'View Workflows', description: 'Access workflow list' },
+            {
+                id: 'flowstate.actions',
+                name: 'Actions',
+                description: 'Workflow operations',
+                children: [
+                    { id: 'flowstate.actions.create', name: 'Create Workflow', description: 'Build new automations' },
+                    { id: 'flowstate.actions.edit', name: 'Edit Workflow', description: 'Modify workflows' },
+                    { id: 'flowstate.actions.delete', name: 'Delete Workflow', description: 'Remove workflows' },
+                    { id: 'flowstate.actions.activate', name: 'Activate/Pause', description: 'Toggle workflow status' },
+                ]
+            },
+            { id: 'flowstate.logs', name: 'Execution Logs', description: 'View run history' }
+        ]
     }
 ];
 

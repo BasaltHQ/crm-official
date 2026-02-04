@@ -915,6 +915,7 @@ model Users {
   assigned_modules String[]
   custom_role_id   String?     @db.ObjectId
   custom_role      CustomRole? @relation(fields: [custom_role_id], references: [id])
+  created_workflows crm_Workflow[] @relation(name: "WorkflowCreator")
 }
 
 model Team {
@@ -968,6 +969,7 @@ model Team {
   sms_config     TeamSmsConfig?
   custom_roles   CustomRole[]
   RolePermission RolePermission[]
+  workflows      crm_Workflow[]   @relation(name: "WorkflowTeam")
 }
 
 model CustomRole {
@@ -2231,3 +2233,91 @@ model crm_DealRooms {
   // Status
   is_active           Boolean  @default(true)
   
+  // Relations
+  activities          crm_DealRoom_Activities[]
+  
+  createdAt           DateTime @default(now()) @db.Date
+  updatedAt           DateTime @updatedAt @db.Date
+}
+
+model crm_DealRoom_Activities {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  deal_room_id String   @db.ObjectId
+  deal_room    crm_DealRooms @relation(fields: [deal_room_id], references: [id])
+  
+  type         String   // OPENED, VIEWED_PRICING, DOWNLOADED_PDF, CHAT_STARTED
+  metadata     Json?    // e.g. { duration: 120, section: "Pricing" }
+  
+  visitor_ip   String?
+  visitor_agent String?
+  
+  occurredAt   DateTime @default(now()) @db.Date
+}
+
+// =============================================================================
+// FLOWSTATE WORKFLOW AUTOMATION
+// Visual workflow builder for non-technical users
+// =============================================================================
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum ExecutionStatus {
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model crm_Workflow {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  v              Int?           @map("__v")
+  name           String
+  description    String?
+  status         WorkflowStatus @default(DRAFT)
+  
+  // Trigger configuration
+  trigger_type   String         // DEAL_ROOM_OPENED, SENTIMENT_NEGATIVE, LEAD_CREATED, FORM_SUBMITTED, MANUAL
+  trigger_config Json?          // Trigger-specific configuration
+  
+  // React Flow canvas data
+  nodes          Json           // Array of React Flow nodes
+  edges          Json           // Array of React Flow edges
+  
+  // Ownership
+  team_id        String         @db.ObjectId
+  created_by     String         @db.ObjectId
+  
+  createdAt      DateTime       @default(now()) @db.Date
+  updatedAt      DateTime       @updatedAt @db.Date
+  
+  // Relations
+  executions     crm_Workflow_Execution[]
+  assigned_team  Team?          @relation(name: "WorkflowTeam", fields: [team_id], references: [id])
+  creator        Users?         @relation(name: "WorkflowCreator", fields: [created_by], references: [id])
+}
+
+model crm_Workflow_Execution {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  v               Int?            @map("__v")
+  workflow_id     String          @db.ObjectId
+  workflow        crm_Workflow    @relation(fields: [workflow_id], references: [id])
+  
+  status          ExecutionStatus @default(RUNNING)
+  trigger_data    Json?           // Data that triggered the workflow
+  current_node    String?         // Current node being executed
+  completed_nodes String[]        // Already executed node IDs
+  node_outputs    Json?           // Output data from each node
+  scheduled_at    DateTime?       @db.Date // For delay nodes
+  error           String?
+  
+  startedAt       DateTime        @default(now()) @db.Date
+  completedAt     DateTime?       @db.Date
+  
+  @@index([workflow_id, status])
+}
