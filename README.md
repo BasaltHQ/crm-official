@@ -2,7 +2,7 @@
 
 [![BasaltCRM Cover](public/images/basalt-cover.png)](https://basalthq.com)
 
-BasaltCRM is a premium open source CRM built on top of Next.js 14 using TypeScript, shadcn/ui, Prisma, and MongoDB. Feature-packed with AI-assisted workflows, intelligent automation, and a next-gen architecture.
+BasaltCRM is a premium open source CRM built on top of Next.js 16 using TypeScript, shadcn/ui, Prisma, and MongoDB. Feature-packed with AI-assisted workflows, intelligent automation, and a next-gen architecture.
 
 [![X (formerly Twitter) URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Fx.com%2FBasaltHQ)](https://x.com/BasaltHQ)
 [![GitHub License](https://img.shields.io/github/license/Ledger1-ai/crm-official)](https://github.com/Ledger1-ai/crm-official/blob/main/LICENSE)
@@ -55,7 +55,7 @@ You can try it here [crm.basalthq.com/en/sign-in](https://crm.basalthq.com/en/si
 ### AI
 
 - [OpenAI API](https://openai.com/) – AI-generated communication
-- [Rossum](https://rossum.ai/) – AI invoice parsing
+- [SURGE](https://surge.basalthq.com) – AI invoice
 
 ## Roadmap
 
