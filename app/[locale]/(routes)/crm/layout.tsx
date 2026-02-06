@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getEffectiveRoleModules } from "@/actions/permissions/get-effective-permissions";
+import { PermissionsProvider } from "@/components/providers/permissions-provider";
 
 export default async function CrmLayout({
     children,
@@ -12,21 +13,29 @@ export default async function CrmLayout({
     const session = await getServerSession(authOptions);
     let allowedModules: string[] = [];
     let isMember = false;
+    let isSuperAdmin = false;
+    let user = null;
 
     if (session?.user?.id) {
-        const user = await prismadb.users.findUnique({
+        user = await prismadb.users.findUnique({
             where: { id: session.user.id },
             select: {
                 team_role: true,
                 team_id: true,
                 department_id: true,
-                assigned_modules: true // Capture override if exists
+                assigned_modules: true, // Capture override if exists
+                is_admin: true,
+                email: true
             }
         });
 
         isMember = user?.team_role === "MEMBER";
 
-        if (user?.team_role === 'SUPER_ADMIN' || user?.team_role === 'OWNER') {
+        const role = (user?.team_role || '').toUpperCase();
+        // Check DB is_admin flag OR role-based access
+        isSuperAdmin = (user as any)?.is_admin || ['SUPER_ADMIN', 'OWNER', 'PLATFORM_ADMIN', 'SYSADM', 'PLATFORM ADMIN', 'ADMIN'].includes(role);
+
+        if (isSuperAdmin) {
             allowedModules = ['*'];
         } else if (user) {
             // Check specific assignments first
@@ -42,13 +51,23 @@ export default async function CrmLayout({
                 }
             }
         }
+
+        console.log('[DEBUG CRM LAYOUT]', {
+            userId: session.user.id,
+            teamRole: user?.team_role,
+            isSuperAdmin: isSuperAdmin,
+            allowedModulesLength: allowedModules.length,
+            modules: allowedModules // Inspect the actual list
+        });
     }
 
     return (
         <div className="flex h-full w-full overflow-hidden">
             <CrmSidebar isMember={isMember} allowedModules={allowedModules} />
             <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-32 md:pb-0">
-                {children}
+                <PermissionsProvider permissions={allowedModules} isSuperAdmin={isSuperAdmin}>
+                    {children}
+                </PermissionsProvider>
             </div>
         </div>
     );

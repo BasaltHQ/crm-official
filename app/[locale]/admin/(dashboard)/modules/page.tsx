@@ -31,7 +31,7 @@ export default async function AdminModulesPage() {
     });
 
     const isGlobalAdmin = session?.user?.isAdmin;
-    const isTeamSuperAdmin = user?.team_role === 'SUPER_ADMIN' || user?.team_role === 'OWNER';
+    const isTeamSuperAdmin = user?.team_role === 'SUPER_ADMIN' || user?.team_role === 'OWNER' || user?.team_role === 'PLATFORM_ADMIN';
 
     if (!isGlobalAdmin && !isTeamSuperAdmin) {
         return (

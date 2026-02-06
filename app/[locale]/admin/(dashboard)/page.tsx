@@ -70,7 +70,8 @@ export default async function AdminDashboardPage({
   const memberCount = rolesData.find(r => r.team_role === 'MEMBER' || r.team_role === null)?._count ?? 0;
   const viewerCount = rolesData.find(r => r.team_role === 'VIEWER')?._count ?? 0;
 
-  const isSuperAdmin = teamInfo.isGlobalAdmin || teamInfo.teamRole === 'SUPER_ADMIN' || teamInfo.teamRole === 'OWNER';
+  const role = (teamInfo.teamRole || '').toUpperCase();
+  const isSuperAdmin = teamInfo.isGlobalAdmin || ['SUPER_ADMIN', 'OWNER', 'PLATFORM_ADMIN', 'SYSADM', 'PLATFORM ADMIN'].includes(role);
 
   return (
     <Container

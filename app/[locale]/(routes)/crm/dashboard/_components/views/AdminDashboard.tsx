@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { useGreeting } from "@/app/hooks/use-greeting";
 import DashboardCard from "../DashboardCard";
 import { DollarSign, TrendingUp, Users2, Activity, UserPlus, FolderPlus, ClipboardList, MessageSquare } from "lucide-react";
 import { EntityBreakdown } from "../../../../dashboard/components/EntityBreakdown";
@@ -44,13 +45,14 @@ const AdminDashboard = ({
     messagesCount = 0
 }: AdminDashboardProps) => {
     const router = useRouter();
+    const greeting = useGreeting();
 
     return (
         <div className="flex flex-col space-y-8 p-4">
             {/* 1. Header & Quick Actions (Pills) */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white/90">Good morning, {userName}</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-white/90">{greeting}, {userName}</h1>
                     <p className="text-muted-foreground mt-1">This is your Command Center.</p>
                 </div>
 

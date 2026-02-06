@@ -452,7 +452,7 @@ export const ROLE_CONFIGS: Record<Exclude<TeamRole, 'SUPER_ADMIN'>, { label: str
     MEMBER: {
         label: "Member",
         description: "Standard access to assigned resources",
-        defaultModules: ['dashboard', 'dashboard.view', 'contacts', 'contacts.view']
+        defaultModules: ['dashboard', 'dashboard.view', 'contacts', 'contacts.view', 'leads', 'leads.tabs.all', 'leads.tabs.workspace', 'leads.tabs.dialer']
     },
     VIEWER: {
         label: "Viewer",

@@ -24,7 +24,7 @@ export const getCurrentUserTeamId = async () => {
 
     // "God Mode" for PLATFORM_ADMIN - NO TEAM RESTRICTIONS
     // PLATFORM_ADMIN can see and access ALL data across ALL teams
-    const isGlobalAdmin = isPlatformAdminRole;
+    const isGlobalAdmin = isPlatformAdminRole || user?.is_admin;
 
 
     return {

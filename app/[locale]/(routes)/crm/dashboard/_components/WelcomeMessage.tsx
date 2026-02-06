@@ -2,20 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useGreeting } from "@/app/hooks/use-greeting";
 
 export default function WelcomeMessage() {
     const { data: session } = useSession();
-    const [greeting, setGreeting] = useState("Welcome back");
+    const greeting = useGreeting();
 
     // Get first name safely or fallback to email username
     const userName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "there";
-
-    useEffect(() => {
-        const hour = new Date().getHours();
-        if (hour < 12) setGreeting("Good morning");
-        else if (hour < 18) setGreeting("Good afternoon");
-        else setGreeting("Good evening");
-    }, []);
 
     return (
         <div className="mb-8">

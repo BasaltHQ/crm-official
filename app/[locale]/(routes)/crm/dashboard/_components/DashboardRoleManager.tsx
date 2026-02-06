@@ -29,14 +29,14 @@ const DashboardRoleManager = async () => {
     // 1. Determine Role
     const user = await prismadb.users.findUnique({
         where: { id: userId },
-        select: { team_role: true, email: true } // Email might be needed for hardcoded super admins if any
+        select: { team_role: true, email: true, is_admin: true } // Email might be needed for hardcoded super admins if any
     });
 
     const role = user?.team_role || "VIEWER";
 
     // Platform Admin Check: Only specific team/users if requirement exists, otherwise maps to PLATFORM_ADMIN role
     // For now, treating PLATFORM_ADMIN and ADMIN similarly but with potential future separation.
-    const isAdmin = role === "PLATFORM_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN";
+    const isAdmin = (user as any)?.is_admin || role === "PLATFORM_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN" || role === "PLATFORM ADMIN" || role === "SYSADM" || role === "OWNER";
     const isMember = role === "MEMBER";
 
     // 2. Fetch Data Parallel

@@ -2,11 +2,11 @@ import { Zap, Mail, Bot, Globe, MessageSquare, TrendingUp } from "lucide-react";
 
 export default function BasaltFeatures() {
     return (
-        <section id="features" className="relative py-24 px-6">
-            <div className="max-w-7xl mx-auto space-y-24">
+        <section id="features" className="relative pt-8 pb-10 px-6">
+            <div className="max-w-7xl mx-auto space-y-8">
 
                 {/* Core Focus & Economic Model Grid */}
-                <div className="grid md:grid-cols-2 gap-12">
+                <div className="grid md:grid-cols-2 gap-8">
                     {/* Core Focus - AI Automation */}
                     <div className="glass-panel p-8 rounded-2xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-colors" />
@@ -29,7 +29,7 @@ export default function BasaltFeatures() {
                 </div>
 
                 {/* AI Features Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div id="ai-agents" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 scroll-mt-24">
                     {[
                         {
                             icon: <Zap className="h-8 w-8 text-yellow-400" />,
@@ -73,7 +73,7 @@ export default function BasaltFeatures() {
                 </div>
 
                 {/* Basalt Echo Feature Highlight */}
-                <div className="glass-panel rounded-3xl p-8 md:p-12 border border-cyan-500/30 relative overflow-hidden">
+                <div className="glass-panel rounded-3xl p-8 md:p-12 border border-cyan-500/30 relative overflow-hidden mt-24">
                     {/* Background Glow */}
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent" />
 

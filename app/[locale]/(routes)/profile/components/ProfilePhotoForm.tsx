@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users } from "@prisma/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -97,13 +97,12 @@ export function ProfilePhotoForm({ data }: ProfileFormProps) {
   return (
     <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-5">
       <div>
-        <Image
-          src={avatar || "/images/nouser.png"}
-          alt="avatar"
-          width={100}
-          height={100}
-          className="rounded-full"
-        />
+        <Avatar className="h-24 w-24">
+          <AvatarImage src={avatar || "/images/nouser.png"} alt="avatar" />
+          <AvatarFallback>
+            {data.name?.charAt(0) || "U"}
+          </AvatarFallback>
+        </Avatar>
       </div>
       <div className="flex flex-col gap-2">
         <input

@@ -51,8 +51,7 @@ const LeadsPage = async ({ searchParams }: LeadsPageProps) => {
 
   // Only load heavy data when needed for the active tab (Client-side fetch optimization)
   const crmData = tab === "manager" ? await getAllCrmData() : null;
-  // const leads = tab === "manager" ? await getLeads() : null;
-  const leads = null;
+  const leads = tab === "manager" ? await getLeads() : null;
 
   const getTabInfo = (currentTab: string) => {
     switch (currentTab) {

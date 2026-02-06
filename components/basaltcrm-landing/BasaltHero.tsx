@@ -4,8 +4,8 @@ import { ArrowRight } from "lucide-react";
 
 export default function BasaltHero() {
     return (
-        <section id="hero" className="relative min-h-screen flex items-center justify-center px-6 pt-24">
-            <div className="max-w-5xl mx-auto text-center z-10">
+        <section id="hero" className="relative min-h-screen flex flex-col items-center px-6 pt-20 md:pt-32 pb-4">
+            <div className="flex-grow flex flex-col justify-center items-center text-center w-full max-w-5xl z-10">
                 {/* Logo */}
                 <div className="relative w-[300px] h-[80px] mx-auto mb-8 opacity-0 animate-fadeInUp">
                     <div className="w-full h-full transform scale-[1.8] origin-center">
@@ -20,7 +20,7 @@ export default function BasaltHero() {
                 </div>
 
                 {/* System Label */}
-                <div className="inline-flex items-center gap-2 mb-8 opacity-0 animate-fadeInUp stagger-1">
+                <div className="inline-flex items-center gap-2 mb-8 opacity-0 animate-fadeInUp stagger-1 mx-auto">
                     <span className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
                     <span className="text-xs font-mono tracking-[0.3em] text-cyan-500">
                         AI-POWERED ENTERPRISE CRM
@@ -81,7 +81,7 @@ export default function BasaltHero() {
             </div>
 
             {/* Scroll Indicator */}
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 opacity-0 animate-fadeInUp stagger-5">
+            <div className="z-10 mt-4 md:mt-8 opacity-0 animate-fadeInUp stagger-5">
                 <Link href="#features" className="flex flex-col items-center gap-2 text-gray-500 hover:text-cyan-500 transition-colors">
                     <span className="text-xs font-mono tracking-wider">SCROLL</span>
                     <svg className="w-5 h-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">

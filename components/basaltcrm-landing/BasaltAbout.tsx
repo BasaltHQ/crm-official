@@ -2,7 +2,7 @@ import { ShieldCheck, Globe, Zap, CheckCircle2 } from "lucide-react";
 
 export default function BasaltAbout() {
     return (
-        <section id="about" className="relative py-24 px-6">
+        <section id="about" className="relative py-10 px-6">
             <div className="max-w-7xl mx-auto">
                 <div className="grid lg:grid-cols-2 gap-16 items-start mb-24">
                     {/* Left Content */}
@@ -33,9 +33,9 @@ export default function BasaltAbout() {
                     </div>
 
                     {/* Right Content - Values */}
-                    <div className="space-y-6">
+                    <div className="space-y-6 lg:space-y-12">
                         {/* Values Grid */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                             {[
                                 {
                                     title: 'SECURE',
@@ -58,24 +58,26 @@ export default function BasaltAbout() {
                                     icon: <CheckCircle2 className="w-5 h-5" />
                                 },
                             ].map((value) => (
-                                <div key={value.title} className="card group">
-                                    <div className="text-cyan-500 mb-2 group-hover:scale-110 transition-transform">
-                                        {value.icon}
+                                <div key={value.title} className="glass-panel bg-black/60 p-6 rounded-xl hover:-translate-y-1 transition-all duration-300 group hover:bg-cyan-500/10 border border-white/10 flex flex-col items-start justify-between min-h-[140px] shadow-lg">
+                                    <div>
+                                        <div className="text-cyan-500 mb-3 group-hover:scale-110 transition-transform bg-cyan-500/10 p-2 rounded-lg w-fit">
+                                            {value.icon}
+                                        </div>
+                                        <h4 className="text-xs font-mono tracking-wider text-cyan-500 mb-2 font-bold">
+                                            {value.title}
+                                        </h4>
                                     </div>
-                                    <h4 className="text-xs font-mono tracking-wider text-cyan-500 mb-2">
-                                        {value.title}
-                                    </h4>
-                                    <p className="text-sm text-gray-400">{value.desc}</p>
+                                    <p className="text-xs text-gray-400 font-medium">{value.desc}</p>
                                 </div>
                             ))}
                         </div>
 
                         {/* Performance Metrics */}
-                        <div className="glass-panel rounded-2xl p-6">
+                        <div className="glass-panel rounded-2xl p-6 lg:p-10">
                             <h4 className="text-xs font-mono tracking-wider text-gray-500 mb-4">
                                 SYSTEM METRICS
                             </h4>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4 lg:gap-8">
                                 {[
                                     { label: 'Scalability', desc: 'Auto-scaling agent fleets' },
                                     { label: 'Accuracy', desc: '98% Intent recognition rate' },

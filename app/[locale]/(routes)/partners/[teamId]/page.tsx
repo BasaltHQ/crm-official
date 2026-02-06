@@ -26,7 +26,8 @@ const TeamDetailsPage = async ({ params }: { params: Promise<{ teamId: string }>
     let customRoles: any[] = [];
     let departments: any[] = [];
 
-    const isTeamSuperAdmin = currentUserInfo?.teamId === team?.id && (currentUserInfo?.teamRole === 'SUPER_ADMIN' || currentUserInfo?.teamRole === 'OWNER');
+    const role = (currentUserInfo?.teamRole || '').toUpperCase();
+    const isTeamSuperAdmin = currentUserInfo?.teamId === team?.id && ['SUPER_ADMIN', 'OWNER', 'PLATFORM_ADMIN', 'SYSADM'].includes(role);
     const canManageTeam = currentUserInfo?.isGlobalAdmin || isTeamSuperAdmin;
 
     if (canManageTeam && team) {

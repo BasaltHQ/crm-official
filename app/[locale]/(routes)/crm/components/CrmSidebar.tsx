@@ -69,9 +69,7 @@ export default function CrmSidebar({ isMember = false, allowedModules = [] }: Cr
         { id: 'leads', label: "Leads Manager", href: "/crm/leads", icon: Users },
         { id: 'projects', label: "Projects", href: "/crm/my-projects", icon: Folder },
         { id: 'opportunities', label: "Opportunities", href: "/crm/opportunities", icon: Target },
-        { id: 'tasks', label: "Tasks", href: "/crm/tasks", icon: CheckSquare },
         { id: 'sales-command', label: "Sales Command", href: "/crm/sales-command", icon: Radio },
-        { id: 'university', label: "University", href: "/crm/university", icon: GraduationCap },
     ];
 
     // Filter items

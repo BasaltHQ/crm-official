@@ -36,8 +36,8 @@ export const usePermission = () => {
         if (context.isSuperAdmin) return true;
         if (!context.permissions) return false;
 
-        // 1. Direct match
-        if (context.permissions.includes(requiredPermission)) return true;
+        // 1. Direct match or wildcard
+        if (context.permissions.includes('*') || context.permissions.includes(requiredPermission)) return true;
 
         // 2. Parent match (if parent is selected, usually implies child access OR we treat parent as container)
         // Actually, our logic is: selecting parent selects children in UI.

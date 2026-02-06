@@ -25,7 +25,14 @@ export default function LeadsManagerTabs({ leads: initialLeads, crmData, default
     fallbackData: initialLeads
   });
 
-  const { hasAccess } = usePermission();
+  const { hasAccess, isSuperAdmin, permissions } = usePermission();
+
+  console.log('[DEBUG LEADS TABS]', {
+    isSuperAdmin,
+    permissionsLength: permissions?.length,
+    hasLeadsAccess: hasAccess('leads'),
+    allPermissions: permissions
+  });
 
   const leads = leadsData || [];
   const users = crmData?.users || [];

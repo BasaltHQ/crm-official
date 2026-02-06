@@ -4,7 +4,7 @@ import { ArrowRight, Globe, Layers, MapPin } from 'lucide-react';
 
 export default function BasaltSEO() {
     return (
-        <section id="seo-pages" className="relative py-24 px-6 border-t border-white/5">
+        <section id="seo-pages" className="relative py-10 px-6 border-t border-white/5">
             <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16">
                     <span className="section-heading">EXPLORE BASALT</span>

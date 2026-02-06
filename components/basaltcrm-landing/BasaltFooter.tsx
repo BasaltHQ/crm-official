@@ -23,7 +23,7 @@ const socialLinks = [
 
 export default function BasaltFooter() {
     return (
-        <footer className="relative py-16 px-6 border-t border-white/10 mt-24">
+        <footer className="relative py-10 px-6 border-t border-white/10">
             <div className="max-w-7xl mx-auto">
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
                     {/* Brand Column */}

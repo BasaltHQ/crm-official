@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 
 const navLinks = [
     { label: 'HOME', href: '#hero' },
-    { label: 'FEATURES', href: '#features' },
-    { label: 'AI AGENTS', href: '#ai-agents' },
-    { label: 'PRICING', href: '#pricing' },
+    { label: 'FEATURES', href: '/features' },
+    { label: 'AI AGENTS', href: '/ai-agents' },
+    { label: 'PRICING', href: '/pricing' },
 ];
 
 const externalLinks: { label: string; href: string; internal?: boolean }[] = [

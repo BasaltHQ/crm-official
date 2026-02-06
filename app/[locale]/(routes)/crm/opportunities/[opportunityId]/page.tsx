@@ -38,7 +38,7 @@ const OpportunityView = async (
       where: { id: session.user.id },
       select: { team_role: true, team_id: true, department_id: true, assigned_modules: true }
     });
-    isSuperAdmin = user?.team_role === 'SUPER_ADMIN' || user?.team_role === 'OWNER';
+    isSuperAdmin = user?.team_role === 'SUPER_ADMIN' || user?.team_role === 'OWNER' || user?.team_role === 'PLATFORM_ADMIN';
 
     if (isSuperAdmin) {
       permissions = ['*'];
