@@ -6,6 +6,11 @@ interface EmailOptions {
   subject: string;
   text: string;
   html?: string;
+  attachments?: {
+    filename: string;
+    content: any;
+    contentType?: string;
+  }[];
 }
 
 export default async function sendEmail(
@@ -19,13 +24,16 @@ export default async function sendEmail(
       user: process.env.EMAIL_USERNAME,
       pass: process.env.EMAIL_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 
   try {
-    await transporter.sendMail(emailOptions);
-    console.log(`Email sent to ${emailOptions.to}`);
-    return Promise.resolve(console.log(`Email sent to ${emailOptions.to}`));
+    const result = await transporter.sendMail(emailOptions);
+    console.log(`[Email Success] To: ${emailOptions.to}, MessageId: ${result.messageId}`);
   } catch (error: any | Error) {
-    console.error(`Error occurred while sending email: ${error.message}`);
+    console.error(`[Email Error] Failed to send to ${emailOptions.to}:`, error);
+    throw error; // Rethrow to let the API know it failed
   }
 }

@@ -57,6 +57,13 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
     const [isProcessing, setIsProcessing] = useState<string | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState("");
+    const [showEmailDialog, setShowEmailDialog] = useState(false);
+    const [emailRecipient, setEmailRecipient] = useState("");
+    const [emailSubject, setEmailSubject] = useState("");
+    const [emailBody, setEmailBody] = useState("");
+    const [includeSubmissionData, setIncludeSubmissionData] = useState(true);
+    const [includePdf, setIncludePdf] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     const filteredSubmissions = submissions.filter((s) => {
         if (selectedFormId !== "all" && s.form_id !== selectedFormId) return false;
@@ -78,6 +85,62 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
     const handleViewDetails = (submission: FormSubmission) => {
         setSelectedSubmission(submission);
         setShowDetailDialog(true);
+    };
+
+    const handleOpenEmail = (submission: FormSubmission) => {
+        setSelectedSubmission(submission);
+        setEmailRecipient(submission.extracted_email || "");
+        setEmailSubject(`Submission for ${submission.form?.name}`);
+        setIncludeSubmissionData(true);
+        setIncludePdf(false);
+
+        const intro = `Hello,\n\nI'm sharing a submission from ${submission.form?.name} that needs review.`;
+        setEmailBody(intro);
+        setShowEmailDialog(true);
+    };
+
+    const handleSendEmail = async () => {
+        if (!selectedSubmission?.extracted_email) return;
+
+        setIsSendingEmail(true);
+
+        let finalBody = emailBody;
+        if (includeSubmissionData && selectedSubmission) {
+            const formattedData = Object.entries(selectedSubmission.data)
+                .map(([key, value]) => `• ${key.replace(/_/g, " ").toUpperCase()}: ${value}`)
+                .join("\n");
+            finalBody += `\n\n--- Submission Details ---\n${formattedData}\n\nView in CRM: ${window.location.origin}/crm/leads/${selectedSubmission.lead_id || "submission-" + selectedSubmission.id}`;
+        }
+
+        try {
+            const res = await fetch("/api/forms/submissions/send-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    submissionId: selectedSubmission.id,
+                    to: emailRecipient,
+                    subject: emailSubject,
+                    body: finalBody,
+                    includePdf: includePdf,
+                }),
+            });
+
+            if (!res.ok) throw new Error("Failed to send email");
+
+            toast({
+                title: "Success",
+                description: "Email sent successfully",
+            });
+            setShowEmailDialog(false);
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to send email",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSendingEmail(false);
+        }
     };
 
     const toggleRowExpanded = (id: string) => {
@@ -326,15 +389,28 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => handleViewDetails(submission)}
+                                                            title="View Details"
                                                         >
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
+                                                        {submission.extracted_email && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-blue-500 hover:text-blue-600"
+                                                                onClick={() => handleOpenEmail(submission)}
+                                                                title="Send Email"
+                                                            >
+                                                                <Mail className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                         {!submission.lead_id && (
                                                             <Button
                                                                 variant="default"
                                                                 size="sm"
                                                                 onClick={() => handleCreateLead(submission)}
                                                                 disabled={isCreatingLead === submission.id}
+                                                                title="Convert to Lead"
                                                             >
                                                                 {isCreatingLead === submission.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
                                                             </Button>
@@ -345,6 +421,7 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
                                                             className="text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
                                                             onClick={() => handleAction(submission.id, 'archive')}
                                                             disabled={isProcessing === submission.id}
+                                                            title="Archive"
                                                         >
                                                             <Archive className="h-4 w-4" />
                                                         </Button>
@@ -354,6 +431,7 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
                                                             className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                                                             onClick={() => handleAction(submission.id, 'delete')}
                                                             disabled={isProcessing === submission.id}
+                                                            title="Delete"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
@@ -369,7 +447,7 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
                                                                     <span className="text-xs font-medium text-muted-foreground capitalize">
                                                                         {key.replace(/_/g, " ")}
                                                                     </span>
-                                                                    <p className="mt-1 text-sm">{String(value) || "-"}</p>
+                                                                    <p className="mt-1 text-sm break-all">{String(value) || "-"}</p>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -392,8 +470,8 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
 
             {/* Detail Dialog */}
             <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
+                <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="p-6 pb-2">
                         <DialogTitle>Submission Details</DialogTitle>
                         <DialogDescription>
                             Submitted via {selectedSubmission?.form?.name} on{" "}
@@ -401,67 +479,177 @@ export function FormSubmissionsView({ submissions, forms, initialFormId = "all",
                         </DialogDescription>
                     </DialogHeader>
                     {selectedSubmission && (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                {Object.entries(selectedSubmission.data).map(([key, value]) => (
-                                    <div key={key} className="border rounded p-3">
-                                        <span className="text-xs font-medium text-muted-foreground capitalize">
-                                            {key.replace(/_/g, " ")}
-                                        </span>
-                                        <p className="mt-1">{String(value) || "-"}</p>
-                                    </div>
-                                ))}
-                            </div>
-                            {selectedSubmission.source_url && (
-                                <div className="text-sm text-muted-foreground">
-                                    <strong>Source URL:</strong> {selectedSubmission.source_url}
+                        <ScrollArea className="flex-1 px-6">
+                            <div className="space-y-6 py-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {Object.entries(selectedSubmission.data).map(([key, value]) => (
+                                        <div key={key} className="group border rounded-xl p-4 bg-muted/30 hover:border-primary/50 transition-all">
+                                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                                                {key.replace(/_/g, " ")}
+                                            </span>
+                                            <div className="text-sm font-medium break-all space-y-2">
+                                                {String(value).startsWith('http') || String(value).startsWith('https') ? (
+                                                    <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                                                        {String(value)}
+                                                    </a>
+                                                ) : (
+                                                    <p className="whitespace-pre-wrap">{String(value) || "-"}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
-                        </div>
+                                {selectedSubmission.source_url && (
+                                    <div className="p-4 rounded-xl bg-muted/50 border flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Filter className="h-4 w-4" />
+                                            <span>Source URL:</span>
+                                        </div>
+                                        <a href={selectedSubmission.source_url} target="_blank" rel="noopener noreferrer" className="font-mono text-primary hover:underline">
+                                            {selectedSubmission.source_url}
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
                     )}
-                    <DialogFooter>
+                    <DialogFooter className="p-6 pt-4 border-t bg-muted/5 gap-2 sm:gap-0">
                         <Button variant="outline" onClick={() => setShowDetailDialog(false)}>
                             Close
                         </Button>
-                        {selectedSubmission && !selectedSubmission.lead_id && (
+                        <div className="flex-1" />
+                        <div className="flex items-center gap-2">
+                            {selectedSubmission && !selectedSubmission.lead_id && (
+                                <Button
+                                    onClick={() => {
+                                        handleCreateLead(selectedSubmission);
+                                        setShowDetailDialog(false);
+                                    }}
+                                    disabled={isCreatingLead === selectedSubmission.id}
+                                >
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Confirm Lead
+                                </Button>
+                            )}
                             <Button
+                                variant="outline"
+                                className="text-orange-500 border-orange-500/30 hover:bg-orange-50"
                                 onClick={() => {
-                                    handleCreateLead(selectedSubmission);
-                                    setShowDetailDialog(false);
+                                    if (selectedSubmission) {
+                                        handleAction(selectedSubmission.id, 'archive');
+                                        setShowDetailDialog(false);
+                                    }
                                 }}
-                                disabled={isCreatingLead === selectedSubmission.id}
                             >
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Create Lead
+                                <Archive className="h-4 w-4" />
                             </Button>
-                        )}
-                        {selectedSubmission && (
-                            <div className="flex gap-2 ml-auto">
-                                <Button
-                                    variant="outline"
-                                    className="text-orange-500"
-                                    onClick={() => {
-                                        if (selectedSubmission) {
-                                            handleAction(selectedSubmission.id, 'archive');
-                                            setShowDetailDialog(false);
-                                        }
-                                    }}
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    if (selectedSubmission) {
+                                        handleAction(selectedSubmission.id, 'delete');
+                                        setShowDetailDialog(false);
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Email Dialog */}
+            <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Mail className="h-5 w-5" />
+                            Send Email
+                        </DialogTitle>
+                        <DialogDescription>
+                            Send a personalized email to {selectedSubmission?.extracted_email} from the CRM.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">To (Recipient Email)</label>
+                            <Input
+                                value={emailRecipient}
+                                onChange={(e) => setEmailRecipient(e.target.value)}
+                                placeholder="Enter recipient email address"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Subject</label>
+                            <Input
+                                value={emailSubject}
+                                onChange={(e) => setEmailSubject(e.target.value)}
+                                placeholder="Email subject"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2 py-2">
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="includeData"
+                                    checked={includeSubmissionData}
+                                    onChange={(e) => setIncludeSubmissionData(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <label
+                                    htmlFor="includeData"
+                                    className="text-sm font-medium leading-none cursor-pointer"
                                 >
-                                    Archive
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => {
-                                        if (selectedSubmission) {
-                                            handleAction(selectedSubmission.id, 'delete');
-                                            setShowDetailDialog(false);
-                                        }
-                                    }}
-                                >
-                                    Delete
-                                </Button>
+                                    Include answers in email body (Plain Text)
+                                </label>
                             </div>
-                        )}
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="includePdf"
+                                    checked={includePdf}
+                                    onChange={(e) => setIncludePdf(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <label
+                                    htmlFor="includePdf"
+                                    className="text-sm font-medium leading-none cursor-pointer"
+                                >
+                                    Attach submission as PDF document (Professional Report)
+                                </label>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Message</label>
+                            <textarea
+                                className="w-full min-h-[200px] p-3 rounded-md border bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={emailBody}
+                                onChange={(e) => setEmailBody(e.target.value)}
+                                placeholder="Type your message here..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSendEmail}
+                            disabled={isSendingEmail || !emailBody || !emailSubject}
+                        >
+                            {isSendingEmail ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Send from CRM
+                                </>
+                            )}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

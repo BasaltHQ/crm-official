@@ -90,6 +90,7 @@ const SingleFormSubmissionsPage = async ({ params, searchParams }: { params: Pro
     const submissions = await (prismadb as any).formSubmission.findMany({
         where: {
             form_id: formId,
+            is_deleted: false,
             ...(isGlobalAdmin ? {} : { team_id: teamId }), // Only restrict by team if not global admin
         },
         include: {

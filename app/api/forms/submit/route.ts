@@ -292,7 +292,7 @@ export async function POST(req: NextRequest) {
         const ip_hash = crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
         const user_agent = req.headers.get("user-agent") || undefined;
 
-        await (prismadb as any).formSubmission.create({
+        const newSubmission = await (prismadb as any).formSubmission.create({
             data: {
                 form_id: form.id,
                 data: submittedData, // Stores JSON text version
@@ -320,17 +320,6 @@ export async function POST(req: NextRequest) {
 
         // --- 3. Notifications ---
         const notificationTargets = new Set<string>();
-        if (form.created_by) {
-            try {
-                const creator = await (prismadb as any).users.findUnique({
-                    where: { id: form.created_by },
-                    select: { email: true }
-                });
-                if (creator?.email) notificationTargets.add(creator.email);
-            } catch (e) {
-                console.error("Failed to find creator for notification:", e);
-            }
-        }
 
         // Add extra emails from form config
         if (form.notify_emails && Array.isArray(form.notify_emails)) {
@@ -340,14 +329,31 @@ export async function POST(req: NextRequest) {
         if (notificationTargets.size > 0) {
             try {
                 const { default: sendEmail } = await import("@/lib/sendmail");
+                const { generateSubmissionPdf } = await import("@/lib/pdf-utils");
+
                 const recipients = Array.from(notificationTargets);
 
-                await sendEmail({
-                    to: recipients.join(", "),
-                    from: process.env.EMAIL_FROM || "notifications@basalthq.com",
-                    subject: `New Submission: ${form.name}${extracted_name ? ` (from ${extracted_name})` : ""}`,
-                    text: `You have a new submission from ${form.name}.\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
-                    html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                // Generate PDF once for all recipients
+                console.log(`[Notification] Generating PDF for form submission ${newSubmission.id}`);
+                const pdfBuffer = await generateSubmissionPdf({
+                    ...newSubmission,
+                    form: form // Ensure form name is available for the PDF header
+                });
+
+                const attachments = [{
+                    filename: `submission-${newSubmission.id}.pdf`,
+                    content: pdfBuffer,
+                    contentType: "application/pdf"
+                }];
+
+                // Send individually for better reliability and to avoid bulk-mail filters
+                for (const recipient of recipients) {
+                    await sendEmail({
+                        to: recipient,
+                        from: process.env.EMAIL_FROM || "notifications@basalthq.com",
+                        subject: `New Submission: ${form.name}${extracted_name ? ` (from ${extracted_name})` : ""}`,
+                        text: `You have a new submission from ${form.name}.\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
+                        html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                         <h2 style="color: #333;">New Form Submission</h2>
                         <p><strong>Form:</strong> ${form.name}</p>
                         <hr style="border: 0; border-top: 1px solid #eee;" />
@@ -355,15 +361,16 @@ export async function POST(req: NextRequest) {
                         ${extracted_email ? `<p><strong>Email:</strong> ${extracted_email}</p>` : ""}
                         ${extracted_company ? `<p><strong>Company:</strong> ${extracted_company}</p>` : ""}
                         <br />
+                        <p style="font-size: 14px; color: #666;">A professional PDF report is attached to this email.</p>
+                        <br />
                         <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
                            style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
                            View Submission in CRM
                         </a>
-                        <p style="font-size: 12px; color: #888; margin-top: 30px;">
-                           Tip: You can change who receives these notifications in the Form Settings.
-                        </p>
-                    </div>`
-                });
+                    </div>`,
+                        attachments
+                    });
+                }
             } catch (notifyErr) {
                 console.error("Failed to send submission notifications:", notifyErr);
             }
