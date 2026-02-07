@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { format } from "date-fns";
 import crypto from "crypto";
 
 const corsHeaders = {
@@ -352,27 +353,47 @@ export async function POST(req: NextRequest) {
                 }];
 
                 // Send individually for better reliability and to avoid bulk-mail filters
+                const timestamp = format(new Date(), "HH:mm:ss");
                 for (const recipient of recipients) {
                     await sendEmail({
                         to: recipient,
                         from: process.env.EMAIL_FROM || "notifications@basalthq.com",
-                        subject: `New Submission: ${form.name}${extracted_name ? ` (from ${extracted_name})` : ""}`,
+                        subject: `🟢 [NEW] ${form.name} | ${extracted_name || "New Applicant"} | ${timestamp}`,
                         text: `You have a new submission from ${form.name}.\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
-                        html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                        <h2 style="color: #333;">New Form Submission</h2>
-                        <p><strong>Form:</strong> ${form.name}</p>
-                        <hr style="border: 0; border-top: 1px solid #eee;" />
-                        ${extracted_name ? `<p><strong>Name:</strong> ${extracted_name}</p>` : ""}
-                        ${extracted_email ? `<p><strong>Email:</strong> ${extracted_email}</p>` : ""}
-                        ${extracted_company ? `<p><strong>Company:</strong> ${extracted_company}</p>` : ""}
-                        <br />
-                        <p style="font-size: 14px; color: #666;">A professional PDF report is attached to this email.</p>
-                        <br />
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
-                           style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-                           View Submission in CRM
-                        </a>
-                    </div>`,
+                        html: `
+                        <div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f9fafb; padding: 40px 20px;">
+                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 32px; text-align: center;">
+                                    <h2 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: 0.05em; text-transform: uppercase;">New Submission</h2>
+                                    <p style="color: #9ca3af; margin: 8px 0 0 0; font-size: 14px;">${form.name}</p>
+                                </div>
+                                
+                                <div style="padding: 32px;">
+                                    <div style="margin-bottom: 32px;">
+                                        <h3 style="color: #111827; font-size: 18px; margin: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Applicant Details</h3>
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            ${extracted_name ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Name</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_name}</td></tr>` : ""}
+                                            ${extracted_email ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Email</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_email}</td></tr>` : ""}
+                                            ${extracted_company ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Company</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_company}</td></tr>` : ""}
+                                            <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Time</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${format(new Date(), "PPP pp")}</td></tr>
+                                        </table>
+                                    </div>
+
+                                    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 32px;">
+                                        <p style="color: #4b5563; font-size: 14px; margin: 0 0 16px 0;">A full PDF report has been generated and attached to this email.</p>
+                                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
+                                           style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                                           View in Control Center
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} Basalt CRM Engine. All rights reserved.</p>
+                                </div>
+                            </div>
+                        </div>
+                        `,
                         attachments
                     });
                 }
