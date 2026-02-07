@@ -94,8 +94,20 @@ export async function POST(req: NextRequest) {
         }
 
         // Generate unique slug
-        const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-        const slug = `${baseSlug}-${crypto.randomBytes(4).toString("hex")}`;
+        let slug = body.slug;
+        if (!slug) {
+            const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+            slug = `${baseSlug}-${crypto.randomBytes(4).toString("hex")}`;
+        } else {
+            // Check if slug already exists
+            const existingForm = await (prismadb as any).form.findUnique({
+                where: { slug }
+            });
+            if (existingForm) {
+                // If exists, make it unique by appending a short hash
+                slug = `${slug}-${crypto.randomBytes(2).toString("hex")}`;
+            }
+        }
 
         // Build the data object carefully to avoid invalid fields
         const formData: any = {
