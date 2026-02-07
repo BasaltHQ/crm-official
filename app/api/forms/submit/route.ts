@@ -318,36 +318,54 @@ export async function POST(req: NextRequest) {
             data: { submission_count: { increment: 1 } },
         });
 
-        // --- 3. Notifications (Form Creator) ---
+        // --- 3. Notifications ---
+        const notificationTargets = new Set<string>();
         if (form.created_by) {
             try {
-                // Find creator email
                 const creator = await (prismadb as any).users.findUnique({
                     where: { id: form.created_by },
-                    select: { email: true, name: true }
+                    select: { email: true }
                 });
+                if (creator?.email) notificationTargets.add(creator.email);
+            } catch (e) {
+                console.error("Failed to find creator for notification:", e);
+            }
+        }
 
-                if (creator?.email) {
-                    const { default: sendEmail } = await import("@/lib/sendmail");
-                    await sendEmail({
-                        to: creator.email,
-                        from: process.env.EMAIL_FROM || "notifications@basalthq.com",
-                        subject: `New Lead: ${finalFirstName} ${finalLastName} (${form.name})`,
-                        text: `You have a new submission from ${form.name}.\n\nName: ${finalFirstName} ${finalLastName}\nEmail: ${extracted_email || "N/A"}\nCompany: ${extracted_company || "N/A"}\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
-                        html: `<div style="font-family: sans-serif;">
-                            <h2>New Lead Received</h2>
-                            <p><strong>Form:</strong> ${form.name}</p>
-                            <hr />
-                            <p><strong>Name:</strong> ${finalFirstName} ${finalLastName}</p>
-                            <p><strong>Email:</strong> ${extracted_email || "N/A"}</p>
-                            <p><strong>Company:</strong> ${extracted_company || "N/A"}</p>
-                            <br />
-                            <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Lead</a>
-                        </div>`
-                    });
-                }
+        // Add extra emails from form config
+        if (form.notify_emails && Array.isArray(form.notify_emails)) {
+            form.notify_emails.forEach((email: string) => notificationTargets.add(email));
+        }
+
+        if (notificationTargets.size > 0) {
+            try {
+                const { default: sendEmail } = await import("@/lib/sendmail");
+                const recipients = Array.from(notificationTargets);
+
+                await sendEmail({
+                    to: recipients.join(", "),
+                    from: process.env.EMAIL_FROM || "notifications@basalthq.com",
+                    subject: `New Submission: ${form.name}${extracted_name ? ` (from ${extracted_name})` : ""}`,
+                    text: `You have a new submission from ${form.name}.\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
+                    html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                        <h2 style="color: #333;">New Form Submission</h2>
+                        <p><strong>Form:</strong> ${form.name}</p>
+                        <hr style="border: 0; border-top: 1px solid #eee;" />
+                        ${extracted_name ? `<p><strong>Name:</strong> ${extracted_name}</p>` : ""}
+                        ${extracted_email ? `<p><strong>Email:</strong> ${extracted_email}</p>` : ""}
+                        ${extracted_company ? `<p><strong>Company:</strong> ${extracted_company}</p>` : ""}
+                        <br />
+                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
+                           style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                           View Submission in CRM
+                        </a>
+                        <p style="font-size: 12px; color: #888; margin-top: 30px;">
+                           Tip: You can change who receives these notifications in the Form Settings.
+                        </p>
+                    </div>`
+                });
             } catch (notifyErr) {
-                console.error("Failed to notify creator:", notifyErr);
+                console.error("Failed to send submission notifications:", notifyErr);
             }
         }
 

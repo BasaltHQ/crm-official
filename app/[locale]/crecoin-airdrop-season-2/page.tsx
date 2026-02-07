@@ -59,18 +59,23 @@ export default function AirdropLandingPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    form_id: form.id,
-                    data: formData
+                    form_slug: FORM_SLUG,
+                    data: formData,
+                    source_url: window.location.href,
+                    referrer: document.referrer
                 })
             });
 
-            if (!res.ok) throw new Error("Submission failed");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Submission failed");
+            }
 
             setSubmitted(true);
             toast.success("Airdrop application submitted!");
 
-        } catch (err) {
-            toast.error("Failed to submit form. Please verify your entries.");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to submit form. Please verify your entries.");
         } finally {
             setSubmitting(false);
         }
