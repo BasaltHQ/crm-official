@@ -68,6 +68,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Form slug required" }, { status: 400, headers: corsHeaders });
         }
 
+        // --- Slug Normalization / Aliasing ---
+        // Ensure both internal and external forms point to the same DB record
+        if (form_slug === "airdrop") {
+            form_slug = "crecoin-airdrop-season-2";
+        }
+
         // Find the form
         const form = await (prismadb as any).form.findUnique({
             where: { slug: form_slug },
@@ -339,6 +345,8 @@ export async function POST(req: NextRequest) {
             try {
                 const recipients = Array.from(notificationTargets);
 
+                console.log(`[Form Notification] Lead ${createdLeadId} -> ${recipients.join(", ")}`);
+
                 console.log(`[Form Submission ${newSubmission.id}] Starting PDF generation...`);
                 // Generate PDF once for all recipients
                 const pdfBuffer = await generateSubmissionPdf({
@@ -357,7 +365,6 @@ export async function POST(req: NextRequest) {
                 const timestamp = format(new Date(), "HH:mm:ss");
                 for (const recipient of recipients) {
                     try {
-                        console.log(`[Form Submission ${newSubmission.id}] Attempting email to ${recipient}...`);
                         await sendEmail({
                             to: recipient,
                             from: process.env.EMAIL_FROM || "notifications@basalthq.com",
@@ -399,9 +406,9 @@ export async function POST(req: NextRequest) {
                             `,
                             attachments
                         });
-                        console.log(`[Form Submission ${newSubmission.id}] Email to ${recipient} SUCCESS`);
+                        console.log(`[Email Success] ${recipient}`);
                     } catch (emailErr: any) {
-                        console.error(`[Form Submission ${newSubmission.id}] Individual email failure to ${recipient}:`, emailErr.message || emailErr);
+                        console.error(`[Email Failure] ${recipient}:`, emailErr.message || emailErr);
                     }
                 }
             } catch (notifyErr: any) {
