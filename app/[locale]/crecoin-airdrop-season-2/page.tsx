@@ -185,6 +185,7 @@ export default function AirdropLandingPage() {
                                                     id={field.id}
                                                     required={field.is_required}
                                                     placeholder={field.placeholder}
+                                                    value={formData[field.name] || ""}
                                                     onChange={(e) => handleInputChange(field.name, e.target.value)}
                                                     className="min-h-[100px] bg-white/[0.03] border-white/10 focus:border-[#F54029]/50 focus:ring-[#F54029]/20 transition-all rounded-xl"
                                                 />
@@ -194,6 +195,7 @@ export default function AirdropLandingPage() {
                                                     type={field.field_type.toLowerCase()}
                                                     required={field.is_required}
                                                     placeholder={field.placeholder}
+                                                    value={formData[field.name] || ""}
                                                     onChange={(e) => handleInputChange(field.name, e.target.value)}
                                                     className="h-12 bg-white/[0.03] border-white/10 focus:border-[#F54029]/50 focus:ring-[#F54029]/20 transition-all rounded-xl"
                                                 />
