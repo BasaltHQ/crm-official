@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { format } from "date-fns";
 import crypto from "crypto";
+import sendEmail from "@/lib/sendmail";
+import { generateSubmissionPdf } from "@/lib/pdf-utils";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -335,16 +337,15 @@ export async function POST(req: NextRequest) {
 
         if (notificationTargets.size > 0) {
             try {
-                const { default: sendEmail } = await import("@/lib/sendmail");
-                const { generateSubmissionPdf } = await import("@/lib/pdf-utils");
-
                 const recipients = Array.from(notificationTargets);
 
+                console.log(`[Form Submission ${newSubmission.id}] Starting PDF generation...`);
                 // Generate PDF once for all recipients
                 const pdfBuffer = await generateSubmissionPdf({
                     ...newSubmission,
                     form: form
                 });
+                console.log(`[Form Submission ${newSubmission.id}] PDF generation SUCCESS (${pdfBuffer.length} bytes)`);
 
                 const attachments = [{
                     filename: `submission-${newSubmission.id}.pdf`,
@@ -355,57 +356,61 @@ export async function POST(req: NextRequest) {
                 // Send individually for better reliability and to avoid bulk-mail filters
                 const timestamp = format(new Date(), "HH:mm:ss");
                 for (const recipient of recipients) {
-                    await sendEmail({
-                        to: recipient,
-                        from: process.env.EMAIL_FROM || "notifications@basalthq.com",
-                        subject: `🟢 [NEW] ${form.name} | ${extracted_name || "New Applicant"} | ${timestamp}`,
-                        text: `You have a new submission from ${form.name}.\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
-                        html: `
-                        <div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f9fafb; padding: 40px 20px;">
-                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                                <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 32px; text-align: center;">
-                                    <h2 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: 0.05em; text-transform: uppercase;">New Submission</h2>
-                                    <p style="color: #9ca3af; margin: 8px 0 0 0; font-size: 14px;">${form.name}</p>
-                                </div>
-                                
-                                <div style="padding: 32px;">
-                                    <div style="margin-bottom: 32px;">
-                                        <h3 style="color: #111827; font-size: 18px; margin: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Applicant Details</h3>
-                                        <table style="width: 100%; border-collapse: collapse;">
-                                            ${extracted_name ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Name</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_name}</td></tr>` : ""}
-                                            ${extracted_email ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Email</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_email}</td></tr>` : ""}
-                                            ${extracted_company ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Company</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_company}</td></tr>` : ""}
-                                            <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Time</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${format(new Date(), "PPP pp")}</td></tr>
-                                        </table>
+                    try {
+                        console.log(`[Form Submission ${newSubmission.id}] Attempting email to ${recipient}...`);
+                        await sendEmail({
+                            to: recipient,
+                            from: process.env.EMAIL_FROM || "notifications@basalthq.com",
+                            subject: `🟢 [NEW] ${form.name} | ${extracted_name || "New Applicant"} | ${timestamp}`,
+                            text: `You have a new submission from ${form.name}.\n\nView in CRM: ${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}`,
+                            html: `
+                            <div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f9fafb; padding: 40px 20px;">
+                                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                    <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 32px; text-align: center;">
+                                        <h2 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: 0.05em; text-transform: uppercase;">New Submission</h2>
+                                        <p style="color: #9ca3af; margin: 8px 0 0 0; font-size: 14px;">${form.name}</p>
                                     </div>
+                                    
+                                    <div style="padding: 32px;">
+                                        <div style="margin-bottom: 32px;">
+                                            <h3 style="color: #111827; font-size: 18px; margin: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Applicant Details</h3>
+                                            <table style="width: 100%; border-collapse: collapse;">
+                                                ${extracted_name ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Name</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_name}</td></tr>` : ""}
+                                                ${extracted_email ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Email</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_email}</td></tr>` : ""}
+                                                ${extracted_company ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Company</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_company}</td></tr>` : ""}
+                                                <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Time</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${format(new Date(), "PPP pp")}</td></tr>
+                                            </table>
+                                        </div>
 
-                                    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 32px;">
-                                        <p style="color: #4b5563; font-size: 14px; margin: 0 0 16px 0;">A full PDF report has been generated and attached to this email.</p>
-                                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
-                                           style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-                                           View in Control Center
-                                        </a>
+                                        <div style="background-color: #f3f4f6; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 32px;">
+                                            <p style="color: #4b5563; font-size: 14px; margin: 0 0 16px 0;">A full PDF report has been generated and attached to this email.</p>
+                                            <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
+                                               style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                                               View in Control Center
+                                            </a>
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
-                                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} Basalt CRM Engine. All rights reserved.</p>
+                                    
+                                    <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                        <p style="color: #9ca3af; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} Basalt CRM Engine. All rights reserved.</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        `,
-                        attachments
-                    });
+                            `,
+                            attachments
+                        });
+                        console.log(`[Form Submission ${newSubmission.id}] Email to ${recipient} SUCCESS`);
+                    } catch (emailErr: any) {
+                        console.error(`[Form Submission ${newSubmission.id}] Individual email failure to ${recipient}:`, emailErr.message || emailErr);
+                    }
                 }
-            } catch (notifyErr) {
-                console.error("Failed to send submission notifications:", notifyErr);
+            } catch (notifyErr: any) {
+                console.error(`[Form Submission ${newSubmission.id}] Critical Notification Engine failure:`, notifyErr.message || notifyErr);
             }
         }
 
-        // --- 4. Auto-Reply (To Lead) ---
         if (extracted_email && (form.auto_respond || true)) { // User requested generic auto-reply, force enabled for now or verify form config
             try {
-                const { default: sendEmail } = await import("@/lib/sendmail");
                 await sendEmail({
                     to: extracted_email,
                     from: process.env.EMAIL_FROM || "hello@basalthq.com",
