@@ -35,12 +35,12 @@ export default function AirdropLandingPage() {
                 <div className="glass-panel p-8 rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl shadow-2xl space-y-6">
                     <p className="text-sm font-mono text-gray-500 uppercase tracking-widest">Permanent Link:</p>
                     <a
-                        href="https://crecoin.co/airdrop"
+                        href="https://crecoin.co/airdrop.html"
                         className="block group"
                     >
                         <div className="p-4 rounded-xl border border-white/5 bg-white/[0.03] group-hover:border-[#F54029]/50 group-hover:bg-[#F54029]/5 transition-all duration-300">
                             <span className="text-xl font-bold text-white group-hover:text-[#F54029] transition-colors">
-                                crecoin.co/airdrop
+                                crecoin.co/airdrop.html
                             </span>
                         </div>
                     </a>
@@ -49,7 +49,7 @@ export default function AirdropLandingPage() {
                         asChild
                         className="w-full h-14 bg-[#F54029] hover:bg-[#ff6b57] text-white text-lg font-bold tracking-[0.2em] rounded-2xl shadow-[0_0_30px_rgba(245,64,41,0.2)] hover:shadow-[0_0_50px_rgba(245,64,41,0.4)] transition-all duration-300"
                     >
-                        <a href="https://crecoin.co/airdrop">
+                        <a href="https://crecoin.co/airdrop.html">
                             GO TO NEW FORM <ArrowRight className="ml-2 h-5 w-5" />
                         </a>
                     </Button>
