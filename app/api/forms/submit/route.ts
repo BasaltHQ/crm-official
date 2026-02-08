@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
         if (contentType.includes("multipart/form-data")) {
             const formData = await req.formData();
-            form_slug = formData.get("form_slug") as string;
+            form_slug = (formData.get("form_slug") || formData.get("form_path")) as string;
             captcha_token = formData.get("captcha_token") as string;
             source_url = formData.get("source_url") as string;
             referrer = formData.get("referrer") as string;
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
             utm_campaign = formData.get("utm_campaign") as string;
 
             // Extract all other fields into data
-            const systemKeys = new Set(["form_slug", "captcha_token", "source_url", "referrer", "utm_source", "utm_medium", "utm_campaign"]);
+            const systemKeys = new Set(["form_slug", "form_path", "captcha_token", "source_url", "referrer", "utm_source", "utm_medium", "utm_campaign"]);
 
             formData.forEach((value, key) => {
                 if (!systemKeys.has(key)) {
@@ -54,9 +54,21 @@ export async function POST(req: NextRequest) {
         } else {
             // JSON fallback
             const body = await req.json();
-            form_slug = body.form_slug;
+            form_slug = body.form_slug || body.form_path;
             captcha_token = body.captcha_token;
             submittedData = body.data || {};
+
+            // --- SMART PARSING ---
+            // If submittedData is empty, assume fields are at the root level
+            if (Object.keys(submittedData).length === 0) {
+                const systemKeys = new Set(["form_slug", "form_path", "captcha_token", "source_url", "referrer", "utm_source", "utm_medium", "utm_campaign"]);
+                Object.keys(body).forEach(key => {
+                    if (!systemKeys.has(key)) {
+                        submittedData[key] = body[key];
+                    }
+                });
+            }
+
             source_url = body.source_url;
             referrer = body.referrer;
             utm_source = body.utm_source;
@@ -134,10 +146,9 @@ export async function POST(req: NextRequest) {
         // Validate required fields
         for (const field of form.fields) {
             if (field.is_required && field.is_visible) {
-                // For files, we check if we received one if it's a FILE type, OR if we have the placeholder string
-                // But simply checking submittedData for the key is usually sufficient as we mapped files to strings there
                 const value = submittedData[field.name];
                 if (value === undefined || value === null || value === "") {
+                    console.error(`[Form ${form.slug}] Validation Failed: Missing required field "${field.name}" (${field.label})`);
                     return NextResponse.json({
                         error: `Field "${field.label}" is required`
                     }, { status: 400, headers: corsHeaders });
