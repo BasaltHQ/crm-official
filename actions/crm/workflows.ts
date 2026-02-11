@@ -17,6 +17,8 @@ export async function getWorkflows(teamId?: string) {
             throw new Error("Unauthorized");
         }
 
+        if (teamId && teamId.length !== 24) return [];
+
         const where = teamId ? { team_id: teamId } : {};
 
         const workflows = await prismadb.crm_Workflow.findMany({
@@ -45,6 +47,8 @@ export async function getWorkflow(id: string) {
         if (!session?.user?.id) {
             throw new Error("Unauthorized");
         }
+
+        if (!id || id.length !== 24) return null;
 
         const workflow = await prismadb.crm_Workflow.findUnique({
             where: { id },
@@ -121,6 +125,8 @@ export async function updateWorkflow(id: string, data: UpdateWorkflowData) {
             throw new Error("Unauthorized");
         }
 
+        if (!id || id.length !== 24) return { success: false, error: "Invalid workflow ID" };
+
         const updateData: Prisma.crm_WorkflowUpdateInput = {};
         if (data.name) updateData.name = data.name;
         if (data.description !== undefined) updateData.description = data.description;
@@ -149,6 +155,8 @@ export async function deleteWorkflow(id: string) {
         if (!session?.user?.id) {
             throw new Error("Unauthorized");
         }
+
+        if (!id || id.length !== 24) return { success: false, error: "Invalid workflow ID" };
 
         // Delete executions first
         await prismadb.crm_Workflow_Execution.deleteMany({
@@ -217,6 +225,8 @@ export async function pauseWorkflow(id: string) {
 
 export async function triggerWorkflow(workflowId: string, triggerData: Prisma.InputJsonValue = {}) {
     try {
+        if (!workflowId || workflowId.length !== 24) return { success: false, error: "Invalid workflow ID" };
+
         // Get the workflow
         const workflow = await prismadb.crm_Workflow.findUnique({
             where: { id: workflowId }

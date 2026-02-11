@@ -15,6 +15,8 @@ export async function getApprovalProcesses(teamId: string, objectType?: string) 
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
 
+        if (!teamId || teamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(teamId)) return [];
+
         const where: { team_id: string; object_type?: string } = { team_id: teamId };
         if (objectType) where.object_type = objectType;
 
@@ -39,6 +41,8 @@ export async function getApprovalProcess(id: string) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
+
+        if (!id || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) return null;
 
         const process = await prismadb.approvalProcess.findUnique({
             where: { id },
@@ -141,6 +145,8 @@ export async function updateApprovalProcessStatus(id: string, status: ApprovalPr
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
 
+        if (!id || id.length !== 24) return { success: false, error: "Invalid process ID" };
+
         const process = await prismadb.approvalProcess.update({
             where: { id },
             data: { status },
@@ -158,6 +164,8 @@ export async function deleteApprovalProcess(id: string) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
+
+        if (!id || id.length !== 24) return { success: false, error: "Invalid process ID" };
 
         // Delete steps, then request actions, then requests, then process
         await prismadb.approvalRequestAction.deleteMany({
@@ -197,6 +205,10 @@ export async function submitForApproval(data: {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
+
+        if (!data.team_id || data.team_id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(data.team_id)) {
+            return { success: false, error: "Invalid team ID" };
+        }
 
         // Find active approval process for this object type
         const process = await prismadb.approvalProcess.findFirst({
@@ -276,6 +288,10 @@ export async function processApprovalAction(data: {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
+
+        if (!data.request_id || data.request_id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(data.request_id)) {
+            return { success: false, error: "Invalid request ID" };
+        }
 
         const request = await prismadb.approvalRequest.findUnique({
             where: { id: data.request_id },
@@ -386,7 +402,7 @@ export async function getMyPendingApprovals(teamId?: string) {
             status: ApprovalRequestStatus.PENDING,
         };
 
-        if (teamId) {
+        if (teamId && teamId.length === 24 && /^[0-9a-fA-F]{24}$/.test(teamId)) {
             where.team_id = teamId;
         }
 
@@ -443,6 +459,8 @@ export async function getRecordApprovals(recordId: string, recordType: string) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) throw new Error("Unauthorized");
+
+        if (!recordId || recordId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(recordId)) return [];
 
         const requests = await prismadb.approvalRequest.findMany({
             where: {
