@@ -7,6 +7,9 @@ import DashboardCard from "../DashboardCard";
 import { DollarSign, TrendingUp, Users2, Activity, UserPlus, FolderPlus, ClipboardList, MessageSquare } from "lucide-react";
 import { EntityBreakdown } from "../../../../dashboard/components/EntityBreakdown";
 import JumpBackIn from "../JumpBackIn";
+import { DashboardLayoutProvider } from "../../_context/DashboardLayoutContext";
+import { EditableWidgetGrid } from "../widgets/EditableWidgetGrid";
+import { EditDashboardButton } from "../EditDashboardButton";
 
 interface AdminDashboardProps {
     userId: string;
@@ -20,11 +23,25 @@ interface AdminDashboardProps {
     teamPipeline: React.ReactNode;
     crmEntities: any[];
     projectEntities: any[];
+    // Full Data for Widgets
+    newLeads: any[];
+    newProjects: any[];
+    dailyTasks: any[];
+    messages: any[];
+    teamActivity: any[];
+    recentFiles: any[];
+    revenuePacing: any;
+    outreachStats: any;
+    leadPools: any[];
+    leadGenStats: any;
+    intelligenceStats: any;
+    aiInsights: any[];
     // Quick Action Counts
     newLeadsCount: number;
     newProjectsCount: number;
     allTasksCount: number;
     messagesCount: number;
+    initialLayout?: any[];
 }
 
 const AdminDashboard = ({
@@ -39,137 +56,70 @@ const AdminDashboard = ({
     teamPipeline,
     crmEntities = [],
     projectEntities = [],
+    newLeads = [],
+    newProjects = [],
+    dailyTasks = [],
+    messages = [],
+    teamActivity = [],
+    recentFiles = [],
+    revenuePacing = null,
+    outreachStats = null,
+    leadPools = [],
+    leadGenStats = null,
+    intelligenceStats = null,
+    aiInsights = [],
     newLeadsCount = 0,
     newProjectsCount = 0,
     allTasksCount = 0,
-    messagesCount = 0
+    messagesCount = 0,
+    initialLayout
 }: AdminDashboardProps) => {
     const router = useRouter();
     const greeting = useGreeting();
 
     return (
-        <div className="flex flex-col space-y-8 p-4">
-            {/* 1. Header & Quick Actions (Pills) */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white/90">{greeting}, {userName}</h1>
-                    <p className="text-muted-foreground mt-1">This is your Command Center.</p>
-                </div>
-
-                {/* The "Pills" - Clickable Quick Actions */}
-                <div className="grid grid-cols-2 gap-3">
-                    <button
-                        onClick={() => router.push("/crm/leads")}
-                        className="flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-lg text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-pointer"
-                    >
-                        <UserPlus className="w-4 h-4" />
-                        <span className="text-sm font-medium">New Leads</span>
-                        <span className="ml-auto bg-indigo-500/20 px-2 py-0.5 rounded text-xs font-bold">{newLeadsCount}</span>
-                    </button>
-                    <button
-                        onClick={() => router.push("/campaigns")}
-                        className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-lg text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer"
-                    >
-                        <FolderPlus className="w-4 h-4" />
-                        <span className="text-sm font-medium">New Projects</span>
-                        <span className="ml-auto bg-amber-500/20 px-2 py-0.5 rounded text-xs font-bold">{newProjectsCount}</span>
-                    </button>
-                    <button
-                        onClick={() => router.push("/crm/leads?tab=tasks")}
-                        className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-lg text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer"
-                    >
-                        <ClipboardList className="w-4 h-4" />
-                        <span className="text-sm font-medium">All Tasks</span>
-                        <span className="ml-auto bg-emerald-500/20 px-2 py-0.5 rounded text-xs font-bold">{allTasksCount}</span>
-                    </button>
-                    <button
-                        onClick={() => router.push("/messages")}
-                        className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/20 px-4 py-2 rounded-lg text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer"
-                    >
-                        <MessageSquare className="w-4 h-4" />
-                        <span className="text-sm font-medium">Messages</span>
-                        <span className="ml-auto bg-cyan-500/20 px-2 py-0.5 rounded text-xs font-bold">{messagesCount}</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* 2. The Main Grid ("Big Buttons") */}
-            {/* Breadcrumbs Row + Total Records */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-2">
-                <JumpBackIn />
-
-                {/* Lifted Total Records Count */}
-                {crmEntities.length > 0 && (
-                    <div className="flex items-center gap-2 pb-1">
-                        <span className="text-2xl font-bold text-white">
-                            {crmEntities.reduce((sum, e) => sum + e.value, 0)}
-                        </span>
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                            Total Records
-                        </span>
+        <DashboardLayoutProvider initialLayout={initialLayout}>
+            <div className="flex flex-col p-6 min-h-screen">
+                {/* 1. Header & Intelligence Section */}
+                <div className="max-w-[1600px] mx-auto w-full space-y-8 pb-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight text-white/90">{greeting}, {userName}</h1>
+                            <p className="text-muted-foreground mt-1 font-medium italic opacity-80 border-l-2 border-primary/30 pl-3">This is your Command Center.</p>
+                        </div>
+                        {/* Jump Back In - Top Right with Global Edit */}
+                        <div className="flex-shrink-0 relative">
+                            <div className="absolute top-[-2.5rem] right-0 z-10 font-sans">
+                                <EditDashboardButton availableEntities={crmEntities} />
+                            </div>
+                            <JumpBackIn align="right" />
+                        </div>
                     </div>
-                )}
-            </div>
 
-            <div className="grid gap-6 grid-cols-1">
-                {crmEntities.length > 0 && (
-                    <EntityBreakdown title="" entities={crmEntities} hideHeader={true} className="border-none bg-transparent p-0 shadow-none" />
-                )}
-                {/* Merging Projects into the same visual flow if possible, or stacked */}
-
-            </div>
-
-
-            {/* 3. Deep Dive Stats (Legacy Command Center) - Kept below as secondary info */}
-            <div className="pt-8 border-t border-white/10">
-                <h3 className="text-lg font-semibold text-white/80 mb-6">Performance Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <DashboardCard
-                        icon={DollarSign}
-                        label="Expected Revenue"
-                        count={revenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
-                        description="From open opportunities"
-                        variant="success"
-                        hideIcon={true}
-                        onClick={() => router.push("/crm/opportunities")}
-                        className="cursor-pointer hover:ring-1 hover:ring-emerald-500/50"
-                    />
-                    <DashboardCard
-                        icon={TrendingUp}
-                        label="Active Pipeline"
-                        count={activePipelineCount}
-                        description={`${totalLeads} Leads, ${totalOpportunities} Opportunities`}
-                        variant="info"
-                        onClick={() => router.push("/crm/opportunities")}
-                        className="cursor-pointer hover:ring-1 hover:ring-cyan-500/50"
-                    />
-                    <DashboardCard
-                        icon={Users2}
-                        label="Active Users"
-                        count={activeUsersCount}
-                        description="Team members active"
-                        variant="violet"
-                        onClick={() => router.push("/settings/team")}
-                        className="cursor-pointer hover:ring-1 hover:ring-violet-500/50"
-                    />
-                    <DashboardCard
-                        icon={Activity}
-                        label="System Health"
-                        count="98%"
-                        description="Operational"
-                        variant="warning"
-                        onClick={() => router.push("/partners/plans")}
-                        className="cursor-pointer hover:ring-1 hover:ring-amber-500/50"
+                    {/* Intelligence & Operations Widgets - MOVED TO TOP */}
+                    <EditableWidgetGrid
+                        newLeads={newLeads}
+                        dailyTasks={dailyTasks}
+                        userId={userId}
+                        newProjects={newProjects}
+                        messages={messages}
+                        teamActivity={teamActivity}
+                        recentFiles={recentFiles}
+                        revenuePacing={revenuePacing}
+                        outreachStats={outreachStats}
+                        leadPools={leadPools}
+                        leadGenStats={leadGenStats}
+                        intelligenceStats={intelligenceStats}
+                        aiInsights={aiInsights}
+                        revenue={revenue}
+                        activeUsersCount={activeUsersCount}
+                        myPipeline={myPipeline}
+                        teamPipeline={teamPipeline}
+                        crmEntities={crmEntities}
                     />
                 </div>
             </div>
-
-            {/* 4. Pipeline Visualizations (Slots) */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-                {myPipeline}
-                {teamPipeline}
-            </div>
-        </div >
+        </DashboardLayoutProvider>
     );
 };
 

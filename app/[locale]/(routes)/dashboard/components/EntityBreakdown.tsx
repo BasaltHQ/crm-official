@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DashboardCard from "../../crm/dashboard/_components/DashboardCard";
+import { useDashboardLayout } from "../../crm/dashboard/_context/DashboardLayoutContext";
+import { X } from "lucide-react";
 
 // Map icon names to actual icon components
 const iconMap: Record<string, LucideIcon> = {
@@ -63,6 +65,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 interface EntityItem {
+  id: string;
   name: string;
   value: number;
   href: string;
@@ -75,6 +78,7 @@ interface EntityBreakdownProps {
   entities: EntityItem[];
   className?: string;
   hideHeader?: boolean;
+  headerAction?: React.ReactNode;
 }
 
 const colorStyles: Record<string, { bg: string; border: string; icon: string }> = {
@@ -99,56 +103,50 @@ export function EntityBreakdown({
   entities,
   className,
   hideHeader = false,
+  headerAction,
 }: EntityBreakdownProps) {
-  const total = entities.reduce((sum, e) => sum + e.value, 0);
+  const { widgets, isEditMode, toggleWidgetVisibility } = useDashboardLayout();
+
+  // Filter entities based on visibility in DashboardLayoutContext
+  const visibleEntities = entities.filter(entity => {
+    const widget = widgets.find(w => w.id === entity.id);
+    return widget ? widget.isVisible : true; // Default to visible if not found
+  });
+
+  const total = visibleEntities.reduce((sum, e) => sum + e.value, 0);
+
+  if (visibleEntities.length === 0 && !isEditMode) return null;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
       className={cn(
-        "rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl p-6",
+        !hideHeader && "rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl p-6",
         className
       )}
     >
       {!hideHeader && (
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-white">{total}</span>
-            <span className="text-xs text-muted-foreground uppercase">
-              Total Records
-            </span>
+        <div className="flex items-center justify-between mb-4 px-2">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em]">{title}</h3>
+          <div className="flex items-center gap-4">
+            {headerAction ? headerAction : (
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-white">{total}</span>
+                <span className="text-xs text-muted-foreground uppercase">
+                  Total Records
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Visual breakdown bar */}
-      <div className="relative h-3 rounded-full overflow-hidden bg-white/5 mb-6">
-        <div className="absolute inset-0 flex">
-          {entities.map((entity, index) => {
-            const width = total > 0 ? (entity.value / total) * 100 : 0;
-            const colors = colorStyles[entity.color] || colorStyles.cyan;
-            return (
-              <motion.div
-                key={entity.name}
-                className={cn(
-                  "h-full",
-                  colors.bg.split(" ")[0].replace("/10", "/60")
-                )}
-                initial={{ width: 0 }}
-                animate={{ width: `${width}%` }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-              />
-            );
-          })}
-        </div>
-      </div>
 
       {/* Entity grid using DashboardCard */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {entities.map((entity, index) => {
+        {visibleEntities.map((entity, index) => {
           const Icon = iconMap[entity.iconName] || DollarSign;
 
           // Map Entity colors to DashboardCard variants for base structure
@@ -163,12 +161,25 @@ export function EntityBreakdown({
 
           return (
             <motion.div
-              key={entity.name}
+              key={entity.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
+              className="relative group"
             >
-              <Link href={entity.href} className="block group h-full">
+              {isEditMode && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleWidgetVisibility(entity.id, false);
+                  }}
+                  className="absolute -top-2 -right-2 z-50 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition-colors border-2 border-white/20"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              <Link href={entity.href} className={cn("block group h-full", isEditMode && "pointer-events-none")}>
                 <DashboardCard
                   icon={Icon}
                   label={entity.name}
@@ -176,7 +187,7 @@ export function EntityBreakdown({
                   description={`${percentage}% of records`}
                   variant={variant}
                   // Apply specific color overrides to matching valid tailwind classes
-                  className={cn("transition-colors duration-300", colors.bg, colors.border)}
+                  className={cn("transition-colors duration-300", colors.bg, colors.border, isEditMode && "opacity-50 grayscale-[0.5]")}
                   iconClassName={colors.icon}
                 />
               </Link>

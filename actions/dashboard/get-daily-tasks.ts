@@ -1,29 +1,30 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
 
 export const getDailyTasks = async () => {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return [];
+    const teamInfo = await getCurrentUserTeamId();
+    if (!teamInfo?.userId) return [];
 
-    // Get start and end of today in local time (server time, but ideally should be user time)
-    // For simplicity, we'll check for tasks due "on or before" end of today that are not complete.
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const whereClause: any = {
+        taskStatus: {
+            not: "COMPLETE",
+        },
+    };
+
+    if (teamInfo.isGlobalAdmin) {
+        // No filter for global admin (or filter by nothing)
+    } else if (teamInfo.isAdmin) {
+        // Admins see all tasks in their team
+        whereClause.team_id = teamInfo.teamId;
+    } else {
+        // Members see their own tasks
+        whereClause.user = teamInfo.userId;
+    }
 
     const tasks = await prismadb.tasks.findMany({
-        where: {
-            user: session.user.id,
-            dueDateAt: {
-                lte: endOfDay,
-            },
-            taskStatus: {
-                not: "COMPLETE",
-            },
-        },
+        where: whereClause,
         include: {
             assigned_section: {
                 select: {
@@ -32,10 +33,12 @@ export const getDailyTasks = async () => {
                 },
             },
         },
-        orderBy: {
-            dueDateAt: "asc",
-        },
+        orderBy: [
+            { dueDateAt: "asc" },
+            { createdAt: "desc" }
+        ],
     });
 
+    // Sort by priority locally if needed, but date is key
     return tasks;
 };

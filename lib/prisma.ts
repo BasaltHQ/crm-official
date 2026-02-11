@@ -2,8 +2,17 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-export const prismadb = globalForPrisma.prisma || new PrismaClient();
+let prismaInstance = globalForPrisma.prisma;
+
+// Check if the current instance is stale (missing the new model)
+if (prismaInstance && !(prismaInstance as any).dashboardPreference) {
+  console.log("Resetting stale Prisma client (missing dashboardPreference)");
+  prismaInstance = undefined as any;
+}
+
+export const prismadb = prismaInstance || new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prismadb;
 }
+// Force reload

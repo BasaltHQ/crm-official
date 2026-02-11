@@ -951,6 +951,7 @@ model Users {
   approval_actions           ApprovalRequestAction[] @relation(name: "ApprovalActor")
   notifications              Notification[]
   quotes                     crm_Quotes[]
+  dashboard_preference DashboardPreference?
 }
 
 model Team {
@@ -3434,4 +3435,13 @@ model crm_QuoteItems {
   
   quote       crm_Quotes   @relation(fields: [quoteId], references: [id])
   product     crm_Products @relation(fields: [productId], references: [id])
+}
+
+model DashboardPreference {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  layout    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      Users    @relation(fields: [userId], references: [id])
 }

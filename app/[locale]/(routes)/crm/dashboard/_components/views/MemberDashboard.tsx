@@ -1,15 +1,13 @@
 "use client";
 
-import React from "react";
+import { LeadsWidget, TasksWidget, ProjectsWidget, MessagesWidget } from "../widgets";
 import DashboardCard from "../DashboardCard";
-import DailyTasksWidget from "../DailyTasksWidget";
-import MyLeadsWidget from "../MyLeadsWidget";
-import NewProjectsWidget from "../NewProjectsWidget";
-import MessagesWidget from "../MessagesWidget";
-import { Folder, Zap } from "lucide-react";
+import { Folder, Zap, Sparkles } from "lucide-react";
+import { useGreeting } from "@/app/hooks/use-greeting";
 
 interface MemberDashboardProps {
     userId: string;
+    userName?: string;
     dailyTasks: any[];
     newLeads: any[];
     newProjects: any[];
@@ -19,34 +17,34 @@ interface MemberDashboardProps {
 
 const MemberDashboard = ({
     userId,
+    userName,
     dailyTasks,
     newLeads,
     newProjects,
     messages,
     userTasksCount,
 }: MemberDashboardProps) => {
+    const greeting = useGreeting();
+
     return (
-        <div className="flex flex-col space-y-8">
+        <div className="flex flex-col space-y-10 p-4">
             {/* Hero / Focus Section */}
             <div>
-                <h2 className="text-3xl font-bold tracking-tight mb-4">Good Morning</h2>
-                <p className="text-muted-foreground mb-8">Here is what's on your plate today.</p>
+                <div className="flex items-center gap-3 mb-2">
+                    <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+                    <h2 className="text-3xl font-bold tracking-tight text-white/90">{greeting}{userName ? `, ${userName}` : ""}</h2>
+                </div>
+                <p className="text-muted-foreground mb-8 font-medium">Here is what's on your plate today.</p>
 
-                {/* The Action Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {/* Daily Tasks - Warning/Yellow Theme */}
-                    <DailyTasksWidget tasks={dailyTasks} />
-
-                    {/* New Leads - Info/Cyan Theme (mapped to UserPlus in widget) */}
-                    <MyLeadsWidget leads={newLeads} />
-
-                    {/* Projects - Default or Custom */}
-                    <NewProjectsWidget projects={newProjects} />
-
-                    {/* Messages - Default or Custom */}
+                {/* The Action Grid - Modern Widgets */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <LeadsWidget leads={newLeads} />
+                    <TasksWidget tasks={dailyTasks} userId={userId} />
+                    <ProjectsWidget projects={newProjects} />
                     <MessagesWidget messages={messages} />
                 </div>
             </div>
+
 
             {/* Quick Stats Row (Personal Performance) */}
             <div>

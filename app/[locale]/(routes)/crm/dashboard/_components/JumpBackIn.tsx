@@ -21,7 +21,12 @@ function getBreadcrumbColor(label: string) {
     return "emerald"; // Default fallback
 }
 
-export default function JumpBackIn() {
+interface JumpBackInProps {
+    align?: "left" | "right";
+    className?: string;
+}
+
+export default function JumpBackIn({ align = "left", className }: JumpBackInProps) {
     const { data: session } = useSession(); // Add session hook
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [isMounted, setIsMounted] = useState(false);
@@ -73,15 +78,18 @@ export default function JumpBackIn() {
 
     if (filteredHistory.length === 0) return null;
 
+    const alignmentClass = align === "right" ? "justify-end" : "justify-start";
+    const textAlignClass = align === "right" ? "text-right" : "text-left";
+
     return (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-500 mb-0">
+        <div className={cn("animate-in fade-in slide-in-from-top-2 duration-500 mb-0", className)}>
             {/* "Sexy" Breadcrumb Header - Compact */}
-            <div className="flex items-center gap-1.5 mb-1.5 px-1">
+            <div className={cn("flex items-center gap-1.5 mb-1.5 px-1", alignmentClass)}>
                 <Clock className="w-3 h-3 text-white/40" />
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40">Jump Back In</h3>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={cn("flex flex-wrap items-center gap-2", alignmentClass)}>
                 {filteredHistory.map((item, index) => {
                     const color = getBreadcrumbColor(item.label);
 

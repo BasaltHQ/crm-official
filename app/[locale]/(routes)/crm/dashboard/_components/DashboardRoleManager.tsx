@@ -14,6 +14,15 @@ import { getUnifiedSalesData } from "@/actions/crm/get-unified-sales-data";
 import { getUsersTasksCount } from "@/actions/dashboard/get-tasks-count";
 import { getSummaryCounts } from "@/actions/dashboard/get-summary-counts";
 import { getModules } from "@/actions/get-modules";
+import { getDashboardLayout } from "../_actions/get-dashboard-layout";
+import { getTeamActivity } from "@/actions/dashboard/get-team-activity";
+import { getRecentFiles } from "@/actions/dashboard/get-recent-files";
+import { getRevenuePacing } from "@/actions/dashboard/get-revenue-pacing";
+import { getOutreachStats } from "@/actions/dashboard/get-outreach-stats";
+import { getLeadPoolsStats } from "@/actions/dashboard/get-lead-pools-stats";
+import { getLeadGenStats } from "@/actions/dashboard/get-lead-gen-stats";
+import { getIntelligenceStats } from "@/actions/dashboard/get-intelligence-stats";
+import { getAIInsights } from "@/actions/dashboard/get-ai-insights";
 
 import { Suspense } from "react";
 import MyPipelineSection from "../../../dashboard/components/MyPipelineSection";
@@ -60,7 +69,16 @@ const DashboardRoleManager = async () => {
             caseCount,
             productCount,
             quoteCount,
-            reportCount
+            reportCount,
+            initialLayout,
+            teamActivity,
+            recentFiles,
+            revenuePacing,
+            outreachStats,
+            leadPools,
+            leadGenStats,
+            intelligenceStats,
+            aiInsights,
         ] = await Promise.all([
             getUnifiedSalesData(),
             prismadb.users.count(),
@@ -72,12 +90,21 @@ const DashboardRoleManager = async () => {
             getDailyTasks(),
             getUserMessages(),
             prismadb.crm_Workflow.count({ where: { team_id: (session.user as any).team_id } } as any),
-            prismadb.approvalProcess.count({ where: { team_id: (session.user as any).team_id } } as any),
-            prismadb.validationRule.count({ where: { team_id: (session.user as any).team_id } } as any),
-            prismadb.crm_Cases.count({ where: { team_id: (session.user as any).team_id } } as any),
-            prismadb.crm_Products.count({ where: { team_id: (session.user as any).team_id } } as any),
-            prismadb.crm_Quotes.count({ where: { team_id: (session.user as any).team_id } } as any),
-            prismadb.savedReport.count({ where: { teamId: (session.user as any).team_id } } as any),
+            (prismadb as any).approvalProcess.count({ where: { team_id: (session.user as any).team_id } } as any),
+            (prismadb as any).validationRule.count({ where: { team_id: (session.user as any).team_id } } as any),
+            (prismadb as any).crm_Cases.count({ where: { team_id: (session.user as any).team_id } } as any),
+            (prismadb as any).crm_Products.count({ where: { team_id: (session.user as any).team_id } } as any),
+            (prismadb as any).crm_Quotes.count({ where: { team_id: (session.user as any).team_id } } as any),
+            (prismadb as any).savedReport.count({ where: { teamId: (session.user as any).team_id } } as any),
+            getDashboardLayout(),
+            getTeamActivity(),
+            getRecentFiles(),
+            getRevenuePacing(),
+            getOutreachStats(),
+            getLeadPoolsStats(),
+            getLeadGenStats(),
+            getIntelligenceStats(),
+            getAIInsights(),
         ]);
 
         const crmModule = modules.find((module: any) => module.name === "crm" || module.name === "CRM"); // Case handling
@@ -88,39 +115,39 @@ const DashboardRoleManager = async () => {
         if (crmModule?.enabled) {
             crmEntities.push(
                 // Core CRM (Match Sidebar Order)
-                { name: "Accounts", value: counts.accounts, href: "/crm/accounts", iconName: "LandmarkIcon", color: "cyan" },
-                { name: "Contacts", value: counts.contacts, href: "/crm/contacts", iconName: "Contact", color: "violet" },
-                { name: "Contracts", value: counts.contracts, href: "/crm/contracts", iconName: "FilePenLine", color: "rose" },
-                { name: "Dialer", value: 0, href: "/crm/dialer", iconName: "Phone", color: "blue" },
-                { name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users2", color: "emerald" }
+                { id: "entity:accounts", name: "Accounts", value: counts.accounts, href: "/crm/accounts", iconName: "LandmarkIcon", color: "cyan" },
+                { id: "entity:contacts", name: "Contacts", value: counts.contacts, href: "/crm/contacts", iconName: "Contact", color: "violet" },
+                { id: "entity:contracts", name: "Contracts", value: counts.contracts, href: "/crm/contracts", iconName: "FilePenLine", color: "rose" },
+                { id: "entity:dialer", name: "Dialer", value: 0, href: "/crm/dialer", iconName: "Phone", color: "blue" },
+                { id: "entity:leads_manager", name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users2", color: "emerald" }
             );
 
             // Insert Projects here to match sidebar order
             if (projectsModule?.enabled) {
-                crmEntities.push({ name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" });
+                crmEntities.push({ id: "entity:projects", name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" });
             }
 
             crmEntities.push(
-                { name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "Target", color: "amber" },
-                { name: "Sales Command", value: 0, href: "/crm/sales-command", iconName: "Radio", color: "pink" },
-                { name: "Service Console", value: caseCount, href: "/crm/cases", iconName: "Headset", color: "indigo" },
+                { id: "entity:opportunities", name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "Target", color: "amber" },
+                { id: "entity:sales_command", name: "Sales Command", value: 0, href: "/crm/sales-command", iconName: "Radio", color: "pink" },
+                { id: "entity:service_console", name: "Service Console", value: caseCount, href: "/crm/cases", iconName: "Headset", color: "indigo" },
 
                 // FlowState / Automation (Phase 3)
-                { name: "Guard Rules", value: guardCount, href: "/crm/validation-rules", iconName: "Shield", color: "rose" },
-                { name: "Approval Chains", value: approvalCount, href: "/crm/approvals", iconName: "CheckCircle2", color: "emerald" },
-                { name: "FlowState Builder", value: workflowCount, href: "/crm/workflows", iconName: "Zap", color: "indigo" },
+                { id: "entity:guard_rules", name: "Guard Rules", value: guardCount, href: "/crm/validation-rules", iconName: "Shield", color: "rose" },
+                { id: "entity:approval_chains", name: "Approval Chains", value: approvalCount, href: "/crm/approvals", iconName: "CheckCircle2", color: "emerald" },
+                { id: "entity:flowstate_builder", name: "FlowState Builder", value: workflowCount, href: "/crm/workflows", iconName: "Zap", color: "indigo" },
 
                 // Outreach & Optimization (Phase 4)
-                { name: "Lead Wizard", value: 0, href: "/crm/lead-wizard", iconName: "Wand2", color: "cyan" },
-                { name: "Lead Pools", value: 0, href: "/crm/lead-pools", iconName: "Target", color: "violet" },
-                { name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange" },
+                { id: "entity:lead_wizard", name: "Lead Wizard", value: 0, href: "/crm/lead-wizard", iconName: "Wand2", color: "cyan" },
+                { id: "entity:lead_pools", name: "Lead Pools", value: 0, href: "/crm/lead-pools", iconName: "Target", color: "violet" },
+                { id: "entity:outreach", name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange" },
 
                 // Tasks & Supplementary
-                { name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald" },
-                { name: "Invoices", value: counts.invoices, href: "/invoice", iconName: "FileText", color: "blue" },
-                { name: "Reports", value: reportCount, href: "/reports", iconName: "BarChart3", color: "amber" },
-                { name: "Products", value: productCount, href: "/crm/products", iconName: "Package", color: "teal" },
-                { name: "Quotes", value: quoteCount, href: "/crm/quotes", iconName: "FileText", color: "blue" }
+                { id: "entity:my_tasks", name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald" },
+                { id: "entity:invoices", name: "Invoices", value: counts.invoices, href: "/invoice", iconName: "FileText", color: "blue" },
+                { id: "entity:reports", name: "Reports", value: reportCount, href: "/reports", iconName: "BarChart3", color: "amber" },
+                { id: "entity:products", name: "Products", value: productCount, href: "/crm/products", iconName: "Package", color: "teal" },
+                { id: "entity:quotes", name: "Quotes", value: quoteCount, href: "/crm/quotes", iconName: "FileText", color: "blue" }
             );
         }
 
@@ -140,20 +167,33 @@ const DashboardRoleManager = async () => {
                 activeUsersCount={activeUsersCount}
                 crmEntities={crmEntities}
                 projectEntities={projectEntities}
+                newLeads={newLeads}
+                newProjects={newProjects}
+                dailyTasks={dailyTasks}
+                messages={messages}
+                teamActivity={teamActivity}
+                recentFiles={recentFiles}
+                revenuePacing={revenuePacing}
+                outreachStats={outreachStats}
+                leadPools={leadPools}
+                leadGenStats={leadGenStats}
+                intelligenceStats={intelligenceStats}
+                aiInsights={aiInsights}
                 newLeadsCount={Array.isArray(newLeads) ? newLeads.length : 0}
                 newProjectsCount={Array.isArray(newProjects) ? newProjects.length : 0}
                 allTasksCount={counts.tasks}
                 messagesCount={Array.isArray(messages) ? messages.length : 0}
                 myPipeline={
-                    <Suspense fallback={<LoadingBox />}>
+                    <Suspense key="personal-pipeline-suspense" fallback={<LoadingBox />}>
                         <MyPipelineSection userId={userId} />
                     </Suspense>
                 }
                 teamPipeline={
-                    <Suspense fallback={<LoadingBox />}>
+                    <Suspense key="team-pipeline-suspense" fallback={<LoadingBox />}>
                         <TeamPipelineSection />
                     </Suspense>
                 }
+                initialLayout={initialLayout as any}
             />
         );
     }
@@ -170,6 +210,7 @@ const DashboardRoleManager = async () => {
         return (
             <MemberDashboard
                 userId={userId}
+                userName={session.user.name || "User"}
                 dailyTasks={dailyTasks}
                 newLeads={newLeads}
                 newProjects={newProjects}
