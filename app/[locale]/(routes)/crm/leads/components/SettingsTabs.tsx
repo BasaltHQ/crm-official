@@ -8,6 +8,7 @@ import CalendarEventsPanel from "./CalendarEventsPanel";
 import SignaturesResourcesPanel from "./SignaturesResourcesPanel";
 import PortalSettingsPanel from "./PortalSettingsPanel";
 import { Link, Clock, Calendar, PenTool, MessageSquare, LucideIcon } from "lucide-react";
+import DashboardCard from "../../dashboard/_components/DashboardCard";
 
 type SettingsTabsProps = {
     defaultTab?: "integration" | "availability" | "events" | "signatures" | "portal";
@@ -50,8 +51,8 @@ export default function SettingsTabs({ defaultTab = "integration" }: SettingsTab
         },
         {
             value: "signatures",
-            title: "Signatures",
-            description: "Email signatures",
+            title: "Resources",
+            description: "Manage buttons & prompts",
             icon: PenTool,
             color: "from-orange-500/20 to-amber-500/20",
             iconColor: "text-orange-400"
@@ -69,35 +70,34 @@ export default function SettingsTabs({ defaultTab = "integration" }: SettingsTab
     return (
         <div className="w-full h-full flex flex-col">
             <Tabs defaultValue={defaultTab} className="w-full h-full flex flex-col">
-                <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 h-auto bg-transparent p-0">
-                    {cards.map((card) => (
-                        <TabsTrigger
-                            key={card.value}
-                            value={card.value}
-                            className={`
-                                group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 
-                                p-3 hover:bg-white/10 transition-all duration-300 backdrop-blur-md 
-                                data-[state=active]:bg-white/10 data-[state=active]:shadow-lg data-[state=active]:ring-1 data-[state=active]:ring-white/20
-                                h-full w-full justify-start text-left
-                            `}
-                        >
-                            <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-100 transition-opacity duration-300`} />
+                <TabsList className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4 h-auto bg-transparent p-0">
+                    {cards.map((card) => {
+                        let variant: "info" | "violet" | "warning" | "success" | "default" = "default";
+                        if (card.value === "integration") variant = "info";
+                        if (card.value === "availability") variant = "success";
+                        if (card.value === "events") variant = "violet";
+                        if (card.value === "signatures") variant = "warning";
+                        if (card.value === "portal") variant = "violet";
 
-                            <div className="relative z-10 flex flex-col items-center justify-center space-y-2 text-center w-full">
-                                <div className={`p-2 rounded-full bg-gradient-to-br ${card.color} border border-white/10 shadow-sm ${card.iconColor}`}>
-                                    <card.icon className="w-5 h-5" strokeWidth={1.5} />
-                                </div>
-                                <div className="space-y-0.5">
-                                    <span className="block text-xs md:text-sm font-medium text-foreground group-hover:text-white transition-colors">
-                                        {card.title}
-                                    </span>
-                                    <span className="block text-[9px] md:text-[10px] text-muted-foreground group-hover:text-white/80 transition-colors hidden md:block">
-                                        {card.description}
-                                    </span>
-                                </div>
-                            </div>
-                        </TabsTrigger>
-                    ))}
+                        return (
+                            <TabsTrigger
+                                key={card.value}
+                                value={card.value}
+                                asChild
+                            >
+                                <DashboardCard
+                                    icon={card.icon}
+                                    label={card.title}
+                                    description={card.description}
+                                    variant={variant}
+                                    hideIcon={true}
+                                    className="data-[state=active]:ring-2 data-[state=active]:ring-primary data-[state=active]:border-primary/50"
+                                    labelClassName="text-sm md:text-base"
+                                    descriptionClassName="text-[10px] md:text-xs"
+                                />
+                            </TabsTrigger>
+                        );
+                    })}
                 </TabsList>
 
                 <TabsContent value="integration" className="mt-0">

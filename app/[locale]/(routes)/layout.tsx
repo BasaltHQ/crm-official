@@ -10,6 +10,7 @@ import { Metadata } from "next";
 import RecentActivityTracker from "@/components/RecentActivityTracker";
 import GlobalDialer from "@/components/voice/GlobalDialer";
 import { SmartBreadcrumb } from "@/components/SmartBreadcrumb";
+import UtilityBar from "@/components/UtilityBar";
 
 
 function getSafeMetadataBase(): URL {
@@ -100,6 +101,7 @@ export default async function AppLayout({
         <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
           {children}
         </div>
+        <UtilityBar />
         <Footer />
 
       </div>

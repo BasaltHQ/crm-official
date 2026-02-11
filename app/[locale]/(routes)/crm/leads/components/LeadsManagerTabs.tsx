@@ -11,6 +11,7 @@ import RightViewModal from "@/components/modals/right-view-modal";
 import { NewLeadForm } from "./NewLeadForm";
 import { LayoutList, Briefcase, Phone, Plus } from "lucide-react";
 import { usePermission } from "@/components/providers/permissions-provider";
+import DashboardCard from "../../dashboard/_components/DashboardCard";
 
 type Props = {
   leads: any[];
@@ -93,60 +94,44 @@ export default function LeadsManagerTabs({ leads: initialLeads, crmData, default
   return (
     <div className="w-full h-full flex flex-col">
       {/* Navigation Cards Grid */}
+      {/* Navigation Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 flex-shrink-0 pb-4 pt-4 -mt-2">
-        {visibleCards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => setActiveTab(card.id as typeof activeTab)}
-            className={`group relative overflow-hidden rounded-xl border p-4 md:p-6 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] text-left ${activeTab === card.id
-              ? "border-primary/50 bg-white/10 ring-2 ring-primary/30"
-              : "border-white/10 bg-white/5 hover:bg-white/10"
-              }`}
-          >
-            {/* Gradient Background */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.color} ${activeTab === card.id ? 'opacity-100' : 'opacity-20 group-hover:opacity-60'} transition-opacity duration-300`} />
+        {visibleCards.map((card) => {
+          let variant: "info" | "violet" | "warning" | "default" = "default";
+          if (card.id === "all") variant = "info";
+          if (card.id === "workspace") variant = "violet";
+          if (card.id === "dialer") variant = "warning";
 
-            <div className="relative z-10 flex flex-col items-center justify-center space-y-2 text-center">
-              {/* Icon Container */}
-              <div className={`p-3 rounded-full bg-gradient-to-br ${card.color} border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 ${card.iconColor} ring-1 ring-white/20 group-hover:ring-white/40`}>
-                <card.icon className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
-              </div>
-              <div className="space-y-0.5">
-                <span className="block text-sm md:text-lg font-medium text-foreground group-hover:text-white transition-colors">
-                  {card.title}
-                </span>
-                <span className="block text-[10px] md:text-xs text-muted-foreground group-hover:text-white/80 transition-colors">
-                  {card.description}
-                </span>
-              </div>
-            </div>
-          </button>
-        ))}
+          return (
+            <DashboardCard
+              key={card.id}
+              icon={card.icon}
+              label={card.title}
+              description={card.description}
+              variant={variant}
+              hideIcon={true}
+              onClick={() => setActiveTab(card.id as typeof activeTab)}
+              className={activeTab === card.id ? "ring-2 ring-primary border-primary/50 bg-accent/10" : ""}
+              labelClassName="text-sm md:text-base"
+              descriptionClassName="text-[10px] md:text-xs"
+            />
+          );
+        })}
 
         {/* Add Lead Card with Modal */}
         {canCreate && (
           <RightViewModal
             customTrigger
             label={
-              <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-4 md:p-6 hover:bg-white/10 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] text-left w-full h-full">
-                {/* Gradient Background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${addLeadCard.color} opacity-20 group-hover:opacity-60 transition-opacity duration-300`} />
-
-                <div className="relative z-10 flex flex-col items-center justify-center space-y-2 text-center h-full">
-                  {/* Icon Container */}
-                  <div className={`p-3 rounded-full bg-gradient-to-br ${addLeadCard.color} border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 ${addLeadCard.iconColor} ring-1 ring-white/20 group-hover:ring-white/40`}>
-                    <addLeadCard.icon className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <span className="block text-sm md:text-lg font-medium text-foreground group-hover:text-white transition-colors">
-                      {addLeadCard.title}
-                    </span>
-                    <span className="block text-[10px] md:text-xs text-muted-foreground group-hover:text-white/80 transition-colors">
-                      {addLeadCard.description}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <DashboardCard
+                icon={addLeadCard.icon}
+                label={addLeadCard.title}
+                description={addLeadCard.description}
+                variant="success"
+                hideIcon={true}
+                labelClassName="text-sm md:text-base"
+                descriptionClassName="text-[10px] md:text-xs"
+              />
             }
             title="Create New Lead"
             description="Fill out the form below to add a new lead to your CRM."

@@ -15,6 +15,8 @@ interface DashboardCardProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     primaryColor?: string;
     iconClassName?: string;
     hideIcon?: boolean;
+    labelClassName?: string;
+    descriptionClassName?: string;
 }
 
 const variantIconStyles: Record<CardVariant, string> = {
@@ -26,7 +28,7 @@ const variantIconStyles: Record<CardVariant, string> = {
 };
 
 const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
-    ({ className, icon: Icon, label, count, description, variant = "default", iconClassName, primaryColor, hideIcon = false, ...props }, ref) => {
+    ({ className, icon: Icon, label, count, description, variant = "default", iconClassName, primaryColor, hideIcon = false, labelClassName, descriptionClassName, ...props }, ref) => {
         return (
             <button
                 ref={ref}
@@ -54,7 +56,7 @@ const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
                     {hideIcon ? (
                         // Centered Layout (Stats/Deep Dive)
                         <>
-                            <h3 className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground/90 mb-0.5">
+                            <h3 className={cn("font-bold text-[11px] uppercase tracking-wider text-muted-foreground/90 mb-0.5", labelClassName)}>
                                 {label}
                             </h3>
                             {count !== undefined && (
@@ -63,7 +65,7 @@ const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
                                 </span>
                             )}
                             {description && (
-                                <p className="text-[9px] text-muted-foreground font-medium opacity-80">
+                                <p className={cn("text-[9px] text-muted-foreground font-medium opacity-80", descriptionClassName)}>
                                     {description}
                                 </p>
                             )}
@@ -72,7 +74,7 @@ const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
                         // Clean List Layout (Entities/Icons) - Left Aligned, No Central Icon
                         <>
                             <div className="flex items-center gap-2 mb-0.5">
-                                <h3 className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground/90">
+                                <h3 className={cn("font-bold text-[11px] uppercase tracking-wider text-muted-foreground/90", labelClassName)}>
                                     {label}
                                 </h3>
                             </div>
@@ -86,7 +88,7 @@ const DashboardCard = React.forwardRef<HTMLButtonElement, DashboardCardProps>(
                             </div>
 
                             {description && (
-                                <p className="text-[9px] text-muted-foreground font-medium truncate max-w-full opacity-80 mt-0.5">
+                                <p className={cn("text-[9px] text-muted-foreground font-medium truncate max-w-full opacity-80 mt-0.5", descriptionClassName)}>
                                     {description}
                                 </p>
                             )}
