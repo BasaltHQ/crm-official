@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -14,43 +14,57 @@ type MenuItemProps = {
     isActive: boolean;
     onClick?: () => void;
     isMobile?: boolean;
+    /** Optional notification badge count */
+    badge?: number;
 };
 
-const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile = false }: MenuItemProps) => {
-    // Mobile layout - compact for bottom navbar
+const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile = false, badge }: MenuItemProps) => {
+    // Determine label for collapsed/mobile view
+    // Specific override: Dashboard -> Home
+    const rawLabel = title;
+    const isDashboard = rawLabel === "Dashboard";
+    const microLabel = isDashboard ? "Home" : rawLabel.split(' ')[0];
+
+    // ─── Mobile ───
     if (isMobile) {
         return (
             <Link href={href} onClick={onClick} className="flex-shrink-0">
                 <div
                     className={cn(
-                        "relative flex items-center justify-center p-5 rounded-xl transition-all duration-200",
+                        "relative flex flex-col items-center justify-center py-2 px-4 rounded-xl transition-all duration-200 gap-0.5",
                         isActive
                             ? "bg-primary/20 text-primary"
                             : "text-muted-foreground"
                     )}
                 >
-                    <Icon className={cn("w-7 h-7", isActive && "text-primary")} />
+                    <Icon className={cn("w-6 h-6", isActive && "text-primary")} />
+                    <span className={cn(
+                        "text-[9px] uppercase tracking-wider font-semibold truncate max-w-[64px]",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                    )}>
+                        {microLabel}
+                    </span>
                 </div>
             </Link>
         );
     }
 
-    // Desktop sidebar layout
+    // ─── Desktop ───
     return (
         <div className="w-full">
             <Link href={href} onClick={onClick}>
                 <div
                     className={cn(
                         "relative w-full flex items-center rounded-xl transition-all duration-200 group text-sm font-medium",
-                        isOpen ? "py-2 px-3" : "py-1 px-2 justify-center",
+                        isOpen ? "py-1.5 px-2" : "flex-col py-2 px-1 justify-center gap-0.5",
                         isActive
                             ? "text-primary"
                             : cn("text-muted-foreground", isOpen && "hover:text-foreground hover:bg-white/5")
                     )}
                 >
-                    {/* Active State Background - No layoutId, just conditional render */}
+                    {/* Active glow */}
                     {isActive && (
-                        <div className="absolute inset-0 rounded-xl bg-primary/10 border border-primary/20 shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)]" />
+                        <div className="absolute inset-0 rounded-xl bg-primary/10 border border-primary/20 shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)] content-['']" />
                     )}
 
                     {/* Icon */}
@@ -60,7 +74,7 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
                     )}>
                         <Icon
                             className={cn(
-                                "w-5 h-5 transition-colors duration-200",
+                                "w-[18px] h-[18px] transition-colors duration-200",
                                 isActive
                                     ? "text-primary"
                                     : (isOpen ? "group-hover:text-primary" : "group-hover/icon:text-primary text-muted-foreground")
@@ -81,6 +95,23 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
                     >
                         {title}
                     </motion.span>
+
+                    {/* Micro-Label for Collapsed State */}
+                    {!isOpen && (
+                        <span className={cn(
+                            "text-[9px] uppercase tracking-wider mt-0.5 truncate max-w-[60px] text-center",
+                            isActive ? "text-primary font-semibold" : "text-muted-foreground"
+                        )}>
+                            {microLabel}
+                        </span>
+                    )}
+
+                    {/* Badge — positioned to never overlap chevrons */}
+                    {badge && badge > 0 && isOpen && (
+                        <span className="ml-auto z-10 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold leading-none shrink-0">
+                            {badge > 99 ? "99+" : badge}
+                        </span>
+                    )}
                 </div>
             </Link>
         </div>

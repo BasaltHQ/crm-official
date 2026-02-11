@@ -30,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Sections } from "@prisma/client";
 import { ElementRef, useRef, useState } from "react";
 import FormSheet from "@/components/sheets/form-sheet";
+import { priorities } from "../../tasks/data/data";
+import { cn } from "@/lib/utils";
 
 interface DashboardData {
   getTaskPastDue: Tasks[];
@@ -118,19 +120,16 @@ const ProjectDashboardCockpit = ({
                 Due date: {moment(task.dueDateAt).format("YYYY-MM-DD")}
               </div>
               <div>
-                <p
-                  className={
-                    task.priority === "normal"
-                      ? `text-yellow-500`
-                      : task.priority === "high"
-                        ? `text-red-500`
-                        : task.priority === "low"
-                          ? `text-green-500`
-                          : `text-slate-600`
-                  }
-                >
-                  Priority: {task.priority}
-                </p>
+                {(() => {
+                  const priorityObj = priorities.find(p => p.value === task.priority) || priorities.find(p => p.value === "normal");
+                  const Icon = priorityObj?.icon;
+                  return (
+                    <div className={cn("flex items-center gap-2 text-sm px-2 py-1 rounded-full w-fit mt-2", priorityObj?.bgColor)}>
+                      {Icon && <Icon className={cn("w-3 h-3", priorityObj?.color)} />}
+                      <span className={cn("font-medium", priorityObj?.color)}>{priorityObj?.label}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </CardContent>
             <CardFooter className="space-x-2 ">
@@ -220,19 +219,16 @@ const ProjectDashboardCockpit = ({
                 Due date: {moment(task.dueDateAt).format("YYYY-MM-DD")}
               </div>
               <div>
-                <p
-                  className={
-                    task.priority === "normal"
-                      ? `text-yellow-500`
-                      : task.priority === "high"
-                        ? `text-red-500`
-                        : task.priority === "low"
-                          ? `text-green-500`
-                          : `text-slate-600`
-                  }
-                >
-                  Priority: {task.priority}
-                </p>
+                {(() => {
+                  const priorityObj = priorities.find(p => p.value === task.priority) || priorities.find(p => p.value === "normal");
+                  const Icon = priorityObj?.icon;
+                  return (
+                    <div className={cn("flex items-center gap-2 text-sm px-2 py-1 rounded-full w-fit mt-2", priorityObj?.bgColor)}>
+                      {Icon && <Icon className={cn("w-3 h-3", priorityObj?.color)} />}
+                      <span className={cn("font-medium", priorityObj?.color)}>{priorityObj?.label}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </CardContent>
             <CardFooter className="space-x-2">

@@ -9,6 +9,7 @@ export * from "./RevenuePacingWidget";
 export * from "./OutreachROIWidget";
 export * from "./LeadPoolsWidget";
 export * from "./LeadWizardWidget";
+export * from "./LeadWizardQuickModal";
 export * from "./AIInsightsWidget";
 export * from "./StatsWidgets";
 export * from "./MyScheduleWidget";

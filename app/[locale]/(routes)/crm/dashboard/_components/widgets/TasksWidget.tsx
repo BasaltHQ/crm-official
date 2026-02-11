@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { markTaskComplete } from "@/actions/dashboard/mark-task-complete";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { priorities } from "@/app/[locale]/(routes)/projects/tasks/data/data";
+import { cn } from "@/lib/utils";
 
 interface DailyTask {
     id: string;
@@ -67,13 +69,8 @@ export const TasksWidget = ({ tasks: initialTasks, userId }: TasksWidgetProps) =
         return task.title.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
-    const priorityColor = (p: string) => {
-        switch (p.toLowerCase()) {
-            case "high": return "destructive";
-            case "medium": return "default";
-            case "low": return "secondary";
-            default: return "outline";
-        }
+    const getPriorityData = (p: string) => {
+        return priorities.find((item) => item.value === p.toLowerCase()) || null;
     };
 
     const rightAction = (
@@ -125,9 +122,15 @@ export const TasksWidget = ({ tasks: initialTasks, userId }: TasksWidgetProps) =
                                     <span className="text-sm font-semibold text-white/90 truncate group-hover:text-primary transition-colors cursor-pointer" onClick={() => handleTaskComplete(task.id)}>
                                         {task.title}
                                     </span>
-                                    <Badge variant={priorityColor(task.priority) as any} className="text-[8px] h-4 px-1 capitalize">
-                                        {task.priority}
-                                    </Badge>
+                                    {(() => {
+                                        const pData = getPriorityData(task.priority);
+                                        return (
+                                            <Badge variant="outline" className={cn("text-[8px] h-4 px-1.5 capitalize border-0 shadow-none", pData?.bgColor, pData?.color)}>
+                                                {pData?.dotColor && <div className={cn("h-1.5 w-1.5 rounded-full mr-0.5", pData.dotColor)} />}
+                                                {task.priority}
+                                            </Badge>
+                                        );
+                                    })()}
                                 </div>
 
                                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-medium">

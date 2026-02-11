@@ -115,39 +115,39 @@ const DashboardRoleManager = async () => {
         if (crmModule?.enabled) {
             crmEntities.push(
                 // Core CRM (Match Sidebar Order)
-                { id: "entity:accounts", name: "Accounts", value: counts.accounts, href: "/crm/accounts", iconName: "LandmarkIcon", color: "cyan" },
-                { id: "entity:contacts", name: "Contacts", value: counts.contacts, href: "/crm/contacts", iconName: "Contact", color: "violet" },
-                { id: "entity:contracts", name: "Contracts", value: counts.contracts, href: "/crm/contracts", iconName: "FilePenLine", color: "rose" },
-                { id: "entity:dialer", name: "Dialer", value: 0, href: "/crm/dialer", iconName: "Phone", color: "blue" },
-                { id: "entity:leads_manager", name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users2", color: "emerald" }
+                { id: "entity:accounts", name: "Accounts", value: counts.accounts, href: "/crm/accounts", iconName: "LandmarkIcon", color: "cyan", tooltip: "Manage your client and company accounts. View details, track interactions, and maintain relationships." },
+                { id: "entity:contacts", name: "Contacts", value: counts.contacts, href: "/crm/contacts", iconName: "Contact", color: "violet", tooltip: "View and manage all your contacts. Add, edit, and organize people linked to your accounts." },
+                { id: "entity:contracts", name: "Contracts", value: counts.contracts, href: "/crm/contracts", iconName: "FilePenLine", color: "rose", tooltip: "Track and manage contracts with clients. Monitor terms, renewal dates, and contract statuses." },
+                { id: "entity:dialer", name: "Dialer", value: 0, href: "/crm/dialer", iconName: "Phone", color: "blue", tooltip: "Make calls directly from the CRM. Log call outcomes and track your call activity." },
+                { id: "entity:leads_manager", name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users2", color: "emerald", tooltip: "View and manage all leads in one place. Filter, sort, and take action on your pipeline." }
             );
 
             // Insert Projects here to match sidebar order
             if (projectsModule?.enabled) {
-                crmEntities.push({ id: "entity:projects", name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" });
+                crmEntities.push({ id: "entity:projects", name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan", tooltip: "Organize work into project boards. Track tasks, progress, and collaborate with your team." });
             }
 
             crmEntities.push(
-                { id: "entity:opportunities", name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "Target", color: "amber" },
-                { id: "entity:sales_command", name: "Sales Command", value: 0, href: "/crm/sales-command", iconName: "Radio", color: "pink" },
-                { id: "entity:service_console", name: "Service Console", value: caseCount, href: "/crm/cases", iconName: "Headset", color: "indigo" },
+                { id: "entity:opportunities", name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "Target", color: "amber", tooltip: "Track your sales pipeline. Manage deals from qualification to close and forecast revenue." },
+                { id: "entity:sales_command", name: "Sales Command", value: 0, href: "/crm/sales-command", iconName: "Radio", color: "pink", tooltip: "Your sales mission control. Get a real-time overview of team performance and pipeline health." },
+                { id: "entity:service_console", name: "Service Console", value: caseCount, href: "/crm/cases", iconName: "Headset", color: "indigo", tooltip: "Handle customer support cases. Manage tickets, track SLAs, and resolve issues efficiently." },
 
                 // FlowState / Automation (Phase 3)
-                { id: "entity:guard_rules", name: "Guard Rules", value: guardCount, href: "/crm/validation-rules", iconName: "Shield", color: "rose" },
-                { id: "entity:approval_chains", name: "Approval Chains", value: approvalCount, href: "/crm/approvals", iconName: "CheckCircle2", color: "emerald" },
-                { id: "entity:flowstate_builder", name: "FlowState Builder", value: workflowCount, href: "/crm/workflows", iconName: "Zap", color: "indigo" },
+                { id: "entity:guard_rules", name: "Guard Rules", value: guardCount, href: "/crm/validation-rules", iconName: "Shield", color: "rose", tooltip: "Set up data validation rules. Ensure data quality by enforcing field requirements and constraints." },
+                { id: "entity:approval_chains", name: "Approval Chains", value: approvalCount, href: "/crm/approvals", iconName: "CheckCircle2", color: "emerald", tooltip: "Configure multi-step approval workflows. Route records through the right approvers automatically." },
+                { id: "entity:flowstate_builder", name: "FlowState Builder", value: workflowCount, href: "/crm/workflows", iconName: "Zap", color: "indigo", tooltip: "Build and automate workflows visually. Create triggers, conditions, and actions to streamline processes." },
 
                 // Outreach & Optimization (Phase 4)
-                { id: "entity:lead_wizard", name: "Lead Wizard", value: 0, href: "/crm/lead-wizard", iconName: "Wand2", color: "cyan" },
-                { id: "entity:lead_pools", name: "Lead Pools", value: 0, href: "/crm/lead-pools", iconName: "Target", color: "violet" },
-                { id: "entity:outreach", name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange" },
+                { id: "entity:lead_wizard", name: "Lead Wizard", value: 0, href: "/crm/lead-wizard", iconName: "Wand2", color: "cyan", tooltip: "Discover and generate new leads using AI. Define your ideal customer profile and let the wizard find matches." },
+                { id: "entity:lead_pools", name: "Lead Pools", value: 0, href: "/crm/lead-pools", iconName: "Target", color: "violet", tooltip: "Organize leads into targeted segments. Group leads by criteria for focused outreach and follow-up." },
+                { id: "entity:outreach", name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange", tooltip: "Launch and manage outreach campaigns. Reach prospects through automated sequences and track engagement." },
 
                 // Tasks & Supplementary
-                { id: "entity:my_tasks", name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald" },
-                { id: "entity:invoices", name: "Invoices", value: counts.invoices, href: "/invoice", iconName: "FileText", color: "blue" },
-                { id: "entity:reports", name: "Reports", value: reportCount, href: "/reports", iconName: "BarChart3", color: "amber" },
-                { id: "entity:products", name: "Products", value: productCount, href: "/crm/products", iconName: "Package", color: "teal" },
-                { id: "entity:quotes", name: "Quotes", value: quoteCount, href: "/crm/quotes", iconName: "FileText", color: "blue" }
+                { id: "entity:my_tasks", name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald", tooltip: "View all tasks assigned to you. Stay on top of your to-dos, deadlines, and priorities." },
+                { id: "entity:invoices", name: "Invoices", value: counts.invoices, href: "/invoice", iconName: "FileText", color: "blue", tooltip: "Create and manage invoices. Track payment statuses, send reminders, and manage billing." },
+                { id: "entity:reports", name: "Reports", value: reportCount, href: "/reports", iconName: "BarChart3", color: "amber", tooltip: "Build and view custom reports. Analyze data across your CRM with charts, tables, and filters." },
+                { id: "entity:products", name: "Products", value: productCount, href: "/crm/products", iconName: "Package", color: "teal", tooltip: "Manage your product catalog. Add products, set pricing, and link them to quotes and opportunities." },
+                { id: "entity:quotes", name: "Quotes", value: quoteCount, href: "/crm/quotes", iconName: "FileText", color: "blue", tooltip: "Create and send quotes to prospects. Build line-item proposals and track quote approvals." }
             );
         }
 

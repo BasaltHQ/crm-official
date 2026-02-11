@@ -8,22 +8,29 @@ export const getLeadGenStats = async () => {
         const teamInfo = await getCurrentUserTeamId();
         if (!teamInfo?.teamId && !teamInfo?.isGlobalAdmin) return null;
 
+        const teamFilter = teamInfo.isGlobalAdmin ? {} : { assigned_pool: { team_id: teamInfo.teamId } };
+
         const activeJobs = await prismadb.crm_Lead_Gen_Jobs.findMany({
             where: {
-                ...(teamInfo.isGlobalAdmin ? {} : { team_id: teamInfo.teamId }),
+                ...teamFilter,
                 status: "RUNNING"
             },
             include: {
                 assigned_pool: {
-                    select: { name: true }
+                    select: {
+                        id: true,
+                        name: true,
+                        icpConfig: true,
+                    }
                 }
             },
+            orderBy: { startedAt: "desc" },
             take: 3
         });
 
         const recentSuccess = await prismadb.crm_Lead_Gen_Jobs.count({
             where: {
-                ...(teamInfo.isGlobalAdmin ? {} : { team_id: teamInfo.teamId }),
+                ...teamFilter,
                 status: "SUCCESS",
                 finishedAt: {
                     gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24h
