@@ -192,7 +192,7 @@ export function UpdateContactForm({ initialData, setOpen }: NewTaskFormProps) {
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="+11 1236 77 55"
+                      placeholder="+1 555-0123"
                       {...field}
                     />
                   </FormControl>
@@ -210,7 +210,7 @@ export function UpdateContactForm({ initialData, setOpen }: NewTaskFormProps) {
                   <FormControl>
                     <Input
                       disabled={isLoading}
-                      placeholder="+11 1236 77 55"
+                      placeholder="+1 555-0123"
                       {...field}
                     />
                   </FormControl>

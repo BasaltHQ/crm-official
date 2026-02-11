@@ -172,6 +172,7 @@ const UpdateTaskDialog = ({ users, boards, boardId, initialData, onDone }: Props
                       placeholder="Enter task name"
                       className="font-medium text-lg h-10"
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />

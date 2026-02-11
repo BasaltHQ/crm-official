@@ -116,6 +116,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                       disabled={isLoading}
                       placeholder="BasaltCRM Inc."
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -133,6 +134,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                       disabled={isLoading}
                       placeholder="+1 555 000 0000"
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -150,6 +152,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                       disabled={isLoading}
                       placeholder="account@domain.com"
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -167,6 +170,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                       disabled={isLoading}
                       placeholder="https://www.domain.com"
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -184,6 +188,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                       disabled={isLoading}
                       placeholder="1234567890"
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -201,6 +206,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                       disabled={isLoading}
                       placeholder="US123456789"
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -221,6 +227,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="123 Main St"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -238,6 +245,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="10001"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -255,6 +263,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="New York"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -268,7 +277,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                   <FormItem>
                     <FormLabel>Billing state</FormLabel>
                     <FormControl>
-                      <Input disabled={isLoading} placeholder="" {...field} />
+                      <Input disabled={isLoading} placeholder="NY" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -285,6 +294,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="USA"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -304,6 +314,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="123 Main St"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -321,6 +332,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="10001"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -338,6 +350,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="New York"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -351,7 +364,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                   <FormItem>
                     <FormLabel>Shipping state</FormLabel>
                     <FormControl>
-                      <Input disabled={isLoading} placeholder="" {...field} />
+                      <Input disabled={isLoading} placeholder="NY" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -368,6 +381,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="USA"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -408,6 +422,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="1.0000.000"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -425,6 +440,7 @@ export function NewAccountForm({ industries, users, onFinish }: Props) {
                         disabled={isLoading}
                         placeholder="Tesla Inc."
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />

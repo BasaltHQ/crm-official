@@ -123,7 +123,7 @@ export function InviteForm() {
               <FormItem className="w-full">
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input disabled={isLoading} placeholder="jdoe" {...field} />
+                  <Input disabled={isLoading} placeholder="jdoe" {...field} value={field.value ?? ""} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -140,6 +140,7 @@ export function InviteForm() {
                     disabled={isLoading}
                     placeholder="name@domain.com"
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormMessage />

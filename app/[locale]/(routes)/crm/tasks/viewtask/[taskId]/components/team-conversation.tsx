@@ -99,6 +99,7 @@ export function TeamConversations({
                     disabled={isLoading}
                     placeholder="Your comment ..."
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormMessage />

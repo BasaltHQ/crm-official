@@ -3595,91 +3595,92 @@
         ]
     },
     {
-        "slug": "prague",
-        "name": "Prague",
-        "country": "Czech Republic",
-        "context": "CEE's startup hub",
-        "hero_title": "Prague's Innovation CRM",
-        "description": "Lead Central Europe's tech revolution with AI-powered CRM.",
-        "meta_title": "AI CRM in Prague | BasaltCRM",
-        "meta_description": "CEE-focused CRM with EU compliance and predictive analytics.",
+        "slug": "miami",
+        "name": "Miami",
+        "country": "USA",
+        "context": "The gateway to the Americas",
+        "hero_title": "Miami's Best AI CRM",
+        "description": "Florida's fastest growing businesses trust BasaltCRM for rapid scaling and cross-border commerce.",
+        "meta_title": "AI CRM in Miami | BasaltCRM",
+        "meta_description": "AI-first CRM for Miami tech and real estate firms with SOC 2 compliance.",
         "keywords": [
-            "Prague CRM",
-            "AI CRM Czech Republic",
-            "BasaltCRM Prague"
+            "Miami CRM",
+            "Florida CRM",
+            "AI CRM Miami",
+            "BasaltCRM Miami"
         ],
-        "subheading": "Central Europe innovation",
+        "subheading": "Bilingual, compliant, powerful",
         "highlights": [
-            "GDPR",
-            "EU data residency",
-            "Predictive analytics",
-            "Open API"
+            "SOC 2 Type II",
+            "Bilingual (EN/ES) support",
+            "Cross-border commerce",
+            "Predictive analytics"
         ],
         "local_factors": {
             "compliance": [
-                "GDPR"
+                "SOC 2",
+                "CCPA"
             ],
             "currencies": [
-                "CZK",
-                "EUR"
+                "USD"
             ],
-            "time_zone": "Europe/Prague",
-            "dial_code": "+420",
+            "time_zone": "America/New_York",
+            "dial_code": "+1",
             "languages": [
-                "Czech",
-                "English"
+                "English",
+                "Spanish"
             ]
         },
         "industries_focus": [
-            "saas",
-            "manufacturing",
-            "consulting",
-            "education"
+            "real-estate",
+            "finance",
+            "tourism",
+            "saas"
         ],
         "neighborhoods": [
-            "Old Town",
-            "New Town",
-            "Smíchov",
-            "Karlín",
-            "Holešovice"
+            "Brickell",
+            "Wynwood",
+            "Coral Gables",
+            "South Beach",
+            "Coconut Grove"
         ],
         "faqs": [
             {
-                "q": "EU hosting?",
-                "a": "Yes, EU hosting is supported."
+                "q": "Do you support Spanish localization?",
+                "a": "Yes, full Spanish language support for users and templates."
             }
         ],
         "testimonials": [
             {
-                "name": "J. Novak",
-                "role": "CTO",
-                "company": "Prague Tech",
-                "quote": "We shipped multilingual campaigns rapidly."
+                "name": "L. Rodriguez",
+                "role": "CEO",
+                "company": "Miami Ventures",
+                "quote": "BasaltCRM helped us scale our Latin American operations seamlessly."
             }
         ],
         "ctas": [
             {
-                "label": "Start in Prague",
+                "label": "Start in Miami",
                 "url": "https://calendar.google.com/appointments/schedules/AcZssZ2Vduqr0QBnEAM50SeixE8a7kXuKt62zEFjQCQ8_xvoO6iF3hluVQHpaM6RYWMGB110_zM3MUF0"
             }
         ],
         "images": [
             {
-                "url": "/images/location/prague.jpg",
-                "alt": "Prague city view"
+                "url": "/images/location/miami.jpg",
+                "alt": "Miami skyline with palm trees"
             }
         ],
         "structured_data": {
             "@type": "LocalBusiness",
-            "name": "BasaltCRM Prague",
+            "name": "BasaltCRM Miami",
             "address": {
-                "addressLocality": "Prague",
-                "addressCountry": "CZ"
+                "addressLocality": "Miami",
+                "addressCountry": "US"
             }
         },
         "competitor_switches": [
-            "hubspot",
-            "pipedrive"
+            "salesforce",
+            "hubspot"
         ]
     },
     {

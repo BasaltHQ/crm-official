@@ -286,6 +286,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                               disabled={isLoading}
                               placeholder="e.g., Q1 Enterprise Outreach"
                               {...field}
+                              value={field.value ?? ""}
                             />
                           </FormControl>
                           <FormMessage />
@@ -460,6 +461,7 @@ const NewProjectDialog = ({ customTrigger }: Props) => {
                               disabled={isLoading}
                               placeholder="https://calendly.com/yourname"
                               {...field}
+                              value={field.value ?? ""}
                             />
                           </FormControl>
                           <FormDescription className="text-xs">

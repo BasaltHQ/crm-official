@@ -83,49 +83,49 @@ const DashboardRoleManager = async () => {
         const crmModule = modules.find((module: any) => module.name === "crm" || module.name === "CRM"); // Case handling
         const projectsModule = modules.find((module: any) => module.name === "projects" || module.name === "Projects");
 
-        // Build CRM entities - Comprehensive list for Phases 1-6
+        // Build CRM entities - Comprehensive list matching CrmSidebar order/labels
         const crmEntities: any[] = [];
         if (crmModule?.enabled) {
             crmEntities.push(
-                // Phase 1 & 2: Foundations & Sales
+                // Core CRM (Match Sidebar Order)
                 { name: "Accounts", value: counts.accounts, href: "/crm/accounts", iconName: "LandmarkIcon", color: "cyan" },
                 { name: "Contacts", value: counts.contacts, href: "/crm/contacts", iconName: "Contact", color: "violet" },
-                { name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users2", color: "emerald" },
-                { name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "HeartHandshake", color: "amber" },
                 { name: "Contracts", value: counts.contracts, href: "/crm/contracts", iconName: "FilePenLine", color: "rose" },
-                { name: "Invoices", value: counts.invoices, href: "/invoice", iconName: "FileText", color: "blue" },
-
-                // Phase 3: Intelligence & Automation (FlowState)
-                { name: "Workflows", value: workflowCount, href: "/crm/workflows", iconName: "Zap", color: "indigo" },
-                { name: "Approvals", value: approvalCount, href: "/crm/approvals", iconName: "CheckCircle2", color: "emerald" },
-                { name: "Guard Rules", value: guardCount, href: "/crm/validation-rules", iconName: "Shield", color: "rose" },
-
-                // Phase 4: Optimization & Outreach
                 { name: "Dialer", value: 0, href: "/crm/dialer", iconName: "Phone", color: "blue" },
+                { name: "Leads Manager", value: counts.leads, href: "/crm/leads", iconName: "Users2", color: "emerald" }
+            );
+
+            // Insert Projects here to match sidebar order
+            if (projectsModule?.enabled) {
+                crmEntities.push({ name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" });
+            }
+
+            crmEntities.push(
+                { name: "Opportunities", value: counts.opportunities, href: "/crm/opportunities", iconName: "Target", color: "amber" },
+                { name: "Sales Command", value: 0, href: "/crm/sales-command", iconName: "Radio", color: "pink" },
+                { name: "Service Console", value: caseCount, href: "/crm/cases", iconName: "Headset", color: "indigo" },
+
+                // FlowState / Automation (Phase 3)
+                { name: "Guard Rules", value: guardCount, href: "/crm/validation-rules", iconName: "Shield", color: "rose" },
+                { name: "Approval Chains", value: approvalCount, href: "/crm/approvals", iconName: "CheckCircle2", color: "emerald" },
+                { name: "FlowState Builder", value: workflowCount, href: "/crm/workflows", iconName: "Zap", color: "indigo" },
+
+                // Outreach & Optimization (Phase 4)
                 { name: "Lead Wizard", value: 0, href: "/crm/lead-wizard", iconName: "Wand2", color: "cyan" },
                 { name: "Lead Pools", value: 0, href: "/crm/lead-pools", iconName: "Target", color: "violet" },
                 { name: "Outreach", value: 0, href: "/crm/outreach", iconName: "Megaphone", color: "orange" },
-                { name: "Sales Command", value: 0, href: "/crm/sales-command", iconName: "Radio", color: "pink" },
 
-                // Service Cloud
-                { name: "Service Console", value: caseCount, href: "/crm/cases", iconName: "Headset", color: "indigo" },
-
-                // Phase 5: Analytics & Reporting
-                { name: "Reports", value: reportCount, href: "/reports", iconName: "BarChart3", color: "amber" },
-
-                // Phase 6: Advanced CPQ
-                { name: "Products", value: productCount, href: "/crm/products", iconName: "Package", color: "teal" },
-                { name: "Quotes", value: quoteCount, href: "/crm/quotes", iconName: "FileText", color: "blue" },
-            );
-        }
-
-        // Redundancy Removal: Merge Projects into main grid
-        if (projectsModule?.enabled) {
-            crmEntities.push(
-                { name: "Projects", value: counts.boards, href: "/campaigns", iconName: "FolderKanban", color: "cyan" },
+                // Tasks & Supplementary
                 { name: "My Tasks", value: usersTasks, href: `/campaigns/tasks/${userId}`, iconName: "Target", color: "emerald" },
+                { name: "Invoices", value: counts.invoices, href: "/invoice", iconName: "FileText", color: "blue" },
+                { name: "Reports", value: reportCount, href: "/reports", iconName: "BarChart3", color: "amber" },
+                { name: "Products", value: productCount, href: "/crm/products", iconName: "Package", color: "teal" },
+                { name: "Quotes", value: quoteCount, href: "/crm/quotes", iconName: "FileText", color: "blue" }
             );
         }
+
+        // Alphabetize entities for consistent layout
+        crmEntities.sort((a, b) => a.name.localeCompare(b.name));
 
         const projectEntities: any[] = [];
 

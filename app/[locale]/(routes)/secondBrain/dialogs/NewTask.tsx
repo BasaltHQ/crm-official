@@ -78,7 +78,7 @@ const NewTaskDialog = ({
   });
 
   useEffect(() => {
-    form.setValue("notionUrl", notionUrl); 
+    form.setValue("notionUrl", notionUrl);
     setIsMounted(true);
   }, [notionUrl, form]);
 
@@ -151,6 +151,7 @@ const NewTaskDialog = ({
                             disabled={isLoading}
                             placeholder="Enter task name"
                             {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />

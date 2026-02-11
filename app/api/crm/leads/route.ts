@@ -98,7 +98,7 @@ export async function POST(req: Request) {
 
       await sendEmail({
         from: process.env.EMAIL_FROM as string,
-        to: notifyRecipient.email || "info@softbase.cz",
+        to: notifyRecipient.email || "info@softbase.com",
         subject:
           notifyRecipient.userLanguage === "en"
             ? `New lead ${first_name} ${last_name} has been added to the system and assigned to you.`
@@ -192,7 +192,7 @@ export async function PUT(req: Request) {
 
       await sendEmail({
         from: process.env.EMAIL_FROM as string,
-        to: notifyRecipient.email || "info@softbase.cz",
+        to: notifyRecipient.email || "info@softbase.com",
         subject:
           notifyRecipient.userLanguage === "en"
             ? `New lead ${firstName} ${lastName} has been added to the system and assigned to you.`

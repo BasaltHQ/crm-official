@@ -421,24 +421,24 @@ export const CRM_MODULES: CrmModule[] = [
         ]
     },
     {
-        id: 'flowstate',
+        id: 'workflows',
         name: 'FlowState',
         route: '/crm/workflows',
         description: 'Visual workflow automation',
         children: [
-            { id: 'flowstate.view', name: 'View Workflows', description: 'Access workflow list' },
+            { id: 'workflows.view', name: 'View Workflows', description: 'Access workflow list' },
             {
-                id: 'flowstate.actions',
+                id: 'workflows.actions',
                 name: 'Actions',
                 description: 'Workflow operations',
                 children: [
-                    { id: 'flowstate.actions.create', name: 'Create Workflow', description: 'Build new automations' },
-                    { id: 'flowstate.actions.edit', name: 'Edit Workflow', description: 'Modify workflows' },
-                    { id: 'flowstate.actions.delete', name: 'Delete Workflow', description: 'Remove workflows' },
-                    { id: 'flowstate.actions.activate', name: 'Activate/Pause', description: 'Toggle workflow status' },
+                    { id: 'workflows.actions.create', name: 'Create Workflow', description: 'Build new automations' },
+                    { id: 'workflows.actions.edit', name: 'Edit Workflow', description: 'Modify workflows' },
+                    { id: 'workflows.actions.delete', name: 'Delete Workflow', description: 'Remove workflows' },
+                    { id: 'workflows.actions.activate', name: 'Activate/Pause', description: 'Toggle workflow status' },
                 ]
             },
-            { id: 'flowstate.logs', name: 'Execution Logs', description: 'View run history' }
+            { id: 'workflows.logs', name: 'Execution Logs', description: 'View run history' }
         ]
     },
     {
@@ -507,6 +507,71 @@ export const CRM_MODULES: CrmModule[] = [
         children: [
             { id: 'databox.view', name: 'View Databox', description: 'Access databox tools' },
         ]
+    },
+    {
+        id: 'approvals',
+        name: 'Approvals',
+        route: '/crm/approvals',
+        description: 'Approval processes and requests',
+        children: [
+            { id: 'approvals.view', name: 'View Approvals', description: 'Access approval list' },
+            { id: 'approvals.manage', name: 'Manage Approvals', description: 'Approve or reject requests' }
+        ]
+    },
+    {
+        id: 'cases',
+        name: 'Cases',
+        route: '/crm/cases',
+        description: 'Service Cloud Case Management',
+        children: [
+            { id: 'cases.view', name: 'View Cases', description: 'Access case list' },
+            { id: 'cases.create', name: 'Create Case', description: 'Open new support cases' },
+            { id: 'cases.edit', name: 'Edit Case', description: 'Modify case details' },
+            { id: 'cases.delete', name: 'Delete Case', description: 'Remove cases' }
+        ]
+    },
+    {
+        id: 'notifications',
+        name: 'Notifications',
+        route: '/crm/notifications',
+        description: 'System notification center',
+        children: [
+            { id: 'notifications.view', name: 'View Notifications', description: 'Access all notifications' }
+        ]
+    },
+    {
+        id: 'products',
+        name: 'Products',
+        route: '/crm/products',
+        description: 'Product and inventory catalog',
+        children: [
+            { id: 'products.view', name: 'View Products', description: 'Access product list' },
+            { id: 'products.create', name: 'Create Product', description: 'Add new products' },
+            { id: 'products.edit', name: 'Edit Product', description: 'Modify products' },
+            { id: 'products.delete', name: 'Delete Product', description: 'Remove products' }
+        ]
+    },
+    {
+        id: 'quotes',
+        name: 'Quotes',
+        route: '/crm/quotes',
+        description: 'Quote creation and management',
+        children: [
+            { id: 'quotes.view', name: 'View Quotes', description: 'Access quote list' },
+            { id: 'quotes.create', name: 'Create Quote', description: 'Generate new quotes' },
+            { id: 'quotes.edit', name: 'Edit Quote', description: 'Modify existing quotes' },
+            { id: 'quotes.delete', name: 'Delete Quote', description: 'Remove quotes' }
+        ]
+    },
+    {
+        id: 'guard-rules',
+        name: 'Guard Rules',
+        route: '/crm/validation-rules',
+        description: 'Manage data validation logic',
+        children: [
+            { id: 'guard-rules.view', name: 'View Rules', description: 'Access validation rules list' },
+            { id: 'guard-rules.manage', name: 'Manage Rules', description: 'Create and edit rules' }
+        ]
     }
 ];
 
@@ -514,12 +579,24 @@ export const ROLE_CONFIGS: Record<Exclude<TeamRole, 'SUPER_ADMIN'>, { label: str
     ADMIN: {
         label: "Admin",
         description: "Full access to department resources",
-        defaultModules: ['dashboard', 'dashboard.view', 'leads', 'leads.tabs.all', 'accounts', 'accounts.view', 'contacts', 'contacts.view', 'messages', 'form_builder']
+        defaultModules: [
+            'dashboard', 'dashboard.view',
+            'leads', 'leads.tabs.all',
+            'accounts', 'accounts.view',
+            'contacts', 'contacts.view',
+            'messages', 'form_builder',
+            'approvals', 'cases', 'notifications', 'products', 'quotes', 'guard-rules', 'workflows'
+        ]
     },
     MEMBER: {
         label: "Member",
         description: "Standard access to assigned resources",
-        defaultModules: ['dashboard', 'dashboard.view', 'contacts', 'contacts.view', 'leads', 'leads.tabs.all', 'leads.tabs.workspace', 'leads.tabs.dialer']
+        defaultModules: [
+            'dashboard', 'dashboard.view',
+            'contacts', 'contacts.view',
+            'leads', 'leads.tabs.all', 'leads.tabs.workspace', 'leads.tabs.dialer',
+            'cases', 'notifications', 'products', 'quotes'
+        ]
     },
     VIEWER: {
         label: "Viewer",

@@ -103,7 +103,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
             <FormItem className="w-full md:w-1/3">
               <FormLabel>Full name</FormLabel>
               <FormControl>
-                <Input disabled={isLoading} placeholder="John Doe" {...field} />
+                <Input disabled={isLoading} placeholder="John Doe" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -116,7 +116,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
             <FormItem className="w-full md:w-1/3">
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input disabled={isLoading} placeholder="jdoe" {...field} />
+                <Input disabled={isLoading} placeholder="jdoe" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -133,6 +133,7 @@ export function ProfileForm({ data }: ProfileFormProps) {
                   disabled={isLoading}
                   placeholder="Tesla Inc.,"
                   {...field}
+                  value={field.value ?? ""}
                 />
               </FormControl>
               <FormMessage />

@@ -164,6 +164,7 @@ const NewTaskDialog = ({ users, boards, customTrigger }: Props) => {
                             disabled={isLoading}
                             placeholder="Enter task name"
                             {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
