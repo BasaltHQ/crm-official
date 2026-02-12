@@ -2,6 +2,7 @@
 
 import { prismadb } from "@/lib/prisma";
 
+// Version: 2026-02-12-v5 - Switched to Internal Prisma Client Path
 export const getTeams = async () => {
     try {
         const teams = await prismadb.team.findMany({
@@ -24,6 +25,7 @@ export const getTeams = async () => {
                     }
                 },
                 assigned_plan: true,
+                team_subscriptions: true,
                 departments: {
                     include: {
                         members: {
@@ -37,11 +39,11 @@ export const getTeams = async () => {
                     }
                 }
             }
-        });
+        } as any);
 
-        const aggregatedTeams = teams.map(team => {
-            const departmentMembers = (team as any).departments?.flatMap((d: any) => d.members) || [];
-            const allMembers = [...team.members, ...departmentMembers];
+        const aggregatedTeams = teams.map((team: any) => {
+            const departmentMembers = team.departments?.flatMap((d: any) => d.members) || [];
+            const allMembers = [...(team.members || []), ...departmentMembers];
             // Deduplicate by user ID
             const uniqueMembers = Array.from(new Map(allMembers.map(m => [m.id, m])).values());
 

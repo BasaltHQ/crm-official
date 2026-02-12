@@ -1,0 +1,3549 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/prisma-client"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Team hierarchy types
+enum TeamType {
+  ORGANIZATION // Top-level team (e.g., "Acme Corp")
+  DEPARTMENT // Sub-team/department (e.g., "Sales", "Marketing")
+}
+
+model crm_Accounts {
+  id                   String                @id @default(auto()) @map("_id") @db.ObjectId
+  v                    Int                   @map("__v")
+  createdAt            DateTime              @default(now()) @db.Date
+  createdBy            String?               @db.ObjectId
+  updatedAt            DateTime?             @updatedAt @db.Date
+  updatedBy            String?               @db.ObjectId
+  annual_revenue       String?
+  assigned_to          String?               @db.ObjectId
+  billing_city         String?
+  billing_country      String?
+  billing_postal_code  String?
+  billing_state        String?
+  billing_street       String?
+  company_id           String?
+  description          String?
+  email                String?
+  employees            String?
+  fax                  String?
+  industry             String?               @db.ObjectId
+  member_of            String?
+  name                 String
+  office_phone         String?
+  shipping_city        String?
+  shipping_country     String?
+  shipping_postal_code String?
+  shipping_state       String?
+  shipping_street      String?
+  status               String?               @default("Inactive")
+  type                 String?               @default("Customer")
+  vat                  String?
+  website              String?
+  invoices             Invoices[]
+  documentsIDs         String[]              @db.ObjectId
+  assigned_documents   Documents[]           @relation(fields: [documentsIDs], references: [id])
+  contacts             crm_Contacts[]
+  leads                crm_Leads[]
+  industry_type        crm_Industry_Type?    @relation(fields: [industry], references: [id])
+  opportunities        crm_Opportunities[]
+  assigned_to_user     Users?                @relation(fields: [assigned_to], references: [id])
+  crm_accounts_tasks   crm_Accounts_Tasks[]
+  contracts            crm_Contracts[]
+  quotes               crm_Quotes[]
+  watchers             String[]              @db.ObjectId
+  watching_users       Users[]               @relation(name: "watching_accounts", fields: [watchers], references: [id])
+  lead_candidates      crm_Lead_Candidates[] @relation(name: "LeadCandidatesAssignedAccounts")
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Department assignment for scoped access
+  assigned_department_id String? @db.ObjectId
+
+  // Service Cloud: Cases linked to this account
+  cases                 crm_Cases[]
+  account_subscriptions crm_Subscriptions[]
+}
+
+model crm_Leads {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int    @default(0) @map("__v")
+
+  createdAt          DateTime?     @default(now()) @db.Date
+  createdBy          String?       @db.ObjectId
+  updatedAt          DateTime?     @updatedAt @db.Date
+  updatedBy          String?       @db.ObjectId
+  firstName          String?
+  lastName           String
+  company            String?
+  jobTitle           String?
+  email              String?
+  phone              String?
+  description        String?
+  lead_source        String?
+  refered_by         String?
+  campaign           String?
+  status             String?       @default("NEW")
+  type               String?       @default("DEMO")
+  assigned_to        String?       @db.ObjectId
+  assigned_to_user   Users?        @relation(fields: [assigned_to], references: [id])
+  accountsIDs        String?       @db.ObjectId
+  assigned_accounts  crm_Accounts? @relation(fields: [accountsIDs], references: [id])
+  documentsIDs       String[]      @db.ObjectId
+  assigned_documents Documents[]   @relation(fields: [documentsIDs], references: [id])
+
+  // Outreach tracking fields
+  outreach_status            OutreachStatus? @default(IDLE)
+  outreach_sent_at           DateTime?       @db.Date
+  outreach_opened_at         DateTime?       @db.Date
+  outreach_followup_sent_at  DateTime?       @db.Date
+  outreach_meeting_link      String?
+  outreach_meeting_booked_at DateTime?       @db.Date
+  outreach_first_message_id  String?
+  outreach_open_token        String?
+  outreach_notes             String?
+  pipeline_stage             PipelineStage?  @default(Identify)
+
+  // Extended outreach channel fields
+  outreach_transport        String?
+  sms_status                String?
+  sms_sent_at               DateTime? @db.Date
+  last_sms_id               String?
+  phone_verified            Boolean?  @default(false)
+  call_status               String?
+  connect_contact_id        String?
+  call_recording_url        String?
+  call_transcript_url       String?
+  azure_realtime_session_id String?
+
+  lead_pool_maps         crm_Lead_Pools_Leads[]
+  contact_candidate_maps crm_Contact_Candidate_Leads[]
+  lead_activities        crm_Lead_Activities[]         @relation(name: "LeadActivitiesToLead")
+  outreach_items         crm_Outreach_Items[]          @relation(name: "OutreachItemsLead")
+
+  // Social profiles
+  social_twitter  String?
+  social_facebook String?
+  social_linkedin String?
+
+  // Link to a Project/Board for tagging and association
+  project          String? @db.ObjectId
+  assigned_project Boards? @relation(name: "LeadsAssignedProject", fields: [project], references: [id])
+
+  // Message Portal recipients linked to this lead
+  portal_recipients crm_Portal_Recipient[] @relation(name: "PortalRecipientLead")
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Department assignment for scoped access
+  assigned_department_id String? @db.ObjectId
+}
+
+enum crm_Lead_Status {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+}
+
+enum crm_Lead_Type {
+  DEMO
+}
+
+model crm_Opportunities {
+  id                   String                          @id @default(auto()) @map("_id") @db.ObjectId
+  v                    Int                             @default(0) @map("__v")
+  account              String?                         @db.ObjectId
+  assigned_to          String?                         @db.ObjectId
+  budget               Int                             @default(0)
+  campaign             String?                         @db.ObjectId
+  close_date           DateTime?                       @db.Date
+  contact              String?                         @db.ObjectId
+  created_by           String?                         @db.ObjectId
+  createdBy            String?                         @db.ObjectId
+  created_on           DateTime?                       @default(now()) @db.Date
+  createdAt            DateTime                        @default(now()) @db.Date
+  last_activity        DateTime?                       @db.Date
+  updatedAt            DateTime?                       @updatedAt @db.Date
+  updatedBy            String?                         @db.ObjectId
+  last_activity_by     String?                         @db.ObjectId
+  currency             String?
+  description          String?
+  expected_revenue     Int                             @default(0)
+  name                 String?
+  next_step            String?
+  sales_stage          String?                         @db.ObjectId
+  type                 String?                         @db.ObjectId
+  status               crm_Opportunity_Status?         @default(ACTIVE)
+  assigned_type        crm_Opportunities_Type?         @relation(fields: [type], references: [id])
+  assigned_sales_stage crm_Opportunities_Sales_Stages? @relation(name: "assinged_sales_stage", fields: [sales_stage], references: [id])
+  assigned_to_user     Users?                          @relation(name: "assigned_to_user_relation", fields: [assigned_to], references: [id])
+  created_by_user      Users?                          @relation(name: "created_by_user_relation", fields: [created_by], references: [id])
+  assigned_account     crm_Accounts?                   @relation(fields: [account], references: [id])
+  assigned_campaings   crm_campaigns?                  @relation(fields: [campaign], references: [id])
+  connected_documents  String[]                        @db.ObjectId
+  documents            Documents[]                     @relation(fields: [connected_documents], references: [id])
+  invoiceIDs           String[]                        @db.ObjectId
+  invoices             Invoices[]                      @relation(fields: [invoiceIDs], references: [id])
+  connected_contacts   String[]                        @db.ObjectId
+  contacts             crm_Contacts[]                  @relation(fields: [connected_contacts], references: [id])
+  quotes               crm_Quotes[]
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Department assignment for scoped access
+  assigned_department_id String? @db.ObjectId
+}
+
+enum crm_Opportunity_Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+  CLOSED
+}
+
+model crm_campaigns {
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int                 @map("__v")
+  name          String
+  description   String?
+  status        String?
+  opportunities crm_Opportunities[]
+}
+
+// Outreach Campaigns for Email/SMS tracking
+enum OutreachCampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum OutreachChannelType {
+  EMAIL
+  SMS
+  PHONE
+}
+
+model crm_Outreach_Campaigns {
+  id          String                 @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int?                   @map("__v")
+  name        String
+  description String?
+  status      OutreachCampaignStatus @default(DRAFT)
+
+  // Owner/Team
+  user    String  @db.ObjectId
+  team_id String? @db.ObjectId
+
+  // Members assigned to work on this campaign (for collaboration)
+  assigned_users String[] @db.ObjectId
+
+  // Project/Context association
+  project String? @db.ObjectId
+  pool    String? @db.ObjectId
+
+  // Campaign-specific overrides
+  prompt_override String?
+  signature_html  String?
+  signature_meta  Json?
+  resource_links  Json?
+  meeting_link    String?
+
+  // Channels enabled
+  channels OutreachChannelType[] @default([EMAIL])
+
+  // Stats (denormalized for quick access)
+  total_leads     Int @default(0)
+  emails_sent     Int @default(0)
+  emails_opened   Int @default(0)
+  sms_sent        Int @default(0)
+  sms_delivered   Int @default(0)
+  calls_initiated Int @default(0)
+  meetings_booked Int @default(0)
+
+  // Timestamps
+  createdAt   DateTime? @default(now()) @db.Date
+  updatedAt   DateTime? @updatedAt @db.Date
+  launchedAt  DateTime? @db.Date
+  completedAt DateTime? @db.Date
+
+  // Relations
+  outreach_items   crm_Outreach_Items[]
+  assigned_user    Users?               @relation(name: "OutreachCampaignsUser", fields: [user], references: [id])
+  assigned_team    Team?                @relation(name: "OutreachCampaignsTeam", fields: [team_id], references: [id])
+  assigned_project Boards?              @relation(name: "OutreachCampaignsProject", fields: [project], references: [id])
+  assigned_pool    crm_Lead_Pools?      @relation(name: "OutreachCampaignsPools", fields: [pool], references: [id])
+}
+
+// Individual outreach items within a campaign
+enum OutreachItemStatus {
+  PENDING
+  RESEARCHING
+  READY
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  REPLIED
+  BOUNCED
+  FAILED
+  SKIPPED
+}
+
+model crm_Outreach_Items {
+  id       String              @id @default(auto()) @map("_id") @db.ObjectId
+  v        Int?                @map("__v")
+  campaign String              @db.ObjectId
+  lead     String              @db.ObjectId
+  channel  OutreachChannelType
+  status   OutreachItemStatus  @default(PENDING)
+
+  // Research data collected for personalization
+  research_data Json?
+
+  // Generated content
+  subject   String?
+  body_text String?
+  body_html String?
+
+  // Tracking
+  message_id     String?
+  tracking_token String?
+
+  // Timestamps
+  createdAt   DateTime? @default(now()) @db.Date
+  sentAt      DateTime? @db.Date
+  deliveredAt DateTime? @db.Date
+  openedAt    DateTime? @db.Date
+  clickedAt   DateTime? @db.Date
+  repliedAt   DateTime? @db.Date
+
+  // Error tracking
+  error_message String?
+  retry_count   Int     @default(0)
+
+  // Relations
+  assigned_campaign crm_Outreach_Campaigns? @relation(fields: [campaign], references: [id])
+  assigned_lead     crm_Leads?              @relation(name: "OutreachItemsLead", fields: [lead], references: [id])
+}
+
+model crm_Opportunities_Sales_Stages {
+  id                                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  v                                  Int                 @map("__v")
+  name                               String
+  probability                        Int?
+  order                              Int?
+  assigned_opportunities_sales_stage crm_Opportunities[] @relation(name: "assinged_sales_stage")
+}
+
+model crm_Opportunities_Type {
+  id                     String              @id @default(auto()) @map("_id") @db.ObjectId
+  v                      Int                 @map("__v")
+  name                   String
+  order                  Int?
+  assigned_opportunities crm_Opportunities[]
+}
+
+model crm_Contacts {
+  id                     String              @id @default(auto()) @map("_id") @db.ObjectId
+  v                      Int                 @default(0) @map("__v")
+  account                String?             @db.ObjectId
+  assigned_to            String?             @db.ObjectId
+  birthday               String?
+  created_by             String?             @db.ObjectId
+  createdBy              String?             @db.ObjectId
+  created_on             DateTime?           @default(now())
+  cratedAt               DateTime?           @default(now()) @db.Date
+  last_activity          DateTime?           @default(now()) @db.Date
+  updatedAt              DateTime?           @updatedAt @db.Date
+  updatedBy              String?             @db.ObjectId
+  last_activity_by       String?             @db.ObjectId
+  description            String?
+  email                  String?
+  email_unsubscribed     Boolean?            @default(false)
+  personal_email         String?
+  first_name             String?
+  last_name              String
+  office_phone           String?
+  mobile_phone           String?
+  website                String?
+  position               String?
+  status                 Boolean             @default(true)
+  social_twitter         String?
+  social_facebook        String?
+  social_linkedin        String?
+  social_skype           String?
+  social_instagram       String?
+  social_youtube         String?
+  social_tiktok          String?
+  type                   String?             @default("Customer")
+  tags                   String[]
+  notes                  String[]
+  assigned_to_user       Users?              @relation(name: "assigned_contacts", fields: [assigned_to], references: [id])
+  crate_by_user          Users?              @relation(name: "created_contacts", fields: [created_by], references: [id])
+  opportunitiesIDs       String[]            @db.ObjectId
+  assigned_opportunities crm_Opportunities[] @relation(fields: [opportunitiesIDs], references: [id])
+  accountsIDs            String?             @db.ObjectId
+  assigned_accounts      crm_Accounts?       @relation(fields: [accountsIDs], references: [id])
+  documentsIDs           String[]            @db.ObjectId
+  assigned_documents     Documents[]         @relation(fields: [documentsIDs], references: [id])
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Department assignment for scoped access
+  assigned_department_id String? @db.ObjectId
+
+  // Service Cloud: Cases linked to this contact
+  cases  crm_Cases[]
+  quotes crm_Quotes[]
+}
+
+enum crm_Contact_Type {
+  Customer
+  Partner
+  Vendor
+  Prospect
+}
+
+model crm_Contracts {
+  id                  String               @id @default(auto()) @map("_id") @db.ObjectId
+  v                   Int                  @map("__v")
+  title               String
+  value               Int
+  startDate           DateTime?            @default(now()) @db.Date
+  endDate             DateTime?            @db.Date
+  renewalReminderDate DateTime?            @db.Date
+  customerSignedDate  DateTime?            @db.Date
+  companySignedDate   DateTime?            @db.Date
+  description         String?
+  account             String?              @db.ObjectId
+  assigned_to         String?              @db.ObjectId
+  createdAt           DateTime?            @default(now()) @db.Date
+  createdBy           String?              @db.ObjectId
+  updatedAt           DateTime?            @updatedAt @db.Date
+  updatedBy           String?              @db.ObjectId
+  status              crm_Contracts_Status @default(NOTSTARTED)
+  type                String?
+  assigned_account    crm_Accounts?        @relation(fields: [account], references: [id])
+  assigned_to_user    Users?               @relation(fields: [assigned_to], references: [id])
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Relations
+  deal_room crm_DealRooms?
+}
+
+enum crm_Contracts_Status {
+  NOTSTARTED
+  INPROGRESS
+  SIGNED
+}
+
+enum ProjectStatus {
+  DRAFT
+  READY
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model Boards {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  v                 Int       @map("__v")
+  description       String
+  favourite         Boolean?
+  favouritePosition Int?
+  icon              String?
+  position          Int?
+  title             String
+  user              String    @db.ObjectId
+  visibility        String?
+  sharedWith        String[]  @db.ObjectId
+  createdAt         DateTime? @default(now()) @db.Date
+  createdBy         String?   @db.ObjectId
+  updatedAt         DateTime? @updatedAt @db.Date
+  updatedBy         String?   @db.ObjectId
+
+  // Branding
+  brand_logo_url      String?
+  brand_primary_color String?
+
+  // Project Status & Workflow
+  status           ProjectStatus @default(DRAFT)
+  require_approval Boolean       @default(false)
+
+  // Project Context for Campaigns
+  target_industries  String[]
+  target_geos        String[]
+  target_titles      String[]
+  campaign_brief     String?
+  messaging_tone     String? // formal, casual, technical
+  key_value_props    String[]
+  meeting_link       String?
+  signature_template String?
+
+  // Watchers
+  watchers              String[]                 @db.ObjectId
+  assigned_user         Users?                   @relation(name: "assigned_user", fields: [user], references: [id])
+  watchers_users        Users[]                  @relation(name: "watching_users", fields: [watchers], references: [id])
+  button_sets           Project_Button_Sets[]    @relation(name: "BoardButtonSets")
+  project_opportunities Project_Opportunities[]
+  assigned_leads        crm_Leads[]              @relation(name: "LeadsAssignedProject")
+  outreach_campaigns    crm_Outreach_Campaigns[] @relation(name: "OutreachCampaignsProject")
+  message_portals       crm_Message_Portal[]     @relation(name: "PortalProject")
+  project_members       ProjectMember[]          @relation(name: "ProjectMembers")
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+}
+
+model ProjectMember {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  project    String   @db.ObjectId
+  user       String   @db.ObjectId
+  role       String   @default("MEMBER") // LEAD, MEMBER
+  assignedAt DateTime @default(now()) @db.Date
+  assignedBy String   @db.ObjectId
+
+  board  Boards @relation(name: "ProjectMembers", fields: [project], references: [id])
+  member Users  @relation(name: "ProjectMemberUser", fields: [user], references: [id])
+}
+
+model Employees {
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  v      Int     @map("__v")
+  avatar String
+  email  String?
+  name   String
+  salary Int
+  status String
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+}
+
+model ImageUpload {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+}
+
+model MyAccount {
+  id                   String  @id @default(auto()) @map("_id") @db.ObjectId
+  v                    Int     @map("__v")
+  company_name         String
+  is_person            Boolean @default(false)
+  email                String?
+  email_accountant     String?
+  phone_prefix         String?
+  phone                String?
+  mobile_prefix        String?
+  mobile               String?
+  fax_prefix           String?
+  fax                  String?
+  website              String?
+  // office Address
+  street               String?
+  city                 String?
+  state                String?
+  zip                  String?
+  country              String?
+  country_code         String?
+  // billing Address
+  billing_street       String?
+  billing_city         String?
+  billing_state        String?
+  billing_zip          String?
+  billing_country      String?
+  billing_country_code String?
+  //other
+  currency             String?
+  currency_symbol      String?
+  VAT_number           String
+  TAX_number           String?
+  bank_name            String?
+  bank_account         String?
+  bank_code            String?
+  bank_IBAN            String?
+  bank_SWIFT           String?
+}
+
+model Invoices {
+  id                            String    @id @default(auto()) @map("_id") @db.ObjectId
+  v                             Int?      @map("__v")
+  date_created                  DateTime  @default(now()) @db.Date
+  last_updated                  DateTime  @updatedAt
+  last_updated_by               String?   @db.ObjectId
+  date_received                 DateTime? @default(now()) @db.Date
+  date_of_case                  DateTime? @db.Date
+  date_tax                      DateTime? @db.Date
+  date_due                      DateTime? @db.Date
+  description                   String?
+  document_type                 String?
+  favorite                      Boolean?  @default(false)
+  variable_symbol               String?
+  constant_symbol               String?
+  specific_symbol               String?
+  order_number                  String?
+  internal_number               String?
+  invoice_number                String?
+  invoice_amount                String?
+  invoice_file_mimeType         String
+  invoice_file_url              String
+  invoice_items                 Json?
+  invoice_type                  String?
+  invoice_currency              String?
+  invoice_language              String?
+  partner                       String?
+  partner_street                String?
+  partner_city                  String?
+  partner_zip                   String?
+  partner_country               String?
+  partner_country_code          String?
+  partner_business_street       String?
+  partner_business_city         String?
+  partner_business_zip          String?
+  partner_business_country      String?
+  partner_business_country_code String?
+  partner_VAT_number            String?
+  partner_TAX_number            String?
+  partner_TAX_local_number      String?
+  partner_phone_prefix          String?
+  partner_phone_number          String?
+  partner_fax_prefix            String?
+  partner_fax_number            String?
+  partner_email                 String?
+  partner_website               String?
+  partner_is_person             Boolean?
+  partner_bank                  String?
+  partner_account_number        String?
+  partner_account_bank_number   String?
+  partner_IBAN                  String?
+  partner_SWIFT                 String?
+  partner_BIC                   String?
+  rossum_status                 String?
+  rossum_annotation_id          String?
+  rossum_annotation_url         String?
+  rossum_document_id            String?
+  rossum_document_url           String?
+  rossum_annotation_json_url    String?
+  rossum_annotation_xml_url     String?
+  money_s3_url                  String?
+  status                        String?
+
+  // Phase 2: Financial Integrations
+  payment_status      String?         @default("UNPAID")
+  surge_payment_id    String?
+  surge_payment_link  String?
+  mercury_invoice_id  String?
+  invoice_state_id    String?         @db.ObjectId
+  assigned_user_id    String?         @db.ObjectId
+  assigned_account_id String?         @db.ObjectId
+  visibility          Boolean         @default(true)
+  invoice_states      invoice_States? @relation(fields: [invoice_state_id], references: [id])
+  users               Users?          @relation(fields: [assigned_user_id], references: [id])
+  accounts            crm_Accounts?   @relation(fields: [assigned_account_id], references: [id])
+  connected_documents String[]        @db.ObjectId
+  documents           Documents[]     @relation(fields: [connected_documents], references: [id])
+
+  opportunityIDs String[]            @db.ObjectId
+  opportunities  crm_Opportunities[] @relation(fields: [opportunityIDs], references: [id])
+
+  projectOpportunityIDs String[]                @db.ObjectId
+  project_opportunities Project_Opportunities[] @relation(fields: [projectOpportunityIDs], references: [id])
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+}
+
+model invoice_States {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  assigned_invoices Invoices[]
+}
+
+model Documents {
+  id                     String              @id @default(auto()) @map("_id") @db.ObjectId
+  v                      Int?                @map("__v")
+  date_created           DateTime?           @default(now()) @db.Date
+  createdAt              DateTime?           @default(now()) @db.Date
+  last_updated           DateTime?           @updatedAt
+  updatedAt              DateTime?           @updatedAt @db.Date
+  document_name          String
+  created_by_user        String?             @db.ObjectId
+  createdBy              String?             @db.ObjectId
+  description            String?
+  document_type          String?             @db.ObjectId
+  favourite              Boolean?
+  document_file_mimeType String
+  document_file_url      String
+  hash                   String?
+  status                 String?
+  visibility             String?
+  tags                   Json?
+  key                    String?
+  size                   Int?
+  assigned_user          String?             @db.ObjectId
+  connected_documents    String[]
+  invoiceIDs             String[]            @db.ObjectId
+  opportunityIDs         String[]            @db.ObjectId
+  contactsIDs            String[]            @db.ObjectId
+  tasksIDs               String[]            @db.ObjectId
+  crm_accounts_tasksIDs  String[]            @db.ObjectId
+  leadsIDs               String[]            @db.ObjectId
+  accountsIDs            String[]            @db.ObjectId
+  invoices               Invoices[]          @relation(fields: [invoiceIDs], references: [id])
+  opportunities          crm_Opportunities[] @relation(fields: [opportunityIDs], references: [id])
+  contacts               crm_Contacts[]      @relation(fields: [contactsIDs], references: [id])
+  tasks                  Tasks[]             @relation(fields: [tasksIDs], references: [id])
+  crm_accounts_tasks     crm_Accounts_Tasks? @relation(fields: [crm_accounts_tasksIDs], references: [id])
+  leads                  crm_Leads[]         @relation(fields: [leadsIDs], references: [id])
+  accounts               crm_Accounts[]      @relation(fields: [accountsIDs], references: [id])
+  created_by             Users?              @relation(name: "created_by_user", fields: [created_by_user], references: [id])
+  assigned_to_user       Users?              @relation(name: "assigned_to_user", fields: [assigned_user], references: [id])
+  documents_type         Documents_Types?    @relation(fields: [document_type], references: [id])
+  document_system_type   DocumentSystemType? @default(OTHER)
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+}
+
+enum DocumentSystemType {
+  INVOICE
+  RECEIPT
+  CONTRACT
+  OFFER
+  OTHER
+}
+
+model Documents_Types {
+  id                 String      @id @default(auto()) @map("_id") @db.ObjectId
+  v                  Int         @map("__v")
+  name               String
+  assigned_documents Documents[]
+}
+
+model Sections {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  v        Int     @map("__v")
+  board    String  @db.ObjectId
+  title    String
+  position Int?
+  tasks    Tasks[]
+}
+
+model crm_Industry_Type {
+  id       String         @id @default(auto()) @map("_id") @db.ObjectId
+  v        Int            @map("__v")
+  name     String
+  accounts crm_Accounts[]
+}
+
+model modulStatus {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  isVisible Boolean
+}
+
+model Tasks {
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  v                Int             @map("__v")
+  content          String?
+  createdAt        DateTime?       @default(now()) @db.Date
+  createdBy        String?         @db.ObjectId
+  updatedAt        DateTime?       @updatedAt @db.Date
+  updatedBy        String?         @db.ObjectId
+  dueDateAt        DateTime?       @default(now()) @db.Date
+  lastEditedAt     DateTime?       @default(now()) @updatedAt @db.Date
+  position         Int
+  priority         String
+  section          String?         @db.ObjectId
+  tags             Json?
+  title            String
+  likes            Int?            @default(0)
+  user             String?         @db.ObjectId
+  documentIDs      String[]        @db.ObjectId
+  comments         tasksComments[]
+  documents        Documents[]     @relation(fields: [documentIDs], references: [id])
+  assigned_user    Users?          @relation(fields: [user], references: [id])
+  assigned_section Sections?       @relation(fields: [section], references: [id])
+
+  // CRM Linkages
+  accountId     String?     @db.ObjectId
+  opportunityId String?     @db.ObjectId
+  contactId     String?     @db.ObjectId
+  leadId        String?     @db.ObjectId
+  //Staus
+  taskStatus    taskStatus? @default(ACTIVE)
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+}
+
+model crm_Accounts_Tasks {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int             @map("__v")
+  content       String?
+  createdAt     DateTime?       @default(now()) @db.Date
+  createdBy     String?         @db.ObjectId
+  updatedAt     DateTime?       @updatedAt @db.Date
+  updatedBy     String?         @db.ObjectId
+  dueDateAt     DateTime?       @default(now()) @db.Date
+  priority      String
+  tags          Json?
+  title         String
+  likes         Int?            @default(0)
+  user          String?         @db.ObjectId
+  comments      tasksComments[]
+  documents     Documents[]
+  assigned_user Users?          @relation(fields: [user], references: [id])
+  //CRM assigments
+  account       String?         @db.ObjectId
+  crm_accounts  crm_Accounts?   @relation(fields: [account], references: [id])
+  //Staus
+  taskStatus    taskStatus?     @default(ACTIVE)
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+}
+
+model tasksComments {
+  id                             String              @id @default(auto()) @map("_id") @db.ObjectId
+  v                              Int                 @map("__v")
+  comment                        String
+  createdAt                      DateTime            @default(now()) @db.Date
+  task                           String              @db.ObjectId
+  user                           String              @db.ObjectId
+  assigned_crm_account_task      String?             @db.ObjectId
+  assigned_crm_account_task_task crm_Accounts_Tasks? @relation(fields: [assigned_crm_account_task], references: [id])
+  assigned_task                  Tasks?              @relation(fields: [task], references: [id], onDelete: Cascade)
+  assigned_user                  Users?              @relation(fields: [user], references: [id])
+}
+
+enum taskStatus {
+  ACTIVE
+  PENDING
+  COMPLETE
+}
+
+model TodoList {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt   String
+  description String
+  title       String
+  url         String
+  user        String
+}
+
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+model Role {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  permissions String[]
+  description String?
+  users       Users[]
+}
+
+model Users {
+  saved_reports        SavedReport[]
+  id                   String                   @id @default(auto()) @map("_id") @db.ObjectId
+  v                    Int                      @default(0) @map("__v")
+  account_name         String?
+  avatar               String?
+  email                String                   @unique
+  is_account_admin     Boolean                  @default(false)
+  is_admin             Boolean                  @default(false) // Deprecated in favor of role
+  roleId               String?                  @db.ObjectId
+  assigned_role        Role?                    @relation(fields: [roleId], references: [id])
+  created_on           DateTime                 @default(now()) @db.Date
+  lastLoginAt          DateTime?                @db.Date
+  name                 String?
+  password             String?
+  username             String?
+  phone                String?
+  userStatus           ActiveStatus             @default(PENDING)
+  userLanguage         Language                 @default(en)
+  mustChangePassword   Boolean                  @default(false)
+  tasksComment         tasksComments[]
+  created_by_documents Documents[]              @relation(name: "created_by_user")
+  assigned_documents   Documents[]              @relation(name: "assigned_to_user")
+  tasks                Tasks[]
+  crm_accounts_tasks   crm_Accounts_Tasks[]
+  accounts             crm_Accounts[]
+  leads                crm_Leads[]
+  created_by_user      crm_Opportunities[]      @relation(name: "created_by_user_relation")
+  assigned_opportunity crm_Opportunities[]      @relation(name: "assigned_to_user_relation")
+  assigned_contacts    crm_Contacts[]           @relation(name: "assigned_contacts")
+  crated_contacts      crm_Contacts[]           @relation(name: "created_contacts")
+  notion_account       secondBrain_notions[]
+  openAi_key           openAi_keys[]
+  gmail_tokens         gmail_Tokens[]
+  microsoft_tokens     microsoft_Tokens[]
+  assigned_invoices    Invoices[]
+  assigned_contracts   crm_Contracts[]
+  boards               Boards[]                 @relation(name: "assigned_user")
+  watching_boardsIDs   String[]                 @db.ObjectId
+  watching_boards      Boards[]                 @relation(name: "watching_users", fields: [watching_boardsIDs], references: [id])
+  watching_accountsIDs String[]                 @db.ObjectId
+  watching_accounts    crm_Accounts[]           @relation(name: "watching_accounts", fields: [watching_accountsIDs], references: [id])
+  chat_sessions        chat_Sessions[]
+  button_sets_presets  Project_Button_Sets[]    @relation(name: "UserButtonSets")
+  lead_pools           crm_Lead_Pools[]         @relation(name: "LeadPoolsAssignedUser")
+  lead_gen_jobs        crm_Lead_Gen_Jobs[]      @relation(name: "LeadGenJobsAssignedUser")
+  lead_activities      crm_Lead_Activities[]    @relation(name: "LeadActivitiesToUser")
+  system_activities    SystemActivity[]         @relation(name: "UserSystemActivities")
+  outreach_campaigns   crm_Outreach_Campaigns[] @relation(name: "OutreachCampaignsUser")
+  project_memberships  ProjectMember[]          @relation(name: "ProjectMemberUser")
+
+  // Outreach, signature, resources, and prompt settings
+  meeting_link               String?
+  signature_html             String?
+  signature_updated_at       DateTime? @db.Date
+  signature_meta             Json?
+  resource_links             Json?
+  outreach_prompt_default    String?
+  outreach_prompt_updated_at DateTime? @db.Date
+  outreach_prompt_meta       Json?
+
+  // Calendar preferences
+  calendar_selected_ids String[]
+  default_calendar_id   String?
+  calendar_colors       Json?
+
+  // Team / Partner
+  team_id                String?                  @db.ObjectId
+  assigned_team          Team?                    @relation(name: "TeamMembers", fields: [team_id], references: [id])
+  team_role              String?                  @default("MEMBER") // SUPER_ADMIN, ADMIN, MEMBER, VIEWER
+  department_id          String?                  @db.ObjectId // If assigned to a specific department
+  assigned_modules       String[]
+  custom_role_id         String?                  @db.ObjectId
+  custom_role            CustomRole?              @relation(fields: [custom_role_id], references: [id])
+  created_workflows      crm_Workflow[]           @relation(name: "WorkflowCreator")
+  created_custom_objects CustomObjectDefinition[] @relation("CreatedCustomObjects")
+
+  // Service Cloud relations
+  assigned_cases      crm_Cases[]            @relation(name: "CaseAssignedUser")
+  created_cases       crm_Cases[]            @relation(name: "CaseCreator")
+  case_comments       crm_Case_Comments[]    @relation(name: "CaseCommentAuthor")
+  case_status_changes CaseStatusTransition[] @relation(name: "CaseStatusChanger")
+
+  // Smart Router (Omni-Channel Routing)
+  agent_presence   AgentPresence?  @relation(name: "AgentPresenceUser")
+  agent_skills     AgentSkill[]    @relation(name: "AgentSkillUser")
+  routing_fallback RoutingConfig[] @relation(name: "RoutingFallbackUser")
+
+  // Help Hub (Knowledge Base)
+  kb_articles KnowledgeArticle[] @relation(name: "KBArticleAuthor")
+
+  // Phase 3: Guard Rules (Validation)
+  created_validation_rules ValidationRule[] @relation(name: "ValidationRuleCreator")
+
+  // Phase 3: Approval Process
+  created_approval_processes ApprovalProcess[]       @relation(name: "ApprovalProcessCreator")
+  approval_step_approvals    ApprovalStep[]          @relation(name: "ApprovalStepApprover")
+  approval_submissions       ApprovalRequest[]       @relation(name: "ApprovalSubmitter")
+  approval_actions           ApprovalRequestAction[] @relation(name: "ApprovalActor")
+  notifications              Notification[]
+  quotes                     crm_Quotes[]
+
+  dashboard_preference   DashboardPreference?
+  navigation_preferences NavigationConfig[]
+}
+
+model Team {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  slug       String   @unique
+  logo_url   String?
+  owner_id   String?  @db.ObjectId
+  created_at DateTime @default(now()) @db.Date
+  updated_at DateTime @updatedAt @db.Date
+
+  // Hierarchy: Organizations have Departments as children
+  team_type   TeamType @default(ORGANIZATION)
+  parent_id   String?  @db.ObjectId
+  parent_team Team?    @relation("TeamHierarchy", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  departments Team[]   @relation("TeamHierarchy")
+
+  // Organization-wide settings (only set on ORGANIZATION type)
+  signature_theme Json? // { html: string, primaryColor: string, logoUrl: string }
+
+  // Relations
+  members           Users[]          @relation(name: "TeamMembers")
+  subscription_plan SubscriptionPlan @default(FREE) // Deprecated, keep for migration
+
+  plan_id       String? @db.ObjectId
+  assigned_plan Plan?   @relation(fields: [plan_id], references: [id])
+
+  status            TeamStatus @default(ACTIVE)
+  suspension_reason String?
+  renewal_date      DateTime?
+
+  // Data Ownership
+  accounts      crm_Accounts[]
+  leads         crm_Leads[]
+  opportunities crm_Opportunities[]
+  contacts      crm_Contacts[]
+  contracts     crm_Contracts[]
+  boards        Boards[]
+  invoices      Invoices[]
+  documents     Documents[]
+  tasks         Tasks[]
+
+  lead_pools         crm_Lead_Pools[]
+  employees          Employees[]
+  accounts_tasks     crm_Accounts_Tasks[]
+  outreach_campaigns crm_Outreach_Campaigns[] @relation(name: "OutreachCampaignsTeam")
+  message_portals    crm_Message_Portal[]     @relation(name: "PortalTeam")
+
+  ai_config      TeamAiConfig?
+  email_config   TeamEmailConfig?
+  sms_config     TeamSmsConfig?
+  custom_roles   CustomRole[]
+  captcha_config TeamCaptchaConfig?
+  RolePermission RolePermission[]
+  workflows      crm_Workflow[]     @relation(name: "WorkflowTeam")
+
+  // Dynamic Schema Engine
+  custom_objects CustomObjectDefinition[]
+  custom_records CustomRecord[]
+  page_layouts   PageLayout[]
+
+  // Service Cloud
+  cases        crm_Cases[]
+  sla_policies SLA_Policy[] // Service Commitments
+
+  // Smart Router (Omni-Channel Routing)
+  agent_presences AgentPresence[]
+  agent_skills    AgentSkill[]
+  routing_config  RoutingConfig?  @relation(name: "TeamRoutingConfig")
+
+  // Help Hub (Knowledge Base)
+  kb_categories KnowledgeCategory[]
+  kb_articles   KnowledgeArticle[]
+
+  // Phase 3: Intelligence & Automation
+  validation_rules   ValidationRule[]
+  approval_processes ApprovalProcess[]
+  approval_requests  ApprovalRequest[]
+  notifications      Notification[]
+  products           crm_Products[]
+
+  quotes             crm_Quotes[]
+  team_subscriptions crm_Subscriptions[]
+  navigation_configs NavigationConfig[]
+  integrations       Tenant_Integrations?
+}
+
+model CustomRole {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  team_id     String   @db.ObjectId
+  team        Team     @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  modules     String[] // enabled module IDs
+  created_at  DateTime @default(now()) @db.Date
+  updated_at  DateTime @updatedAt @db.Date
+
+  // Users assigned to this role
+  users Users[]
+
+  @@unique([team_id, name])
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+  LIFETIME
+  ONE_TIME
+}
+
+model Plan {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String  @unique // FREE, TEAM, ENTERPRISE
+  description String?
+  price       Float   @default(0)
+  currency    String  @default("USD")
+
+  // Limits
+  max_users   Int @default(1)
+  max_storage Int @default(1000) // MB
+  max_credits Int @default(0)
+
+  // Subscription Settings
+  billing_cycle     BillingCycle @default(MONTHLY)
+  grace_period_days Int          @default(7)
+
+  // Features (Modules)
+  features String[]
+
+  isActive Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Date
+  updated_at DateTime @default(now()) @updatedAt @db.Date
+
+  // Relations
+  teams Team[]
+}
+
+enum SubscriptionPlan {
+  FREE
+  TEAM
+  ENTERPRISE
+}
+
+enum TeamStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum Language {
+  cz
+  en
+  de
+  uk
+}
+
+model system_Modules_Enabled {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  v        Int     @map("__v")
+  name     String
+  enabled  Boolean
+  position Int
+}
+
+model secondBrain_notions {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  v              Int    @map("__v")
+  user           String @db.ObjectId
+  notion_api_key String
+  notion_db_id   String
+  assigned_user  Users? @relation(fields: [user], references: [id])
+}
+
+model openAi_keys {
+  id              String @id @default(auto()) @map("_id") @db.ObjectId
+  v               Int    @map("__v")
+  user            String @db.ObjectId
+  organization_id String
+  api_key         String
+  assigned_user   Users? @relation(fields: [user], references: [id])
+}
+
+model gmail_Tokens {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?      @map("__v")
+  user          String    @db.ObjectId
+  provider      String    @default("google")
+  access_token  String
+  refresh_token String
+  scope         String?
+  expiry_date   DateTime? @db.Date
+  createdAt     DateTime? @default(now()) @db.Date
+  updatedAt     DateTime? @updatedAt @db.Date
+
+  assigned_user Users? @relation(fields: [user], references: [id])
+}
+
+model microsoft_Tokens {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?      @map("__v")
+  user          String    @db.ObjectId
+  provider      String    @default("microsoft")
+  access_token  String
+  refresh_token String
+  scope         String?
+  expiry_date   DateTime? @db.Date
+  createdAt     DateTime? @default(now()) @db.Date
+  updatedAt     DateTime? @updatedAt @db.Date
+
+  assigned_user Users? @relation(fields: [user], references: [id])
+}
+
+enum EmailProvider {
+  AWS_SES
+  RESEND
+  SENDGRID
+  MAILGUN
+  POSTMARK
+  SMTP
+}
+
+model TeamEmailConfig {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  team_id String @unique @db.ObjectId
+
+  provider EmailProvider @default(AWS_SES)
+
+  // Common
+  from_name  String?
+  from_email String
+
+  // AWS SES Specific
+  aws_access_key_id     String?
+  aws_secret_access_key String?
+  aws_region            String  @default("us-east-1")
+
+  // RESEND Specific
+  resend_api_key String?
+
+  // SENDGRID Specific
+  sendgrid_api_key String?
+
+  // MAILGUN Specific
+  mailgun_api_key String?
+  mailgun_domain  String?
+  mailgun_region  String?
+
+  // POSTMARK Specific
+  postmark_api_token String?
+
+  // GENERIC SMTP Specific
+  smtp_host     String?
+  smtp_port     Int?
+  smtp_user     String?
+  smtp_password String?
+
+  verification_status String @default("PENDING") // PENDING, VERIFIED, FAILED
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  assigned_team Team @relation(fields: [team_id], references: [id])
+}
+
+model systemServices {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  v               Int     @map("__v")
+  name            String
+  serviceUrl      String?
+  serviceId       String?
+  serviceKey      String?
+  servicePassword String?
+  servicePort     String?
+  description     String?
+}
+
+model oauth_Authorization_Codes {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  code            String   @unique
+  userId          String   @db.ObjectId
+  clientId        String
+  redirectUri     String
+  scope           String?
+  codeChallenge   String
+  challengeMethod String   @default("S256")
+  expiresAt       DateTime @db.Date
+  used            Boolean  @default(false)
+  createdAt       DateTime @default(now()) @db.Date
+}
+
+enum AiProvider {
+  OPENAI
+  AZURE
+  ANTHROPIC
+  GOOGLE
+  GROK
+  DEEPSEEK
+  PERPLEXITY
+  MISTRAL
+}
+
+model AiModel {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int        @default(0) @map("__v")
+  name        String // Display name (e.g. "GPT-4o")
+  modelId     String // API model ID (e.g. "gpt-4o")
+  provider    AiProvider
+  description String?
+
+  // Pricing per 1k tokens (managed by Partner)
+  inputPrice  Float @default(0) // Cost from provider
+  outputPrice Float @default(0) // Cost from provider
+
+  // Billing Strategy
+  maxContext    Int   @default(128000)
+  defaultMarkup Float @default(20.0) // Percentage markup (e.g. 20%)
+
+  isActive   Boolean   @default(true)
+  isDefault  Boolean   @default(false)
+  created_on DateTime? @default(now()) @db.Date
+}
+
+model SystemAiConfig {
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  provider       AiProvider @unique
+  apiKey         String?
+  baseUrl        String? // Optional override
+  configuration  Json? // Store provider-specific config (Azure endpoint, etc)
+  defaultModelId String? // Default model for this provider (e.g. "gpt-4o")
+  isActive       Boolean    @default(true)
+}
+
+model TeamAiConfig {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  team_id      String     @unique @db.ObjectId
+  provider     AiProvider @default(OPENAI) // Active provider for this team
+  modelId      String? // Specific model override (e.g. "gpt-4o")
+  useSystemKey Boolean    @default(true)
+  apiKey       String? // Stored if useSystemKey is false
+
+  assigned_team Team @relation(fields: [team_id], references: [id])
+}
+
+// =============================================================================
+// TEAM SMS CONFIG - 10DLC REGISTRATION
+// Stores brand and campaign registration IDs for SMS outreach per team
+// =============================================================================
+
+enum TenDlcRegistrationStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  DENIED
+  REQUIRES_UPDATE
+}
+
+model TeamSmsConfig {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  team_id String @unique @db.ObjectId
+
+  // Brand Registration (Company Info)
+  brand_registration_id String?
+  brand_status          TenDlcRegistrationStatus? @default(PENDING)
+  brand_name            String?
+  brand_ein             String?
+  brand_vertical        String?
+  brand_company_type    String?
+  brand_website_url     String?
+  brand_street          String?
+  brand_city            String?
+  brand_state           String?
+  brand_postal_code     String?
+  brand_country_code    String?
+  brand_contact_email   String?
+  brand_contact_phone   String?
+  brand_support_email   String?
+  brand_support_phone   String?
+
+  // Campaign Registration
+  campaign_registration_id String?
+  campaign_status          TenDlcRegistrationStatus? @default(PENDING)
+  campaign_use_case        String?                   @default("ACCOUNT_NOTIFICATION")
+  campaign_description     String?
+  campaign_message_flow    String?
+  campaign_sample_messages String[]
+  campaign_help_message    String?
+  campaign_opt_out_message String?
+
+  // Phone Number (assigned after campaign approval)
+  phone_number_id     String?
+  phone_number        String? // E.164 format
+  phone_number_arn    String?
+  phone_number_status String?
+
+  // Configuration
+  sms_enabled    Boolean @default(false)
+  monthly_budget Float?  @default(0)
+  daily_limit    Int?    @default(100)
+
+  // Timestamps
+  createdAt             DateTime  @default(now()) @db.Date
+  updatedAt             DateTime  @updatedAt @db.Date
+  brand_submitted_at    DateTime? @db.Date
+  brand_approved_at     DateTime? @db.Date
+  campaign_submitted_at DateTime? @db.Date
+  campaign_approved_at  DateTime? @db.Date
+
+  // Relations
+  assigned_team Team @relation(fields: [team_id], references: [id])
+}
+
+model TeamCaptchaConfig {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  team_id    String   @unique @db.ObjectId
+  site_key   String
+  secret_key String
+  createdAt  DateTime @default(now()) @db.Date
+  updatedAt  DateTime @updatedAt @db.Date
+
+  assigned_team Team @relation(fields: [team_id], references: [id])
+}
+
+model chat_Sessions {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int       @default(0) @map("__v")
+  user        String    @db.ObjectId
+  title       String?
+  isTemporary Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.Date
+  updatedAt   DateTime? @updatedAt @db.Date
+
+  messages      chat_Messages[]
+  assigned_user Users?          @relation(fields: [user], references: [id])
+}
+
+model chat_Messages {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  v          Int      @default(0) @map("__v")
+  session    String   @db.ObjectId
+  parent     String?  @db.ObjectId
+  role       String
+  content    String
+  createdAt  DateTime @default(now()) @db.Date
+  model      String?
+  deployment String?
+  tokenUsage Json?
+
+  assigned_session chat_Sessions?  @relation(fields: [session], references: [id])
+  parent_message   chat_Messages?  @relation("ChatMessageChildren", fields: [parent], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children         chat_Messages[] @relation("ChatMessageChildren")
+}
+
+enum LeadGenJobStatus {
+  QUEUED
+  RUNNING
+  PAUSED
+  STOPPED
+  SUCCESS
+  FAILED
+}
+
+enum LeadCandidateStatus {
+  NEW
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+enum EmailVerificationStatus {
+  VALID
+  RISKY
+  INVALID
+  CATCH_ALL
+  UNKNOWN
+}
+
+model crm_Lead_Pools {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int?      @map("__v")
+  name        String
+  description String?
+  user        String    @db.ObjectId
+  createdAt   DateTime? @default(now()) @db.Date
+  updatedAt   DateTime? @updatedAt @db.Date
+  status      String?   @default("ACTIVE")
+  icpConfig   Json?
+
+  // Relations
+  jobs               crm_Lead_Gen_Jobs[]
+  candidates         crm_Lead_Candidates[]
+  lead_maps          crm_Lead_Pools_Leads[]
+  outreach_campaigns crm_Outreach_Campaigns[] @relation(name: "OutreachCampaignsPools")
+  assigned_user      Users?                   @relation(name: "LeadPoolsAssignedUser", fields: [user], references: [id])
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  // Members assigned to work on this pool
+  assigned_members String[] @db.ObjectId
+}
+
+model crm_Lead_Gen_Jobs {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  v              Int?              @map("__v")
+  user           String            @db.ObjectId
+  pool           String            @db.ObjectId
+  status         LeadGenJobStatus? @default(QUEUED)
+  startedAt      DateTime?         @db.Date
+  finishedAt     DateTime?         @db.Date
+  providers      Json?
+  queryTemplates Json?
+  counters       Json?
+  logs           Json?
+
+  // Relations
+  sourceEvents  crm_Lead_Source_Events[]
+  assigned_user Users?                   @relation(name: "LeadGenJobsAssignedUser", fields: [user], references: [id])
+  assigned_pool crm_Lead_Pools?          @relation(fields: [pool], references: [id])
+}
+
+model crm_Lead_Source_Events {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int?      @map("__v")
+  job       String    @db.ObjectId
+  type      String?
+  query     String?
+  url       String?
+  fetchedAt DateTime? @default(now()) @db.Date
+  metadata  Json?
+
+  // Relations
+  assigned_job crm_Lead_Gen_Jobs? @relation(fields: [job], references: [id])
+}
+
+model crm_Lead_Candidates {
+  id          String               @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int?                 @map("__v")
+  pool        String               @db.ObjectId
+  domain      String?
+  companyName String?
+  homepageUrl String?
+  description String?
+  industry    String?
+  techStack   Json?
+  score       Int?                 @default(0)
+  freshnessAt DateTime?            @db.Date
+  status      LeadCandidateStatus? @default(NEW)
+  dedupeKey   String?
+  provenance  Json?
+
+  // Optional linkage to an Account if matched
+  accountsIDs String? @db.ObjectId
+
+  // Relations
+  contacts          crm_Contact_Candidates[]
+  assigned_pool     crm_Lead_Pools?          @relation(fields: [pool], references: [id])
+  assigned_accounts crm_Accounts?            @relation(name: "LeadCandidatesAssignedAccounts", fields: [accountsIDs], references: [id])
+}
+
+model crm_Contact_Candidates {
+  id            String                   @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?                     @map("__v")
+  leadCandidate String                   @db.ObjectId
+  fullName      String?
+  title         String?
+  email         String?
+  emailStatus   EmailVerificationStatus? @default(UNKNOWN)
+  phone         String?
+  linkedinUrl   String?
+  confidence    Int?
+  provenance    Json?
+  status        String?                  @default("NEW")
+  dedupeKey     String?
+
+  // Conversion linkage to Leads
+  lead_maps crm_Contact_Candidate_Leads[]
+
+  // Relations
+  candidate crm_Lead_Candidates? @relation(fields: [leadCandidate], references: [id])
+}
+
+model crm_Lead_Pools_Leads {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int?      @map("__v")
+  pool      String    @db.ObjectId
+  lead      String    @db.ObjectId
+  createdAt DateTime? @default(now()) @db.Date
+
+  assigned_pool crm_Lead_Pools? @relation(fields: [pool], references: [id])
+  assigned_lead crm_Leads?      @relation(fields: [lead], references: [id])
+}
+
+model crm_Contact_Candidate_Leads {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int?      @map("__v")
+  candidate String    @db.ObjectId
+  lead      String    @db.ObjectId
+  createdAt DateTime? @default(now()) @db.Date
+
+  assigned_candidate crm_Contact_Candidates? @relation(fields: [candidate], references: [id])
+  assigned_lead      crm_Leads?              @relation(fields: [lead], references: [id])
+}
+
+model crm_Global_Companies {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int?      @map("__v")
+  domain      String?   @unique
+  companyName String?
+  description String?
+  homepageUrl String?
+  industry    String?
+  techStack   Json?
+  dedupeKey   String?   @unique
+  firstSeen   DateTime? @default(now()) @db.Date
+  lastSeen    DateTime? @db.Date
+  provenance  Json?
+  status      String?   @default("ACTIVE")
+
+  // Persons back-relation for referential consistency
+  persons crm_Global_Persons[] @relation("GlobalCompanyPersons")
+}
+
+model crm_Global_Persons {
+  id            String                   @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?                     @map("__v")
+  email         String?                  @unique
+  fullName      String?
+  title         String?
+  linkedinUrl   String?
+  phone         String?
+  companyDomain String?
+  companyId     String?                  @db.ObjectId
+  dedupeKey     String?                  @unique
+  emailStatus   EmailVerificationStatus?
+  confidence    Int?
+  firstSeen     DateTime?                @default(now()) @db.Date
+  lastSeen      DateTime?                @db.Date
+  provenance    Json?
+  status        String?                  @default("ACTIVE")
+
+  assigned_company crm_Global_Companies? @relation(name: "GlobalCompanyPersons", fields: [companyId], references: [id])
+
+  @@index([companyDomain])
+}
+
+enum OutreachStatus {
+  IDLE
+  PENDING
+  SENT
+  OPENED
+  MEETING_LINK_CLICKED
+  MEETING_BOOKED
+  CLOSED
+}
+
+enum PipelineStage {
+  Identify
+  Engage_AI
+  Engage_Human
+  Offering
+  Finalizing
+  Closed
+}
+
+model crm_Lead_Activities {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int      @default(0) @map("__v")
+  lead      String   @db.ObjectId
+  user      String?  @db.ObjectId
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now()) @db.Date
+
+  assigned_lead crm_Leads? @relation(name: "LeadActivitiesToLead", fields: [lead], references: [id])
+  assigned_user Users?     @relation(name: "LeadActivitiesToUser", fields: [user], references: [id])
+}
+
+// Button set presets per project (Boards)
+model Project_Button_Sets {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int?      @map("__v")
+  project   String    @db.ObjectId
+  owner     String?   @db.ObjectId // null => project default shared to all team members
+  name      String
+  config    Json?
+  isDefault Boolean   @default(false)
+  createdAt DateTime? @default(now()) @db.Date
+  updatedAt DateTime? @updatedAt @db.Date
+
+  assigned_project Boards? @relation(name: "BoardButtonSets", fields: [project], references: [id])
+  assigned_owner   Users?  @relation(name: "UserButtonSets", fields: [owner], references: [id])
+}
+
+// Project-scoped Opportunities posted by Sales for feature buildouts and commissioned work
+enum ProjectOpportunityCategory {
+  FEATURE_BUILDOUT
+  COMMISSIONED_WORK
+  OTHER
+}
+
+enum ProjectOpportunityStatus {
+  OPEN
+  WON
+  LOST
+  ARCHIVED
+}
+
+model Project_Opportunities {
+  id              String                     @id @default(auto()) @map("_id") @db.ObjectId
+  v               Int?                       @map("__v")
+  project         String                     @db.ObjectId
+  title           String
+  description     String?
+  category        ProjectOpportunityCategory
+  status          ProjectOpportunityStatus   @default(OPEN)
+  valueEstimate   Int?
+  createdAt       DateTime?                  @default(now()) @db.Date
+  createdBy       String?                    @db.ObjectId
+  assignedTo      String?                    @db.ObjectId
+  relatedTasksIDs String[]                   @db.ObjectId
+
+  assigned_project Boards? @relation(fields: [project], references: [id])
+
+  invoiceIDs String[]   @db.ObjectId
+  invoices   Invoices[] @relation(fields: [invoiceIDs], references: [id])
+}
+
+model FooterSection {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  order     Int          @default(0)
+  isBase    Boolean      @default(false)
+  links     FooterLink[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model FooterLink {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  text      String
+  url       String
+  order     Int           @default(0)
+  sectionId String        @db.ObjectId
+  section   FooterSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model FooterSetting {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  tagline          String   @default("Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.")
+  copyrightText    String   @default("© 2025 Ledger AI. All rights reserved.")
+  socialXUrl       String   @default("https://x.com/BasaltAI")
+  socialDiscordUrl String   @default("https://discord.gg/gcgNugyWkg")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model BlogPost {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String   @unique
+  content     String
+  excerpt     String?
+  coverImage  String?
+  category    String?
+  author      String?
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model JobPosting {
+  id           String           @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  department   String
+  location     String
+  type         String           @default("Full-time")
+  description  String?
+  summary      String?
+  content      String?
+  requirements String?
+  applyLink    String?
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  applications JobApplication[]
+}
+
+model JobApplication {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  jobId    String     @db.ObjectId
+  jobTitle String // Denormalized for easier display/querying
+  job      JobPosting @relation(fields: [jobId], references: [id])
+
+  name         String
+  email        String
+  phone        String?
+  resumeUrl    String?
+  coverLetter  String?
+  linkedinUrl  String?
+  portfolioUrl String?
+
+  status       String  @default("PENDING") // PENDING, REVIEWING, REJECTED, HIRED
+  jiraTicketId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocArticle {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  slug      String   @unique
+  category  String
+  content   String
+  videoUrl  String?
+  resources Json?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SocialSettings {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  // Primary Socials
+  xTwitterUrl       String?  @default("")
+  discordUrl        String?  @default("")
+  linkedinUrl       String?  @default("")
+  instagramUrl      String?  @default("")
+  facebookUrl       String?  @default("")
+  youtubeUrl        String?  @default("")
+  tiktokUrl         String?  @default("")
+  githubUrl         String?  @default("https://github.com/Ledger1-ai/crm-official")
+  telegramUrl       String?  @default("")
+  redditUrl         String?  @default("")
+  threadsUrl        String?  @default("")
+  mastodonUrl       String?  @default("")
+  // Contact Info
+  emailSupport      String?  @default("")
+  emailSales        String?  @default("")
+  phoneNumber       String?  @default("")
+  // App Stores
+  appStoreUrl       String?  @default("")
+  playStoreUrl      String?  @default("")
+  // Newsletter/CTA
+  newsletterEnabled Boolean  @default(true)
+  ctaText           String?  @default("Stay Updated")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model SupportTicket {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  source       String // "PRICING", "SUPPORT"
+  name         String
+  email        String
+  subject      String?
+  message      String
+  status       String   @default("NEW") // "NEW", "JIRA_CREATED", "ARCHIVED"
+  jiraTicketId String?
+  createdAt    DateTime @default(now()) @db.Date
+  updatedAt    DateTime @updatedAt @db.Date
+}
+
+model SystemActivity {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  action    String
+  resource  String
+  details   String?
+  createdAt DateTime @default(now()) @db.Date
+
+  user Users @relation(name: "UserSystemActivities", fields: [userId], references: [id])
+}
+
+model PageView {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  path      String
+  userAgent String?
+  ipHash    String?
+  city      String?
+  country   String?
+  createdAt DateTime @default(now()) @db.Date
+}
+
+model SystemAuthConfig {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  provider     String // "google", "github", "azure-ad"
+  clientId     String
+  clientSecret String
+  tenantId     String? // For Azure AD or optional logic
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([provider])
+}
+
+// =============================================================================
+// INTERNAL TEAM MESSAGING SYSTEM
+// Email-like internal messaging between team members
+// =============================================================================
+
+enum InternalMessageStatus {
+  DRAFT
+  SENT
+  READ
+  ARCHIVED
+  DELETED
+}
+
+enum InternalMessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model InternalMessage {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  // Sender
+  sender_id    String  @db.ObjectId
+  sender_name  String?
+  sender_email String?
+
+  // Subject and content
+  subject   String
+  body_text String?
+  body_html String?
+
+  // Status and flags
+  status     InternalMessageStatus   @default(SENT)
+  priority   InternalMessagePriority @default(NORMAL)
+  is_starred Boolean                 @default(false)
+
+  // Parent message for threading
+  parent_id String? @db.ObjectId
+  thread_id String? @db.ObjectId // Root message ID for the thread
+
+  // Labels/tags
+  labels String[]
+
+  // Attachments (references to Documents)
+  attachment_ids String[] @db.ObjectId
+
+  // Team scope
+  team_id String @db.ObjectId
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @db.Date
+  updatedAt DateTime? @updatedAt @db.Date
+  sentAt    DateTime? @db.Date
+
+  // Relations
+  recipients InternalMessageRecipient[]
+  parent     InternalMessage?           @relation("MessageThread", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children   InternalMessage[]          @relation("MessageThread")
+
+  @@index([team_id, createdAt])
+  @@index([sender_id])
+  @@index([thread_id])
+}
+
+model InternalMessageRecipient {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  v              Int?   @map("__v")
+  message_id     String @db.ObjectId
+  recipient_id   String @db.ObjectId
+  recipient_type String @default("TO") // TO, CC, BCC
+
+  // Recipient-specific status
+  is_read     Boolean @default(false)
+  is_starred  Boolean @default(false)
+  is_archived Boolean @default(false)
+  is_deleted  Boolean @default(false)
+
+  // Timestamps
+  read_at   DateTime? @db.Date
+  createdAt DateTime  @default(now()) @db.Date
+
+  // Relations
+  message InternalMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, recipient_id])
+  @@index([recipient_id, is_read])
+}
+
+// =============================================================================
+// FORM BUILDER SYSTEM
+// Forms stored per project with embeddable/JS snippet support
+// =============================================================================
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  EMAIL
+  PHONE
+  NUMBER
+  SELECT
+  MULTI_SELECT
+  CHECKBOX
+  RADIO
+  DATE
+  TIME
+  DATETIME
+  FILE
+  HIDDEN
+  CONSENT
+}
+
+enum FormStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum FormVisibility {
+  PUBLIC // Submissions visible to all team members
+  PRIVATE // Submissions visible only to form creator
+}
+
+enum SubmissionBehavior {
+  MESSAGE
+  REDIRECT
+}
+
+model Form {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  // Basic info
+  name        String
+  description String?
+  slug        String  @unique // Used for public URL
+
+  // Form configuration
+  status              FormStatus         @default(DRAFT)
+  submission_behavior SubmissionBehavior @default(MESSAGE)
+  success_message     String?            @default("Thank you for your submission!")
+  redirect_url        String? // Optional redirect after submission
+
+  // Branding
+  primary_color String? @default("#F54029")
+  logo_url      String?
+  custom_css    String?
+
+  // Visibility
+  visibility FormVisibility @default(PUBLIC)
+
+  // Settings
+  require_captcha      Boolean  @default(false)
+  captcha_site_key     String?
+  captcha_secret_key   String?
+  notify_emails        String[] // Emails to notify on submission
+  webhook_url          String? // Optional webhook for submissions
+  auto_respond         Boolean  @default(false)
+  auto_respond_subject String?
+  auto_respond_body    String?
+
+  // Association
+  project_id String? @db.ObjectId // Optional project association
+  team_id    String  @db.ObjectId
+  created_by String  @db.ObjectId
+
+  // Stats (denormalized)
+  submission_count Int @default(0)
+  view_count       Int @default(0)
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @db.Date
+  updatedAt DateTime? @updatedAt @db.Date
+
+  // Relations
+  fields      FormField[]
+  submissions FormSubmission[]
+  views       FormView[]
+
+  @@index([team_id, status])
+  @@index([project_id])
+}
+
+model FormView {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  form_id String @db.ObjectId
+
+  // Metadata
+  ip_address String?
+  user_agent String?
+  referer    String?
+
+  // Timestamps
+  viewedAt DateTime @default(now())
+
+  // Relations
+  form Form @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@index([form_id])
+  @@index([viewedAt])
+}
+
+model FormField {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  v       Int?   @map("__v")
+  form_id String @db.ObjectId
+
+  // Field definition
+  name        String // Internal field name
+  label       String // Display label
+  placeholder String?
+  help_text   String?
+  field_type  FormFieldType @default(TEXT)
+
+  // Options for select/radio/checkbox
+  options Json? // Array of { value, label }
+
+  // Validation
+  is_required Boolean @default(false)
+  min_length  Int?
+  max_length  Int?
+  pattern     String? // Regex pattern
+
+  // Lead mapping - which lead field this maps to
+  lead_field_mapping String? // e.g., "firstName", "lastName", "email", "phone", "company"
+
+  // Display order
+  position Int @default(0)
+
+  // Visibility
+  is_visible Boolean @default(true)
+
+  // Relations
+  form Form @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@index([form_id, position])
+}
+
+enum FormSubmissionStatus {
+  NEW
+  VIEWED
+  CONVERTED
+  SPAM
+  ARCHIVED
+}
+
+model FormSubmission {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  v       Int?   @map("__v")
+  form_id String @db.ObjectId
+
+  // Submission data
+  data Json // Key-value pairs of field_name: value
+
+  // Extracted lead info (from data based on field mappings)
+  extracted_email   String?
+  extracted_phone   String?
+  extracted_name    String?
+  extracted_company String?
+
+  // Status
+  status     FormSubmissionStatus @default(NEW)
+  is_deleted Boolean              @default(false)
+
+  // Converted lead reference
+  lead_id String? @db.ObjectId
+
+  // Submission metadata
+  source_url   String? // URL where form was submitted from
+  ip_hash      String? // Hashed IP for privacy
+  user_agent   String?
+  referrer     String?
+  utm_source   String?
+  utm_medium   String?
+  utm_campaign String?
+
+  // Team scope (denormalized from form for quick queries)
+  team_id String @db.ObjectId
+
+  // Timestamps
+  createdAt    DateTime  @default(now()) @db.Date
+  viewed_at    DateTime? @db.Date
+  converted_at DateTime? @db.Date
+
+  // Relations
+  form Form @relation(fields: [form_id], references: [id], onDelete: Cascade)
+
+  @@index([form_id, status])
+  @@index([team_id, createdAt])
+  @@index([extracted_email])
+}
+
+model MediaItem {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  url      String
+  filename String
+  mimeType String
+  size     Int
+  width    Int?
+  height   Int?
+
+  // SEO & Metadata
+  title       String?
+  caption     String?
+  altText     String?
+  description String?
+  thumbnail   String?
+
+  isPublic Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String? @db.ObjectId // Uploader
+}
+
+// =============================================================================
+// MESSAGE PORTAL SYSTEM
+// Enables compliant SMS notifications: "You have a new message in your portal"
+// =============================================================================
+
+// Portal theme mode
+enum PortalThemeMode {
+  LIGHT
+  DARK
+  AUTO
+}
+
+// Portal configuration per project/team
+model crm_Message_Portal {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  v       Int?    @map("__v")
+  project String? @db.ObjectId // References Boards
+  team_id String? @db.ObjectId // References Team
+
+  // Portal branding
+  portal_name       String? // e.g., "PortalPay Investor Updates"
+  portal_slug       String  @unique // e.g., "portalpay-updates"
+  logo_url          String?
+  logo_type         String? @default("custom") // custom, project_symbol
+  project_symbol_id String? // ID of TUC medallion/symbol if using project_symbol
+  primary_color     String? @default("#F54029")
+  secondary_color   String? @default("#f5f5f5")
+  accent_color      String? @default("#10b981")
+  welcome_message   String?
+
+  // Theme settings
+  theme_mode           PortalThemeMode @default(AUTO)
+  dark_primary_color   String?         @default("#F54029")
+  dark_secondary_color String?         @default("#1f2937")
+  dark_accent_color    String?         @default("#10b981")
+
+  // Glass morphism settings
+  enable_glass_effect Boolean @default(true)
+  background_blur     Int?    @default(20)
+
+  // Settings
+  require_registration Boolean @default(false) // false = magic link only
+  show_sender_info     Boolean @default(true)
+  custom_domain        String? // Future: custom domain support
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  // Relations
+  messages         crm_Portal_Message[]
+  recipients       crm_Portal_Recipient[]
+  assigned_project Boards?                @relation(name: "PortalProject", fields: [project], references: [id])
+  assigned_team    Team?                  @relation(name: "PortalTeam", fields: [team_id], references: [id])
+}
+
+// Individual message stored in the portal
+model crm_Portal_Message {
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  v             Int?    @map("__v")
+  portal        String  @db.ObjectId // References crm_Message_Portal
+  outreach_item String? @db.ObjectId // Optional link to crm_Outreach_Items
+
+  // Message content
+  subject     String
+  body_text   String // Plain text version
+  body_html   String? // HTML version for desktop
+  mobile_html String? // Mobile-optimized HTML (user can customize)
+
+  // Metadata
+  sender_name   String?
+  sender_email  String?
+  sender_avatar String?
+
+  // Timestamps
+  sentAt    DateTime @default(now()) @db.Date
+  createdAt DateTime @default(now()) @db.Date
+
+  // Relations
+  assigned_portal crm_Message_Portal             @relation(fields: [portal], references: [id])
+  views           crm_Portal_Message_View[]
+  recipient_links crm_Portal_Message_Recipient[]
+}
+
+// Portal recipient (lead/contact with portal access)
+model crm_Portal_Recipient {
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  v      Int?    @map("__v")
+  portal String  @db.ObjectId // References crm_Message_Portal
+  lead   String? @db.ObjectId // References crm_Leads
+
+  // Access credentials
+  email        String
+  phone        String?
+  access_token String  @unique // Magic link token (32-char random)
+  pin_code     String? // Optional PIN for extra security
+
+  // Profile (filled on registration or from lead)
+  first_name String?
+  last_name  String?
+  company    String?
+
+  // Status tracking
+  is_registered Boolean   @default(false)
+  is_opted_out  Boolean   @default(false) // SMS opt-out
+  opted_out_at  DateTime? @db.Date
+  last_accessed DateTime? @db.Date
+  access_count  Int       @default(0)
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  // Relations
+  assigned_portal crm_Message_Portal             @relation(fields: [portal], references: [id])
+  assigned_lead   crm_Leads?                     @relation(name: "PortalRecipientLead", fields: [lead], references: [id])
+  message_links   crm_Portal_Message_Recipient[]
+
+  @@unique([portal, email])
+}
+
+// Link between message and recipient (for tracking per-recipient delivery)
+model crm_Portal_Message_Recipient {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int?   @map("__v")
+  message   String @db.ObjectId // References crm_Portal_Message
+  recipient String @db.ObjectId // References crm_Portal_Recipient
+
+  // SMS delivery status
+  sms_sent       Boolean   @default(false)
+  sms_sent_at    DateTime? @db.Date
+  sms_message_id String? // AWS Pinpoint message ID
+  sms_status     String? // delivered, failed, etc.
+
+  // View tracking
+  first_viewed_at DateTime? @db.Date
+  view_count      Int       @default(0)
+
+  createdAt DateTime @default(now()) @db.Date
+
+  // Relations
+  assigned_message   crm_Portal_Message   @relation(fields: [message], references: [id])
+  assigned_recipient crm_Portal_Recipient @relation(fields: [recipient], references: [id])
+
+  @@unique([message, recipient])
+}
+
+// Track detailed message views (analytics)
+model crm_Portal_Message_View {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  message         String  @db.ObjectId // References crm_Portal_Message
+  recipient_email String?
+  access_token    String? // Which token was used
+
+  viewed_at   DateTime @default(now()) @db.Date
+  device_type String? // mobile, desktop, tablet
+  user_agent  String?
+  ip_hash     String? // Hashed IP for privacy
+
+  // Relations
+  assigned_message crm_Portal_Message @relation(fields: [message], references: [id])
+}
+
+model RolePermission {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  team_id   String   @db.ObjectId
+  role      String
+  scope     String
+  modules   String[]
+  updatedAt DateTime @updatedAt
+
+  assigned_team Team @relation(fields: [team_id], references: [id])
+
+  @@unique([team_id, role, scope])
+}
+
+model SavedReport {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  title   String
+  type    String  @default("AI_SUMMARY")
+  content String
+  prompt  String?
+  filters Json?
+
+  userId String @db.ObjectId
+  user   Users  @relation(fields: [userId], references: [id])
+
+  teamId String? @db.ObjectId
+  // Optional: team Team? @relation(fields: [teamId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// DealRoom Models (Phase 1)
+model crm_DealRooms {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  contract_id String        @unique @db.ObjectId
+  contract    crm_Contracts @relation(fields: [contract_id], references: [id])
+
+  // Security & Validity
+  slug                String    @unique // The UUID/Key for the public URL
+  password_protection String? // Optional password (hashed or plain if simple)
+  valid_until         DateTime? @db.Date
+
+  // Customization
+  hero_video_url  String? // Loom video etc.
+  welcome_message String?
+
+  // Pricing Interaction
+  interactive_pricing Boolean @default(true)
+  allowed_addons      Json? // Array of { name: "Support", price: 500 }
+  selected_addons     Json? // What the client has currently toggled ON
+
+  // Analytics Aggregated
+  total_views      Int       @default(0)
+  unique_visitors  Int       @default(0)
+  last_viewed_at   DateTime? @db.Date
+  engagement_score Float     @default(0)
+
+  // Status
+  is_active Boolean @default(true)
+
+  // Relations
+  activities crm_DealRoom_Activities[]
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+}
+
+model crm_DealRoom_Activities {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  deal_room_id String        @db.ObjectId
+  deal_room    crm_DealRooms @relation(fields: [deal_room_id], references: [id])
+
+  type     String // OPENED, VIEWED_PRICING, DOWNLOADED_PDF, CHAT_STARTED
+  metadata Json? // e.g. { duration: 120, section: "Pricing" }
+
+  visitor_ip    String?
+  visitor_agent String?
+
+  occurredAt DateTime @default(now()) @db.Date
+}
+
+// =============================================================================
+// FLOWSTATE BUILDER — VISUAL AUTOMATION ENGINE
+// FlowState: drag-and-drop workflow automation for non-technical users
+// =============================================================================
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum ExecutionStatus {
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model crm_Workflow {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int?           @map("__v")
+  name        String
+  description String?
+  status      WorkflowStatus @default(DRAFT)
+
+  // Trigger configuration
+  trigger_type   String // DEAL_ROOM_OPENED, SENTIMENT_NEGATIVE, LEAD_CREATED, FORM_SUBMITTED, MANUAL, RECORD_CREATED, RECORD_UPDATED, RECORD_DELETED, SCHEDULED, APPROVAL_RESPONSE
+  trigger_config Json? // Trigger-specific configuration
+
+  // Phase 3: FlowState type classification
+  flow_type String @default("AUTO_FLOW") // AUTO_FLOW | INTERACTIVE | EVENT_DRIVEN | SCHEDULED | APPROVAL_CHAIN
+
+  // Phase 3: Object binding (for Event-Driven and Interactive Flows)
+  object_type          String? // e.g., "crm_Leads", "crm_Opportunities", "crm_Cases", or custom object apiName
+  record_trigger_event String? // CREATED | UPDATED | DELETED (for Event-Driven flows)
+  record_filter        Json? // Filter criteria: { field: "status", operator: "equals", value: "NEW" }
+
+  // Phase 3: Interactive Flow configuration
+  screen_config Json? // Interactive Flow wizard config: { screens: [...], currentScreen: 0 }
+
+  // React Flow canvas data
+  nodes Json // Array of React Flow nodes
+  edges Json // Array of React Flow edges
+
+  // Ownership
+  team_id    String @db.ObjectId
+  created_by String @db.ObjectId
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  // Relations
+  executions    crm_Workflow_Execution[]
+  assigned_team Team?                    @relation(name: "WorkflowTeam", fields: [team_id], references: [id])
+  creator       Users?                   @relation(name: "WorkflowCreator", fields: [created_by], references: [id])
+}
+
+model crm_Workflow_Execution {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  v           Int?         @map("__v")
+  workflow_id String       @db.ObjectId
+  workflow    crm_Workflow @relation(fields: [workflow_id], references: [id])
+
+  status          ExecutionStatus @default(RUNNING)
+  trigger_data    Json? // Data that triggered the workflow
+  current_node    String? // Current node being executed
+  completed_nodes String[] // Already executed node IDs
+  node_outputs    Json? // Output data from each node
+  scheduled_at    DateTime?       @db.Date // For delay nodes
+  error           String?
+
+  startedAt   DateTime  @default(now()) @db.Date
+  completedAt DateTime? @db.Date
+
+  @@index([workflow_id, status])
+}
+
+// =============================================================================
+// DYNAMIC SCHEMA ENGINE ("The Salesforce Killer" Core)
+// Allows users to create Custom Objects and Fields without code changes.
+// =============================================================================
+
+enum CustomFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  CURRENCY
+  DATE
+  DATETIME
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  EMAIL
+  URL
+  PHONE
+  LOOKUP // Future: Relation to another object
+  FORMULA // Future: Calculated field
+}
+
+model CustomObjectDefinition {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  name        String // Display Name (e.g. "Vehicle")
+  pluralName  String // (e.g. "Vehicles")
+  apiName     String // (e.g. "vehicle_c") - Unique per team
+  description String?
+  icon        String? // Lucide icon name
+
+  // System flags
+  isSystem Boolean @default(false)
+  isActive Boolean @default(true)
+
+  // Audit
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+  createdBy String   @db.ObjectId
+
+  // Relations
+  fields  CustomFieldDefinition[]
+  records CustomRecord[]
+  layouts PageLayout[]
+
+  assigned_creator Users @relation("CreatedCustomObjects", fields: [createdBy], references: [id])
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  @@unique([team_id, apiName])
+}
+
+model CustomFieldDefinition {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  object_id String @db.ObjectId
+
+  name    String // Display Name (e.g. "License Plate")
+  apiName String // (e.g. "license_plate_c")
+  type    CustomFieldType
+
+  // Configuration
+  isRequired   Boolean @default(false)
+  isUnique     Boolean @default(false)
+  defaultValue String?
+  helpText     String?
+  placeholder  String?
+
+  // Type specific config
+  options    Json? // For SELECT/MULTI_SELECT: [{label: "Red", value: "red"}]
+  validation Json? // Regex patterns, min/max values
+
+  // UI Layout
+  order      Int     @default(0)
+  listColumn Boolean @default(true) // Show in list view?
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  object CustomObjectDefinition @relation(fields: [object_id], references: [id], onDelete: Cascade)
+
+  @@unique([object_id, apiName])
+}
+
+model CustomRecord {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  object_id String @db.ObjectId
+
+  // THE MAGIC: Dynamic data storage
+  data Json // { "license_plate_c": "XYZ-123", "year_c": 2024 }
+
+  // Standard Fields
+  name String? // Primary display field (denormalized)
+
+  // Audit
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+  createdBy String   @db.ObjectId
+  updatedBy String?  @db.ObjectId
+
+  object CustomObjectDefinition @relation(fields: [object_id], references: [id], onDelete: Cascade)
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  @@index([object_id])
+}
+
+model PageLayout {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  object_id String @db.ObjectId
+
+  name      String // e.g. "Sales Layout"
+  isDefault Boolean @default(false)
+
+  // The Layout Structure
+  // [
+  //   {
+  //     "id": "section_1",
+  //     "title": "Information",
+  //     "columns": 2,
+  //     "fields": ["name", "phone", "email", "industry_c"] // references apiNames
+  //   }
+  // ]
+  sections Json
+
+  // Relations
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+  createdBy String   @db.ObjectId
+
+  object CustomObjectDefinition @relation(fields: [object_id], references: [id], onDelete: Cascade)
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  @@index([object_id])
+}
+
+// =============================================================================
+// PHASE 2: SERVICE CLOUD — CASE MANAGEMENT & SERVICE COMMITMENT ENGINE
+// =============================================================================
+
+enum CaseStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  WAITING_ON_THIRD_PARTY
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum CasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CaseOrigin {
+  EMAIL
+  PHONE
+  WEB
+  CHAT
+  SOCIAL
+  PORTAL
+  INTERNAL
+}
+
+enum CaseType {
+  QUESTION
+  PROBLEM
+  INCIDENT
+  FEATURE_REQUEST
+  TASK
+}
+
+model crm_Cases {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  // Core fields
+  case_number String       @unique // Auto-generated: CS-00001
+  subject     String
+  description String?
+  status      CaseStatus   @default(NEW)
+  priority    CasePriority @default(MEDIUM)
+  origin      CaseOrigin   @default(WEB)
+  type        CaseType?
+  reason      String? // e.g., "Installation", "Billing", etc.
+
+  // Relationships
+  contact_id    String?       @db.ObjectId
+  contact       crm_Contacts? @relation(fields: [contact_id], references: [id])
+  account_id    String?       @db.ObjectId
+  account       crm_Accounts? @relation(fields: [account_id], references: [id])
+  assigned_to   String?       @db.ObjectId
+  assigned_user Users?        @relation(name: "CaseAssignedUser", fields: [assigned_to], references: [id])
+
+  // Parent case for case hierarchies
+  parent_case_id String?     @db.ObjectId
+  parent_case    crm_Cases?  @relation("CaseHierarchy", fields: [parent_case_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  child_cases    crm_Cases[] @relation("CaseHierarchy")
+
+  // Email-to-Case
+  source_email_id      String? // Original email message ID
+  source_email_from    String? // Sender email
+  source_email_subject String? // Original subject
+
+  // Internal notes (not visible to customer)
+  internal_notes String?
+
+  // SLA tracking
+  sla_policy_id      String?     @db.ObjectId
+  sla_policy         SLA_Policy? @relation(fields: [sla_policy_id], references: [id])
+  first_response_at  DateTime?   @db.Date
+  first_response_due DateTime?   @db.Date
+  resolution_due     DateTime?   @db.Date
+  sla_breached       Boolean     @default(false)
+  escalation_level   Int         @default(0)
+
+  // Timestamps
+  createdAt  DateTime  @default(now()) @db.Date
+  updatedAt  DateTime  @updatedAt @db.Date
+  createdBy  String    @db.ObjectId
+  updatedBy  String?   @db.ObjectId
+  closedAt   DateTime? @db.Date
+  resolvedAt DateTime? @db.Date
+
+  // Relations
+  comments            crm_Case_Comments[]
+  status_transitions  CaseStatusTransition[]
+  milestone_instances SLA_MilestoneInstance[]
+
+  // Tags for categorization
+  tags String[]
+
+  // Help Hub: articles linked to this case
+  article_links KnowledgeArticleLink[]
+
+  // Team scoping
+  team_id                String? @db.ObjectId
+  assigned_team          Team?   @relation(fields: [team_id], references: [id])
+  assigned_department_id String? @db.ObjectId
+
+  creator Users @relation(name: "CaseCreator", fields: [createdBy], references: [id])
+
+  @@index([team_id])
+  @@index([status])
+  @@index([priority])
+  @@index([assigned_to])
+  @@index([contact_id])
+  @@index([account_id])
+}
+
+model crm_Case_Comments {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  case_id String    @db.ObjectId
+  case    crm_Cases @relation(fields: [case_id], references: [id], onDelete: Cascade)
+
+  body      String
+  is_public Boolean @default(true) // false = internal note
+  is_system Boolean @default(false) // auto-generated by system
+
+  // For email replies
+  email_message_id String?
+
+  // Author
+  author_id String @db.ObjectId
+  author    Users  @relation(name: "CaseCommentAuthor", fields: [author_id], references: [id])
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  @@index([case_id])
+}
+
+model CaseStatusTransition {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  case_id String    @db.ObjectId
+  case    crm_Cases @relation(fields: [case_id], references: [id], onDelete: Cascade)
+
+  from_status CaseStatus
+  to_status   CaseStatus
+
+  changed_by      String  @db.ObjectId
+  changed_by_user Users   @relation(name: "CaseStatusChanger", fields: [changed_by], references: [id])
+  reason          String?
+
+  createdAt DateTime @default(now()) @db.Date
+
+  @@index([case_id])
+}
+
+// Service Commitment (SLA) / Service Plan Engine
+model SLA_Policy {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  name        String // e.g., "Gold Support", "Standard SLA"
+  description String?
+  is_active   Boolean @default(true)
+  is_default  Boolean @default(false)
+
+  // Response time limits (in minutes)
+  first_response_critical Int @default(60) // 1 hour
+  first_response_high     Int @default(240) // 4 hours
+  first_response_medium   Int @default(480) // 8 hours
+  first_response_low      Int @default(1440) // 24 hours
+
+  // Resolution time limits (in minutes)
+  resolution_critical Int @default(240) // 4 hours
+  resolution_high     Int @default(480) // 8 hours
+  resolution_medium   Int @default(1440) // 24 hours
+  resolution_low      Int @default(2880) // 48 hours
+
+  // Business hours (JSON config)
+  // { "timezone": "America/Denver", "hours": { "mon": ["09:00", "17:00"], ... }, "holidays": ["2026-12-25"] }
+  business_hours Json?
+
+  // Escalation rules (JSON)
+  // [{ "after_minutes": 30, "action": "notify", "target": "manager" }, { "after_minutes": 60, "action": "reassign", "target": "tier2" }]
+  escalation_rules Json?
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+  createdBy String   @db.ObjectId
+
+  // Relations
+  milestones SLA_Milestone[]
+  cases      crm_Cases[]
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  @@index([team_id])
+}
+
+model SLA_Milestone {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  policy_id String     @db.ObjectId
+  policy    SLA_Policy @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+
+  name        String // e.g., "First Response", "Resolution"
+  description String?
+
+  // Trigger: how many minutes from case creation
+  minutes_critical Int
+  minutes_high     Int
+  minutes_medium   Int
+  minutes_low      Int
+
+  // What happens on this milestone
+  // FIRST_RESPONSE | RESOLUTION | CUSTOM
+  milestone_type String @default("CUSTOM")
+
+  // Actions on breach
+  // [{ "type": "email", "target": "owner" }, { "type": "escalate", "level": 1 }]
+  breach_actions Json?
+
+  // Warning threshold (% of time elapsed before warning fires, e.g. 75)
+  warning_threshold Int @default(75)
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  instances SLA_MilestoneInstance[]
+
+  @@index([policy_id])
+}
+
+model SLA_MilestoneInstance {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  milestone_id String        @db.ObjectId
+  milestone    SLA_Milestone @relation(fields: [milestone_id], references: [id], onDelete: Cascade)
+
+  case_id String    @db.ObjectId
+  case    crm_Cases @relation(fields: [case_id], references: [id], onDelete: Cascade)
+
+  // Tracking
+  target_date    DateTime  @db.Date // When this milestone is due
+  completed_date DateTime? @db.Date // When it was actually completed
+  is_completed   Boolean   @default(false)
+  is_violated    Boolean   @default(false) // Breached SLA?
+  warning_sent   Boolean   @default(false)
+
+  createdAt DateTime @default(now()) @db.Date
+
+  @@index([case_id])
+  @@index([milestone_id])
+}
+
+// =============================================================================
+// PHASE 2 ENHANCEMENT: OMNI-CHANNEL ROUTING ENGINE
+// Routes cases/chats/calls to best available agent by skills & capacity
+// =============================================================================
+
+enum AgentStatus {
+  ONLINE
+  AWAY
+  BUSY
+  OFFLINE
+}
+
+enum RoutingStrategy {
+  ROUND_ROBIN // Distribute evenly across agents
+  LEAST_BUSY // Route to agent with lowest current load
+  SKILL_BASED // Match required skills to agent skills
+  PRIORITY_QUEUE // Critical cases go to senior agents first
+}
+
+enum ChannelType {
+  CASE
+  CHAT
+  PHONE_CALL
+  EMAIL_INBOUND
+  SOCIAL_MESSAGE
+}
+
+model AgentPresence {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  user_id String @unique @db.ObjectId
+  user    Users  @relation(name: "AgentPresenceUser", fields: [user_id], references: [id])
+
+  status AgentStatus @default(OFFLINE)
+
+  // Capacity management
+  max_capacity     Int           @default(5) // Max concurrent items agent can handle
+  current_load     Int           @default(0) // Current active items
+  channels_enabled ChannelType[] @default([CASE]) // Which channels this agent handles
+
+  // Availability
+  available_since  DateTime? @db.Date
+  last_heartbeat   DateTime? @db.Date // Auto-set by client ping every 30s
+  auto_offline_min Int       @default(5) // Go OFFLINE if no heartbeat for N minutes
+
+  // Stats (denormalized for fast routing decisions)
+  avg_handle_time_min  Float? // Average minutes to resolve an item
+  cases_resolved_today Int    @default(0)
+  csat_score           Float? // Customer satisfaction score (1-5)
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  @@index([team_id])
+  @@index([status])
+}
+
+model AgentSkill {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  user_id String @db.ObjectId
+  user    Users  @relation(name: "AgentSkillUser", fields: [user_id], references: [id])
+
+  skill_name  String // e.g., "billing", "technical", "spanish", "tier2"
+  proficiency Int    @default(3) // 1-5 scale
+
+  createdAt DateTime @default(now()) @db.Date
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  @@unique([user_id, skill_name])
+  @@index([team_id])
+  @@index([skill_name])
+}
+
+model RoutingConfig {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  team_id String @unique @db.ObjectId
+  team    Team   @relation(name: "TeamRoutingConfig", fields: [team_id], references: [id])
+
+  // Default strategy for this team
+  strategy RoutingStrategy @default(ROUND_ROBIN)
+
+  // Per-priority overrides (JSON)
+  // { "CRITICAL": "SKILL_BASED", "HIGH": "LEAST_BUSY", "MEDIUM": "ROUND_ROBIN", "LOW": "ROUND_ROBIN" }
+  priority_overrides Json?
+
+  // Required skills per case type (JSON)
+  // { "INCIDENT": ["technical"], "QUESTION": ["billing"], "FEATURE_REQUEST": ["product"] }
+  type_skill_map Json?
+
+  // Fallback: if no agent matches, assign to this user
+  fallback_user_id String? @db.ObjectId
+  fallback_user    Users?  @relation(name: "RoutingFallbackUser", fields: [fallback_user_id], references: [id])
+
+  // Auto-assignment settings
+  auto_assign_enabled      Boolean @default(true)
+  auto_reassign_on_offline Boolean @default(true) // Re-route when agent goes offline
+  max_reassign_attempts    Int     @default(3)
+
+  // Round-robin pointer (tracks who got the last assignment)
+  last_assigned_user_id String? @db.ObjectId
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+}
+
+// =============================================================================
+// PHASE 2 ENHANCEMENT: KNOWLEDGE BASE
+// Searchable articles integrated into Agent Workspace for "suggested articles"
+// =============================================================================
+
+enum KBArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model KnowledgeCategory {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  name        String
+  slug        String
+  description String?
+  icon        String? // Lucide icon name
+  order       Int     @default(0)
+
+  // Hierarchy
+  parent_id String?             @db.ObjectId
+  parent    KnowledgeCategory?  @relation("KBCategoryHierarchy", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  KnowledgeCategory[] @relation("KBCategoryHierarchy")
+
+  articles KnowledgeArticle[]
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  @@unique([team_id, slug])
+  @@index([team_id])
+}
+
+model KnowledgeArticle {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  title   String
+  slug    String
+  summary String? // Short preview for search results
+  content String // Rich text / markdown body
+  status  KBArticleStatus @default(DRAFT)
+
+  // Categorization
+  category_id String?            @db.ObjectId
+  category    KnowledgeCategory? @relation(fields: [category_id], references: [id])
+  tags        String[]
+
+  // Search optimization: keywords that help surface this article
+  keywords String[]
+
+  // Visibility
+  is_internal Boolean @default(false) // true = only visible to agents, false = also visible in portal
+  is_pinned   Boolean @default(false) // Pinned to top of category
+
+  // Feedback & metrics
+  view_count        Int @default(0)
+  helpful_count     Int @default(0) // "Was this article helpful?" — Yes
+  not_helpful_count Int @default(0) // "Was this article helpful?" — No
+
+  // Authorship
+  author_id String @db.ObjectId
+  author    Users  @relation(name: "KBArticleAuthor", fields: [author_id], references: [id])
+
+  // Linked cases where this article was used
+  article_links KnowledgeArticleLink[]
+
+  team_id       String? @db.ObjectId
+  assigned_team Team?   @relation(fields: [team_id], references: [id])
+
+  createdAt   DateTime  @default(now()) @db.Date
+  updatedAt   DateTime  @updatedAt @db.Date
+  publishedAt DateTime? @db.Date
+
+  @@unique([team_id, slug])
+  @@index([team_id])
+  @@index([status])
+}
+
+// Tracks which articles were attached/suggested to which cases
+model KnowledgeArticleLink {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  article_id String           @db.ObjectId
+  article    KnowledgeArticle @relation(fields: [article_id], references: [id], onDelete: Cascade)
+
+  case_id String    @db.ObjectId
+  case    crm_Cases @relation(fields: [case_id], references: [id], onDelete: Cascade)
+
+  // How was this article linked?
+  link_type   String   @default("MANUAL") // MANUAL | SUGGESTED | AUTO
+  was_helpful Boolean? // Agent feedback: did this article help resolve the case?
+
+  linked_by String @db.ObjectId
+
+  createdAt DateTime @default(now()) @db.Date
+
+  @@unique([article_id, case_id])
+  @@index([case_id])
+  @@index([article_id])
+}
+
+// =============================================================================
+// PHASE 3: GUARD RULE ENGINE
+// Formula-based field validation to prevent bad data entry
+// =============================================================================
+
+model ValidationRule {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  name        String // e.g., "Close Date Must Be Future"
+  description String?
+  is_active   Boolean @default(true)
+
+  // Which object does this rule apply to?
+  object_type String // "crm_Leads", "crm_Opportunities", "crm_Cases", or custom object apiName
+
+  // The formula expression (evaluated by the engine)
+  // Examples:
+  //   "close_date < NOW()"  → error if Close Date is in the past
+  //   "discount > 30"       → error if discount exceeds 30%
+  //   "ISBLANK(email)"      → error if email is empty
+  //   "status == 'CLOSED' AND ISBLANK(resolution)"  → error if closed without resolution
+  formula String
+
+  // Error message shown to user when validation fails
+  error_message String
+
+  // Evaluation context
+  // SAVE = run on create/update
+  // CREATE_ONLY = only on create
+  // UPDATE_ONLY = only on update
+  trigger_on String @default("SAVE") // SAVE | CREATE_ONLY | UPDATE_ONLY
+
+  // Priority order (lower = evaluated first)
+  order Int @default(0)
+
+  // Audit
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+  createdBy String   @db.ObjectId
+  creator   Users    @relation(name: "ValidationRuleCreator", fields: [createdBy], references: [id])
+
+  // Team scoping
+  team_id       String @db.ObjectId
+  assigned_team Team   @relation(fields: [team_id], references: [id])
+
+  @@index([team_id, object_type])
+  @@index([is_active])
+}
+
+// =============================================================================
+// PHASE 3: APPROVAL CHAIN ENGINE
+// Multi-step approval chains for record changes
+// =============================================================================
+
+enum ApprovalProcessStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum ApprovalAction {
+  APPROVE
+  REJECT
+  RECALL
+  REASSIGN
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RECALLED
+}
+
+model ApprovalProcess {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  name        String // e.g., "Discount Approval", "Large Deal Approval"
+  description String?
+  status      ApprovalProcessStatus @default(DRAFT)
+
+  // Which object does this process apply to?
+  object_type String // "crm_Opportunities", "crm_Contracts", etc.
+
+  // Entry criteria: when should this approval be triggered?
+  // JSON formula like ValidationRule
+  // e.g., "discount > 20" or "amount > 100000"
+  entry_criteria String?
+
+  // What happens on final approval?
+  // { "action": "UPDATE_FIELD", "field": "status", "value": "APPROVED" }
+  final_approval_actions Json?
+
+  // What happens on final rejection?
+  // { "action": "UPDATE_FIELD", "field": "status", "value": "REJECTED" }
+  final_rejection_actions Json?
+
+  // Allow submitter to recall?
+  allow_recall Boolean @default(true)
+
+  // Lock record while pending approval?
+  lock_record Boolean @default(true)
+
+  // Order for evaluation (if multiple processes match)
+  order Int @default(0)
+
+  // Audit
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+  createdBy String   @db.ObjectId
+  creator   Users    @relation(name: "ApprovalProcessCreator", fields: [createdBy], references: [id])
+
+  // Relations
+  steps    ApprovalStep[]
+  requests ApprovalRequest[]
+
+  // Team scoping
+  team_id       String @db.ObjectId
+  assigned_team Team   @relation(fields: [team_id], references: [id])
+
+  @@index([team_id, object_type])
+  @@index([status])
+}
+
+model ApprovalStep {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  process_id String          @db.ObjectId
+  process    ApprovalProcess @relation(fields: [process_id], references: [id], onDelete: Cascade)
+
+  step_number Int // 1, 2, 3... sequential order
+  name        String // e.g., "Manager Approval", "VP Approval"
+
+  // Who approves at this step?
+  approver_type    String // SPECIFIC_USER | MANAGER | ROLE | QUEUE
+  approver_user_id String? @db.ObjectId // If SPECIFIC_USER
+  approver_user    Users?  @relation(name: "ApprovalStepApprover", fields: [approver_user_id], references: [id])
+  approver_role    String? // If ROLE: e.g., "SUPER_ADMIN", "ADMIN"
+
+  // Unanimous vs first-response
+  // UNANIMOUS = all approvers at this step must approve
+  // FIRST_RESPONSE = first approver's decision is final for this step
+  approval_mode String @default("FIRST_RESPONSE") // UNANIMOUS | FIRST_RESPONSE
+
+  // Auto-escalation
+  auto_escalate_hours Int? // Auto-escalate if not responded within N hours
+  escalate_to_user_id String? @db.ObjectId
+
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  // Relations
+  request_actions ApprovalRequestAction[]
+
+  @@index([process_id])
+}
+
+// Individual approval requests (one per record submission)
+model ApprovalRequest {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  v  Int?   @map("__v")
+
+  process_id String          @db.ObjectId
+  process    ApprovalProcess @relation(fields: [process_id], references: [id])
+
+  // The record being approved
+  record_id   String // ObjectId of the record
+  record_type String // Model name, e.g., "crm_Opportunities"
+
+  // Current state
+  status       ApprovalRequestStatus @default(PENDING)
+  current_step Int                   @default(1) // Which step is currently active
+
+  // Who submitted the record for approval
+  submitted_by String @db.ObjectId
+  submitter    Users  @relation(name: "ApprovalSubmitter", fields: [submitted_by], references: [id])
+
+  // Submission context
+  submit_comment String? // Optional comment from submitter
+
+  // Snapshot of record data at submission time (for audit)
+  record_snapshot Json?
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @db.Date
+  updatedAt   DateTime  @updatedAt @db.Date
+  completedAt DateTime? @db.Date
+
+  // Relations
+  actions ApprovalRequestAction[]
+
+  // Team scoping
+  team_id       String @db.ObjectId
+  assigned_team Team   @relation(fields: [team_id], references: [id])
+
+  @@index([team_id])
+  @@index([process_id])
+  @@index([record_id, record_type])
+  @@index([submitted_by])
+  @@index([status])
+}
+
+// Individual approval/rejection actions within a request
+model ApprovalRequestAction {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  request_id String          @db.ObjectId
+  request    ApprovalRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+
+  step_id String       @db.ObjectId
+  step    ApprovalStep @relation(fields: [step_id], references: [id])
+
+  // Who took the action
+  actor_id String @db.ObjectId
+  actor    Users  @relation(name: "ApprovalActor", fields: [actor_id], references: [id])
+
+  action  ApprovalAction // APPROVE | REJECT | RECALL | REASSIGN
+  comment String?
+
+  // If REASSIGN
+  reassigned_to String? @db.ObjectId
+
+  createdAt DateTime @default(now()) @db.Date
+
+  @@index([request_id])
+  @@index([step_id])
+  @@index([actor_id])
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, SUCCESS, WARNING, ERROR, APPROVAL, MENTION
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Date
+  team_id   String?  @db.ObjectId
+
+  user Users @relation(fields: [userId], references: [id])
+  team Team? @relation(fields: [team_id], references: [id])
+}
+
+// CPQ Models (Phase 6)
+model crm_Products {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  sku         String  @unique
+  description String?
+  price       Float
+  category    String?
+  active      Boolean @default(true)
+
+  team_id String @db.ObjectId
+  team    Team   @relation(fields: [team_id], references: [id])
+
+  bundles    crm_ProductBundles[] @relation("ParentProduct")
+  includedIn crm_ProductBundles[] @relation("ChildProduct")
+  quoteItems crm_QuoteItems[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model crm_ProductBundles {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  parentProductId String  @db.ObjectId
+  childProductId  String  @db.ObjectId
+  quantity        Int     @default(1)
+  isRequired      Boolean @default(false)
+
+  parentProduct crm_Products @relation("ParentProduct", fields: [parentProductId], references: [id])
+  childProduct  crm_Products @relation("ChildProduct", fields: [childProductId], references: [id])
+}
+
+model crm_Quotes {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  quoteNumber    String    @unique
+  status         String    @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED
+  totalAmount    Float     @default(0)
+  expirationDate DateTime?
+
+  accountId     String? @db.ObjectId
+  contactId     String? @db.ObjectId
+  opportunityId String? @db.ObjectId
+  createdBy     String  @db.ObjectId
+  team_id       String  @db.ObjectId
+
+  account     crm_Accounts?      @relation(fields: [accountId], references: [id])
+  contact     crm_Contacts?      @relation(fields: [contactId], references: [id])
+  opportunity crm_Opportunities? @relation(fields: [opportunityId], references: [id])
+  creator     Users              @relation(fields: [createdBy], references: [id])
+  team        Team               @relation(fields: [team_id], references: [id])
+  items       crm_QuoteItems[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model crm_QuoteItems {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  quoteId    String @db.ObjectId
+  productId  String @db.ObjectId
+  quantity   Int    @default(1)
+  unitPrice  Float
+  discount   Float  @default(0)
+  totalPrice Float
+
+  quote   crm_Quotes   @relation(fields: [quoteId], references: [id])
+  product crm_Products @relation(fields: [productId], references: [id])
+}
+
+model DashboardPreference {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  layout    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      Users    @relation(fields: [userId], references: [id])
+}
+
+model NavigationConfig {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  team_id String  @db.ObjectId
+  user_id String? @db.ObjectId // Optional: If set, it's a specific user preference override
+
+  // The structure of the sidebar
+  // Format: Array of { id, type: 'item'|'group', label, icon, href, children: [], permissions: [], hidden: boolean }
+  structure Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assigned_team Team   @relation(fields: [team_id], references: [id])
+  assigned_user Users? @relation(fields: [user_id], references: [id])
+
+  @@index([team_id, user_id])
+}
+
+// Phase 2: Financial Core Integrations
+model Tenant_Integrations {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  tenant_id String @unique @db.ObjectId
+  team      Team   @relation(fields: [tenant_id], references: [id])
+
+  // Surge.co Config (Crypto Payments)
+  surge_enabled     Boolean @default(false)
+  surge_api_key     String?
+  surge_merchant_id String?
+  preferred_chain   String  @default("BASE")
+
+  // Mercury Config (Banking)
+  mercury_enabled    Boolean @default(false)
+  mercury_api_key    String?
+  mercury_account_id String?
+
+  // Phase 3: Expansion
+  pandadoc_enabled Boolean @default(false)
+  pandadoc_token   String?
+
+  discord_enabled Boolean @default(false)
+  discord_webhook String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Phase 3: Recurring Payments & Subscriptions
+model crm_Subscriptions {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int      @default(0) @map("__v")
+  createdAt DateTime @default(now()) @db.Date
+  updatedAt DateTime @updatedAt @db.Date
+
+  tenant_id String @unique @db.ObjectId
+  team      Team   @relation(fields: [tenant_id], references: [id])
+
+  account_id String?       @db.ObjectId
+  account    crm_Accounts? @relation(fields: [account_id], references: [id])
+
+  // Surge Identity
+  surge_vault_token String? // The token provided by Surge after card entry
+  customer_email    String?
+  customer_wallet   String? // Optional 0x wallet for Hybrid Fallback / Direct Crypto
+  discount_applied  Boolean @default(false) // 5% Discount for wallet usage
+
+  // Billing Config
+  plan_name   String
+  amount      Float
+  currency    String @default("USD")
+  interval    String @default("monthly") // monthly, yearly
+  billing_day Int    @default(14) // e.g. 14th of the month
+
+  next_billing_date DateTime @db.Date
+  status            String   @default("ACTIVE") // ACTIVE, PAUSED, CANCELLED, OVERDUE, SUSPENDED
+
+  // Metadata for receipts
+  last_charge_date    DateTime? @db.Date
+  last_charge_status  String?
+  last_transaction_id String?
+  metadata            Json?
+
+  @@index([next_billing_date])
+}

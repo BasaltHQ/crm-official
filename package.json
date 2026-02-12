@@ -9,7 +9,11 @@
     "start": "next start",
     "db:push:named": "node ./scripts/prisma-db-push-named.cjs",
     "lint": "eslint .",
-    "permissions:check": "ts-node scripts/check-permissions.ts"
+    "permissions:check": "ts-node scripts/check-permissions.ts",
+    "doc:agent": "npx ts-node scripts/generate-agent-docs.ts",
+    "doc:crm": "npx ts-node scripts/generate-module-docs.ts",
+    "doc:sync": "npm run doc:agent && npm run doc:crm && npm run permissions:check",
+    "billing:collect": "ts-node scripts/process-subscriptions.ts"
   },
   "prisma": {
     "seed": "ts-node ./prisma/seeds/seed.ts"

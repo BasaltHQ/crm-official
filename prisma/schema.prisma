@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../lib/prisma-client"
 }
 
 datasource db {
@@ -70,7 +71,8 @@ model crm_Accounts {
   assigned_department_id String? @db.ObjectId
 
   // Service Cloud: Cases linked to this account
-  cases crm_Cases[]
+  cases                crm_Cases[]
+  account_subscriptions crm_Subscriptions[]
 }
 
 model crm_Leads {
@@ -1048,6 +1050,7 @@ model Team {
   products           crm_Products[]
 
   quotes             crm_Quotes[]
+  team_subscriptions crm_Subscriptions[]
   navigation_configs NavigationConfig[]
   integrations       Tenant_Integrations?
 }
@@ -3507,3 +3510,40 @@ model Tenant_Integrations {
   updatedAt       DateTime @updatedAt
 }
 
+// Phase 3: Recurring Payments & Subscriptions
+model crm_Subscriptions {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  v                    Int      @default(0) @map("__v")
+  createdAt            DateTime @default(now()) @db.Date
+  updatedAt            DateTime @updatedAt @db.Date
+
+  tenant_id           String   @unique @db.ObjectId
+  team                Team     @relation(fields: [tenant_id], references: [id])
+  
+  account_id           String?  @db.ObjectId
+  account              crm_Accounts? @relation(fields: [account_id], references: [id])
+
+  // Surge Identity
+  surge_vault_token    String?  // The token provided by Surge after card entry
+  customer_email       String?
+  customer_wallet      String?  // Optional 0x wallet for Hybrid Fallback / Direct Crypto
+  discount_applied     Boolean  @default(false) // 5% Discount for wallet usage
+
+  // Billing Config
+  plan_name            String
+  amount                Float
+  currency              String   @default("USD")
+  interval              String   @default("monthly") // monthly, yearly
+  billing_day          Int      @default(14)        // e.g. 14th of the month
+  
+  next_billing_date    DateTime @db.Date
+  status               String   @default("ACTIVE")  // ACTIVE, PAUSED, CANCELLED, OVERDUE, SUSPENDED
+
+  // Metadata for receipts
+  last_charge_date     DateTime? @db.Date
+  last_charge_status   String?
+  last_transaction_id  String?
+  metadata             Json?
+  
+  @@index([next_billing_date])
+}

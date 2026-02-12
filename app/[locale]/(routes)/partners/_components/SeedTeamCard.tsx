@@ -32,11 +32,11 @@ export const SeedTeamCard = () => {
     };
 
     const cardData: NavigationCardData = {
-        title: "Seed BasaltHQ Team",
-        description: "Initialize BasaltHQ team data",
+        title: "Internal Hub",
+        description: "Seed BasaltHQ",
         icon: Lock,
         color: "from-amber-500/20 to-orange-500/20",
-        iconColor: "text-amber-400"
+        iconColor: "text-amber-500"
     };
 
     return (

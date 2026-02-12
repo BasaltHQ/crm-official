@@ -57,7 +57,6 @@ export default function AdminSidebar({ showModules = false }: AdminSidebarProps)
         { label: "Email Settings", href: "/admin/settings", icon: Mail },
         { label: "SMS Configuration", href: "/admin/sms-config", icon: MessageSquare },
         { label: "AI Settings", href: "/admin/ai-settings", icon: Bot },
-        { label: "Captcha Config", href: "/admin/captcha-config", icon: Shield },
         { label: "Navigation", href: "/admin/navigation", icon: Layout },
         { label: "Integrations", href: "/admin/integrations", icon: Zap },
         ...(showModules ? [{ label: "Modules", href: "/admin/modules", icon: Package }] : []),

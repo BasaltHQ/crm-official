@@ -1,7 +1,8 @@
-
 import axios from 'axios';
 import { prismadb } from '@/lib/prisma';
 import https from 'https';
+export * from './surge-x402';
+export * from './surge-ucp';
 
 const SURGE_API_BASE = 'https://surge.basalthq.com/api';
 
@@ -30,12 +31,16 @@ export async function createSurgeCheckoutSession(tenantId: string, invoice: any)
             where: { tenant_id: tenantId }
         });
 
-        if (!integration || !integration.surge_enabled || !integration.surge_api_key) {
-            console.warn(`[BasaltSurge] Integration not enabled or missing keys for tenant ${tenantId}`);
-            return null;
+        // Fallback to ENV for Dev/Testing if DB config is missing
+        let apiKey = integration?.surge_api_key;
+        if (!apiKey && process.env.SURGE_API_KEY) {
+            apiKey = process.env.SURGE_API_KEY;
         }
 
-        const apiKey = integration.surge_api_key;
+        if (!apiKey) {
+            console.warn(`[BasaltSurge] Integration not enabled or missing keys for tenant ${tenantId} (and no ENV fallback)`);
+            return null;
+        }
         const sku = `INV-${invoice.invoice_number || invoice.id}`;
         const amount = parseFloat(invoice.invoice_amount || "0");
 
@@ -119,15 +124,14 @@ export async function createSurgeCheckoutSession(tenantId: string, invoice: any)
             returnUrl: returnUrl,
             layout: 'invoice',
             invoice: '1',
-            preferredChain: integration.preferred_chain || 'BASE'
+            preferredChain: integration?.preferred_chain || process.env.SURGE_CHAIN || 'BASE'
         });
 
-        if (integration.surge_merchant_id && integration.surge_merchant_id.startsWith('0x')) {
-            params.append('recipient', integration.surge_merchant_id);
-        } else if (integration.surge_merchant_id) {
-            // If it's a key_ or ID, it might be used at the order creation level, 
-            // but for the portal URL, we try to pass it as merchantId if not 0x.
-            params.append('merchantId', integration.surge_merchant_id);
+        const merchantId = integration?.surge_merchant_id || process.env.SURGE_MERCHANT_ID;
+        if (merchantId && merchantId.startsWith('0x')) {
+            params.append('recipient', merchantId);
+        } else if (merchantId) {
+            params.append('merchantId', merchantId);
         }
 
         const paymentUrl = `https://surge.basalthq.com/portal/${receiptId}?${params.toString()}`;
@@ -152,12 +156,15 @@ export async function getSurgePaymentStatus(tenantId: string, receiptId: string)
             where: { tenant_id: tenantId }
         });
 
-        if (!integration || !integration.surge_enabled || !integration.surge_api_key) {
+        let apiKey = integration?.surge_api_key;
+        if (!apiKey && process.env.SURGE_API_KEY) {
+            apiKey = process.env.SURGE_API_KEY;
+        }
+
+        if (!apiKey) {
             console.warn(`[BasaltSurge] Integration not enabled or missing keys for tenant ${tenantId}`);
             return null;
         }
-
-        const apiKey = integration.surge_api_key;
 
         // Try to get receipt status
         const response = await axios.get(

@@ -18,9 +18,29 @@ export const seedInternalTeam = async () => {
                 data: {
                     name: "BasaltHQ",
                     slug: "basalthq",
+                    status: "ACTIVE"
                 },
             });
         }
+
+        // 2.5 Ensure BasaltHQ has a Free Enterprise Subscription record for history tracking
+        await (prismadb as any).crm_Subscriptions.upsert({
+            where: { tenant_id: internalTeam.id },
+            create: {
+                tenant_id: internalTeam.id,
+                plan_name: "Enterprise (Platform)",
+                amount: 0,
+                status: "ACTIVE",
+                billing_day: 1,
+                next_billing_date: new Date(2030, 0, 1), // Far future
+                last_charge_status: "SYSTEM_FREE_CREDIT",
+                last_charge_date: new Date()
+            },
+            update: {
+                status: "ACTIVE",
+                last_charge_status: "SYSTEM_FREE_CREDIT"
+            }
+        });
 
         // 3. Find all users WITHOUT a team
         // Note: Prisma MongoDB doesn't support complex "where" for nulls efficiently in all versions, 

@@ -69,11 +69,11 @@ export const CreateTeamCard = ({ availablePlans }: CreateTeamCardProps) => {
     }, [name]);
 
     const cardData: NavigationCardData = {
-        title: "Create Team",
-        description: "Add a new partner organization",
+        title: "Partner Hub",
+        description: "Create organization",
         icon: Plus,
         color: "from-pink-500/20 to-rose-500/20",
-        iconColor: "text-pink-400"
+        iconColor: "text-pink-500"
     };
 
     return (

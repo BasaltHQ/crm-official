@@ -60,75 +60,75 @@ const TeamStatusCard = ({ teamId, currentStatus, currentReason }: { teamId: stri
     };
 
     return (
-        <Card>
-            <CardHeader>
+        <Card className="bg-zinc-900/40 border border-[#27272a] overflow-hidden flex flex-col justify-between">
+            <CardHeader className="py-4 px-6 border-b border-white/5">
                 <div className="flex justify-between items-center">
                     <div>
-                        <CardTitle>Access Control</CardTitle>
-                        <CardDescription>Control team access and activation status.</CardDescription>
+                        <CardTitle className="text-base font-bold">Access Control</CardTitle>
+                        <CardDescription className="text-[11px]">Control team access and activation status.</CardDescription>
                     </div>
-                    <Badge variant={status === "ACTIVE" ? "default" : status === "PENDING" ? "secondary" : "destructive"}>
+                    <Badge variant={status === "ACTIVE" ? "default" : status === "PENDING" ? "secondary" : "destructive"} className="uppercase tracking-wider text-[9px] h-5 px-2">
                         {status || "UNKNOWN"}
                     </Badge>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Status</label>
+            <CardContent className="space-y-4 py-6 px-6">
+                <div className="flex flex-col gap-4">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Status</label>
                         <Select value={status} onValueChange={(val) => setStatus(val)}>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-9 bg-zinc-900/50 border-white/5 text-sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ACTIVE">
                                     <div className="flex items-center">
-                                        <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                                        <CheckCircle className="w-3.5 h-3.5 mr-2 text-green-500" />
                                         Active
                                     </div>
                                 </SelectItem>
                                 <SelectItem value="PENDING">
                                     <div className="flex items-center">
-                                        <AlertTriangle className="w-4 h-4 mr-2 text-yellow-500" />
+                                        <AlertTriangle className="w-3.5 h-3.5 mr-2 text-yellow-500" />
                                         Pending
                                     </div>
                                 </SelectItem>
                                 <SelectItem value="SUSPENDED">
                                     <div className="flex items-center">
-                                        <Ban className="w-4 h-4 mr-2 text-red-500" />
+                                        <Ban className="w-3.5 h-3.5 mr-2 text-red-500" />
                                         Suspended
                                     </div>
                                 </SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
 
-                {status === "SUSPENDED" && (
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Suspension Reason</label>
-                        <Select value={reason} onValueChange={setReason}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a reason" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Billing Issue">Suspended - Billing</SelectItem>
-                                <SelectItem value="Dormant Account">Suspended - Dormant</SelectItem>
-                                <SelectItem value="Usage Violation">Suspended - Violation</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">This message will be displayed to users when they attempt to access the platform.</p>
-                    </div>
-                )}
+                    {status === "SUSPENDED" && (
+                        <div className="space-y-1.5 animate-in slide-in-from-left-2 duration-300">
+                            <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Suspension Reason</label>
+                            <Select value={reason} onValueChange={setReason}>
+                                <SelectTrigger className="h-9 bg-zinc-900/50 border-white/5 text-sm">
+                                    <SelectValue placeholder="Select a reason" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Billing Issue">Suspended - Billing</SelectItem>
+                                    <SelectItem value="Dormant Account">Suspended - Dormant</SelectItem>
+                                    <SelectItem value="Usage Violation">Suspended - Violation</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
             </CardContent>
-            <CardFooter className="border-t p-4 bg-muted/20 flex justify-end">
-                <Button onClick={handleStatusUpdate} disabled={isLoading} variant="outline">
+            <CardFooter className="py-2.5 px-6 border-t border-white/5 bg-white/5 flex justify-end">
+                <Button onClick={handleStatusUpdate} disabled={isLoading} variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider hover:bg-white/10">
                     Update Status
                 </Button>
             </CardFooter>
         </Card>
     );
+
 };
 
 type Props = {
@@ -191,104 +191,113 @@ const TeamSettingsForm = ({ team, availablePlans = [] }: Props) => {
     };
 
     return (
-        <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Team Settings</CardTitle>
-                    <CardDescription>
-                        Manage basic team information and primary contact.
-                    </CardDescription>
+        <div className="space-y-4">
+            <Card className="bg-zinc-900/40 border border-[#27272a] overflow-hidden">
+                <CardHeader className="py-4 px-6 border-b border-white/5">
+                    <div>
+                        <CardTitle className="text-base font-bold">Team Profile</CardTitle>
+                        <CardDescription className="text-[11px]">
+                            Update core team details and subscription plan.
+                        </CardDescription>
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Team Name</label>
-                        <Input
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Brand Key (Slug)</label>
-                        <Input
-                            value={formData.slug}
-                            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                        />
-                        <p className="text-xs text-muted-foreground">This works as the unique ID for the team instance.</p>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Point of Contact (Owner)</label>
-                        <Select
-                            value={formData.owner_id || undefined}
-                            onValueChange={(val) => setFormData({ ...formData, owner_id: val })}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select an owner" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none" disabled>Select Owner</SelectItem>
-                                {team.members.map((member) => (
-                                    <SelectItem key={member.id} value={member.id}>
-                                        {member.name || member.email}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Subscription Plan</label>
-                        <Select
-                            value={formData.plan_id}
-                            onValueChange={(val) => setFormData({ ...formData, plan_id: val })}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select Plan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none" disabled>Select Plan</SelectItem>
-                                {availablePlans.map((plan) => (
-                                    <SelectItem key={plan.id} value={plan.id}>
-                                        {plan.name} ({plan.currency} {plan.price})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                <CardContent className="space-y-6 pt-6 pb-6 px-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Team Name</label>
+                            <Input
+                                value={formData.name}
+                                className="h-9 bg-zinc-900/50 border-white/5 text-sm"
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Brand Key (Slug)</label>
+                            <Input
+                                value={formData.slug}
+                                className="h-9 bg-zinc-900/50 border-white/5 font-mono text-xs"
+                                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Owner</label>
+                            <Select
+                                value={formData.owner_id || undefined}
+                                onValueChange={(val) => setFormData({ ...formData, owner_id: val })}
+                            >
+                                <SelectTrigger className="h-9 bg-zinc-900/50 border-white/5 text-sm">
+                                    <SelectValue placeholder="Select owner" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none" disabled>Select Owner</SelectItem>
+                                    {team.members.map((member) => (
+                                        <SelectItem key={member.id} value={member.id}>
+                                            {member.name || member.email}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Plan</label>
+                            <Select
+                                value={formData.plan_id}
+                                onValueChange={(val) => setFormData({ ...formData, plan_id: val })}
+                            >
+                                <SelectTrigger className="h-9 bg-zinc-900/50 border-white/5 text-sm">
+                                    <SelectValue placeholder="Select Plan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none" disabled>Select Plan</SelectItem>
+                                    {availablePlans.map((plan) => (
+                                        <SelectItem key={plan.id} value={plan.id}>
+                                            {plan.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardContent>
-                <CardFooter className="border-t p-4 bg-muted/20 flex justify-end">
-                    <Button onClick={handleSave} disabled={isLoading}>
-                        <Save className="w-4 h-4 mr-2" />
+                <CardFooter className="py-2.5 px-6 border-t border-white/5 bg-white/5 flex justify-end">
+                    <Button onClick={handleSave} disabled={isLoading} size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider">
+                        <Save className="w-3.5 h-3.5 mr-2" />
                         Save Changes
                     </Button>
                 </CardFooter>
             </Card>
 
-            <TeamStatusCard teamId={team.id} currentStatus={team.status} currentReason={team.suspension_reason} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TeamStatusCard teamId={team.id} currentStatus={team.status} currentReason={team.suspension_reason} />
 
-            <Card className="border-red-200">
-                <CardHeader>
-                    <CardTitle className="text-red-600">Danger Zone</CardTitle>
-                    <CardDescription>
-                        Irreversible actions for this team.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                        Deleting this team will remove it permanently. Members will be unassigned but not deleted.
-                    </p>
-                    <AlertModal
-                        isOpen={open}
-                        onClose={() => setOpen(false)}
-                        onConfirm={handleDelete}
-                        loading={isLoading}
-                        title="Are you sure you want to delete this team?"
-                        description="This action cannot be undone. This will permanently delete the team and remove all data."
-                    />
-                    <Button variant="destructive" onClick={() => setOpen(true)} disabled={isLoading}>
-                        Delete Team
-                    </Button>
-                </CardContent>
-            </Card>
-        </>
+                <Card className="bg-red-500/5 border border-red-500/20 overflow-hidden flex flex-col justify-between">
+                    <CardHeader className="py-4 px-6">
+                        <div className="flex flex-row items-center justify-between gap-4">
+                            <div>
+                                <CardTitle className="text-base font-bold text-red-500">Danger Zone</CardTitle>
+                                <CardDescription className="text-[10px] text-red-500/60 leading-relaxed uppercase tracking-wide">
+                                    Permanently delete team and all associated data records.
+                                </CardDescription>
+                            </div>
+                            <AlertModal
+                                isOpen={open}
+                                onClose={() => setOpen(false)}
+                                onConfirm={handleDelete}
+                                loading={isLoading}
+                                title="Are you sure you want to delete this team?"
+                                description="This action cannot be undone. This will permanently delete the team and remove all data."
+                            />
+                        </div>
+                    </CardHeader>
+                    <div className="px-6 pb-6 mt-auto">
+                        <Button variant="destructive" size="sm" className="w-full h-8 text-[10px] font-bold uppercase tracking-wider" onClick={() => setOpen(true)} disabled={isLoading}>
+                            Delete Team
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        </div>
+
     );
 };
 

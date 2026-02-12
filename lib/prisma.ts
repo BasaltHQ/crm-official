@@ -1,19 +1,22 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "./prisma-client";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prismadb_v5: PrismaClient };
 
-let prismaInstance = globalForPrisma.prisma;
+// Force recreate with a new global key: v5 (Internal Client Path)
+// This bypasses stale node_modules caching in Turbopack
+function getPrismaClient() {
+  let instance = globalForPrisma.prismadb_v5;
 
-// Check if the current instance is stale (missing the new model)
-if (prismaInstance && (!(prismaInstance as any).dashboardPreference || !(prismaInstance as any).navigationConfig)) {
-  console.log("Resetting stale Prisma client (missing dashboardPreference or navigationConfig)");
-  prismaInstance = undefined as any;
+  if (!instance) {
+    console.log("🚀 Initializing fresh Prisma v5 Client from INTERNAL PATH...");
+    instance = new PrismaClient();
+  }
+
+  return instance;
 }
 
-export const prismadb = prismaInstance || new PrismaClient();
+export const prismadb = getPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prismadb;
+  globalForPrisma.prismadb_v5 = prismadb;
 }
-// End of file - Triggering reload for new models
-

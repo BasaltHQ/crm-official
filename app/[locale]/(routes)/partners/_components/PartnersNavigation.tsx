@@ -29,41 +29,41 @@ export const PartnersNavigation = ({
     const cards = [
         {
             key: 'system-keys',
-            title: "System Keys",
-            description: "Manage AI system keys & defaults",
+            title: "Keys Hub",
+            description: "AI system config",
             icon: Key,
             color: "from-cyan-500/20 to-blue-500/20",
-            iconColor: "text-cyan-400",
+            iconColor: "text-cyan-500",
             href: "/partners/ai-system-config",
             hidden: hideSystemKeys
         },
         {
             key: 'model-pricing',
-            title: "Model Pricing",
-            description: "Configure AI model pricing",
+            title: "Pricing Hub",
+            description: "Model pricing",
             icon: DollarSign,
             color: "from-emerald-500/20 to-green-500/20",
-            iconColor: "text-emerald-400",
+            iconColor: "text-emerald-500",
             href: "/partners/ai-pricing",
             hidden: hideModelPricing
         },
         {
             key: 'system-email',
-            title: "System Email",
-            description: "Manage global email config",
+            title: "Email Hub",
+            description: "Global email",
             icon: Mail,
             color: "from-blue-500/20 to-indigo-500/20",
-            iconColor: "text-blue-400",
+            iconColor: "text-blue-500",
             href: "/partners/email-system-config",
             hidden: hideSystemKeys
         },
         {
             key: 'manage-plans',
-            title: "Manage Plans",
-            description: "Configure subscription plans",
+            title: "Plans Hub",
+            description: "Subscriptions",
             icon: List,
             color: "from-purple-500/20 to-pink-500/20",
-            iconColor: "text-purple-400",
+            iconColor: "text-purple-500",
             href: "/partners/plans",
             hidden: hideManagePlans
         }

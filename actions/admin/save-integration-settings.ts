@@ -25,7 +25,12 @@ export async function saveIntegrationSettings(data: FormData) {
         // Extract Surge Settings
         const surgeEnabled = data.get("surge_enabled") === "on";
         const surgeApiKey = data.get("surge_api_key") as string;
-        const surgeMerchantId = data.get("surge_merchant_id") as string; // The ID user provided
+        const surgeMerchantId = data.get("surge_merchant_id") as string;
+
+        // Extract Mercury Settings
+        const mercuryEnabled = data.get("mercury_enabled") === "on";
+        const mercuryApiKey = data.get("mercury_api_key") as string;
+        const mercuryAccountId = data.get("mercury_account_id") as string;
 
         // Validate
         if (surgeEnabled && (!surgeApiKey || !surgeMerchantId)) {
@@ -35,7 +40,6 @@ export async function saveIntegrationSettings(data: FormData) {
         console.log(`[Integrations] Saving for team ${teamId}`);
 
         // Update or Create
-        // unique key is tenant_id (which is teamId)
         await prismadb.tenant_Integrations.upsert({
             where: { tenant_id: teamId },
             create: {
@@ -43,12 +47,18 @@ export async function saveIntegrationSettings(data: FormData) {
                 surge_enabled: surgeEnabled,
                 surge_api_key: surgeApiKey,
                 surge_merchant_id: surgeMerchantId,
-                preferred_chain: "BASE" // Default
+                mercury_enabled: mercuryEnabled,
+                mercury_api_key: mercuryApiKey,
+                mercury_account_id: mercuryAccountId,
+                preferred_chain: "BASE"
             },
             update: {
                 surge_enabled: surgeEnabled,
                 surge_api_key: surgeApiKey,
-                surge_merchant_id: surgeMerchantId
+                surge_merchant_id: surgeMerchantId,
+                mercury_enabled: mercuryEnabled,
+                mercury_api_key: mercuryApiKey,
+                mercury_account_id: mercuryAccountId,
             }
         });
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type NavigationCardData = {
     title: string;
@@ -11,28 +12,57 @@ export type NavigationCardData = {
     href?: string;
 };
 
-export const NavigationCard = ({ card, loading = false, onClick }: { card: NavigationCardData, loading?: boolean, onClick?: () => void }) => (
+interface NavigationCardProps {
+    card: NavigationCardData;
+    loading?: boolean;
+    isActive?: boolean;
+    onClick?: () => void;
+    className?: string;
+}
+
+export const NavigationCard = ({ card, loading = false, isActive, onClick, className }: NavigationCardProps) => (
     <div
         onClick={onClick}
-        className="group relative overflow-hidden rounded-2xl border border-[#27272a] bg-[#09090b] p-3 transition-all duration-300 h-[110px] w-full cursor-pointer"
+        className={cn(
+            "group relative overflow-hidden rounded-2xl border-[1px] transition-all duration-300 h-[110px] w-full cursor-pointer",
+            isActive
+                ? "border-primary/50 bg-[#18181b] ring-2 ring-primary/30"
+                : "border-[#27272a] bg-[#09090b] hover:border-white/20 hover:bg-[#121214]",
+            className
+        )}
+
     >
         {/* Giant Watermark Icon - Positioned Right */}
         <card.icon
-            className={`absolute -right-4 -bottom-4 w-32 h-32 -rotate-12 transition-colors duration-500 pointer-events-none opacity-10 group-hover:opacity-20 ${card.iconColor}`}
+            className={cn(
+                "absolute -right-6 -bottom-6 w-36 h-36 -rotate-12 transition-all duration-500 pointer-events-none opacity-5 group-hover:opacity-15 group-hover:scale-110",
+                isActive ? cn(card.iconColor, "opacity-20 scale-105") : "text-zinc-500",
+                "group-hover:" + card.iconColor
+            )}
         />
 
-        <div className="relative z-10 w-full h-full flex flex-col justify-center items-start pl-1">
-            <div className="space-y-0.5">
-                <span className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground/90 group-hover:text-foreground transition-colors">
-                    {card.title}
-                </span>
-                <span className="block text-xl font-bold tracking-tight text-foreground">
-                    {card.description}
-                </span>
-            </div>
+        <div className="absolute top-5 left-6 right-6 z-10 space-y-1">
+            <span className={cn(
+                "block text-[9px] font-bold uppercase tracking-[0.2em] transition-colors leading-none",
+                isActive ? "text-primary" : "text-muted-foreground/40 group-hover:text-foreground/80"
+            )}>
+                {card.title}
+            </span>
+            <span className={cn(
+                "block text-sm font-bold tracking-tight leading-tight transition-colors",
+                isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-100"
+            )}>
+                {card.description}
+            </span>
         </div>
 
         {/* Subtle Glow on Hover */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        <div className={cn(
+            "absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transition-opacity duration-500 pointer-events-none",
+            isActive ? "opacity-20" : "opacity-0 group-hover:opacity-100"
+        )} />
     </div>
 );
+
+
+

@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Bot } from "lucide-react";
 
+import { NavigationCard } from "../../_components/NavigationCard";
+
 type OwnerInfo = {
     id: string;
     name: string | null;
@@ -55,163 +57,150 @@ const TeamDetailsView = ({ team, availablePlans, currentUserInfo, systemResendDa
     const cards = [
         {
             id: "overview",
-            title: "Overview",
-            description: "Manage team settings",
+            title: "Settings",
+            description: "Team profile",
             icon: LayoutDashboard,
             color: "from-blue-500/20 to-indigo-500/20",
-            iconColor: "text-blue-400",
+            iconColor: "text-blue-500",
         },
         {
             id: "members",
             title: "Members",
-            description: "Manage team members",
+            description: "User directory",
             icon: Users,
             color: "from-emerald-500/20 to-green-500/20",
-            iconColor: "text-emerald-400",
+            iconColor: "text-emerald-500",
         },
     ];
 
     if (isOrgAdmin) {
         cards.push({
             id: "departments",
-            title: "Departments",
-            description: "Organize teams",
+            title: "Business",
+            description: "Departments",
             icon: Building2,
             color: "from-cyan-500/20 to-teal-500/20",
-            iconColor: "text-cyan-400",
+            iconColor: "text-cyan-500",
         });
 
         cards.push({
             id: "roles",
-            title: "Roles & Modules",
-            description: "View access control",
+            title: "Security",
+            description: "Permissions",
             icon: Shield,
             color: "from-violet-500/20 to-purple-500/20",
-            iconColor: "text-violet-400",
+            iconColor: "text-violet-500",
         });
 
         cards.push({
             id: "sms-config",
-            title: "SMS Config",
-            description: "Configure SMS settings",
+            title: "SMS Hub",
+            description: "SMS gateway",
             icon: MessageSquare,
             color: "from-orange-500/20 to-red-500/20",
-            iconColor: "text-orange-400",
+            iconColor: "text-orange-500",
         });
 
         cards.push({
             id: "email-config",
-            title: "Email Config",
-            description: "Manage sender identity",
+            title: "Email Hub",
+            description: "Mail identity",
             icon: Mail,
             color: "from-purple-500/20 to-pink-500/20",
-            iconColor: "text-purple-400",
+            iconColor: "text-purple-500",
         });
 
         cards.push({
             id: "ai-config",
-            title: "AI Config",
-            description: "Manage AI models",
+            title: "AI Hub",
+            description: "Model config",
             icon: Bot,
             color: "from-indigo-500/20 to-purple-500/20",
-            iconColor: "text-indigo-400",
+            iconColor: "text-indigo-500",
         });
     }
 
+
     return (
         <div className="space-y-4">
-            {/* Account Owner Contact Card */}
-            {currentUserInfo?.isGlobalAdmin && (
-                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-lg border border-amber-500/30">
-                    <div className="p-3 rounded-full bg-amber-500/20 text-amber-400">
-                        <Shield className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">Account Owner</span>
-                            <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                Owner
-                            </Badge>
+            {/* Compact Header: Owner & Identifiers combined */}
+            <div className="flex flex-col md:flex-row gap-4">
+                {currentUserInfo?.isGlobalAdmin && (
+                    <div className="flex-[2] flex items-center gap-2.5 p-2 bg-zinc-900/40 rounded-xl border border-white/5 h-[52px]">
+                        <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500/80">
+                            <Shield className="w-3.5 h-3.5" />
                         </div>
-                        {ownerInfo ? (
-                            <div className="flex flex-wrap items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                <span className="font-medium text-foreground">{ownerInfo.name || "Unknown"}</span>
-                                <div className="flex items-center gap-1">
-                                    <AtSign className="w-3 h-3" />
-                                    <a href={`mailto:${ownerInfo.email}`} className="hover:text-primary transition-colors">
-                                        {ownerInfo.email}
-                                    </a>
-                                </div>
-                                {ownerInfo.phone && (
-                                    <div className="flex items-center gap-1">
-                                        <Phone className="w-3 h-3" />
-                                        <a href={`tel:${ownerInfo.phone}`} className="hover:text-primary transition-colors">
-                                            {ownerInfo.phone}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 leading-none">Account Owner</span>
+                            </div>
+                            {ownerInfo ? (
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[13px]">
+                                    <span className="font-bold text-foreground truncate">{ownerInfo.name || "Unknown"}</span>
+                                    <div className="flex items-center gap-1.5 text-muted-foreground/50">
+                                        <AtSign className="w-3 h-3" />
+                                        <a href={`mailto:${ownerInfo.email}`} className="hover:text-amber-500 transition-colors truncate">
+                                            {ownerInfo.email}
                                         </a>
                                     </div>
-                                )}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground mt-1">No owner assigned</p>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Unique Identifiers Header */}
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
-                <div className="flex items-center gap-2">
-                    <span className="font-semibold">Team ID:</span>
-                    <code className="bg-muted px-1.5 py-0.5 rounded font-mono">{team.id}</code>
-                    <button
-                        onClick={() => { navigator.clipboard.writeText(team.id); toast.success("Copied Team ID"); }}
-                        className="hover:text-primary transition-colors"
-                        title="Copy Team ID"
-                    >
-                        <Copy className="w-3 h-3" />
-                    </button>
-                </div>
-                {team.stripe_customer_id && (
-                    <div className="flex items-center gap-2">
-                        <span className="font-semibold">Stripe Customer:</span>
-                        <code className="bg-muted px-1.5 py-0.5 rounded font-mono">{team.stripe_customer_id}</code>
-                        <button
-                            onClick={() => { navigator.clipboard.writeText(team.stripe_customer_id); toast.success("Copied Stripe ID"); }}
-                            className="hover:text-primary transition-colors"
-                            title="Copy Stripe ID"
-                        >
-                            <Copy className="w-3 h-3" />
-                        </button>
-                    </div>
-                )}
-                <div className="flex items-center gap-2">
-                    <span className="font-semibold">Slug:</span>
-                    <code className="bg-muted px-1.5 py-0.5 rounded font-mono">{team.slug}</code>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {cards.map((card) => (
-                    <div key={card.id} onClick={() => setActiveTab(card.id)} className="h-full">
-                        <div className={`group relative overflow-hidden rounded-xl border p-4 md:p-6 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-xl hover:scale-[1.02] text-left w-full h-full cursor-pointer ${activeTab === card.id ? "border-primary/50 bg-white/10 ring-2 ring-primary/30" : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
-                            <div className={`absolute inset-0 bg-gradient-to-br ${card.color} ${activeTab === card.id ? 'opacity-100' : 'opacity-20 group-hover:opacity-60'} transition-opacity duration-300`} />
-                            <div className="relative z-10 flex flex-col items-center justify-center space-y-2 text-center h-full">
-                                <div className={`p-3 rounded-full bg-gradient-to-br ${card.color} border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300 ${card.iconColor} ring-1 ring-white/20 group-hover:ring-white/40`}>
-                                    <card.icon className="w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
                                 </div>
-                                <div className="space-y-0.5">
-                                    <span className="block text-sm md:text-lg font-medium text-foreground group-hover:text-white transition-colors">
-                                        {card.title}
-                                    </span>
-                                    <span className="block text-[10px] md:text-xs text-muted-foreground group-hover:text-white/80 transition-colors">
-                                        {card.description}
-                                    </span>
-                                </div>
-                            </div>
+                            ) : (
+                                <p className="text-[11px] text-muted-foreground mt-0.5 lowercase italic opacity-50">No owner assigned</p>
+                            )}
                         </div>
                     </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-x-10 gap-y-2 px-6 bg-zinc-900/40 rounded-xl border border-white/5 text-[10px] flex-[3] h-[52px]">
+                    <div className="flex items-center gap-3">
+                        <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em] leading-none">Team ID</span>
+                        <div className="flex items-center gap-2">
+                            <code className="bg-white/5 px-2 py-1 rounded font-mono text-zinc-400 text-[11px]">{team.id}</code>
+                            <button
+                                onClick={() => { navigator.clipboard.writeText(team.id); toast.success("Copied Team ID"); }}
+                                className="text-muted-foreground/30 hover:text-white transition-colors"
+                            >
+                                <Copy className="w-3 h-3" />
+                            </button>
+                        </div>
+                    </div>
+                    {team.stripe_customer_id && (
+                        <div className="flex items-center gap-3 border-l border-white/5 pl-10">
+                            <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em] leading-none">Stripe</span>
+                            <div className="flex items-center gap-2">
+                                <code className="bg-white/5 px-2 py-1 rounded font-mono text-zinc-400 text-[11px]">{team.stripe_customer_id}</code>
+                                <button
+                                    onClick={() => { navigator.clipboard.writeText(team.stripe_customer_id); toast.success("Copied Stripe ID"); }}
+                                    className="text-muted-foreground/30 hover:text-white transition-colors"
+                                >
+                                    <Copy className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3 border-l border-white/5 pl-10">
+                        <span className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em] leading-none">Slug</span>
+                        <Badge variant="outline" className="font-mono bg-white/5 text-zinc-500 border-white/5 px-2 py-0.5 text-[10px]">
+                            {team.slug}
+                        </Badge>
+                    </div>
+                </div>
+
+
+            </div>
+
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+                {cards.map((card) => (
+                    <NavigationCard
+                        key={card.id}
+                        card={card as any}
+                        isActive={activeTab === card.id}
+                        onClick={() => setActiveTab(card.id)}
+                    />
                 ))}
             </div>
+
 
             <Separator />
 

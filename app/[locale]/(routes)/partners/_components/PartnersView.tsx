@@ -1,5 +1,4 @@
 
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -48,6 +47,10 @@ type Team = {
     assigned_plan?: {
         name: string;
     } | null;
+    team_subscriptions?: {
+        status: string;
+        next_billing_date: Date;
+    }[];
     members: {
         id: string;
         name: string | null;
@@ -77,8 +80,12 @@ const LinkHref = Link as any;
 const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
     const router = useRouter();
     const [teams, setTeams] = useState<Team[]>(initialTeams);
+
+    useEffect(() => {
+        setTeams(initialTeams);
+    }, [initialTeams]);
+
     const [isLoading, setIsLoading] = useState(false);
-    const [isSeeding, setIsSeeding] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("card");
 
     // Search & Filter State
@@ -134,28 +141,14 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
         }
     };
 
-    const handleSeed = async () => {
-        try {
-            setIsSeeding(true);
-            const res = await seedInternalTeam();
-            if (res.error) {
-                toast.error(res.error);
-            } else {
-                toast.success(`BasaltHQ Team Seeded! Updated ${res.count} users.`);
-                router.refresh();
-            }
-        } catch (error) {
-            toast.error("Failed to seed");
-        } finally {
-            setIsSeeding(false);
-        }
-    };
-
     // Check if current user has access to manage plans (simple client check, real check is server side)
     const hasInternalTeam = teams.some(t => t.slug === 'internal' || t.slug === 'ledger1' || t.slug === 'basalt' || t.slug === 'basalthq');
 
     // Show all teams including internal ones
-    const filteredTeams = teams.filter(team => {
+    const filteredTeams = teams.map(team => ({
+        ...team,
+        effectiveStatus: getEffectiveStatus(team)
+    })).filter(team => {
         // Search Filter
         const matchesSearch =
             team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -164,11 +157,11 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
         // Status Filter
         let matchesStatus = true;
         if (statusFilter !== "ALL") {
-            const status = team.status || "ACTIVE"; // Default to ACTIVE if null
+            const status = team.effectiveStatus;
             if (statusFilter === "ACTIVE") matchesStatus = status === "ACTIVE";
             else if (statusFilter === "PENDING") matchesStatus = status === "PENDING";
             else if (statusFilter === "SUSPENDED") matchesStatus = status === "SUSPENDED";
-            else if (statusFilter === "OVERDUE") matchesStatus = status === "OVERDUE"; // Ensure this matches getEffectiveStatus if needed
+            else if (statusFilter === "OVERDUE") matchesStatus = status === "OVERDUE";
         }
 
         return matchesSearch && matchesStatus;
@@ -180,55 +173,72 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
         return 0;
     });
 
-    const pendingCount = filteredTeams.filter(t => t.status === 'PENDING').length;
+    const pendingCount = filteredTeams.filter(t => t.effectiveStatus === 'PENDING').length;
 
+    // Platform Highlight Logic (Green, Yellow, Red)
     const getStatusStyle = (status?: string | null) => {
         switch (status) {
             case "PENDING":
                 return {
-                    borderColor: "rgba(234,179,8, 0.8)", // Yellow-500
-                    boxShadow: "0 0 15px rgba(234,179,8, 0.25), inset 0 0 10px rgba(234,179,8, 0.05)",
-                    backgroundColor: "rgba(234,179,8, 0.02)"
-                };
-            case "SUSPENDED":
-                return {
-                    borderColor: "rgba(220,38,38, 0.8)", // Red-600
-                    boxShadow: "0 0 15px rgba(220,38,38, 0.35), inset 0 0 10px rgba(220,38,38, 0.1)",
-                    backgroundColor: "rgba(220,38,38, 0.05)"
+                    borderColor: "#eab308", // Yellow-500
+                    boxShadow: "0 0 15px rgba(234,179,8, 0.2)",
+                    backgroundColor: "rgba(234,179,8, 0.05)"
                 };
             case "OVERDUE":
                 return {
-                    borderColor: "rgba(236,72,153, 1)", // Pink-500
-                    boxShadow: "0 0 20px rgba(236,72,153, 0.5), inset 0 0 10px rgba(236,72,153, 0.1)",
-                    backgroundColor: "rgba(236,72,153, 0.05)"
+                    borderColor: "#facc15", // Bright Yellow
+                    boxShadow: "0 0 20px rgba(250,204,21, 0.3)",
+                    backgroundColor: "rgba(250,204,21, 0.1)"
+                };
+            case "SUSPENDED":
+                return {
+                    borderColor: "#dc2626", // Red-600
+                    boxShadow: "0 0 20px rgba(220,38,38, 0.4)",
+                    backgroundColor: "rgba(220,38,38, 0.1)"
                 };
             case "ACTIVE":
                 return {
-                    borderColor: "rgba(34,197,94, 0.3)", // Green-500 low opacity
-                    boxShadow: "0 0 10px rgba(34,197,94, 0.05)",
+                    borderColor: "#22c55e", // Green-500
+                    boxShadow: "0 0 15px rgba(34,197,94, 0.2)",
+                    backgroundColor: "rgba(34,197,94, 0.05)"
                 };
             default:
-                return {};
+                return {
+                    borderColor: "#27272a", // Zinc-800
+                };
         }
     };
 
-    // Client-side Overdue Check
-    const getEffectiveStatus = (team: Team) => {
+    /**
+     * Logic for coloring:
+     * Green: Paid/Active
+     * Yellow: Missed payment (OVERDUE)
+     * Red: Missed payment after 3 days (SUSPENDED)
+     */
+    function getEffectiveStatus(team: Team) {
+        // 1. Manually suspended?
         if (team.status === "SUSPENDED") return "SUSPENDED";
-        if (team.status === "PENDING") return "PENDING";
 
+        // 2. Check Subscription Records
+        const sub = (team as any).team_subscriptions?.[0];
+        if (sub) {
+            return sub.status; // ACTIVE, OVERDUE, SUSPENDED
+        }
+
+        // 3. Fallback to legacy renewal logic if no subscription record found
         if (team.renewal_date) {
             const now = new Date();
             const renewal = new Date(team.renewal_date);
-            const gracePeriod = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+            const gracePeriod = 3 * 24 * 60 * 60 * 1000; // 3 days as requested
 
             if (now > renewal) {
                 if (now.getTime() - renewal.getTime() > gracePeriod) {
-                    return "SUSPENDED"; // Should be updated on server, but show as suspended here
+                    return "SUSPENDED";
                 }
                 return "OVERDUE";
             }
         }
+
         return team.status || "ACTIVE";
     };
 
@@ -249,25 +259,6 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
             )}
             <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4">
                 <div className="flex flex-wrap gap-2">
-                    {!hasInternalTeam && (
-                        <Button variant="secondary" onClick={handleSeed} disabled={isSeeding}>
-                            <Lock className={`w-4 h-4 mr-2 ${isSeeding ? "animate-spin" : ""}`} />
-                            <span className="hidden md:inline">Seed BasaltHQ Team</span>
-                            <span className="md:hidden">Seed</span>
-                        </Button>
-                    )}
-
-                    {/* Manage Internal Team button restored */}
-                    {hasInternalTeam && (
-                        <LinkHref href={`/partners/${teams.find(t => ['internal', 'ledger1', 'basalt', 'basalthq'].includes(t.slug))?.id}`}>
-                            <Button variant="secondary">
-                                <UsersIcon className="w-4 h-4 mr-2" />
-                                Manage BasaltHQ Team
-                            </Button>
-                        </LinkHref>
-                    )}
-
-
                 </div>
                 {/* View Toggle */}
                 <div className="flex items-center ml-2">
@@ -275,13 +266,13 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                 </div>
             </div>
 
-            {/* Search & Filter Bar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
+            {/* Search & Filter Bar - Condensed */}
+            <div className="flex flex-col md:flex-row gap-4 items-center bg-zinc-900/40 p-3 rounded-xl border border-white/5">
                 <div className="relative w-full md:w-1/3">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/50 h-3.5 w-3.5" />
                     <Input
                         placeholder="Search teams..."
-                        className="pl-9"
+                        className="pl-9 h-9 bg-zinc-900/50 border-white/5 text-xs"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -290,14 +281,14 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                             onClick={() => setSearchTerm("")}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
-                            <X className="h-4 w-4" />
+                            <X className="h-3.5 w-3.5" />
                         </button>
                     )}
                 </div>
                 <div className="flex gap-2 w-full md:w-auto ml-auto">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[140px]">
-                            <Filter className="w-4 h-4 mr-2" />
+                        <SelectTrigger className="w-[130px] h-9 bg-zinc-900/50 border-white/5 text-xs">
+                            <Filter className="w-3.5 h-3.5 mr-2 opacity-50" />
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -310,8 +301,8 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                     </Select>
 
                     <Select value={sortOrder} onValueChange={setSortOrder}>
-                        <SelectTrigger className="w-[160px]">
-                            <ArrowUpDown className="w-4 h-4 mr-2" />
+                        <SelectTrigger className="w-[150px] h-9 bg-zinc-900/50 border-white/5 text-xs">
+                            <ArrowUpDown className="w-3.5 h-3.5 mr-2 opacity-50" />
                             <SelectValue placeholder="Sort By" />
                         </SelectTrigger>
                         <SelectContent>
@@ -323,6 +314,7 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                     </Select>
                 </div>
             </div>
+
 
             {viewMode === "table" ? (
                 <div className="rounded-md border">
@@ -344,8 +336,8 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                                         <div className="text-xs text-muted-foreground">{team.slug}</div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={team.status === "ACTIVE" ? "default" : "secondary"}>
-                                            {team.status || "ACTIVE"}
+                                        <Badge variant={team.effectiveStatus === "ACTIVE" ? "default" : "secondary"}>
+                                            {team.effectiveStatus}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>{team.members.length} Users</TableCell>
@@ -390,13 +382,24 @@ const PartnersView = ({ initialTeams, availablePlans = [] }: Props) => {
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <CardTitle className="leading-tight">{team.name}</CardTitle>
                                                 {effectiveStatus === "PENDING" && (
-                                                    <Badge variant="destructive" className="animate-pulse">Pending</Badge>
+                                                    <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-500 border-yellow-500/20">Pending</Badge>
                                                 )}
                                                 {effectiveStatus === "SUSPENDED" && (
-                                                    <Badge variant="destructive">Suspended</Badge>
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        <Badge variant="destructive" className="bg-red-500 text-white">Suspended</Badge>
+                                                        {(team as any).suspension_reason && (
+                                                            <span className="text-[10px] text-red-400 font-medium italic">{(team as any).suspension_reason}</span>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 {effectiveStatus === "OVERDUE" && (
-                                                    <Badge className="bg-pink-500 hover:bg-pink-600 animate-pulse text-white border-none">Overdue</Badge>
+                                                    <Badge className="bg-yellow-400 text-black border-none animate-pulse shadow-[0_0_10px_rgba(250,204,21,0.5)]">Overdue</Badge>
+                                                )}
+                                                {effectiveStatus === "ACTIVE" && (
+                                                    <Badge className="bg-green-500 text-white border-none">Active</Badge>
+                                                )}
+                                                {(team as any).team_subscriptions?.[0]?.customer_wallet && (
+                                                    <Badge className="bg-cyan-500/10 text-cyan-500 border-cyan-500/20 text-[8px] h-4">Hybrid</Badge>
                                                 )}
                                             </div>
                                             <CardDescription className="font-mono text-xs mt-1 text-muted-foreground/70">{team.slug}</CardDescription>
