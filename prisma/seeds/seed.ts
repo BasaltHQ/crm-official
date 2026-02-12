@@ -1,6 +1,8 @@
 import { PrismaClient } from "../../lib/prisma-client";
 
 
+
+
 const moduleData = require("../initial-data/system_Modules_Enabled.json");
 const gptModelsData = require("../initial-data/gpt_Models.json");
 const crmOpportunityTypeData = require("../initial-data/crm_Opportunities_Type.json");
@@ -15,6 +17,7 @@ const prisma = new PrismaClient({
 async function main() {
   // Your seeding logic here using Prisma Client
   console.log("-------- Seeding DB --------");
+
 
   //Seed Menu Items - Sync logic to add missing modules
   const existingModules = await prisma.system_Modules_Enabled.findMany();

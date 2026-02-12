@@ -16,7 +16,7 @@
     "billing:collect": "ts-node scripts/process-subscriptions.ts"
   },
   "prisma": {
-    "seed": "ts-node ./prisma/seeds/seed.ts"
+    "seed": "tsx ./prisma/seeds/seed.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.57",
@@ -45,7 +45,6 @@
     "@napi-rs/canvas": "^0.1.88",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@notionhq/client": "^5.6.0",
-    "@prisma/client": "5.22.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -148,6 +147,7 @@
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.2",
     "@next/eslint-plugin-next": "^16.1.1",
+    "@prisma/client": "^6.19.2",
     "@types/bcrypt": "^6.0.0",
     "@types/imap": "^0.8.43",
     "@types/mailparser": "^3.4.6",
@@ -167,9 +167,10 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.5.6",
     "prettier": "^3.7.4",
-    "prisma": "5.22.0",
+    "prisma": "^6.19.2",
     "tailwindcss": "^3.4.19",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.51.0"
   },
