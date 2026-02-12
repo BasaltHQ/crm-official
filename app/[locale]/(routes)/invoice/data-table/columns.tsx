@@ -108,13 +108,15 @@ export const columns: ColumnDef<Task>[] = [
     enableHiding: true,
   }, */
   {
-    accessorKey: "status",
+    id: "status",
+    accessorFn: (row) => row.payment_status || row.status || "UNPAID",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
+      const statusValue = row.getValue("status") as string;
       const status = statuses.find(
-        (status) => status.value === row.getValue("status")
+        (status) => status.value === statusValue
       );
 
       if (!status) {

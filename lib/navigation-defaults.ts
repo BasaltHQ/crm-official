@@ -22,6 +22,7 @@ export interface NavItem {
     isSystem?: boolean; // If true, can't be deleted?
     badge?: string; // e.g. "serviceBadge"
     hidden?: boolean;
+    isPremium?: boolean; // If true, shows lock icon if user doesn't have permission
 }
 
 export const DEFAULT_NAV_STRUCTURE: NavItem[] = [
@@ -34,7 +35,55 @@ export const DEFAULT_NAV_STRUCTURE: NavItem[] = [
         href: "/dashboard"
     },
 
-    // 2. SALES HUB
+    // 2. MARKETING HUB
+    {
+        id: "group_marketing",
+        type: "group",
+        label: "Marketing Hub",
+        permissions: { minRole: "ADMIN" },
+        children: [
+            {
+                id: "nav_projects",
+                type: "item",
+                label: "Projects",
+                iconName: "ServerIcon",
+                href: "/campaigns",
+                permissions: { module: "projects", feature: "projects" }
+            },
+            {
+                id: "nav_leads",
+                type: "item",
+                label: "Leads",
+                iconName: "Users",
+                href: "/crm/leads",
+                permissions: { minRole: "ADMIN" },
+                children: [
+                    { id: "sub_leads_wizard", type: "item", label: "LeadGen Wizard", href: "/crm/lead-wizard", iconName: "Wand2" },
+                    { id: "sub_leads_pools", type: "item", label: "Lead Pools", href: "/crm/lead-pools", iconName: "Target" },
+                    { id: "sub_leads_outreach", type: "item", label: "Outreach", href: "/crm/outreach", iconName: "Megaphone" }
+                ]
+            },
+            {
+                id: "nav_forms",
+                type: "item",
+                label: "Forms",
+                iconName: "FormInput",
+                href: "/messages/forms",
+                permissions: { module: "messages", feature: "messages" }
+            },
+            {
+                id: "nav_calendar",
+                type: "item",
+                label: "Calendar",
+                iconName: "Calendar",
+                href: "/crm/calendar",
+                permissions: { minRole: "ADMIN" },
+                hidden: true
+            }
+        ]
+    },
+
+    // 3. SALES HUB
     {
         id: "group_sales",
         type: "group",
@@ -79,7 +128,7 @@ export const DEFAULT_NAV_STRUCTURE: NavItem[] = [
         ]
     },
 
-    // 3. SERVICE HUB
+    // 4. SERVICE HUB
     {
         id: "group_service",
         type: "group",
@@ -109,54 +158,42 @@ export const DEFAULT_NAV_STRUCTURE: NavItem[] = [
         ]
     },
 
-    // 4. MARKETING HUB
+    // 5. FINANCE
     {
-        id: "group_marketing",
+        id: "group_management",
         type: "group",
-        label: "Marketing Hub",
+        label: "Finance",
         permissions: { minRole: "ADMIN" },
         children: [
             {
-                id: "nav_forms",
+                id: "nav_invoices",
                 type: "item",
-                label: "Forms",
-                iconName: "FormInput",
-                href: "/messages/forms",
-                permissions: { module: "messages", feature: "messages" }
+                label: "Invoices",
+                iconName: "FileCheck",
+                href: "/invoice",
+                permissions: { module: "invoice", feature: "invoices" }
             },
             {
-                id: "nav_calendar",
+                id: "nav_reports",
                 type: "item",
-                label: "Calendar",
-                iconName: "Calendar",
-                href: "/crm/calendar",
-                permissions: { minRole: "ADMIN" }
+                label: "Reports",
+                iconName: "FileBarChart",
+                href: "/reports",
+                permissions: { module: "reports", feature: "reports" },
+                isPremium: true
             },
             {
-                id: "nav_leads",
+                id: "nav_staff",
                 type: "item",
-                label: "Leads",
-                iconName: "Users",
-                href: "/crm/leads",
-                permissions: { minRole: "ADMIN" },
-                children: [
-                    { id: "sub_leads_wizard", type: "item", label: "LeadGen Wizard", href: "/crm/lead-wizard", iconName: "Wand2" },
-                    { id: "sub_leads_pools", type: "item", label: "Lead Pools", href: "/crm/lead-pools", iconName: "Target" },
-                    { id: "sub_leads_outreach", type: "item", label: "Outreach", href: "/crm/outreach", iconName: "Megaphone" }
-                ]
-            },
-            {
-                id: "nav_projects",
-                type: "item",
-                label: "Projects",
-                iconName: "ServerIcon",
-                href: "/campaigns",
-                permissions: { module: "projects", feature: "projects" }
+                label: "Staff",
+                iconName: "UserCog",
+                href: "/employees",
+                permissions: { module: "employee", feature: "employee" }
             }
         ]
     },
 
-    // 5. OPERATIONS
+    // 6. OPERATIONS
     {
         id: "group_operations",
         type: "group",
@@ -193,40 +230,6 @@ export const DEFAULT_NAV_STRUCTURE: NavItem[] = [
                 label: "Products",
                 iconName: "Package",
                 href: "/crm/products"
-            }
-        ]
-    },
-
-    // 6. MANAGEMENT
-    {
-        id: "group_management",
-        type: "group",
-        label: "Management",
-        permissions: { minRole: "ADMIN" },
-        children: [
-            {
-                id: "nav_invoices",
-                type: "item",
-                label: "Invoices",
-                iconName: "FileCheck",
-                href: "/invoice",
-                permissions: { module: "invoice", feature: "invoices" }
-            },
-            {
-                id: "nav_reports",
-                type: "item",
-                label: "Reports",
-                iconName: "FileBarChart",
-                href: "/reports",
-                permissions: { module: "reports", feature: "reports" }
-            },
-            {
-                id: "nav_staff",
-                type: "item",
-                label: "Staff",
-                iconName: "UserCog",
-                href: "/employees",
-                permissions: { module: "employee", feature: "employee" }
             }
         ]
     },

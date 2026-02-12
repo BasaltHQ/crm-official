@@ -643,6 +643,12 @@ model Invoices {
   rossum_annotation_xml_url     String?
   money_s3_url                  String?
   status                        String?
+  
+  // Phase 2: Financial Integrations
+  payment_status                String?         @default("UNPAID")
+  surge_payment_id              String?
+  surge_payment_link            String?
+  mercury_invoice_id            String?
   invoice_state_id              String?         @db.ObjectId
   assigned_user_id              String?         @db.ObjectId
   assigned_account_id           String?         @db.ObjectId
@@ -1043,6 +1049,7 @@ model Team {
 
   quotes             crm_Quotes[]
   navigation_configs NavigationConfig[]
+  integrations       Tenant_Integrations?
 }
 
 model CustomRole {
@@ -3472,3 +3479,31 @@ model NavigationConfig {
 
   @@index([team_id, user_id])
 }
+
+// Phase 2: Financial Core Integrations
+model Tenant_Integrations {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenant_id       String   @unique @db.ObjectId
+  team            Team     @relation(fields: [tenant_id], references: [id])
+  
+  // Surge.co Config (Crypto Payments)
+  surge_enabled   Boolean  @default(false)
+  surge_api_key   String?
+  surge_merchant_id String?
+  preferred_chain String   @default("BASE")
+  
+  // Mercury Config (Banking)
+  mercury_enabled Boolean  @default(false)
+  mercury_api_key String?
+  mercury_account_id String?
+  
+  // Phase 3: Expansion
+  pandadoc_enabled Boolean @default(false)
+  pandadoc_token   String?
+  
+  discord_enabled  Boolean @default(false)
+  discord_webhook  String?
+  
+  updatedAt       DateTime @updatedAt
+}
+

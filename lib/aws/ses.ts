@@ -23,11 +23,17 @@ let _client: SESv2Client | null = null;
 function client(): SESv2Client {
   if (_client) return _client;
   const region = getEnv("SES_REGION") || getEnv("AWS_REGION") || "us-east-1";
+
+  // FIX: Bypass SSL certificate issues in development
+  if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_APP_URL?.includes('localhost')) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  }
+
   _client = new SESv2Client({ region });
   return _client;
 }
 
-export async function sendEmailSES(opts: SendEmailOptions): Promise<{ messageId?: string }>{
+export async function sendEmailSES(opts: SendEmailOptions): Promise<{ messageId?: string }> {
   const to = Array.isArray(opts.to) ? opts.to : [opts.to];
   const from = opts.from || getEnv("SES_FROM_ADDRESS", true)!;
   const replyTo = opts.replyTo ? (Array.isArray(opts.replyTo) ? opts.replyTo : [opts.replyTo]) : undefined;

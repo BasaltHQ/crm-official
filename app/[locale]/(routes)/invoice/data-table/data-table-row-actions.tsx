@@ -40,8 +40,9 @@ import {
 } from "@/components/ui/sheet";
 
 import AssignOpportunityModal from "../components/AssignOpportunityModal";
-import { Edit, Target } from "lucide-react";
-// ... imports ...
+import { EditInvoiceDialog } from "../dialogs/EditInvoiceDialog";
+import { SendInvoiceDialog } from "../dialogs/SendInvoiceDialog";
+import { Edit, Target, FilePenLine, Send } from "lucide-react";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -52,6 +53,8 @@ export function DataTableRowActions<TData>({
 }: DataTableRowActionsProps<TData>) {
   const [open, setOpen] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openSend, setOpenSend] = useState(false);
   const [openRossumView, setOpenRossumView] = useState(false);
   const [openAssignOpportunity, setOpenAssignOpportunity] = useState(false);
   const [openTestSheet, setOpenTestSheet] = useState(false);
@@ -234,6 +237,14 @@ export function DataTableRowActions<TData>({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Actions</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
+              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpenEdit(true); }}>
+                <FilePenLine className="mr-2 h-4 w-4" />
+                Edit Metadata
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpenSend(true); }}>
+                <Send className="mr-2 h-4 w-4" />
+                Send Invoice
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setOpenView(true)}>
                 Preview invoice
               </DropdownMenuItem>
@@ -279,6 +290,18 @@ export function DataTableRowActions<TData>({
         isOpen={openAssignOpportunity}
         onClose={() => setOpenAssignOpportunity(false)}
         invoiceId={invoice.id}
+      />
+
+      <EditInvoiceDialog
+        open={openEdit}
+        onOpenChange={setOpenEdit}
+        invoice={row.original}
+      />
+
+      <SendInvoiceDialog
+        open={openSend}
+        onOpenChange={setOpenSend}
+        invoice={row.original}
       />
     </>
   );

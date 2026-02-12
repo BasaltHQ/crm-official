@@ -21,6 +21,7 @@ import { getBoards } from "@/actions/projects/get-boards";
 import NewTaskDialog from "./dialogs/NewTask";
 
 import { SyncInvoiceCard } from "./components/SyncInvoiceCard";
+import { ManualInvoiceDialog } from "./dialogs/ManualInvoiceDialog";
 
 import { UploadCloud, FileText, Settings, Loader2 } from "lucide-react";
 
@@ -101,7 +102,11 @@ const InvoicePage = async () => {
       <NewTaskDialog users={users} boards={boards} />
 
       {/* Navigation Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 flex-shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 flex-shrink-0">
+
+        {/* Create Manual Invoice */}
+        <ManualInvoiceDialog />
+
         {/* Upload PDF Card */}
         <ModalDropzone
           buttonLabel="Upload pdf"

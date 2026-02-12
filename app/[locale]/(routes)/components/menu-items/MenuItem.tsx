@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Lock } from "lucide-react";
 
 type MenuItemProps = {
     href: string;
@@ -17,9 +17,10 @@ type MenuItemProps = {
     badge?: number;
     onMouseEnter?: () => void;
     onMouseLeave?: () => void;
+    isLocked?: boolean;
 };
 
-const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile = false, badge, onMouseEnter, onMouseLeave }: MenuItemProps) => {
+const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile = false, badge, onMouseEnter, onMouseLeave, isLocked }: MenuItemProps) => {
     // Determine label for collapsed/mobile view
     // Specific override: Dashboard -> Home
     const rawLabel = title;
@@ -29,16 +30,22 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
     // ─── Mobile ───
     if (isMobile) {
         return (
-            <Link href={href} onClick={onClick} className="flex-shrink-0">
+            <Link href={isLocked ? "#" : href} onClick={isLocked ? (e) => e.preventDefault() : onClick} className="flex-shrink-0">
                 <div
                     className={cn(
                         "relative flex flex-col items-center justify-center py-2 px-4 rounded-xl transition-all duration-200 gap-0.5",
                         isActive
                             ? "bg-primary/20 text-primary"
-                            : "text-muted-foreground"
+                            : "text-muted-foreground",
+                        isLocked && "opacity-60 grayscale cursor-not-allowed"
                     )}
                 >
                     <Icon className={cn("w-6 h-6", isActive && "text-primary")} />
+                    {isLocked && (
+                        <div className="absolute top-1 right-2">
+                            <Lock className="w-3 h-3 text-muted-foreground" />
+                        </div>
+                    )}
                     <span className={cn(
                         "text-[9px] uppercase tracking-wider font-semibold truncate max-w-[64px]",
                         isActive ? "text-primary" : "text-muted-foreground"
@@ -53,14 +60,15 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
     // ─── Desktop ───
     return (
         <div className="w-full" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-            <Link href={href} onClick={onClick}>
+            <Link href={isLocked ? "#" : href} onClick={isLocked ? (e) => e.preventDefault() : onClick} className={cn(isLocked && "cursor-not-allowed")}>
                 <div
                     className={cn(
                         "relative w-full flex items-center rounded-xl transition-all duration-200 group text-sm font-medium",
                         isOpen ? "py-1.5 px-2" : "flex-col py-2 px-1 justify-center gap-0.5",
                         isActive
                             ? "text-primary"
-                            : cn("text-muted-foreground", isOpen && "hover:text-foreground hover:bg-white/5")
+                            : cn("text-muted-foreground", isOpen && !isLocked && "hover:text-foreground hover:bg-white/5"),
+                        isLocked && "opacity-70"
                     )}
                 >
                     {/* Active glow */}
@@ -92,9 +100,14 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
                             display: isOpen ? "block" : "none",
                         }}
                         transition={{ duration: 0.2 }}
-                        className="ml-2.5 truncate whitespace-nowrap overflow-hidden z-10"
+                        className="ml-2.5 truncate whitespace-nowrap overflow-hidden z-10 flex items-center gap-2"
                     >
                         {title}
+                        {isLocked && (
+                            <span className="text-[10px] bg-white/10 text-muted-foreground px-1.5 py-0.5 rounded ml-auto flex items-center gap-1">
+                                🔒 <span className="hidden xl:inline">Upgrade</span>
+                            </span>
+                        )}
                     </motion.span>
 
                     {/* Micro-Label for Collapsed State */}
@@ -103,12 +116,12 @@ const MenuItem = ({ href, icon: Icon, title, isOpen, isActive, onClick, isMobile
                             "text-[9px] uppercase tracking-wider mt-0.5 truncate max-w-[60px] text-center",
                             isActive ? "text-primary font-semibold" : "text-muted-foreground"
                         )}>
-                            {microLabel}
+                            {isLocked ? "🔒" : microLabel}
                         </span>
                     )}
 
                     {/* Badge — positioned to never overlap chevrons */}
-                    {badge && badge > 0 && isOpen && (
+                    {badge && badge > 0 && isOpen && !isLocked && (
                         <span className="ml-auto z-10 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold leading-none shrink-0">
                             {badge > 99 ? "99+" : badge}
                         </span>

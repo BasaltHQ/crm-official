@@ -105,7 +105,7 @@ export const getSummaryCounts = async (): Promise<DashboardCounts> => {
     crmRevenueAgg,
     projectRevenueAgg,
     storageAgg,
-  ] = await prismadb.$transaction([
+  ] = await Promise.all([
     prismadb.crm_Leads.count({ where: getFilter("assigned_to") }),
     prismadb.tasks.count({ where: getFilter("user") }),
     prismadb.boards.count({ where: getFilter("user") }),

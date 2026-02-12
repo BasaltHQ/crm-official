@@ -97,14 +97,20 @@ const DynamicModuleMenu = ({
         return false;
     };
 
-    const isVisible = (item: NavItem) => {
-        if (item.hidden) return false;
+    const checkPermission = (item: NavItem) => {
         if (item.permissions) {
             if (item.permissions.module && !hasModule(item.permissions.module)) return false;
             if (item.permissions.feature && !hasFeature(item.permissions.feature)) return false;
             if (item.permissions.minRole && !checkRole(item.permissions.minRole)) return false;
         }
         return true;
+    };
+
+    const isVisible = (item: NavItem) => {
+        if (item.hidden) return false;
+        // If it's premium, we show it (locked) even if they don't have permission
+        if (item.isPremium) return true;
+        return checkPermission(item);
     };
 
     // ─── Active Logic ───
@@ -125,6 +131,9 @@ const DynamicModuleMenu = ({
     // ─── Renderer ───
     const renderItem = (item: NavItem) => {
         if (!isVisible(item)) return null;
+
+        const hasAccess = checkPermission(item);
+        const isLocked = item.isPremium && !hasAccess;
 
         if (item.type === "group") {
             // Group header + Children
@@ -161,6 +170,9 @@ const DynamicModuleMenu = ({
                     isActive={isActive}
                     items={subItems}
                     badge={item.badge === "serviceBadge" ? serviceBadge : undefined}
+                // isLocked logic for Expandable needs definition if sub-items are locked or parent is locked
+                // For now, let's assume grouping handles this differently, usually parent isn't locked if children exist?
+                // Or maybe the whole group is locked? Let's leave expandable unlocked for now unless specified
                 />
             );
         }
@@ -169,11 +181,12 @@ const DynamicModuleMenu = ({
         return (
             <MenuItem
                 key={item.id}
-                href={item.href || "#"}
+                href={isLocked ? "#" : (item.href || "#")}
                 icon={getIcon(item.iconName)}
                 title={item.label}
                 isOpen={open}
                 isActive={checkActive(item)}
+                isLocked={isLocked}
             />
         );
     };
