@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../../lib/prisma-client";
 
 
 const moduleData = require("../initial-data/system_Modules_Enabled.json");

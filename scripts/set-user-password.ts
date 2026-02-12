@@ -14,7 +14,7 @@
  *  - Performs UPDATE only; will error if user not found (to avoid accidental new record/id).
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma-client";
 import bcryptjs from "bcryptjs";
 const { hash } = bcryptjs;
 
