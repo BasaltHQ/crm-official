@@ -1,6 +1,6 @@
 {
   "name": "basaltcrm-app",
-  "version": "1.1.7f",
+  "version": "1.1.7l",
   "author": "Michael Milton (BasaltHQ)",
   "private": true,
   "scripts": {
@@ -14,9 +14,6 @@
     "doc:crm": "npx ts-node scripts/generate-module-docs.ts",
     "doc:sync": "npm run doc:agent && npm run doc:crm && npm run permissions:check",
     "billing:collect": "ts-node scripts/process-subscriptions.ts"
-  },
-  "prisma": {
-    "seed": "tsx ./prisma/seeds/seed.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.57",

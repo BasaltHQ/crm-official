@@ -2,7 +2,7 @@
 import { createAzure } from "@ai-sdk/azure";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { PrismaClient } from "../lib/prisma-client";
+import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 
 dotenv.config();

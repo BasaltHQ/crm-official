@@ -15,7 +15,7 @@ import * as path from "path";
 dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-import { PrismaClient } from "../lib/prisma-client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 

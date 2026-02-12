@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from "../lib/prisma-client";
+import { PrismaClient } from "@prisma/client";
 
 const SUBSCRIPTION_PLANS = {
     FREE: {
