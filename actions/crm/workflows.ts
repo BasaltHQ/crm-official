@@ -137,7 +137,7 @@ export async function updateWorkflow(id: string, data: UpdateWorkflowData) {
 
         const workflow = await prismadb.crm_Workflow.update({
             where: { id },
-            data: updateData
+            data: updateData as any
         });
 
         revalidatePath('/crm/workflows');

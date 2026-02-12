@@ -9,8 +9,9 @@ const MOCK_SERVICES: Record<string, { price: string, resource: string }> = {
     "data-contact-enrichment": { price: "25.00", resource: "{ enriched_data: [] }" }
 };
 
-export async function GET(req: Request, { params }: { params: { sku: string } }) {
+export async function GET(req: Request, props: { params: Promise<{ sku: string }> }) {
     try {
+        const params = await props.params;
         const sku = params.sku;
         const service = MOCK_SERVICES[sku];
 
