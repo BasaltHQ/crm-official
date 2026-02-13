@@ -53,7 +53,7 @@ const nextConfig = {
       },
     ];
   },
-  // output: "standalone", // Removed — was only needed for Docker builds
+  output: "standalone",
 };
 
 module.exports = withNextIntl(nextConfig);
