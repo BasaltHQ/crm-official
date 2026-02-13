@@ -11,18 +11,19 @@ import { redirect } from "next/navigation";
 interface UserInvoicesPageProps {
   params: Promise<{
     userId: string;
+    locale: string;
   }>;
 }
 
 const MyInvoicesPage = async (props: UserInvoicesPageProps) => {
   const params = await props.params;
-  const { userId } = params;
+  const { userId, locale } = params;
   const userInvoices: any = await getUserInvoices(userId);
 
   const session = await getServerSession(authOptions);
 
   if (!session) {
-    redirect("/signin");
+    redirect(`/${locale}/signin`);
   }
 
   return (

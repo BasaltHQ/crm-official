@@ -48,7 +48,9 @@ const CardContent = ({ card, loading = false }: { card: any, loading?: boolean }
   </div>
 );
 
-const InvoicePage = async () => {
+const InvoicePage = async (props: { params: Promise<{ locale: string }> }) => {
+  const params = await props.params;
+  const { locale } = params;
   const session = await getServerSession(authOptions);
   const invoices: any = await getInvoices();
   const myAccountSettings: MyAccount | null = await getAccountSettings();
@@ -71,7 +73,7 @@ const InvoicePage = async () => {
       color: "from-blue-500/20 to-indigo-500/20",
       iconColor: "text-blue-400",
       type: "link",
-      href: `/invoice/${session?.user.id}`
+      href: `/${locale}/invoice/${session?.user.id}`
     },
     {
       title: "Sync Invoices",

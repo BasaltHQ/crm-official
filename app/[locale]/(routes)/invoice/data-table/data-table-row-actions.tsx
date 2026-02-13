@@ -18,11 +18,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { taskSchema } from "../data/schema";
-import { useRouter } from "next/navigation";
+import axios from "axios";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import AlertModal from "@/components/modals/alert-modal";
 import { useToast } from "@/components/ui/use-toast";
-import { useState } from "react";
-import axios from "axios";
 import InvoiceViewModal from "@/components/modals/invoice-view-modal";
 
 import RossumCockpit from "../components/RossumCockpit";
@@ -61,6 +61,9 @@ export function DataTableRowActions<TData>({
 
   //zustand
   const { setIsOpen, setNotionUrl } = useAppStore();
+
+  const params = useParams();
+  const locale = params?.locale as string;
 
   const router = useRouter();
   const { toast } = useToast();
@@ -195,14 +198,20 @@ export function DataTableRowActions<TData>({
             <SheetTitle>{"Preview Invoice" + " - " + invoice?.id}</SheetTitle>
           </SheetHeader>
           <div className="h-[90vh] pb-4">
-            <embed
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
-              type="application/pdf"
-              src={invoice.invoice_file_url}
-            />
+            {invoice.invoice_file_url ? (
+              <embed
+                style={{
+                  width: "100%",
+                  height: "100%",
+                }}
+                type="application/pdf"
+                src={invoice.invoice_file_url}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full space-y-4 text-muted-foreground">
+                <p>No preview available for this invoice.</p>
+              </div>
+            )}
           </div>
           <SheetClose asChild>
             <Button>Close</Button>
@@ -245,24 +254,33 @@ export function DataTableRowActions<TData>({
                 <Send className="mr-2 h-4 w-4" />
                 Send Invoice
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setOpenView(true)}>
+              <DropdownMenuItem
+                onClick={() => setOpenView(true)}
+                disabled={!invoice.invoice_file_url}
+              >
                 Preview invoice
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => router.push(`/invoice/detail/${invoice.id}`)}
+                onClick={() => router.push(`/${locale}/invoice/detail/${invoice.id}`)}
               >
                 Invoice detail
               </DropdownMenuItem>
-              <Link href={invoice.invoice_file_url} target={"_blank"}>
-                <DropdownMenuItem>
+              {invoice.invoice_file_url ? (
+                <Link href={invoice.invoice_file_url} target={"_blank"}>
+                  <DropdownMenuItem>
+                    Preview invoice in new window
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled>
                   Preview invoice in new window
                 </DropdownMenuItem>
-              </Link>
+              )}
               <DropdownMenuItem
                 onClick={() => {
                   setIsOpen(true);
                   setNotionUrl(
-                    `${process.env.NEXT_PUBLIC_APP_URL}/invoice/detail/${invoice.id}`
+                    `${process.env.NEXT_PUBLIC_APP_URL}/${locale}/invoice/detail/${invoice.id}`
                   );
                 }}
               >

@@ -270,24 +270,6 @@ export function ThemeEditor({
         <div className="flex flex-col min-h-full">
             {/* Header */}
             <div className="px-6 py-6 md:px-8 lg:px-10">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <span
-                        className="text-primary cursor-pointer hover:underline"
-                        onClick={() => router.push("/profile")}
-                    >
-                        Profile
-                    </span>
-                    <span>/</span>
-                    <span
-                        className="text-primary cursor-pointer hover:underline"
-                        onClick={handleCancel}
-                    >
-                        Theme Studio
-                    </span>
-                    <span>/</span>
-                    <span>Create Theme</span>
-                </div>
-
                 <div className="flex items-center gap-3 mb-1">
                     <Sparkles className="w-5 h-5 text-primary" />
                     <span className="text-sm text-muted-foreground">Theme Studio</span>
@@ -302,7 +284,7 @@ export function ThemeEditor({
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 px-6 md:px-8 lg:px-10 pb-32">
+            <div className="flex-1 px-6 md:px-8 lg:px-10 pb-10">
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                     {/* Left & Middle Column - 2x2 Grid Controls */}
                     <div className="xl:col-span-2 space-y-8">
@@ -569,13 +551,13 @@ export function ThemeEditor({
             </div>
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border">
+            <div className="sticky bottom-0 z-20 bg-background/95 backdrop-blur-md border-t border-border mt-auto shadow-[0_-10px_20px_rgba(0,0,0,0.1)]">
                 <div className="flex items-center justify-end gap-3 px-6 py-4 md:px-8 lg:px-10">
                     <Button variant="ghost" onClick={handleCancel}>
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                     </Button>
-                    <Button onClick={saveTheme}>
+                    <Button onClick={saveTheme} className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
                         <Save className="w-4 h-4 mr-2" />
                         Save Theme
                     </Button>

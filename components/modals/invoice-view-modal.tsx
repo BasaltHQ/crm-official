@@ -39,17 +39,24 @@ const InvoiceViewModal = ({
       </ModalDocumentView>
     );
   } else {
+    const fileUrl = document.document_file_url || document.invoice_file_url;
     return (
       <ModalDocumentView isOpen={isOpen} onClose={onClose}>
         <div className="flex flex-col h-full ">
-          <embed
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-            type="application/pdf"
-            src={document.document_file_url || document.invoice_file_url}
-          />
+          {fileUrl ? (
+            <embed
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+              type="application/pdf"
+              src={fileUrl}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              No PDF file available to preview.
+            </div>
+          )}
           <div className="pt-6 space-x-2 flex items-center justify-end w-full ">
             <Button disabled={loading} variant={"outline"} onClick={onClose}>
               Cancel

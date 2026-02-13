@@ -33,7 +33,7 @@ export const markNotificationRead = async (id: string, type: 'message' | 'form')
         } else if (type === 'form') {
             await (prismadb as any).formSubmission.update({
                 where: { id },
-                data: { status: "READ" } // Or ARCHIVED etc. Using READ based on goal.
+                data: { status: "VIEWED" }
             });
         }
 

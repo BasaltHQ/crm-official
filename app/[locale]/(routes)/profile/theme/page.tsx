@@ -84,23 +84,36 @@ export default function ThemeStudioPage() {
     // Check if we're in editor mode
     const isEditorMode = searchParams.get("tab") === "create" || editingTheme !== null;
 
-    // Handle hydration mismatch
+    const [initialReducedMotion, setInitialReducedMotion] = useState(false);
+    const [initialHighContrast, setInitialHighContrast] = useState(false);
+
+    // 1. Mount Initialization
     useEffect(() => {
         setMounted(true);
-        setOriginalTheme(theme);
-        setPreviewTheme(theme);
 
-        // Check for existing accessibility classes
-        const html = document.documentElement;
-        setReducedMotion(html.classList.contains("reduced-motion"));
-        setHighContrast(html.classList.contains("high-contrast"));
+        // Sync accessibility from storage on mount
+        const storedReducedMotion = localStorage.getItem("reduced-motion") === "true";
+        const storedHighContrast = localStorage.getItem("high-contrast") === "true";
+
+        setReducedMotion(storedReducedMotion);
+        setInitialReducedMotion(storedReducedMotion);
+        setHighContrast(storedHighContrast);
+        setInitialHighContrast(storedHighContrast);
 
         // Load custom themes
         const saved = localStorage.getItem("custom-themes");
         if (saved) {
             setCustomThemes(JSON.parse(saved));
         }
-    }, [theme]);
+    }, []);
+
+    // 2. Theme Capture (Runs when theme is first resolved)
+    useEffect(() => {
+        if (theme && !originalTheme) {
+            setOriginalTheme(theme);
+            setPreviewTheme(theme);
+        }
+    }, [theme, originalTheme]);
 
     const handleThemePreview = (themeId: string) => {
         setPreviewTheme(themeId);
@@ -109,14 +122,22 @@ export default function ThemeStudioPage() {
 
     const handleSave = () => {
         setOriginalTheme(previewTheme);
-        router.push("/profile");
+        setInitialReducedMotion(reducedMotion);
+        setInitialHighContrast(highContrast);
+        router.refresh();
     };
 
     const handleCancel = () => {
         if (originalTheme) {
             setTheme(originalTheme);
+            setPreviewTheme(originalTheme);
         }
-        router.push("/profile");
+
+        // Restore accessibility
+        toggleReducedMotion(initialReducedMotion);
+        toggleHighContrast(initialHighContrast);
+
+        // We stay on page but reset changes
     };
 
     const toggleReducedMotion = (enabled: boolean) => {
@@ -141,20 +162,10 @@ export default function ThemeStudioPage() {
         localStorage.setItem("high-contrast", String(enabled));
     };
 
-    // Load accessibility preferences from localStorage on mount
-    useEffect(() => {
-        const storedReducedMotion = localStorage.getItem("reduced-motion");
-        const storedHighContrast = localStorage.getItem("high-contrast");
-
-        if (storedReducedMotion === "true") {
-            setReducedMotion(true);
-            document.documentElement.classList.add("reduced-motion");
-        }
-        if (storedHighContrast === "true") {
-            setHighContrast(true);
-            document.documentElement.classList.add("high-contrast");
-        }
-    }, []);
+    // Check if anything has changed
+    const hasChanges = (previewTheme !== originalTheme && previewTheme !== undefined) ||
+        reducedMotion !== initialReducedMotion ||
+        highContrast !== initialHighContrast;
 
     const openEditor = (customTheme?: CustomTheme) => {
         setEditingTheme(customTheme || null);
@@ -237,17 +248,6 @@ export default function ThemeStudioPage() {
         <div className="flex flex-col min-h-full">
             {/* Header */}
             <div className="px-6 py-6 md:px-8 lg:px-10">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <span
-                        className="text-primary cursor-pointer hover:underline"
-                        onClick={() => router.push("/profile")}
-                    >
-                        Profile
-                    </span>
-                    <span>/</span>
-                    <span>Theme Studio</span>
-                </div>
-
                 <div className="flex items-center gap-3 mb-1">
                     <Palette className="w-5 h-5 text-primary" />
                     <span className="text-sm text-muted-foreground">Appearance</span>
@@ -262,48 +262,89 @@ export default function ThemeStudioPage() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 px-6 md:px-8 lg:px-10 pb-32">
-                {/* Current Theme */}
-                <div className="mb-8">
-                    <h2 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-                        Current Theme
-                    </h2>
-                    <div className="relative flex items-center gap-4 p-5 rounded-xl border border-primary bg-card/60">
-                        {currentMeta && (
-                            <>
-                                <div className="flex items-center gap-2">
-                                    {currentMeta.colors.map((color, idx) => (
-                                        <span key={idx} className={`w-5 h-5 rounded-full ${color}`} />
-                                    ))}
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-foreground text-lg">
-                                        {currentMeta.name}
+            <div className="flex-1 px-6 md:px-8 lg:px-10 pb-10">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+                    {/* Current Theme - Reduced */}
+                    <div className="lg:col-span-1">
+                        <h2 className="text-[10px] font-bold text-muted-foreground mb-3 uppercase tracking-[0.2em]">
+                            Active Theme
+                        </h2>
+                        <div className="h-[92px] flex items-center gap-4 p-4 rounded-xl border border-primary/50 bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.05)]">
+                            {currentMeta && (
+                                <>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        {currentMeta.colors.map((color, idx) => (
+                                            <span key={idx} className={`w-3.5 h-3.5 rounded-full ${color} shadow-sm`} />
+                                        ))}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-foreground truncate">
+                                            {currentMeta.name}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground italic truncate">
+                                            {currentMeta.description}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                            {currentCustom && (
+                                <>
+                                    <div
+                                        className="w-10 h-10 rounded-lg shrink-0 border border-white/10 shadow-inner"
+                                        style={{ backgroundColor: `hsl(${currentCustom.colors.primary})` }}
+                                    />
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-foreground truncate">
+                                            {currentCustom.name}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground italic truncate">
+                                            Custom Theme
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Accessibility - At Top */}
+                    <div className="lg:col-span-2">
+                        <h2 className="text-[10px] font-bold text-muted-foreground mb-3 uppercase tracking-[0.2em]">
+                            Accessibility Settings
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex items-center justify-between h-[92px] p-4 rounded-xl border border-border/40 bg-card/40 hover:bg-card/60 transition-colors">
+                                <div className="min-w-0">
+                                    <Label htmlFor="reduced-motion" className="text-sm font-semibold cursor-pointer">
+                                        Reduced Motion
+                                    </Label>
+                                    <p className="text-[11px] text-muted-foreground mb-1">
+                                        Simplify animations
                                     </p>
-                                    <p className="text-sm text-muted-foreground italic">
-                                        {currentMeta.description}
-                                    </p>
                                 </div>
-                            </>
-                        )}
-                        {currentCustom && (
-                            <>
-                                <div
-                                    className="w-8 h-8 rounded-lg"
-                                    style={{ backgroundColor: `hsl(${currentCustom.colors.primary})` }}
+                                <Switch
+                                    id="reduced-motion"
+                                    checked={reducedMotion}
+                                    onCheckedChange={toggleReducedMotion}
+                                    className="scale-90"
                                 />
-                                <div>
-                                    <p className="font-semibold text-foreground text-lg">
-                                        {currentCustom.name}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground italic">
-                                        Custom Theme
+                            </div>
+
+                            <div className="flex items-center justify-between h-[92px] p-4 rounded-xl border border-border/40 bg-card/40 hover:bg-card/60 transition-colors">
+                                <div className="min-w-0">
+                                    <Label htmlFor="high-contrast" className="text-sm font-semibold cursor-pointer">
+                                        High Contrast
+                                    </Label>
+                                    <p className="text-[11px] text-muted-foreground mb-1">
+                                        Increase visibility
                                     </p>
                                 </div>
-                            </>
-                        )}
-                        <div className="absolute top-4 right-4 text-primary">
-                            <Sparkles className="w-5 h-5" />
+                                <Switch
+                                    id="high-contrast"
+                                    checked={highContrast}
+                                    onCheckedChange={toggleHighContrast}
+                                    className="scale-90"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -311,14 +352,14 @@ export default function ThemeStudioPage() {
                 {/* Theme Gallery */}
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider text-[11px]">
                             Theme Gallery
                         </h2>
                         <button
                             onClick={() => openEditor()}
-                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            className="flex items-center gap-2 text-xs text-primary hover:underline font-semibold"
                         >
-                            <Sparkles className="w-4 h-4" />
+                            <Sparkles className="w-3.5 h-3.5" />
                             Theme Studio →
                         </button>
                     </div>
@@ -348,11 +389,11 @@ export default function ThemeStudioPage() {
                 {customThemes.length > 0 && (
                     <div className="mb-10">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                            <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                 My Custom Themes
                             </h2>
-                            <span className="text-xs text-muted-foreground">
-                                {customThemes.length}/6
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                                {customThemes.length} / 6
                             </span>
                         </div>
 
@@ -396,7 +437,7 @@ export default function ThemeStudioPage() {
                                                 e.stopPropagation();
                                                 deleteCustomTheme(customTheme.id);
                                             }}
-                                            className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                                            className="p-1.5 rounded-md hover:bg-destructive/10 hover:text-destructive"
                                             title="Delete"
                                         >
                                             <Trash2 className="w-3.5 h-3.5" />
@@ -424,76 +465,40 @@ export default function ThemeStudioPage() {
                     <div className="mb-10">
                         <button
                             onClick={() => openEditor()}
-                            className="w-full flex flex-col items-center justify-center gap-2 p-8 rounded-xl border border-dashed border-border/50 hover:border-primary/50 bg-card/30 hover:bg-card/50 transition-colors"
+                            className="w-full flex flex-col items-center justify-center gap-2 p-8 rounded-xl border border-dashed border-border/50 hover:border-primary/50 bg-card/30 hover:bg-card/50 transition-colors group"
                         >
-                            <Sparkles className="w-8 h-8 text-primary" />
-                            <span className="text-lg font-semibold text-foreground">
-                                Create Custom Theme
+                            <Sparkles className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+                            <span className="text-lg font-bold text-foreground">
+                                Create My Own Theme
                             </span>
                             <span className="text-sm text-muted-foreground">
-                                Open Theme Studio for full customization
+                                Enter the Studio for total visual control
                             </span>
                         </button>
                     </div>
                 )}
+            </div>
 
-                <Separator className="my-8" />
-
-                {/* Accessibility */}
-                <div>
-                    <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">
-                        Accessibility
-                    </h2>
-
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-card/30">
-                            <div>
-                                <Label htmlFor="reduced-motion" className="font-medium">
-                                    Reduced Motion
-                                </Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Minimize animations throughout the app
-                                </p>
-                            </div>
-                            <Switch
-                                id="reduced-motion"
-                                checked={reducedMotion}
-                                onCheckedChange={toggleReducedMotion}
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-card/30">
-                            <div>
-                                <Label htmlFor="high-contrast" className="font-medium">
-                                    High Contrast
-                                </Label>
-                                <p className="text-sm text-muted-foreground">
-                                    Increase contrast for better visibility
-                                </p>
-                            </div>
-                            <Switch
-                                id="high-contrast"
-                                checked={highContrast}
-                                onCheckedChange={toggleHighContrast}
-                            />
-                        </div>
+            {/* Sticky Footer with Save/Cancel - Animated */}
+            {hasChanges && (
+                <div
+                    className="sticky bottom-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border mt-auto shadow-[0_-10px_20px_rgba(0,0,0,0.1)] animate-in fade-in slide-in-from-bottom-5 duration-300"
+                >
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 md:px-8 lg:px-10">
+                        <Button variant="ghost" onClick={handleCancel}>
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSave}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                        >
+                            <Save className="w-4 h-4 mr-2" />
+                            Save Changes
+                        </Button>
                     </div>
                 </div>
-            </div>
-
-            {/* Sticky Footer with Save/Cancel */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border">
-                <div className="flex items-center justify-end gap-3 px-6 py-4 md:px-8 lg:px-10">
-                    <Button variant="ghost" onClick={handleCancel}>
-                        <X className="w-4 h-4 mr-2" />
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSave}>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                    </Button>
-                </div>
-            </div>
+            )}
         </div>
     );
 }

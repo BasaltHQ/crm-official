@@ -17,12 +17,14 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { createManualInvoice } from "@/actions/invoice/create-manual-invoice";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 export function ManualInvoiceDialog() {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const params = useParams();
+    const locale = params?.locale as string;
 
     const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -35,7 +37,7 @@ export function ManualInvoiceDialog() {
             if (result.success && result.invoiceId) {
                 toast.success("Invoice created!");
                 setOpen(false);
-                router.push(`/invoice/detail/${result.invoiceId}`);
+                router.push(`/${locale}/invoice/detail/${result.invoiceId}`);
             } else {
                 toast.error(result.error || "Failed");
             }

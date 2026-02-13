@@ -19,9 +19,9 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
-import {} from "../data/data";
+import { } from "../data/data";
 import { taskSchema } from "../data/schema";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import AlertModal from "@/components/modals/alert-modal";
 import { useToast } from "@/components/ui/use-toast";
 import { useState } from "react";
@@ -46,6 +46,8 @@ export function DataTableRowActions<TData>({
   const [loading, setLoading] = useState(false);
   const [loadingOpen, setLoadingOpen] = useState(false);
   const router = useRouter();
+  const params = useParams();
+  const locale = params?.locale as string;
   const { toast } = useToast();
 
   const invoice = taskSchema.parse(row.original);
@@ -156,7 +158,7 @@ export function DataTableRowActions<TData>({
               href={
                 invoice.rossum_annotation_json_url
                   ? invoice.rossum_annotation_json_url
-                  : "/invoice"
+                  : `/${locale}/invoice`
               }
             >
               Download json from Rossum
