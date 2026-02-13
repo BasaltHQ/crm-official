@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "react-hot-toast";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 /**
  * FirstContactWizard
@@ -282,7 +283,7 @@ export default function FirstContactWizard({ leadId }: Props) {
                     <div className="text-xs font-semibold">Email HTML Preview</div>
                     <div className="rounded border bg-white p-2 min-h-[240px] overflow-auto">
                         {emailHtml ? (
-                            <div dangerouslySetInnerHTML={{ __html: emailHtml }} />
+                            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(emailHtml) }} />
                         ) : (
                             <div className="text-xs text-muted-foreground p-2">
                                 Generate email preview to see the rendered template.

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getAiSdkModel } from "@/lib/openai";
 import { generateText } from "ai";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // Role presets for guidance
 const ROLE_PRESETS: Record<string, { label: string; description: string }> = {
@@ -33,6 +35,11 @@ const ROLE_PRESETS: Record<string, { label: string; description: string }> = {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const leadId = String(body?.leadId || "").trim();
     const roleKey = String(body?.roleKey || "sales_agent");

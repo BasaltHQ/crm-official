@@ -78,7 +78,8 @@ const TeamDetailsPage = async ({ params }: { params: Promise<{ teamId: string }>
 
         systemResendData = {
             resendKeyId: resend_key?.id ?? "",
-            envKey: process.env.RESEND_API_KEY,
+            // SECURITY: Only expose env key to Global Admins
+            envKey: currentUserInfo?.isGlobalAdmin ? process.env.RESEND_API_KEY : undefined,
             dbKey: resend_key?.serviceKey || undefined,
         };
 

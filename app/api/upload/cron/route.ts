@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBlobServiceClient } from "@/lib/azure-storage";
 import { prismadb } from "@/lib/prisma";
 import type { DocumentSystemType } from "@prisma/client";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 // POST /api/upload/cron
 // Used by the email ingestion job to upload attachments to Azure Blob and create a Document record.
 // Accepts JSON payload: { file: { filename, contentType, size, content } }
 // Where `content` may be serialized Buffer: { type: 'Buffer', data: number[] } or base64 string.
 export async function POST(req: NextRequest) {
+  // ── Cron auth guard ──
+  const cronAuth = requireCronAuth(req);
+  if (cronAuth instanceof Response) return cronAuth;
+
   try {
     const body = await req.json().catch(() => null) as any;
     const file = body?.file;

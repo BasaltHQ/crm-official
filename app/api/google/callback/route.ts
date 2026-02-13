@@ -43,6 +43,17 @@ export async function GET(req: Request) {
       return new NextResponse("Missing user in state", { status: 400 });
     }
 
+    // Security: Verify session matches state to prevent CSRF/Session mismatch
+    const { getServerSession } = await import("next-auth");
+    const { authOptions } = await import("@/lib/auth");
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id || session.user.id !== userId) {
+      console.error("[GOOGLE_OAUTH_CALLBACK] Session mismatch", { sessionUser: session?.user?.id, stateUser: userId });
+      const redirectErr = `${origin}/en/crm/leads?google=error_session_mismatch`;
+      return NextResponse.redirect(redirectErr, { status: 302 });
+    }
+
     await exchangeCodeForTokens(userId, code);
 
     // Redirect back to CRM Leads page indicating success

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prismadb } from '@/lib/prisma';
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const body = await req.json();
         const { name, email, subject, message, source } = body;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * Azure OpenAI Realtime Voice WebRTC SDP answer proxy
@@ -21,6 +22,10 @@ import { NextResponse } from "next/server";
  * - NEXT_PUBLIC_AZURE_OPENAI_REALTIME_API_VERSION
  */
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const contentType = req.headers.get("content-type") || "";
     let sdpOffer: string | null = null;

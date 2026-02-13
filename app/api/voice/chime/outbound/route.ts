@@ -5,6 +5,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const preferredRegion = 'auto';
 import { ChimeSDKVoiceClient, CreateSipMediaApplicationCallCommand } from "@aws-sdk/client-chime-sdk-voice";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * POST /api/voice/chime/outbound
@@ -30,6 +31,10 @@ function isE164(num: string) {
 }
 
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     // Read raw text body once and parse JSON to avoid "Body has already been read" errors
     const txt = await req.text();

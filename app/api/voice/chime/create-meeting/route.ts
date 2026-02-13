@@ -5,11 +5,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const preferredRegion = 'auto';
 import { ChimeSDKMeetingsClient, CreateMeetingCommand, CreateAttendeeCommand } from "@aws-sdk/client-chime-sdk-meetings";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 const REGION = process.env.CHIME_REGION || process.env.AWS_REGION || "us-west-2";
 const MEETING_REGION = process.env.CHIME_APP_MEETING_REGION || REGION;
 
 export async function POST() {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const client = new ChimeSDKMeetingsClient({ region: REGION });
     const meetingRes = await client.send(new CreateMeetingCommand({

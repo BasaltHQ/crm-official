@@ -1,6 +1,7 @@
 // Sales timeseries API: aggregates invoice amounts by day/week/month within a date range.
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 // Parse amounts stored as strings to numbers, stripping currency and separators.
 function parseAmount(amount: string | null | undefined): number {
@@ -32,6 +33,10 @@ function formatKey(date: Date, interval: "day" | "week" | "month"): string {
 }
 
 export async function GET(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const url = new URL(req.url);
         const startParam = url.searchParams.get("start");

@@ -2,17 +2,14 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { sendEmailSES } from "@/lib/aws/ses";
 import { OutreachItemStatus } from "@prisma/client";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 export const maxDuration = 60; // Allow 1 minute max for this cron execution
 
 export async function GET(req: Request) {
-    // 1. Security Check (CRON_SECRET or Admin Session)
-    const authHeader = req.headers.get("authorization");
-    const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
-
-    // Allow manual run for now if no cron secret, but ideally secure this
-    // For manual testing via UI, we might want to check session or just allow it if protected by middleware
-
+    // ── Cron auth guard ──
+    const cronAuth = requireCronAuth(req);
+    if (cronAuth instanceof Response) return cronAuth;
     try {
         // 2. Fetch Pending Items (Limit 50 to avoid timeout)
         const pendingItems = await prismadb.crm_Outreach_Items.findMany({

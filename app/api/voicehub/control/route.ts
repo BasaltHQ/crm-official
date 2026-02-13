@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * CRM -> VoiceHub control bridge
@@ -40,6 +41,10 @@ function normalizeOrigin(raw?: string | null): string | undefined {
 }
 
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const body = (await req.json().catch(() => ({}))) as ControlBody;
     const rawCmd = String(body?.command || "").toLowerCase().trim();

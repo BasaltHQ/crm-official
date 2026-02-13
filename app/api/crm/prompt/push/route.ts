@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prismadb } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 type PushBody = {
   prompt?: string;
@@ -18,6 +20,10 @@ type PushBody = {
  */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const wallet = (req.headers.get('x-wallet') || '').trim().toLowerCase();
     if (!wallet) {
       return NextResponse.json({ ok: false, error: 'Missing wallet (x-wallet header required)' }, { status: 400 });

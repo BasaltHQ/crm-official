@@ -10,6 +10,15 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Missing code or state" }, { status: 400 });
     }
 
+    // Security: Verify session matches state to prevent CSRF
+    const { getServerSession } = await import("next-auth");
+    const { authOptions } = await import("@/lib/auth");
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id || session.user.id !== state) {
+        return NextResponse.json({ error: "Unauthorized session mismatch" }, { status: 403 });
+    }
+
     try {
         await exchangeCodeForTokens(state, code);
         // Successful connection

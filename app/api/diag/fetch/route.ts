@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 // Simple fetch diagnostic endpoint to verify client->server requests and headers/cookies
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const headers = Object.fromEntries(req.headers.entries());
     // Read body (if any) to ensure the request streams correctly

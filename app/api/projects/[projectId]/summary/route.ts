@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * GET /api/projects/[projectId]/summary
@@ -7,6 +8,10 @@ import { prismadb } from "@/lib/prisma";
  * Includes all context fields for campaign auto-population
  */
 export async function GET(_req: Request, props: { params: Promise<{ projectId: string }> }) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const params = await props.params;
         const { projectId } = params;

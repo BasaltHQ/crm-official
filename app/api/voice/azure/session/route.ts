@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * Azure OpenAI Realtime Voice: Ephemeral Session Issuer
@@ -27,6 +28,10 @@ import { NextRequest, NextResponse } from "next/server";
  */
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     // Parse body safely
     const body = await req.json().catch(() => ({} as any));

@@ -1,5 +1,6 @@
 "use client";
 import { format } from "date-fns";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { Archive, Forward, Reply, ReplyAll, Star, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -128,7 +129,7 @@ export function MessageDisplay({ message, currentUserId, teamMembers }: MessageD
                 <Separator />
                 <div className="flex-1 whitespace-pre-wrap p-4 text-sm">
                     {message.body_html ? (
-                        <div dangerouslySetInnerHTML={{ __html: message.body_html }} />
+                        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(message.body_html) }} />
                     ) : (
                         message.body_text
                     )}

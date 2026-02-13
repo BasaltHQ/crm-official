@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prismadb } from "@/lib/prisma";
 import { logActivity } from "@/actions/audit";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export async function GET(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const jobs = await prismadb.jobPosting.findMany({
             orderBy: { createdAt: "desc" },
@@ -16,6 +21,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const body = await req.json();
         const { title, department, location, type, description, summary, content, requirements, applyLink } = body;
@@ -55,6 +64,10 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const body = await req.json();
         const { id, title, department, location, type, description, summary, content, requirements, applyLink, active } = body;
@@ -93,6 +106,10 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "react-hot-toast";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import {
     CheckCircle2,
     ArrowRight,
@@ -1190,7 +1191,7 @@ Example from vcrun.py:
                                             <div>
                                                 <Label>HTML Preview</Label>
                                                 <div className="border rounded-lg bg-white p-4 max-h-96 overflow-y-auto">
-                                                    <div dangerouslySetInnerHTML={{ __html: emailPreview.html }} />
+                                                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(emailPreview.html) }} />
                                                 </div>
                                             </div>
 

@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ formId: string }> }
 ) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const { formId } = await params;
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ChimeSDKMeetingsClient, CreateMeetingCommand, CreateAttendeeCommand } from "@aws-sdk/client-chime-sdk-meetings";
 import { createSipMediaApplicationCall } from "@/lib/aws/chime-voice";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * POST /api/voice/engage/start
@@ -36,6 +37,10 @@ function isE164(num: string) {
 }
 
 export async function POST(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const body = (await req.json().catch(() => ({}))) as Body;
     const dest = (body?.phone || "").trim();

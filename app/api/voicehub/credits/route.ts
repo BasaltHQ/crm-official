@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * CRM -> VoiceHub credit check bridge
@@ -72,6 +73,10 @@ async function checkBalance(voicehubBase: string, wallet: string) {
 }
 
 export async function GET(req: NextRequest) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const { base, wallet: walletDb } = await resolveVoiceHub();
     if (!base) {
@@ -104,6 +109,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const body = (await req.json().catch(() => ({}))) as CreditBody;
     const { base, wallet: walletDb } = await resolveVoiceHub();

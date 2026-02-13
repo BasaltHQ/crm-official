@@ -1,6 +1,6 @@
 {
   "name": "basaltcrm-app",
-  "version": "1.1.7m",
+  "version": "1.1.7p",
   "author": "Michael Milton (BasaltHQ)",
   "private": true,
   "scripts": {
@@ -95,6 +95,7 @@
     "geist": "^1.5.1",
     "googleapis": "167.0.0",
     "imap": "^0.8.19",
+    "isomorphic-dompurify": "^3.0.0-rc.2",
     "jotai": "^2.16.1",
     "lucide-react": "^0.556.0",
     "mailparser": "^3.9.1",

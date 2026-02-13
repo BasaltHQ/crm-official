@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * GET /api/outreach/meeting/[leadId]
@@ -12,6 +13,10 @@ export async function GET(
   _req: Request,
   { params }: Params
 ) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const { leadId } = await params;
     if (!leadId) {

@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prismadb } from "@/lib/prisma";
 import { logActivity } from "@/actions/audit";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export async function GET(
     req: Request,
+    // ── Auth guard ──
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const session = await requireApiAuth();
+    if (session instanceof Response) return session;
     try {
         const { id } = await params;
         if (!id) return new NextResponse("Doc ID is required", { status: 400 });
@@ -24,8 +28,11 @@ export async function GET(
 
 export async function PATCH(
     req: Request,
+    // ── Auth guard ──
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const session = await requireApiAuth();
+    if (session instanceof Response) return session;
     try {
         const { id } = await params;
         const body = await req.json();
@@ -57,8 +64,11 @@ export async function PATCH(
 
 export async function DELETE(
     req: Request,
+    // ── Auth guard ──
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const session = await requireApiAuth();
+    if (session instanceof Response) return session;
     try {
         const { id } = await params;
         const doc = await prismadb.docArticle.delete({

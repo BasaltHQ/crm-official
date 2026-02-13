@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { startOfMonth, subMonths, format, eachDayOfInterval, startOfDay, endOfDay, subDays } from "date-fns";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ formId: string }> }
 ) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const { formId } = await params;
 

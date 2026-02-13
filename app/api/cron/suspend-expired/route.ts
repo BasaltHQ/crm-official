@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 export async function GET(req: Request) {
+    // ── Cron auth guard ──
+    const cronAuth = requireCronAuth(req);
+    if (cronAuth instanceof Response) return cronAuth;
+
     try {
-        const authHeader = req.headers.get("authorization");
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            // Optional: verification for security if using external cron
-            // return new NextResponse("Unauthorized", { status: 401 });
-        }
 
         const now = new Date();
         // Default grace period is 7 days if not set in plan (though we added it to Plan, we might need to join it)

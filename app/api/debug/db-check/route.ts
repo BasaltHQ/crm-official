@@ -1,10 +1,15 @@
 
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         const invoices = await (prismadb.invoices as any).findMany({
             take: 10,

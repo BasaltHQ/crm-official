@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { format } from "date-fns";
 import { Sun, Moon, MessageSquare, Clock, Smartphone, User, Shield, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 // Sample demo messages with rich HTML content
 const DEMO_MESSAGES = [
@@ -435,7 +436,7 @@ function DemoPreviewContent() {
                                 fontSize: "16px",
                                 lineHeight: "1.6",
                             }}
-                            dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedMessage.bodyHtml) }}
                         />
                     </div>
                 </div>

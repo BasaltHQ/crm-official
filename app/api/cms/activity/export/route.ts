@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prismadb } from '@/lib/prisma';
 import { format } from 'date-fns';
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 export async function GET() {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
     try {
         // Fetch all activities (or last 2 weeks as per policy, but usually export implies full history or at least the view)
         // User said "store in a csv file for record", likely implying archiving. 

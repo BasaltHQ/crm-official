@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import resendHelper from "@/lib/resend";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { isValidEmailFormat, normalizeEmail } from "@/lib/scraper/quality/email-filters";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 // Premium-gated manual enrich endpoint
 // Sends a minimal email via Resend to trigger delivered/bounce events
@@ -14,6 +15,10 @@ function premiumEnabled(): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     if (!premiumEnabled()) {
       return NextResponse.json({ ok: false, error: "Premium enrich is disabled" }, { status: 403 });

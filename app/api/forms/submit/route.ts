@@ -161,6 +161,20 @@ export async function POST(req: NextRequest) {
         const createdDocumentIds: string[] = [];
 
         if (uploadedFiles.length > 0) {
+            // Strict Validation Limits
+            const MAX_FILES = 5;
+            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+            if (uploadedFiles.length > MAX_FILES) {
+                return NextResponse.json({ error: `Too many files. Maximum allowed is ${MAX_FILES}.` }, { status: 400, headers: corsHeaders });
+            }
+
+            for (const file of uploadedFiles) {
+                if (file.size > MAX_FILE_SIZE) {
+                    return NextResponse.json({ error: `File "${file.name}" exceeds the 10MB size limit.` }, { status: 400, headers: corsHeaders });
+                }
+            }
+
             try {
                 // Dynamically import to ensure dependency availability
                 const { getBlobServiceClient } = await import("@/lib/azure-storage");

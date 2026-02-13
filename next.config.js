@@ -5,7 +5,8 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
-  typescript: { ignoreBuildErrors: true },
+  // TypeScript errors will now fail the build (safety net removed)
+  // typescript: { ignoreBuildErrors: true },
   images: {
     remotePatterns: [
       {
@@ -52,7 +53,7 @@ const nextConfig = {
       },
     ];
   },
-  output: "standalone",
+  // output: "standalone", // Removed — was only needed for Docker builds
 };
 
 module.exports = withNextIntl(nextConfig);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 function pick<T extends string>(html: string, prop: T, attr: "property" | "name" = "property") {
   const re = new RegExp(`<meta[^>]+${attr}=["']${prop}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i");
@@ -15,6 +16,10 @@ function absolutize(url: string, base: string) {
 }
 
 export async function GET(req: Request) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const { searchParams } = new URL(req.url);
     const url = searchParams.get("url");

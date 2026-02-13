@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 
 /**
  * GET /api/integration/status
@@ -21,6 +22,10 @@ import { prismadb } from "@/lib/prisma";
  */
 
 export async function GET(_req: NextRequest) {
+  // ── Auth guard ──
+  const session = await requireApiAuth();
+  if (session instanceof Response) return session;
+
   try {
     const base = String(process.env.NEXT_PUBLIC_CONNECT_BASE_URL || "").trim();
     if (!base || !/^https?:\/\//i.test(base)) {

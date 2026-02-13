@@ -5,7 +5,8 @@
  * Mobile-optimized with stunning light/dark mode support and glass morphism
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 import { format } from 'date-fns';
 import { Mail, Clock, User, Building2, Moon, Sun, Check, ExternalLink } from 'lucide-react';
 
@@ -100,7 +101,7 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
     const blurAmount = portal.background_blur || 20;
 
     const greeting = recipient.first_name ? `Hi ${recipient.first_name}` : 'Hello';
-    const displayHtml = message.body_html || message.body_text;
+    const displayHtml = useMemo(() => sanitizeHtml(message.body_html || message.body_text), [message.body_html, message.body_text]);
 
     // Prevent hydration mismatch
     if (!mounted) {
@@ -146,12 +147,12 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
             {/* Header */}
             <header
                 className={`sticky top-0 z-50 border-b transition-all duration-300 ${enableGlass
-                        ? isDark
-                            ? 'bg-slate-900/70 border-slate-700/50'
-                            : 'bg-white/70 border-slate-200/50'
-                        : isDark
-                            ? 'bg-slate-900 border-slate-700'
-                            : 'bg-white border-slate-200'
+                    ? isDark
+                        ? 'bg-slate-900/70 border-slate-700/50'
+                        : 'bg-white/70 border-slate-200/50'
+                    : isDark
+                        ? 'bg-slate-900 border-slate-700'
+                        : 'bg-white border-slate-200'
                     }`}
                 style={{ backdropFilter: enableGlass ? `blur(${blurAmount}px) saturate(180%)` : undefined }}
             >
@@ -184,8 +185,8 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
                         <button
                             onClick={() => setIsDark(!isDark)}
                             className={`p-2 rounded-xl transition-all duration-300 ${isDark
-                                    ? 'bg-slate-800 hover:bg-slate-700 text-amber-400'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                ? 'bg-slate-800 hover:bg-slate-700 text-amber-400'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                                 }`}
                             aria-label="Toggle theme"
                         >
@@ -201,12 +202,12 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
                 {portal.welcome_message && (
                     <div
                         className={`mb-6 p-4 rounded-2xl text-sm border transition-all duration-300 ${enableGlass
-                                ? isDark
-                                    ? 'bg-slate-800/50 border-slate-700/50'
-                                    : 'bg-white/50 border-slate-200/50'
-                                : isDark
-                                    ? 'bg-slate-800 border-slate-700'
-                                    : 'bg-white border-slate-200'
+                            ? isDark
+                                ? 'bg-slate-800/50 border-slate-700/50'
+                                : 'bg-white/50 border-slate-200/50'
+                            : isDark
+                                ? 'bg-slate-800 border-slate-700'
+                                : 'bg-white border-slate-200'
                             }`}
                         style={{
                             backdropFilter: enableGlass ? `blur(${blurAmount}px)` : undefined,
@@ -230,12 +231,12 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
                 {/* Message Card */}
                 <div
                     className={`rounded-3xl overflow-hidden border transition-all duration-300 ${enableGlass
-                            ? isDark
-                                ? 'bg-slate-800/60 border-slate-700/50 shadow-2xl shadow-black/20'
-                                : 'bg-white/80 border-slate-200/50 shadow-2xl shadow-slate-200/50'
-                            : isDark
-                                ? 'bg-slate-800 border-slate-700 shadow-xl'
-                                : 'bg-white border-slate-200 shadow-xl'
+                        ? isDark
+                            ? 'bg-slate-800/60 border-slate-700/50 shadow-2xl shadow-black/20'
+                            : 'bg-white/80 border-slate-200/50 shadow-2xl shadow-slate-200/50'
+                        : isDark
+                            ? 'bg-slate-800 border-slate-700 shadow-xl'
+                            : 'bg-white border-slate-200 shadow-xl'
                         }`}
                     style={{ backdropFilter: enableGlass ? `blur(${blurAmount}px)` : undefined }}
                 >
@@ -289,10 +290,10 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
                         {message.body_html ? (
                             <div
                                 className={`prose prose-sm max-w-none ${isDark
-                                        ? 'prose-invert prose-headings:text-white prose-p:text-slate-300 prose-a:text-emerald-400 prose-strong:text-white'
-                                        : 'prose-headings:text-slate-900 prose-p:text-slate-700 prose-a:text-emerald-600 prose-strong:text-slate-900'
+                                    ? 'prose-invert prose-headings:text-white prose-p:text-slate-300 prose-a:text-emerald-400 prose-strong:text-white'
+                                    : 'prose-headings:text-slate-900 prose-p:text-slate-700 prose-a:text-emerald-600 prose-strong:text-slate-900'
                                     }`}
-                                dangerouslySetInnerHTML={{ __html: displayHtml }}
+                                dangerouslySetInnerHTML={{ __html: displayHtml }} /* sanitized via lib/sanitize-html */
                             />
                         ) : (
                             <div className={`whitespace-pre-wrap text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -305,12 +306,12 @@ export default function MessageViewer({ portal, message, recipient, deviceType }
                 {/* Recipient Info Card */}
                 <div
                     className={`mt-6 p-5 rounded-2xl border transition-all duration-300 ${enableGlass
-                            ? isDark
-                                ? 'bg-slate-800/40 border-slate-700/50'
-                                : 'bg-white/50 border-slate-200/50'
-                            : isDark
-                                ? 'bg-slate-800/80 border-slate-700'
-                                : 'bg-slate-50 border-slate-200'
+                        ? isDark
+                            ? 'bg-slate-800/40 border-slate-700/50'
+                            : 'bg-white/50 border-slate-200/50'
+                        : isDark
+                            ? 'bg-slate-800/80 border-slate-700'
+                            : 'bg-slate-50 border-slate-200'
                         }`}
                     style={{ backdropFilter: enableGlass ? `blur(${blurAmount / 2}px)` : undefined }}
                 >
