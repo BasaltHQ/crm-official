@@ -6,11 +6,15 @@ const intlMiddleware = createMiddleware({
     defaultLocale: "en",
 });
 
+// export function proxy(request: NextRequest) {
+//     console.log("Proxy processing:", request.nextUrl.pathname);
+//     const response = intlMiddleware(request);
+//     console.log("Proxy response status:", response.status);
+//     return response;
+// }
+
 export function proxy(request: NextRequest) {
-    console.log("Proxy processing:", request.nextUrl.pathname);
-    const response = intlMiddleware(request);
-    console.log("Proxy response status:", response.status);
-    return response;
+    return intlMiddleware(request);
 }
 
 export const config = {

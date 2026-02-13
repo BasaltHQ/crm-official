@@ -3,7 +3,6 @@ import { prismadb } from "@/lib/prisma";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
-import TwitterProvider from "next-auth/providers/twitter";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -45,11 +44,6 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GITHUB_SECRET || "",
     }),
 
-    TwitterProvider({
-      clientId: process.env.TWITTER_ID || "",
-      clientSecret: process.env.TWITTER_SECRET || "",
-      version: "2.0",
-    }),
 
     AzureADProvider({
       clientId: process.env.AZURE_CLIENT_ID || "",

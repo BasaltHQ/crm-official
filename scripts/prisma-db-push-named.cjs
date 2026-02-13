@@ -49,9 +49,9 @@ function main() {
   console.log(`[prisma-db-push-named] Using DATABASE_URL for push: ${masked}`);
   console.log(`[prisma-db-push-named] Target database name: ${dbName}`);
 
+  const cmd = process.platform === "win32" ? "npx.cmd" : "npx";
   const result = spawnSync(
-    process.platform === "win32" ? "npx.cmd" : "npx",
-    ["prisma", "db", "push"],
+    `${cmd} prisma db push`,
     {
       stdio: "inherit",
       env: { ...process.env, DATABASE_URL: adjusted },
