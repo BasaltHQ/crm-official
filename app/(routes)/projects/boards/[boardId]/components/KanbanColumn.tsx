@@ -115,14 +115,16 @@ export default function KanbanColumn({
             >
                 {(provided, snapshot) => (
                     <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
                         className={cn(
                             "flex-1 overflow-y-auto p-2 transition-colors scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent",
                             snapshot.isDraggingOver ? "bg-primary/5" : ""
                         )}
                     >
-                        <div className="flex flex-col gap-0.5">
+                        <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className="flex flex-col gap-0.5"
+                        >
                             {section.tasks?.map((task, taskIndex) => (
                                 <KanbanCard
                                     key={task.id}

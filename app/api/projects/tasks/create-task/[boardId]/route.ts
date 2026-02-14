@@ -44,7 +44,7 @@ export async function POST(req: Request, props: { params: Promise<{ boardId: str
       const teamInfo = await getCurrentUserTeamId();
       const teamId = teamInfo?.teamId;
 
-      await (prismadb.tasks as any).create({
+      const task = await (prismadb.tasks as any).create({
         data: {
           v: 0,
           team_id: teamId, // Assign team
@@ -70,7 +70,7 @@ export async function POST(req: Request, props: { params: Promise<{ boardId: str
         },
       });
 
-      return NextResponse.json({ status: 200 });
+      return NextResponse.json(task);
     } catch (error) {
       console.log("[NEW_TASK_IN_PROJECT_POST]", error);
       return new NextResponse("Initial error", { status: 500 });
@@ -145,7 +145,7 @@ export async function POST(req: Request, props: { params: Promise<{ boardId: str
           console.log(error);
         }
       }
-      return NextResponse.json({ status: 200 });
+      return NextResponse.json(task);
     } catch (error) {
       console.log("[NEW_TASK_IN_PROJECT_POST]", error);
       return new NextResponse("Initial error", { status: 500 });

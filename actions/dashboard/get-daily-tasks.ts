@@ -7,10 +7,19 @@ export const getDailyTasks = async () => {
     const teamInfo = await getCurrentUserTeamId();
     if (!teamInfo?.userId) return [];
 
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now);
+    sevenDaysFromNow.setDate(now.getDate() + 7);
+    sevenDaysFromNow.setHours(23, 59, 59, 999);
+
     const whereClause: any = {
         taskStatus: {
             not: "COMPLETE",
         },
+        OR: [
+            { dueDateAt: null },
+            { dueDateAt: { lte: sevenDaysFromNow } }
+        ]
     };
 
     if (teamInfo.isGlobalAdmin) {

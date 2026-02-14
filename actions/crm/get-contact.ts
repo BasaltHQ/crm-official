@@ -2,12 +2,15 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { isValidObjectId } from "@/lib/utils";
 
 export const getContact = async (contactId: string) => {
   const session = await getServerSession(authOptions);
   const teamInfo = await getCurrentUserTeamId();
 
   if (!session || (!teamInfo?.teamId && !teamInfo?.isGlobalAdmin)) return null;
+
+  if (!isValidObjectId(contactId)) return null;
 
   const whereClause: any = { id: contactId };
   if (!teamInfo?.isGlobalAdmin) {

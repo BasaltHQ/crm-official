@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
   try {
     //Get first section from board where position is smallest
-    const sectionId = await prismadb.sections.findFirst({
+    let sectionId = await prismadb.sections.findFirst({
       where: {
         board: board,
       },
@@ -54,7 +54,15 @@ export async function POST(req: Request) {
     });
 
     if (!sectionId) {
-      return new NextResponse("No section found", { status: 400 });
+      // Create default section if none exists
+      sectionId = await prismadb.sections.create({
+        data: {
+          board: board,
+          title: "To Do",
+          position: 0,
+          v: 0,
+        },
+      });
     }
 
     const tasksCount = await prismadb.tasks.count({
@@ -142,7 +150,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ status: 200 });
+    return NextResponse.json(task);
   } catch (error) {
     console.log("[NEW_BOARD_POST]", error);
     return new NextResponse("Initial error", { status: 500 });

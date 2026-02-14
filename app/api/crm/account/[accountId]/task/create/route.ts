@@ -121,7 +121,7 @@ export async function POST(req: Request) {
       console.log(error);
     }
 
-    return NextResponse.json({ status: 200 });
+    return NextResponse.json(task);
   } catch (error) {
     console.log("[NEW_BOARD_POST]", error);
     return new NextResponse("Initial error", { status: 500 });

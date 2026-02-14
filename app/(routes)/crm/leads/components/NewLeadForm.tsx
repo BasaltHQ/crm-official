@@ -49,9 +49,11 @@ import {
 type NewTaskFormProps = {
   users: any[];
   accounts: any[];
+  onFinish?: () => void;
+  redirectOnSuccess?: boolean;
 };
 
-export function NewLeadForm({ users, accounts }: NewTaskFormProps) {
+export function NewLeadForm({ users, accounts, onFinish, redirectOnSuccess = true }: NewTaskFormProps) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -131,13 +133,17 @@ export function NewLeadForm({ users, accounts }: NewTaskFormProps) {
   const onSubmit = async (data: NewLeadFormValues) => {
     setIsLoading(true);
     try {
-      await axios.post("/api/crm/leads", data);
+      const payload = { ...data, accountIDs: data.accountIDs || undefined };
+      await axios.post("/api/crm/leads", payload);
       toast({
         title: "Success",
         description: "Lead created successfully",
       });
-      router.push("/crm/leads"); // Redirect to leads list
+      if (redirectOnSuccess) {
+        router.push("/crm/leads");
+      }
       router.refresh();
+      onFinish?.();
     } catch (error: any) {
       if (error.response?.status === 409) {
         const existingId = error.response.data?.leadId;

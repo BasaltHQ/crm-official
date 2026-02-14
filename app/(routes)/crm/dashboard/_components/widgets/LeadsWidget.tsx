@@ -6,6 +6,10 @@ import { UserPlus, Building2, CalendarIcon, ArrowRight, Plus, Mail, Phone } from
 import { format } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import useSWR from "swr";
+import fetcher from "@/lib/fetcher";
+import RightViewModal from "@/components/modals/right-view-modal";
+import { NewLeadForm } from "../../../leads/components/NewLeadForm";
 
 interface Lead {
     id: string;
@@ -30,17 +34,36 @@ export const LeadsWidget = ({ leads: initialLeads }: LeadsWidgetProps) => {
         return name.includes(searchTerm.toLowerCase()) || company.includes(searchTerm.toLowerCase());
     });
 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { data: teamData } = useSWR(isModalOpen ? "/api/team/members" : null, fetcher);
+    const { data: accountsData } = useSWR(isModalOpen ? "/api/crm/account" : null, fetcher);
+
     const rightAction = (
-        <Link href="/crm/leads/new">
-            <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-3 text-[10px] font-bold border-white/10 bg-white/5 hover:bg-white/10"
-            >
-                <Plus size={12} className="mr-1.5" />
-                NEW
-            </Button>
-        </Link>
+        <RightViewModal
+            title="Create New Lead"
+            description="Complete the form to add a new lead to your pipeline."
+            customTrigger
+            label={
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[10px] font-bold border-white/10 bg-white/5 hover:bg-white/10"
+                    onClick={() => setIsModalOpen(true)}
+                >
+                    <Plus size={12} className="mr-1" />
+                    NEW
+                </Button>
+            }
+            open={isModalOpen}
+            onOpenChange={setIsModalOpen}
+        >
+            <NewLeadForm
+                users={teamData?.members || []}
+                accounts={accountsData || []}
+                onFinish={() => setIsModalOpen(false)}
+                redirectOnSuccess={false}
+            />
+        </RightViewModal>
     );
 
     return (

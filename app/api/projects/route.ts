@@ -128,34 +128,19 @@ export async function POST(req: Request) {
       },
     });
 
-    // Seed default Gamma link document and attach to a starter task
-    const gammaUrl = "https://gamma.app/docs/Enterprise-AI-Powered-CRM-Solution-fjlbdthvn33tu1w";
-    const gammaDoc = await (prismadb as any).documents.create({
+    // Create ProjectMember for the creator
+    await (prismadb as any).projectMember.create({
       data: {
-        document_name: "Project Overview (Gamma)",
-        description: "Enterprise AI-Powered CRM Solution overview",
-        document_file_mimeType: "text/html",
-        document_file_url: gammaUrl,
-        created_by_user: session.user.id,
-        team_id: teamId, // Assign team to document
-        visibility: "public",
-        tags: { type: "link", provider: "gamma" } as any,
+        project: newBoard.id,
+        user: session.user.id,
+        role: "LEAD",
+        assignedBy: session.user.id,
       },
     });
 
-    await (prismadb as any).tasks.create({
-      data: {
-        v: 0,
-        title: "Project Documents",
-        content: "Default project overview link attached",
-        priority: "MEDIUM",
-        position: 0,
-        section: newSection.id,
-        documentIDs: [gammaDoc.id],
-        user: session.user.id,
-        team_id: teamId, // Assign team to task
-      },
-    });
+    // Document creation removed as per user request to clean up flow
+
+    // Task creation removed as per user request to clean up flow
 
     return NextResponse.json({ newBoard }, { status: 200 });
   } catch (error) {

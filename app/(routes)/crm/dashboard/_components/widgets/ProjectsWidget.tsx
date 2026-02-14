@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import NewProjectDialog from "@/app/(routes)/projects/dialogs/NewProject";
 
 interface ProjectMemberWithBoard {
     id: string;
@@ -70,16 +71,18 @@ export const ProjectsWidget = ({ projects: initialProjects }: ProjectsWidgetProp
     });
 
     const rightAction = (
-        <Link href="/campaigns">
-            <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-3 text-[10px] font-bold border-white/10 bg-white/5 hover:bg-white/10"
-            >
-                <Plus size={12} className="mr-1.5" />
-                PROJECT
-            </Button>
-        </Link>
+        <NewProjectDialog
+            customTrigger={
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[10px] font-bold border-white/10 bg-white/5 hover:bg-white/10"
+                >
+                    <Plus size={12} className="mr-1" />
+                    PROJECT
+                </Button>
+            }
+        />
     );
 
     return (

@@ -14,6 +14,8 @@ type Props = {
   width?: string;
   children: ReactNode;
   customTrigger?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const RightViewModal = ({
@@ -23,8 +25,20 @@ const RightViewModal = ({
   width,
   children,
   customTrigger = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: Props) => {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = (newOpen: boolean) => {
+    if (isControlled && controlledOnOpenChange) {
+      controlledOnOpenChange(newOpen);
+    } else {
+      setUncontrolledOpen(newOpen);
+    }
+  };
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

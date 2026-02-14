@@ -5,6 +5,40 @@ import { authOptions } from "@/lib/auth";
 import sendEmail from "@/lib/sendmail";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 
+// Get leads for current team
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return new NextResponse("Unauthenticated", { status: 401 });
+  }
+
+  try {
+    const teamInfo = await getCurrentUserTeamId();
+    const teamId = teamInfo?.teamId;
+
+    const leads = await prismadb.crm_Leads.findMany({
+      where: {
+        team_id: teamId,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        company: true,
+        email: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return NextResponse.json(leads);
+  } catch (error) {
+    console.log("[LEADS_GET]", error);
+    return new NextResponse("Internal error", { status: 500 });
+  }
+}
+
 //Create a new lead route
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -79,7 +113,7 @@ export async function POST(req: Request) {
         social_facebook,
         social_linkedin,
         assigned_to: assigned_to || userId,
-        accountsIDs: accountIDs,
+        accountsIDs: accountIDs || undefined,
         status: "NEW",
         type: "DEMO",
       },

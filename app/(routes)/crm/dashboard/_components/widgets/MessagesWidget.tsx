@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { markNotificationRead } from "@/actions/dashboard/mark-notification-read";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { NewMessageModal } from "@/app/(routes)/messages/components/modals/NewMessageModal";
 
 interface NotificationItem {
     id: string;
@@ -70,14 +71,18 @@ export const MessagesWidget = ({ messages: initialMessages }: MessagesWidgetProp
     });
 
     const rightAction = (
-        <Button
-            size="sm"
-            variant="outline"
-            className="h-7 px-3 text-[10px] font-bold border-white/10 bg-white/5 hover:bg-white/10"
-        >
-            <SendHorizontal size={12} className="mr-1.5" />
-            MESSAGE
-        </Button>
+        <NewMessageModal
+            customTrigger={
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[10px] font-bold border-white/10 bg-white/5 hover:bg-white/10"
+                >
+                    <SendHorizontal size={12} className="mr-1" />
+                    MESSAGE
+                </Button>
+            }
+        />
     );
 
     return (
