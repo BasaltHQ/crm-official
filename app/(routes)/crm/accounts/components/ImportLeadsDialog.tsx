@@ -100,12 +100,30 @@ type WizardStep = "destination" | "upload" | "mapping" | "preview" | "complete";
 type Props = {
   pools: PoolSummary[];
   onCommitted?: () => void;
+  controlledOpen?: boolean;
+  setControlledOpen?: (open: boolean) => void;
+  preselectedFile?: File | null;
+  customTrigger?: React.ReactNode;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
-  const [open, setOpen] = useState(false);
+export default function ImportLeadsDialog({ pools, onCommitted, controlledOpen, setControlledOpen, preselectedFile, customTrigger }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  
+  const handleOpenChange = (v: boolean) => {
+    if (setControlledOpen) setControlledOpen(v);
+    else setInternalOpen(v);
+    
+    if (v && preselectedFile) {
+        setFile(preselectedFile);
+        if (pools.length > 0) {
+            setStep("upload");
+        }
+    }
+  };
+
   const [step, setStep] = useState<WizardStep>("destination");
 
   // Step 1: Destination
@@ -117,6 +135,16 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   // Step 2: Upload
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync preselected file
+  useEffect(() => {
+      if (preselectedFile && open) {
+          setFile(preselectedFile);
+          if (step === "destination" && poolId) {
+             // Don't auto advance past destination, user must pick pool
+          }
+      }
+  }, [preselectedFile, open]);
 
   // Step 3: Mapping
   const [scanData, setScanData] = useState<ScanResponse | null>(null);
@@ -343,7 +371,8 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   };
 
   const closeDialog = () => {
-    setOpen(false);
+    if (setControlledOpen) setControlledOpen(false);
+    else setInternalOpen(false);
     setTimeout(reset, 300);
   };
 
@@ -948,14 +977,26 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
+  const closeDialogWithProps = () => {
+    if (setControlledOpen) setControlledOpen(false);
+    else setInternalOpen(false);
+    setTimeout(reset, 200);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : closeDialog())}>
-      <DialogTrigger asChild>
-        <Button className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 group transition-all duration-300 transform hover:scale-[1.02]">
-          <FileUp className="w-4 h-4 mr-2 group-hover:animate-bounce" />
-          Import Intelligence
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {customTrigger ? (
+          <DialogTrigger asChild>
+            {customTrigger}
+          </DialogTrigger>
+      ) : (
+          <DialogTrigger asChild>
+            <Button className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 group transition-all duration-300 transform hover:scale-[1.02]">
+              <FileUp className="w-4 h-4 mr-2 group-hover:animate-bounce" />
+              Import Intelligence
+            </Button>
+          </DialogTrigger>
+      )}
       <DialogContent className="max-w-4xl bg-zinc-950/95 backdrop-blur-xl border-zinc-800 shadow-2xl overflow-hidden p-0 gap-0 rounded-3xl">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-50" />
 

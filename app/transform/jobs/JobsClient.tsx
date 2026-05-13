@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableProperties, FileText, Settings, Pen, Loader2, CheckCircle2, AlertCircle, Download, Clock, Database, Layers } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import ImportLeadsDialog from "@/app/(routes)/crm/accounts/components/ImportLeadsDialog";
+import { toast } from "sonner";
 
 type JobData = {
     id: string;
@@ -24,6 +26,35 @@ type JobData = {
 export function JobsClient() {
     const [jobs, setJobs] = useState<JobData[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pools, setPools] = useState<any[]>([]);
+    const [importOpen, setImportOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+
+    const fetchPools = async () => {
+        try {
+            const res = await fetch("/api/crm/leads/pools");
+            if (res.ok) {
+                const data = await res.json();
+                setPools(data.pools || []);
+            }
+        } catch (e) {
+            console.error("Failed to fetch pools", e);
+        }
+    };
+
+    const handlePushToCrm = async (jobId: string, fileName: string) => {
+        try {
+            const url = `/api/transform/jobs/${jobId}/download`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Failed to download file");
+            const blob = await res.blob();
+            const file = new File([blob], fileName, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            setImportFile(file);
+            setImportOpen(true);
+        } catch (e) {
+            toast.error("Failed to load file for CRM import.");
+        }
+    };
 
     const fetchJobs = async () => {
         try {
@@ -41,6 +72,7 @@ export function JobsClient() {
 
     useEffect(() => {
         fetchJobs();
+        fetchPools();
     }, []);
 
     // Poll if there are active jobs
@@ -186,13 +218,24 @@ export function JobsClient() {
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => handleDownload(job.id, `Extracted_${job.fileName}`)}
-                                                        className="w-full flex items-center justify-center gap-2 py-2 rounded bg-white/5 hover:bg-white/10 transition-colors text-xs font-medium text-white/80 group-hover:text-white group-hover:bg-white/15"
-                                                    >
-                                                        <Download className="w-3.5 h-3.5" />
-                                                        Download Result
-                                                    </button>
+                                                    <div className="flex flex-col gap-2">
+                                                        {job.transformType === "EXCEL" && (
+                                                            <button
+                                                                onClick={() => handlePushToCrm(job.id, `Extracted_${job.fileName}`)}
+                                                                className="w-full flex items-center justify-center gap-2 py-2 rounded bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors text-xs font-medium text-indigo-400 group-hover:text-indigo-300"
+                                                            >
+                                                                <Layers className="w-3.5 h-3.5" />
+                                                                Push to CRM
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleDownload(job.id, `Extracted_${job.fileName}`)}
+                                                            className="w-full flex items-center justify-center gap-2 py-2 rounded bg-white/5 hover:bg-white/10 transition-colors text-xs font-medium text-white/80 group-hover:text-white group-hover:bg-white/15"
+                                                        >
+                                                            <Download className="w-3.5 h-3.5" />
+                                                            Download Result
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -203,6 +246,15 @@ export function JobsClient() {
                     </div>
                 )}
             </div>
+
+            {/* Hidden wizard trigger/state */}
+            <ImportLeadsDialog 
+                pools={pools} 
+                controlledOpen={importOpen}
+                setControlledOpen={setImportOpen}
+                preselectedFile={importFile}
+                customTrigger={<div className="hidden"></div>}
+            />
         </div>
     );
 }
