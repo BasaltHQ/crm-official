@@ -358,7 +358,15 @@ export async function POST(req: NextRequest) {
 
         // 3. Create Lead
         let createdLeadId: string | null = null;
+        let verificationToken: string | null = null;
         try {
+            const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "Unknown IP";
+            const timestamp = new Date();
+            
+            if (extracted_email) {
+                verificationToken = crypto.randomBytes(32).toString("hex");
+            }
+
             const lead = await (prismadb as any).crm_Leads.create({
                 data: {
                     firstName: finalFirstName,
@@ -371,11 +379,37 @@ export async function POST(req: NextRequest) {
                     lead_source: `Form: ${form.name}`,
                     status: "NEW",
                     type: "DEMO",
+                    opt_in_boolean: !!extracted_email,
+                    opt_in_ip: extracted_email ? ip : undefined,
+                    opt_in_timestamp: extracted_email ? timestamp : undefined,
+                    opt_in_verification_token: verificationToken,
                     assigned_team: form.team_id ? { connect: { id: form.team_id } } : undefined,
                     assigned_documents: createdDocumentIds.length > 0 ? { connect: createdDocumentIds.map(id => ({ id })) } : undefined,
                 }
             });
             createdLeadId = lead.id;
+
+            // Trigger Verification Email immediately for compliance
+            if (extracted_email && verificationToken) {
+                const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://crm-sand.basalthq.com'}/api/crm/verify-optin?token=${verificationToken}`;
+                const emailHtml = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                    <h2 style="color: #333;">Please Confirm Your Subscription</h2>
+                    <p>Hi ${finalFirstName || 'there'},</p>
+                    <p>Thank you for your interest! We received a request to subscribe this email address. To ensure we have the right person and comply with best practices, please confirm your subscription by clicking the button below.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${verifyUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Yes, subscribe me to this list</a>
+                    </div>
+                    <p style="color: #666; font-size: 12px;">If you didn't make this request, you can safely ignore this email.</p>
+                    </div>
+                `;
+                await sendEmail({
+                    to: extracted_email,
+                    subject: "Please Confirm Your Subscription",
+                    text: `Hi ${finalFirstName || 'there'}, please confirm your subscription by visiting this link: ${verifyUrl}`,
+                    html: emailHtml,
+                }).catch((err) => console.error("Error sending verification email:", err));
+            }
         } catch (crmError) {
             console.error("Failed to create CRM Lead:", crmError);
         }

@@ -131,6 +131,7 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   // Shared
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optInWarningAccepted, setOptInWarningAccepted] = useState(false);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
 
@@ -139,6 +140,11 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   const unmappedColumns = useMemo(() => mappings.filter(m => !m.crmField), [mappings]);
   const mappedCount = useMemo(() => mappings.filter(m => m.crmField).length, [mappings]);
   const hasContactFields = useMemo(() => contactMappings.length > 0, [contactMappings]);
+  
+  const hasEmailMapped = useMemo(() => mappings.some(m => m.crmField === "email"), [mappings]);
+  const hasOptInMapped = useMemo(() => mappings.some(m => m.crmField === "optInBoolean"), [mappings]);
+  const showOptInWarning = hasEmailMapped && !hasOptInMapped;
+  const canProceedToPreview = mappedCount > 0 && (!showOptInWarning || optInWarningAccepted);
 
   const confidenceColor = (c: number) => {
     if (c >= 80) return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
@@ -331,6 +337,7 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
     setPreview(null);
     setCommitResult(null);
     setError(null);
+    setOptInWarningAccepted(false);
     setStep("destination");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -704,13 +711,36 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
         </div>
       )}
 
+      {showOptInWarning && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 mt-4">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-2">
+            <h4 className="text-amber-500 font-bold text-sm">Compliance Warning: Missing Opt-In Data</h4>
+            <p className="text-amber-500/80 text-xs leading-relaxed">
+              You are importing email addresses, but no column is mapped to the <strong className="text-amber-400">Opt-In Confirmation</strong> field. 
+              To comply with Amazon SES and anti-spam regulations (like GDPR/CAN-SPAM), you should include double opt-in verification data (opt-in boolean, IP, and timestamp).
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <Switch 
+                checked={optInWarningAccepted} 
+                onCheckedChange={setOptInWarningAccepted}
+                className="data-[state=checked]:bg-amber-500"
+              />
+              <span className="text-xs font-medium text-amber-500/90 cursor-pointer" onClick={() => setOptInWarningAccepted(!optInWarningAccepted)}>
+                I understand. Proceed at my own risk (emails will be blocked for these leads unless the opt-in process is completed).
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-4">
         <Button variant="ghost" onClick={() => setStep("upload")} className="text-zinc-500 hover:text-white">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
         <Button
           onClick={runPreview}
-          disabled={submitting || mappedCount === 0}
+          disabled={submitting || !canProceedToPreview}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-12 rounded-xl font-bold shadow-xl shadow-indigo-600/20 group disabled:opacity-50"
         >
           {submitting ? (
