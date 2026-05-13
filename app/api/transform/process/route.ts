@@ -56,7 +56,7 @@ async function processJobInBackground(
         let resultBuffer: Buffer;
         let mimeType = "text/plain";
         let extension = ".txt";
-        let cost = numPages * (type === "EXCEL" ? 0.05 : type === "TEXT" ? 0.01 : 0.02);
+        let cost = numPages * (type === "EXCEL" ? 0.25 : type === "TEXT" ? 0.01 : 0.02);
 
         // We prepare the content array. If it's an image, pass the image data. If PDF, pass extracted text.
         const contentPayload: any[] = [];
@@ -570,8 +570,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "File exceeds 200 pages. Contact support." }, { status: 400 });
         }
 
-        // --- Rate Limiting Logic ---
+        // --- Rate Limiting & Billing Logic ---
         const freeLimit = type === "EXCEL" ? 5 : (type === "MARKDOWN" || type === "JSON" ? 10 : 20);
+        let isPaidJob = false;
         
         if (numPages <= freeLimit && redis) {
             const ratelimit = new Ratelimit({
@@ -585,9 +586,20 @@ export async function POST(req: Request) {
             const { success, remaining } = await ratelimit.limit(identifier);
 
             if (!success) {
-                return NextResponse.json({ 
-                    error: `Free tier limit exceeded for ${type}. You have ${remaining} generations left.` 
-                }, { status: 429 });
+                isPaidJob = true;
+            }
+        } else {
+            isPaidJob = true;
+        }
+
+        if (isPaidJob) {
+            if (!teamId) {
+                return NextResponse.json({ error: "You must be logged in to a team to process files beyond the free tier." }, { status: 402 });
+            }
+            const { checkTeamQuota } = await import("@/lib/quota-service");
+            const quota = await checkTeamQuota(teamId, "AI_TOKENS", userId ?? undefined);
+            if (!quota.allowed) {
+                return NextResponse.json({ error: quota.message || "Insufficient balance for paid transform." }, { status: 402 });
             }
         }
 

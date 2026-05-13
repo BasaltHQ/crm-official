@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import { FileType2, HelpCircle } from "lucide-react";
 import { SidebarNav } from "./_components/SidebarNav";
+import { PolicyModalClient } from "./_components/PolicyModalClient";
 
 export default function PdfWizardLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -29,6 +30,7 @@ export default function PdfWizardLayout({ children }: { children: React.ReactNod
                     {children}
                 </div>
             </main>
+            <PolicyModalClient />
         </div>
     );
 }

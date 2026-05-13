@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -100,12 +100,30 @@ type WizardStep = "destination" | "upload" | "mapping" | "preview" | "complete";
 type Props = {
   pools: PoolSummary[];
   onCommitted?: () => void;
+  controlledOpen?: boolean;
+  setControlledOpen?: (open: boolean) => void;
+  preselectedFile?: File | null;
+  customTrigger?: React.ReactNode;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
-  const [open, setOpen] = useState(false);
+export default function ImportLeadsDialog({ pools, onCommitted, controlledOpen, setControlledOpen, preselectedFile, customTrigger }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  
+  const handleOpenChange = (v: boolean) => {
+    if (setControlledOpen) setControlledOpen(v);
+    else setInternalOpen(v);
+    
+    if (v && preselectedFile) {
+        setFile(preselectedFile);
+        if (pools.length > 0) {
+            setStep("upload");
+        }
+    }
+  };
+
   const [step, setStep] = useState<WizardStep>("destination");
 
   // Step 1: Destination
@@ -117,6 +135,16 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   // Step 2: Upload
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync preselected file
+  useEffect(() => {
+      if (preselectedFile && open) {
+          setFile(preselectedFile);
+          if (step === "destination" && poolId) {
+             // Don't auto advance past destination, user must pick pool
+          }
+      }
+  }, [preselectedFile, open]);
 
   // Step 3: Mapping
   const [scanData, setScanData] = useState<ScanResponse | null>(null);
@@ -131,6 +159,7 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   // Shared
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optInWarningAccepted, setOptInWarningAccepted] = useState(false);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
 
@@ -139,6 +168,11 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
   const unmappedColumns = useMemo(() => mappings.filter(m => !m.crmField), [mappings]);
   const mappedCount = useMemo(() => mappings.filter(m => m.crmField).length, [mappings]);
   const hasContactFields = useMemo(() => contactMappings.length > 0, [contactMappings]);
+  
+  const hasEmailMapped = useMemo(() => mappings.some(m => m.crmField === "email"), [mappings]);
+  const hasOptInMapped = useMemo(() => mappings.some(m => m.crmField === "optInBoolean"), [mappings]);
+  const showOptInWarning = hasEmailMapped && !hasOptInMapped;
+  const canProceedToPreview = mappedCount > 0 && (!showOptInWarning || optInWarningAccepted);
 
   const confidenceColor = (c: number) => {
     if (c >= 80) return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
@@ -331,12 +365,14 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
     setPreview(null);
     setCommitResult(null);
     setError(null);
+    setOptInWarningAccepted(false);
     setStep("destination");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const closeDialog = () => {
-    setOpen(false);
+    if (setControlledOpen) setControlledOpen(false);
+    else setInternalOpen(false);
     setTimeout(reset, 300);
   };
 
@@ -704,13 +740,36 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
         </div>
       )}
 
+      {showOptInWarning && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 mt-4">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-2">
+            <h4 className="text-amber-500 font-bold text-sm">Compliance Warning: Missing Opt-In Data</h4>
+            <p className="text-amber-500/80 text-xs leading-relaxed">
+              You are importing email addresses, but no column is mapped to the <strong className="text-amber-400">Opt-In Confirmation</strong> field. 
+              To comply with Amazon SES and anti-spam regulations (like GDPR/CAN-SPAM), you should include double opt-in verification data (opt-in boolean, IP, and timestamp).
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <Switch 
+                checked={optInWarningAccepted} 
+                onCheckedChange={setOptInWarningAccepted}
+                className="data-[state=checked]:bg-amber-500"
+              />
+              <span className="text-xs font-medium text-amber-500/90 cursor-pointer" onClick={() => setOptInWarningAccepted(!optInWarningAccepted)}>
+                I understand. Proceed at my own risk (emails will be blocked for these leads unless the opt-in process is completed).
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-4">
         <Button variant="ghost" onClick={() => setStep("upload")} className="text-zinc-500 hover:text-white">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
         <Button
           onClick={runPreview}
-          disabled={submitting || mappedCount === 0}
+          disabled={submitting || !canProceedToPreview}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-12 rounded-xl font-bold shadow-xl shadow-indigo-600/20 group disabled:opacity-50"
         >
           {submitting ? (
@@ -918,14 +977,26 @@ export default function ImportLeadsDialog({ pools, onCommitted }: Props) {
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
+  const closeDialogWithProps = () => {
+    if (setControlledOpen) setControlledOpen(false);
+    else setInternalOpen(false);
+    setTimeout(reset, 200);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : closeDialog())}>
-      <DialogTrigger asChild>
-        <Button className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 group transition-all duration-300 transform hover:scale-[1.02]">
-          <FileUp className="w-4 h-4 mr-2 group-hover:animate-bounce" />
-          Import Intelligence
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {customTrigger ? (
+          <DialogTrigger asChild>
+            {customTrigger}
+          </DialogTrigger>
+      ) : (
+          <DialogTrigger asChild>
+            <Button className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 group transition-all duration-300 transform hover:scale-[1.02]">
+              <FileUp className="w-4 h-4 mr-2 group-hover:animate-bounce" />
+              Import Intelligence
+            </Button>
+          </DialogTrigger>
+      )}
       <DialogContent className="max-w-4xl bg-zinc-950/95 backdrop-blur-xl border-zinc-800 shadow-2xl overflow-hidden p-0 gap-0 rounded-3xl">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-50" />
 

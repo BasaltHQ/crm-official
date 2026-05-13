@@ -77,6 +77,10 @@ const CRM_FIELDS = {
     { key: "contactWebsite", label: "Personal Website" },
     { key: "contactDescription", label: "Contact Notes / Bio" },
     { key: "tags", label: "Tags / Labels" },
+    // ── Compliance ────────────────────────────────
+    { key: "optInBoolean", label: "Opt-In Confirmation (TRUE/FALSE)" },
+    { key: "optInIp", label: "Opt-In IP Address" },
+    { key: "optInTimestamp", label: "Opt-In Timestamp" },
   ],
 };
 
@@ -150,6 +154,10 @@ const DETECTION_MAP: Record<string, string[]> = {
   contactWebsite: ["personal website", "blog", "portfolio", "personal url", "personal site"],
   contactDescription: ["contact notes", "contact bio", "contact description", "about contact", "person notes", "person bio"],
   tags: ["tags", "labels", "categories", "keywords", "groups", "segments"],
+  // ── Compliance ──────────────────────────────────
+  optInBoolean: ["opt-in", "opt in", "optin", "subscribed", "is_subscribed", "opt_in_boolean"],
+  optInIp: ["opt_in_ip", "optin ip", "ip address", "ip_address"],
+  optInTimestamp: ["opt_in_timestamp", "optin timestamp", "optin date", "subscribed_date", "opt_in_date"],
 };
 
 type DetectedMapping = {

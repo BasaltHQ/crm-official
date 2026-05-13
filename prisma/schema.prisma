@@ -16,9 +16,9 @@ enum TeamType {
   DEPARTMENT // Sub-team/department (e.g., "Sales", "Marketing")
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// QUESTS — Team-scoped gamification challenges
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// QUESTS â€” Team-scoped gamification challenges
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 enum QuestStatus {
   DRAFT // Created but not yet visible to team
@@ -62,6 +62,16 @@ model crm_Accounts {
   shipping_postal_code String?
   shipping_state       String?
   shipping_street      String?
+
+  // Opt-in Compliance
+  opt_in_boolean            Boolean   @default(false)
+  opt_in_ip                 String?
+  opt_in_timestamp          DateTime?
+  double_opt_in_boolean     Boolean   @default(false)
+  double_opt_in_ip          String?
+  double_opt_in_timestamp   DateTime?
+  opt_in_verification_token String?
+
   status               String?               @default("Inactive")
   type                 String?               @default("Customer")
   vat                  String?
@@ -104,7 +114,7 @@ model crm_Accounts {
   // Service Cloud
   entitlements crm_Entitlement[]
 
-  // Custom Fields (schemaless JSON — team-defined per custom_field_definitions)
+  // Custom Fields (schemaless JSON â€” team-defined per custom_field_definitions)
   custom_fields Json?
 }
 
@@ -129,6 +139,16 @@ model crm_Leads {
   status             String?       @default("NEW")
   type               String?       @default("DEMO")
   assigned_to        String?       @db.ObjectId
+
+  // Opt-in Compliance
+  opt_in_boolean            Boolean   @default(false)
+  opt_in_ip                 String?
+  opt_in_timestamp          DateTime?
+  double_opt_in_boolean     Boolean   @default(false)
+  double_opt_in_ip          String?
+  double_opt_in_timestamp   DateTime?
+  opt_in_verification_token String?
+
   assigned_to_user   Users?        @relation(fields: [assigned_to], references: [id], onDelete: SetNull)
   accountsIDs        String?       @db.ObjectId
   assigned_accounts  crm_Accounts? @relation(fields: [accountsIDs], references: [id])
@@ -183,7 +203,7 @@ model crm_Leads {
   assigned_team Team?   @relation(fields: [team_id], references: [id])
 
   // Department assignment for scoped access
-  assigned_department_id String?             @db.ObjectId
+  assigned_department_id String? @db.ObjectId
   additional_emails      String[]
   quotes                 crm_Quotes[]
   opportunities          crm_Opportunities[] @relation(name: "OpportunityToLeadRelation")
@@ -285,7 +305,7 @@ enum crm_Opportunity_Status {
   CLOSED
 }
 
-// ── Competitor Tracking ─────────────────────────────────────────────────────
+// â”€â”€ Competitor Tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 enum CompetitorThreatLevel {
   LOW
   MEDIUM
@@ -323,7 +343,7 @@ model crm_Opportunity_Competitors {
   @@index([opportunity_id])
 }
 
-// ── Revenue Splits (Multi-Rep Credit) ───────────────────────────────────────
+// â”€â”€ Revenue Splits (Multi-Rep Credit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 enum SplitType {
   PRIMARY   // Primary deal owner
   OVERLAY   // Overlay specialist (e.g., SE, solutions)
@@ -351,12 +371,12 @@ model crm_Opportunity_Splits {
   @@index([user_id])
 }
 
-// ── Multi-Currency Exchange Rates ───────────────────────────────────────────
+// â”€â”€ Multi-Currency Exchange Rates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model crm_Currency {
   id                  String   @id @default(auto()) @map("_id") @db.ObjectId
   code                String   @unique // ISO 4217: USD, EUR, GBP, JPY, etc.
   name                String   // "US Dollar", "Euro", etc.
-  symbol              String   // "$", "€", "£", "¥"
+  symbol              String   // "$", "â‚¬", "Â£", "Â¥"
   decimal_places      Int      @default(2)
   exchange_rate_to_usd Float   // 1 unit of this currency = X USD
   is_active           Boolean  @default(true)
@@ -1310,7 +1330,7 @@ model Users {
   quickLaunchDismissed   Boolean              @default(false)
   dismissedAIInsights    String[]
 
-  // Visual Studio — per-user theme persistence
+  // Visual Studio â€” per-user theme persistence
   preferredTheme   String?  // Active theme ID (preset like "crimson-night" or custom theme UUID)
   customThemes     Json?    // Array of custom theme objects created in the Theme Studio
 
@@ -1472,11 +1492,11 @@ model TeamBrandIdentity {
   team_id String @db.ObjectId
   team    Team   @relation(fields: [team_id], references: [id], onDelete: Cascade)
 
-  // ── Multi-Brand Support ──
+  // â”€â”€ Multi-Brand Support â”€â”€
   brand_label String  @default("Default Brand") // Human-readable label for this brand
   is_default  Boolean @default(true) // Primary brand (used by non-enterprise teams)
 
-  // ── Core Information ──
+  // â”€â”€ Core Information â”€â”€
   company_name        String?
   industry            String?
   location            String?
@@ -1487,23 +1507,23 @@ model TeamBrandIdentity {
   logo_url            String?
   primary_brand_color String? // Hex or rgb value for email templates
 
-  // ── Strategic Vision ──
+  // â”€â”€ Strategic Vision â”€â”€
   mission_statement String?
   core_philosophy   String?
 
-  // ── Brand Pillars ──
+  // â”€â”€ Brand Pillars â”€â”€
   core_values            String[]
   strategic_focus_areas  String[]
   competitive_advantages String[]
   key_products_services  String[] // What you sell
   pain_points_solved     String[] // Problems you fix for prospects
 
-  // ── Target Audience ──
+  // â”€â”€ Target Audience â”€â”€
   audience_description   String?
   business_model_summary String?
   ideal_customer_profile String? // ICP: job titles, company sizes, industries
 
-  // ── Persona & Voice ──
+  // â”€â”€ Persona & Voice â”€â”€
   persona_preset      String? // PROFESSIONAL, HUMOROUS, SNARKY
   brand_voice         String? // e.g. Visionary, Authoritative, Cyber-Industrial, Revolutionary
   agent_tone          String? // e.g. Efficient, Precise, Autonomous, Direct
@@ -1514,7 +1534,7 @@ model TeamBrandIdentity {
   objection_handling  String? // Common objections and how to counter them
   do_not_say          String[] // Words, phrases, or topics to avoid
 
-  // ── Channel Settings ──
+  // â”€â”€ Channel Settings â”€â”€
   email_compliance_footer    String? // CAN-SPAM: physical address + unsubscribe text
   sms_opt_out_message        String? // TCPA: e.g. "Reply STOP to unsubscribe"
   call_script_intro          String? // Standard phone opening
@@ -1522,23 +1542,23 @@ model TeamBrandIdentity {
   business_hours             String? // When to send outreach (e.g. "9am-5pm EST")
   preferred_channel_priority String[] // Ranked: EMAIL, SMS, PHONE
 
-  // ── AI Generation Settings ──
+  // â”€â”€ AI Generation Settings â”€â”€
   grammar_accuracy       Int     @default(80)    // 0-100: 0=casual, 100=perfect grammar
   avoid_em_dashes        Boolean @default(true)  // EM dashes are an AI writing tell
   emoji_frequency        Int     @default(5)     // 0-100: 0=none, 100=heavy
   emoji_allowed_in       String[] // Where emojis are allowed: "posts", "replies", "emails", "sms"
   require_verified_account Boolean @default(false)  // Safety: only engage verified accounts
 
-  // ── Ecosystem ──
+  // â”€â”€ Ecosystem â”€â”€
   subsidiaries           String[] // Child companies / sub-brands
   partner_categories     String[] // e.g. Web3 Protocols, Payment Processors, Hardware Vendors
 
-  // ── Per-Brand Signature & Resources ──
+  // â”€â”€ Per-Brand Signature & Resources â”€â”€
   signature_html String? // HTML signature for this brand
   signature_meta Json?   // SignatureBuilder meta (template, social links, etc.)
   resource_links Json?   // Array of resource button objects for email footers
 
-  // ── Setup completion tracking ──
+  // â”€â”€ Setup completion tracking â”€â”€
   setup_completed Boolean @default(false)
 
   createdAt DateTime @default(now()) @db.Date
@@ -1953,7 +1973,7 @@ model oauth_Authorization_Codes {
 }
 
 // =============================================================================
-// AI PROVIDER REGISTRY — Dynamic provider management (no hard-coded enum)
+// AI PROVIDER REGISTRY â€” Dynamic provider management (no hard-coded enum)
 // Providers are stored in the database and managed by PLATFORM_ADMINs
 // =============================================================================
 
@@ -1985,7 +2005,7 @@ model AiModel {
   v           Int     @default(0) @map("__v")
   name        String // Display name (e.g. "GPT-4o")
   modelId     String // API model ID (e.g. "gpt-4o")
-  provider    String // Provider slug — e.g. "OPENAI", "HUGGINGFACE"
+  provider    String // Provider slug â€” e.g. "OPENAI", "HUGGINGFACE"
   description String?
 
   // Pricing per 1M tokens (managed by Partner)
@@ -2003,7 +2023,7 @@ model AiModel {
 
 model SystemAiConfig {
   id             String  @id @default(auto()) @map("_id") @db.ObjectId
-  provider       String  @unique // Provider slug — e.g. "OPENAI"
+  provider       String  @unique // Provider slug â€” e.g. "OPENAI"
   apiKey         String?
   baseUrl        String? // Optional override
   configuration  Json? // Store provider-specific config (Azure endpoint, etc)
@@ -2032,7 +2052,7 @@ model TeamAiConfig {
 }
 
 // =============================================================================
-// TEAM USAGE QUOTAS — Monthly metering for email, SMS, voice
+// TEAM USAGE QUOTAS â€” Monthly metering for email, SMS, voice
 // =============================================================================
 
 model TeamUsageQuota {
@@ -2080,7 +2100,7 @@ model TeamUserAllocation {
 }
 
 // =============================================================================
-// CUSTOM MODEL REQUESTS — Team admins submit, Platform admins approve/reject
+// CUSTOM MODEL REQUESTS â€” Team admins submit, Platform admins approve/reject
 // =============================================================================
 
 model CustomModelRequest {
@@ -2542,7 +2562,7 @@ model FooterLink {
 model FooterSetting {
   id               String   @id @default(auto()) @map("_id") @db.ObjectId
   tagline          String   @default("Your 24/7 AI workforce. Sales, Support, and Growth on autopilot.")
-  copyrightText    String   @default("© 2025 Ledger AI. All rights reserved.")
+  copyrightText    String   @default("Â© 2025 Ledger AI. All rights reserved.")
   socialXUrl       String   @default("https://x.com/BasaltAI")
   socialDiscordUrl String   @default("https://discord.gg/G9Sp8CAQmV")
   createdAt        DateTime @default(now())
@@ -2681,9 +2701,9 @@ model PageView {
   createdAt DateTime @default(now()) @db.Date
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// BASALT TRANSFORM — AI Document Intelligence History
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// BASALT TRANSFORM â€” AI Document Intelligence History
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model crm_TransformHistory {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
@@ -3290,7 +3310,7 @@ model crm_DealRoom_Activities {
 }
 
 // =============================================================================
-// FLOWSTATE BUILDER — VISUAL AUTOMATION ENGINE
+// FLOWSTATE BUILDER â€” VISUAL AUTOMATION ENGINE
 // FlowState: drag-and-drop workflow automation for non-technical users
 // =============================================================================
 
@@ -3540,7 +3560,7 @@ model PageLayout {
 }
 
 // =============================================================================
-// PHASE 2: SERVICE CLOUD — CASE MANAGEMENT & SERVICE COMMITMENT ENGINE
+// PHASE 2: SERVICE CLOUD â€” CASE MANAGEMENT & SERVICE COMMITMENT ENGINE
 // =============================================================================
 
 enum CaseStatus {
@@ -3657,7 +3677,7 @@ model crm_Cases {
   @@index([account_id])
 }
 
-// Entitlement Management — what support a customer is entitled to
+// Entitlement Management â€” what support a customer is entitled to
 model crm_Entitlement {
   id         String @id @default(auto()) @map("_id") @db.ObjectId
   name       String // e.g., "Premium Support", "Standard SLA"
@@ -4085,8 +4105,8 @@ model KnowledgeArticle {
 
   // Feedback & metrics
   view_count        Int @default(0)
-  helpful_count     Int @default(0) // "Was this article helpful?" — Yes
-  not_helpful_count Int @default(0) // "Was this article helpful?" — No
+  helpful_count     Int @default(0) // "Was this article helpful?" â€” Yes
+  not_helpful_count Int @default(0) // "Was this article helpful?" â€” No
 
   // Authorship
   author_id String? @db.ObjectId
@@ -4148,10 +4168,10 @@ model ValidationRule {
 
   // The formula expression (evaluated by the engine)
   // Examples:
-  //   "close_date < NOW()"  → error if Close Date is in the past
-  //   "discount > 30"       → error if discount exceeds 30%
-  //   "ISBLANK(email)"      → error if email is empty
-  //   "status == 'CLOSED' AND ISBLANK(resolution)"  → error if closed without resolution
+  //   "close_date < NOW()"  â†’ error if Close Date is in the past
+  //   "discount > 30"       â†’ error if discount exceeds 30%
+  //   "ISBLANK(email)"      â†’ error if email is empty
+  //   "status == 'CLOSED' AND ISBLANK(resolution)"  â†’ error if closed without resolution
   formula String
 
   // Error message shown to user when validation fails
@@ -4673,7 +4693,7 @@ model crm_BillingInvoice {
   @@index([period_start])
 }
 
-// Monthly AI consumption tracking (platform AI: text gen, email, Varuni — NOT BasaltECHO)
+// Monthly AI consumption tracking (platform AI: text gen, email, Varuni â€” NOT BasaltECHO)
 model crm_AiUsageLog {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   createdAt DateTime @default(now()) @db.Date
@@ -4945,9 +4965,9 @@ model SandboxDeployLog {
   @@index([entity_type])
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CRON JOB REGISTRY — Per-team/user managed scheduled tasks
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CRON JOB REGISTRY â€” Per-team/user managed scheduled tasks
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 enum CronJobStatus {
   ACTIVE     // Running on schedule
@@ -4992,9 +5012,9 @@ model crm_Cron_Jobs {
   @@index([next_run_at])
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// INBOX & EMAIL THREADING — Full email synchronization
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// INBOX & EMAIL THREADING â€” Full email synchronization
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 model crm_Email_Thread {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -5031,7 +5051,7 @@ model crm_Email_Thread {
 }
 
 // -------------------------------------------------------------------
-// TRANSFORM JOBS � Background jobs for document extraction
+// TRANSFORM JOBS — Background jobs for document extraction
 // -------------------------------------------------------------------
 
 model crm_Transform_Jobs {

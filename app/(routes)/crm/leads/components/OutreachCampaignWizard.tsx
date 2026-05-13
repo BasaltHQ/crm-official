@@ -53,6 +53,8 @@ type Lead = {
     company?: string;
     jobTitle?: string;
     assigned_accounts?: Array<{ company_name?: string }>;
+    opt_in_boolean?: boolean;
+    double_opt_in_boolean?: boolean;
 };
 
 type Campaign = {
@@ -131,6 +133,7 @@ export default function OutreachCampaignWizard({
     const [campaignDescription, setCampaignDescription] = useState("");
     const [selectedChannels, setSelectedChannels] = useState<string[]>(["EMAIL"]);
     const [leads, setLeads] = useState<Lead[]>(selectedLeads);
+    const [optInRiskAccepted, setOptInRiskAccepted] = useState(false);
 
     // Step 2: Sequence Context & Briefing
     const [campaignTitle, setCampaignTitle] = useState(campaign?.title || "");
@@ -420,6 +423,8 @@ export default function OutreachCampaignWizard({
     const canProceed = () => {
         switch (currentStep) {
             case 1:
+                const hasNonOptedInLeads = leads.some(l => selectedChannels.includes("EMAIL") && !l.double_opt_in_boolean);
+                if (hasNonOptedInLeads && !optInRiskAccepted) return false;
                 return campaignName.trim() && leads.length > 0;
             case 2:
                 return campaignTitle.trim() && campaignBriefing.trim();
@@ -932,15 +937,23 @@ export default function OutreachCampaignWizard({
                                         <p className="text-sm text-muted-foreground">No leads selected</p>
                                     ) : (
                                         <div className="space-y-2">
-                                            {leads.slice(0, 10).map((lead) => (
-                                                <div key={lead.id} className="flex items-center justify-between text-sm">
-                                                    <div>
-                                                        <span className="font-medium">{lead.firstName} {lead.lastName}</span>
-                                                        {lead.company && <span className="text-muted-foreground ml-2">• {lead.company}</span>}
+                                            {leads.slice(0, 10).map((lead) => {
+                                                const hasOptIn = lead.double_opt_in_boolean || lead.opt_in_boolean;
+                                                return (
+                                                    <div key={lead.id} className="flex items-center justify-between text-sm p-2 rounded bg-background border">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium">{lead.firstName} {lead.lastName}</span>
+                                                                {!hasOptIn && selectedChannels.includes("EMAIL") && (
+                                                                    <Badge variant="destructive" className="text-[9px] h-4 py-0">No Opt-In</Badge>
+                                                                )}
+                                                            </div>
+                                                            {lead.company && <span className="text-muted-foreground text-xs">{lead.company}</span>}
+                                                        </div>
+                                                        <Badge variant="outline" className={!hasOptIn && selectedChannels.includes("EMAIL") ? "border-red-500/50 text-red-600" : ""}>{lead.email}</Badge>
                                                     </div>
-                                                    <Badge variant="outline">{lead.email}</Badge>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                             {leads.length > 10 && (
                                                 <p className="text-xs text-muted-foreground">...and {leads.length - 10} more</p>
                                             )}
@@ -948,6 +961,31 @@ export default function OutreachCampaignWizard({
                                     )}
                                 </div>
                             </div>
+                            
+                            {leads.some(l => !l.double_opt_in_boolean) && selectedChannels.includes("EMAIL") && (
+                                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 mt-4">
+                                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                    <div className="flex-1 space-y-2">
+                                        <h4 className="text-amber-500 font-bold text-sm">Compliance Warning: Missing Opt-In Data</h4>
+                                        <p className="text-amber-500/80 text-xs leading-relaxed">
+                                            Some of the selected leads are missing Double Opt-In verification. 
+                                            To comply with Amazon SES and anti-spam regulations, you should only send marketing emails to verified users.
+                                        </p>
+                                        <div className="flex items-center gap-2 pt-2">
+                                            <input 
+                                                type="checkbox"
+                                                id="optInRisk"
+                                                checked={optInRiskAccepted} 
+                                                onChange={(e) => setOptInRiskAccepted(e.target.checked)}
+                                                className="rounded border-amber-500 text-amber-500 focus:ring-amber-500"
+                                            />
+                                            <Label htmlFor="optInRisk" className="text-xs font-medium text-amber-500/90 cursor-pointer">
+                                                I understand the risk. Proceed anyway.
+                                            </Label>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
