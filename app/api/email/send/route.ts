@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { systemLogger } from "@/lib/logger";
 import { getGmailClientForUser } from "@/lib/gmail";
 import { getGraphClient } from "@/lib/microsoft";
+import { checkWarmupQuota, recordWarmupSend } from "@/lib/email-warmup";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -119,6 +120,32 @@ export async function POST(req: Request) {
         const gmailClient = await getGmailClientForUser(userId);
         const graphClient = !gmailClient ? await getGraphClient(userId) : null;
 
+        // Resolve the sender email for warm-up tracking
+        const userRecord = await prismadb.users.findUnique({
+            where: { id: userId },
+            select: { email: true, team_id: true },
+        });
+        let senderEmailForWarmup = userRecord?.email || session.user.email || '';
+        if (gmailClient) {
+            // Gmail: sender is the user's Google email (same as session email)
+        } else if (graphClient) {
+            // Microsoft: sender is the user's Outlook email
+        } else {
+            // SES fallback: use the configured FROM address
+            senderEmailForWarmup = process.env.EMAIL_FROM || process.env.EMAIL_USERNAME || senderEmailForWarmup;
+        }
+
+        // ── Email Warm-Up Enforcement ──
+        if (userRecord?.team_id) {
+            const warmupCheck = await checkWarmupQuota(userRecord.team_id, senderEmailForWarmup);
+            if (!warmupCheck.allowed) {
+                return NextResponse.json(
+                    { error: warmupCheck.message || `Warm-up daily limit reached (${warmupCheck.sentToday}/${warmupCheck.dailyLimit}).`, warmup: warmupCheck },
+                    { status: 429 }
+                );
+            }
+        }
+
         if (gmailClient) {
             const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
             const messageParts = [
@@ -200,6 +227,13 @@ export async function POST(req: Request) {
                 text, // Plain text fallback
                 html: processedHtml,
             });
+        }
+
+        // ── Record Warm-Up Send ──
+        if (userRecord?.team_id) {
+            await recordWarmupSend(userRecord.team_id, senderEmailForWarmup).catch((e: any) =>
+                systemLogger.error("[EMAIL_SEND] Failed to record warm-up send:", e?.message)
+            );
         }
 
         return NextResponse.json({ message: "Email sent successfully", token: trackingToken });

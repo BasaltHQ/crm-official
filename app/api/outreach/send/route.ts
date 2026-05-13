@@ -16,6 +16,7 @@ import { ensureLeadAndAccountForCandidate } from "@/actions/crm/ensure-pipeline"
 import { claimOnboardingBonus } from "@/actions/crm/onboarding-bonus";
 import { systemLogger } from "@/lib/logger";
 import { checkUsageQuota, recordUsage } from "@/lib/usage-quota";
+import { checkWarmupQuota, recordWarmupSend } from "@/lib/email-warmup";
 
 
 import { researchCompany } from "@/lib/outreach/company-research";
@@ -738,6 +739,26 @@ export async function POST(req: Request) {
           // Track the actual sender email for inbound routing
           let actualSenderEmail = session.user.email || '';
 
+          // ── Email Warm-Up Enforcement ──────────────────────────────────────
+          // Resolve the sender email early so we can check warm-up quota
+          let warmupSenderEmail = actualSenderEmail;
+          if (senderMode !== "personal") {
+            try {
+              const teamOutboundCheck = await prismadb.teamEmailConfig.findUnique({
+                where: { team_id_purpose: { team_id: user.team_id!, purpose: "OUTREACH" } },
+                select: { smtp_user: true },
+              });
+              if (teamOutboundCheck?.smtp_user) warmupSenderEmail = teamOutboundCheck.smtp_user;
+            } catch { /* use session email */ }
+          }
+
+          const warmupCheck = await checkWarmupQuota(user.team_id!, warmupSenderEmail);
+          if (!warmupCheck.allowed) {
+            systemLogger.info(`[OUTREACH_SEND] Warm-up limit reached for ${warmupSenderEmail}: ${warmupCheck.sentToday}/${warmupCheck.dailyLimit} (${warmupCheck.phase})`);
+            results.push({ leadId: lead.id, status: "skipped", reason: warmupCheck.message || `Warm-up daily limit reached (${warmupCheck.sentToday}/${warmupCheck.dailyLimit}). ${warmupCheck.phase}, day ${warmupCheck.daysActive + 1}.` });
+            continue;
+          }
+
           if (senderMode === "personal") {
             // Personal mode: send via Amazon SES using the user's identity
             actualSenderEmail = session.user.email || process.env.SES_FROM_ADDRESS || 'noreply@basalthq.com';
@@ -979,6 +1000,11 @@ export async function POST(req: Request) {
           // Track this email in the dispatch-level dedup set
           if (targetEmail) sentEmailsThisDispatch.add(targetEmail.toLowerCase());
 
+          // ── Record Warm-Up Send ──────────────────────────────────────────
+          await recordWarmupSend(user.team_id!, actualSenderEmail).catch((e: any) =>
+            systemLogger.warn(`[OUTREACH_SEND] Failed to record warm-up send: ${e?.message}`)
+          );
+
           results.push({ leadId: lead.id, status: "sent", subject, to: toEmail });
         } catch (err: any) {
 
@@ -988,6 +1014,30 @@ export async function POST(req: Request) {
       } // end toEmails loop
     }
 
+    // ── Warm-up status for response ──
+    let warmupInfo: { phase: string; dailyLimit: number; sentToday: number; daysActive: number } | undefined;
+    try {
+      // Resolve the sender email for the warmup status check
+      let statusSenderEmail = session.user.email || '';
+      const statusSenderMode = body.senderMode || "company";
+      if (statusSenderMode !== "personal" && user.team_id) {
+        const teamOutbound = await prismadb.teamEmailConfig.findUnique({
+          where: { team_id_purpose: { team_id: user.team_id, purpose: "OUTREACH" } },
+          select: { smtp_user: true },
+        }).catch(() => null);
+        if (teamOutbound?.smtp_user) statusSenderEmail = teamOutbound.smtp_user;
+      }
+      const finalWarmup = await checkWarmupQuota(user.team_id!, statusSenderEmail);
+      if (finalWarmup.dailyLimit !== -1) {
+        warmupInfo = {
+          phase: finalWarmup.phase,
+          dailyLimit: finalWarmup.dailyLimit,
+          sentToday: finalWarmup.sentToday,
+          daysActive: finalWarmup.daysActive,
+        };
+      }
+    } catch { /* non-fatal */ }
+
     const summary = {
       requested: body.leadIds.length,
       processed: leads.length,
@@ -995,6 +1045,7 @@ export async function POST(req: Request) {
       skipped: results.filter((r) => r.status === "skipped").length,
       errors: results.filter((r) => r.status === "error").length,
       results,
+      warmup: warmupInfo,
     };
 
     // Update campaign emails_sent counter — use actual count for accuracy (idempotent)
