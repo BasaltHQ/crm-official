@@ -89,6 +89,12 @@ type Campaign = {
         status: string;
         channel: string;
     }[];
+    warmup?: {
+        phase: string;
+        dailyLimit: number;
+        sentToday: number;
+        daysActive: number;
+    } | null;
 };
 
 const getStatusColor = (status: string) => {
@@ -393,6 +399,14 @@ export default function CampaignsList() {
                                         >
                                             {campaign.status}
                                         </Badge>
+                                        {campaign.warmup && (
+                                            <Badge
+                                                variant="outline"
+                                                className="text-[10px] font-bold uppercase tracking-wider border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 text-indigo-300 animate-pulse gap-1"
+                                            >
+                                                🔥 Warmup ({campaign.warmup.phase})
+                                            </Badge>
+                                        )}
                                         {productFocus && (
                                             <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border-none">
                                                 {productFocus}
@@ -521,12 +535,22 @@ export default function CampaignsList() {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <Badge
-                                                variant="outline"
-                                                className={`text-[10px] font-bold uppercase tracking-wider border ${getStatusColor(campaign.status)}`}
-                                            >
-                                                {campaign.status}
-                                            </Badge>
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <Badge
+                                                    variant="outline"
+                                                    className={`text-[10px] font-bold uppercase tracking-wider border ${getStatusColor(campaign.status)}`}
+                                                >
+                                                    {campaign.status}
+                                                </Badge>
+                                                {campaign.warmup && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[9px] font-bold uppercase tracking-wider border-indigo-500/20 bg-indigo-500/5 text-indigo-300 gap-1"
+                                                    >
+                                                        🔥 {campaign.warmup.phase}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             {productFocus ? (

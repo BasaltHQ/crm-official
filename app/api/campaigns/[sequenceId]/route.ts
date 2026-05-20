@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadbCrm as prisma } from "@/lib/prisma-crm";
 import { systemLogger } from "@/lib/logger";
+import { checkWarmupQuota } from "@/lib/email-warmup";
 
 /**
  * GET /api/campaigns/[sequenceId]
@@ -122,7 +123,50 @@ export async function GET(
         // if the chunked send loop is actually finished or just halfway done.
         // We rely entirely on the FirstContactWizard to PATCH the completion state.
 
-        return NextResponse.json(campaign);
+        // Resolve warmup status for campaign email sender
+        let warmup = null;
+        try {
+            const branding = (campaign.campaign_branding || {}) as any;
+            const senderMode = branding.senderMode || "company";
+            
+            const user = await prisma.users.findUnique({
+                where: { id: session.user.id },
+                select: { id: true, team_id: true, email: true }
+            });
+            const teamId = campaign.team_id || user?.team_id;
+            
+            let warmupSenderEmail = user?.email || session.user.email || "";
+            if (senderMode !== "personal" && teamId) {
+                const teamOutboundCheck = await prisma.teamEmailConfig.findUnique({
+                    where: { team_id_purpose: { team_id: teamId, purpose: "OUTREACH" } },
+                    select: { smtp_user: true },
+                });
+                if (teamOutboundCheck?.smtp_user) {
+                    warmupSenderEmail = teamOutboundCheck.smtp_user;
+                }
+            }
+            
+            if (teamId && warmupSenderEmail) {
+                const warmupCheck = await checkWarmupQuota(teamId, warmupSenderEmail);
+                warmup = {
+                    phase: warmupCheck.phase,
+                    dailyLimit: warmupCheck.dailyLimit,
+                    sentToday: warmupCheck.sentToday,
+                    remaining: warmupCheck.remaining,
+                    daysActive: warmupCheck.daysActive,
+                    allowed: warmupCheck.allowed,
+                    message: warmupCheck.message,
+                    senderEmail: warmupSenderEmail,
+                };
+            }
+        } catch (warmupErr) {
+            systemLogger.error("[CAMPAIGN_GET_WARMUP_ERR]", warmupErr);
+        }
+
+        return NextResponse.json({
+            ...campaign,
+            warmup,
+        });
     } catch (error: any) {
         systemLogger.error("[CAMPAIGN_GET_BY_ID]", error);
         return NextResponse.json(

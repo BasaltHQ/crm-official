@@ -174,6 +174,16 @@ type CampaignDetail = {
         status: string;
         channel: string;
     }[];
+    warmup?: {
+        phase: string;
+        dailyLimit: number;
+        sentToday: number;
+        remaining: number;
+        daysActive: number;
+        allowed: boolean;
+        message?: string;
+        senderEmail: string;
+    } | null;
 };
 
 
@@ -193,6 +203,43 @@ const getStatusColor = (status: string) => {
             return "bg-muted/50 text-muted-foreground border-transparent";
     }
 };
+
+function WarmupCountdown() {
+    const [timeLeft, setTimeLeft] = useState("");
+
+    useEffect(() => {
+        const updateTimer = () => {
+            const now = new Date();
+            const nextMidnight = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate() + 1,
+                0, 0, 0, 0
+            ));
+            const diffMs = nextMidnight.getTime() - now.getTime();
+            if (diffMs <= 0) {
+                setTimeLeft("00:00:00");
+                return;
+            }
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+            const pad = (n: number) => n.toString().padStart(2, "0");
+            setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <span className="font-mono font-bold text-amber-400 tracking-wider tabular-nums">
+            {timeLeft}
+        </span>
+    );
+}
 
 export default function CampaignDetailPage() {
     const params = useParams();
@@ -829,6 +876,79 @@ export default function CampaignDetailPage() {
                         )}
                     </div>
                 ) : null}
+
+                {/* Warmup Dashboard Banner */}
+                {campaign.warmup && campaign.warmup.dailyLimit !== -1 && (
+                    <Card className="border-amber-500/20 bg-gradient-to-r from-amber-500/5 via-indigo-500/5 to-purple-500/5 backdrop-blur-md overflow-hidden relative shadow-lg shadow-amber-500/5">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                            <Zap className="w-24 h-24 text-amber-500 animate-pulse" />
+                        </div>
+                        <CardHeader className="pb-2">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold uppercase text-[10px] tracking-wider border-none px-2.5 py-0.5 animate-pulse">
+                                            Warmup Mode Active
+                                        </Badge>
+                                        <Badge variant="outline" className="border-indigo-500/30 text-indigo-300 font-bold uppercase text-[10px]">
+                                            {campaign.warmup.phase}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground font-semibold">
+                                            Day {campaign.warmup.daysActive + 1}
+                                        </span>
+                                    </div>
+                                    <CardTitle className="text-lg font-black tracking-tight text-white flex items-center gap-2 mt-1">
+                                        <Mail className="w-4 h-4 text-amber-400" />
+                                        Warming up: <span className="text-amber-400 font-mono select-all text-sm md:text-base font-semibold">{campaign.warmup.senderEmail}</span>
+                                    </CardTitle>
+                                </div>
+                                <div className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 backdrop-blur-sm self-start md:self-auto">
+                                    <Clock className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                                    <div className="text-xs">
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Next Batch Ready In</p>
+                                        <p className="text-sm font-black mt-0.5"><WarmupCountdown /></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground font-semibold flex items-center gap-1.5">
+                                        Today's Sends Progress
+                                    </span>
+                                    <span className="font-mono font-bold text-amber-400">
+                                        {campaign.warmup.sentToday} <span className="text-muted-foreground">/</span> {campaign.warmup.dailyLimit}
+                                        <span className="text-muted-foreground ml-1.5">
+                                            ({Math.round((campaign.warmup.sentToday / campaign.warmup.dailyLimit) * 100)}%)
+                                        </span>
+                                    </span>
+                                </div>
+                                <div className="h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-indigo-500 transition-all duration-500"
+                                        style={{ width: `${Math.min(100, (campaign.warmup.sentToday / campaign.warmup.dailyLimit) * 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-[11px] border-t border-white/5">
+                                <div className="space-y-0.5">
+                                    <span className="text-muted-foreground uppercase font-bold tracking-widest text-[9px]">Quota Reset Cycle</span>
+                                    <p className="text-white font-medium">Daily limit resets automatically at UTC Midnight.</p>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <span className="text-muted-foreground uppercase font-bold tracking-widest text-[9px]">Warmup Logic</span>
+                                    <p className="text-white font-medium">Gradually increases: Days 1–2 (20/d), Days 3–4 (50/d), Days 5–6 (100/d).</p>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <span className="text-muted-foreground uppercase font-bold tracking-widest text-[9px]">Deduplication Guarantee</span>
+                                    <p className="text-white font-medium">Any lead emailed in this phase is permanently skipped to prevent double-sends.</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Separator className="bg-white/5" />
 
