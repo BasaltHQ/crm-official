@@ -392,7 +392,7 @@ export async function GET(req: Request) {
         // Get user's team and role
         const user = await prisma.users.findUnique({
             where: { id: session.user.id },
-            select: { team_id: true, team_role: true },
+            select: { team_id: true, team_role: true, email: true },
         });
 
         const isMember = user?.team_role === "MEMBER";
@@ -415,44 +415,147 @@ export async function GET(req: Request) {
             whereClause = { user: session.user.id };
         }
 
-        // Fetch campaigns
-        const campaigns = await prisma.crm_Outreach_Campaigns.findMany({
-            where: whereClause,
-            include: {
-                assigned_user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        avatar: true,
+        // Fetch campaigns, emailWarmups and teamEmailConfig in parallel
+        let campaigns: any[] = [];
+        let emailWarmups: any[] = [];
+        let teamEmailConfig: any = null;
+
+        if (user?.team_id) {
+            const results = await Promise.all([
+                prisma.crm_Outreach_Campaigns.findMany({
+                    where: whereClause,
+                    include: {
+                        assigned_user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                avatar: true,
+                            },
+                        },
+                        assigned_pool: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                        assigned_project: {
+                            select: {
+                                id: true,
+                                title: true,
+                            },
+                        },
+                        outreach_items: {
+                            select: {
+                                id: true,
+                                status: true,
+                                channel: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                }),
+                prisma.emailWarmup.findMany({
+                    where: { team_id: user.team_id }
+                }),
+                prisma.teamEmailConfig.findUnique({
+                    where: { team_id_purpose: { team_id: user.team_id, purpose: "OUTREACH" } },
+                    select: { smtp_user: true }
+                })
+            ]);
+            campaigns = results[0];
+            emailWarmups = results[1];
+            teamEmailConfig = results[2];
+        } else {
+            campaigns = await prisma.crm_Outreach_Campaigns.findMany({
+                where: whereClause,
+                include: {
+                    assigned_user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            avatar: true,
+                        },
+                    },
+                    assigned_pool: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                    assigned_project: {
+                        select: {
+                            id: true,
+                            title: true,
+                        },
+                    },
+                    outreach_items: {
+                        select: {
+                            id: true,
+                            status: true,
+                            channel: true,
+                        },
                     },
                 },
-                assigned_pool: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
+                orderBy: {
+                    createdAt: "desc",
                 },
-                assigned_project: {
-                    select: {
-                        id: true,
-                        title: true,
-                    },
-                },
-                outreach_items: {
-                    select: {
-                        id: true,
-                        status: true,
-                        channel: true,
-                    },
-                },
-            },
-            orderBy: {
-                createdAt: "desc",
-            },
+            });
+        }
+
+        const campaignsWithWarmup = campaigns.map((campaign) => {
+            const branding = (campaign.campaign_branding || {}) as any;
+            const senderMode = branding.senderMode || "company";
+            let warmupSenderEmail = user?.email || session.user.email || "";
+            if (senderMode !== "personal" && teamEmailConfig?.smtp_user) {
+                warmupSenderEmail = teamEmailConfig.smtp_user;
+            }
+
+            let warmupInfo = null;
+            if (user?.team_id && warmupSenderEmail && campaign.channels.includes("EMAIL")) {
+                const wRecord = emailWarmups.find(
+                    (w) => w.sender_email.toLowerCase() === warmupSenderEmail.toLowerCase()
+                );
+                if (wRecord) {
+                    const now = new Date();
+                    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+                    const firstSendDay = new Date(Date.UTC(
+                        wRecord.first_send_at.getUTCFullYear(),
+                        wRecord.first_send_at.getUTCMonth(),
+                        wRecord.first_send_at.getUTCDate()
+                    ));
+                    const daysActive = Math.floor((todayStart.getTime() - firstSendDay.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    if (daysActive < 6) {
+                        let label = "Phase 1";
+                        let limit = 20;
+                        if (daysActive >= 2 && daysActive < 4) {
+                            label = "Phase 2";
+                            limit = 50;
+                        } else if (daysActive >= 4 && daysActive < 6) {
+                            label = "Phase 3";
+                            limit = 100;
+                        }
+                        warmupInfo = {
+                            phase: label,
+                            dailyLimit: limit,
+                            sentToday: wRecord.emails_sent_today,
+                            daysActive
+                        };
+                    }
+                }
+            }
+
+            return {
+                ...campaign,
+                warmup: warmupInfo
+            };
         });
 
-        return NextResponse.json({ campaigns });
+        return NextResponse.json({ campaigns: campaignsWithWarmup });
     } catch (error: any) {
         console.error("Error fetching campaigns:", error);
         return NextResponse.json(

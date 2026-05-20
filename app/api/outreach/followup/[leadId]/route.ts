@@ -10,6 +10,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import React from "react";
 import { systemLogger } from "@/lib/logger";
+import { checkWarmupQuota, recordWarmupSend } from "@/lib/email-warmup";
 
 /**
  * POST /api/outreach/followup/[leadId]
@@ -215,6 +216,18 @@ export async function POST(req: Request, { params }: Params) {
       process.env.EMAIL_FROM ||
       process.env.EMAIL_USERNAME ||
       `no-reply@${new URL(baseUrl || "http://localhost").hostname}`;
+
+    // ── Email Warm-Up Enforcement ──
+    if (user.team_id) {
+      const warmupCheck = await checkWarmupQuota(user.team_id, fromAddress);
+      if (!warmupCheck.allowed) {
+        return NextResponse.json(
+          { error: warmupCheck.message || `Warm-up daily limit reached (${warmupCheck.sentToday}/${warmupCheck.dailyLimit}).`, warmup: warmupCheck },
+          { status: 429 }
+        );
+      }
+    }
+
     await sendEmail({
       from: fromAddress,
       to: toEmail,
@@ -222,6 +235,13 @@ export async function POST(req: Request, { params }: Params) {
       text,
       html,
     });
+
+    // ── Record Warm-Up Send ──
+    if (user.team_id) {
+      await recordWarmupSend(user.team_id, fromAddress).catch((e: any) =>
+        systemLogger.warn(`[FOLLOWUP] Failed to record warm-up send: ${e?.message}`)
+      );
+    }
 
     // Update lead and log activity
     await prismadb.crm_Leads.update({

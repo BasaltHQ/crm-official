@@ -856,6 +856,7 @@ export default function FirstContactWizard({ isOpen, onClose, leadIds, leadData,
         (async () => {
           let sentCount = 0;
           let processedCount = 0;
+          let warmupLimitHit = false;
           
           for (let i = 0; i < totalLeads; i += CHUNK_SIZE) {
             const chunkIds = sendLeadIds.slice(i, i + CHUNK_SIZE);
@@ -880,6 +881,17 @@ export default function FirstContactWizard({ isOpen, onClose, leadIds, leadData,
                   const resJson = await sendRes.json();
                   sentCount += resJson.sent ?? 0;
                   processedCount += chunkIds.length;
+                  
+                  if (resJson.results && Array.isArray(resJson.results)) {
+                    const hasWarmup = resJson.results.some((r: any) => 
+                      r.status === "skipped" && 
+                      r.reason && 
+                      r.reason.toLowerCase().includes("warm-up")
+                    );
+                    if (hasWarmup) {
+                      warmupLimitHit = true;
+                    }
+                  }
                   
                   const progressState = { current: processedCount, total: totalLeads };
                   
@@ -941,12 +953,19 @@ export default function FirstContactWizard({ isOpen, onClose, leadIds, leadData,
           }
           
           // Complete
-          const streamMessage = `Outreach sequence complete. Output delivered to ${sentCount} aliases.`;
+          let streamMessage = `Outreach sequence complete. Output delivered to ${sentCount} aliases.`;
+          let finalStatus = "COMPLETED";
+
+          if (warmupLimitHit) {
+            finalStatus = "ACTIVE";
+            streamMessage = `Outreach paused due to daily email warmup limits. Sent: ${sentCount} emails. The remaining batch will be ready to run after the next daily reset (UTC midnight).`;
+          }
+
           await fetch(`/api/campaigns/${newCampaignId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
-                  status: "COMPLETED",
+                  status: finalStatus,
                   campaignBranding: { 
                     templateId: selectedTemplate,
                     senderMode,

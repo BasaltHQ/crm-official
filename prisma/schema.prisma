@@ -1485,6 +1485,9 @@ model Team {
 
   // Usage Tracking (Monthly Quotas)
   usage_quotas TeamUsageQuota[]
+
+  // Email Warm-Up Tracking (per sender address)
+  email_warmups EmailWarmup[]
 }
 
 model TeamBrandIdentity {
@@ -5070,5 +5073,22 @@ model crm_Transform_Jobs {
   error           String?
   createdAt       DateTime @default(now()) @db.Date
   updatedAt       DateTime @updatedAt @db.Date
+}
+
+// ─── Email Warm-Up Tracking ─────────────────────────────────────────────────
+// Tracks per-sender-email daily send counts to enforce progressive warm-up
+// limits: 20/day (days 1-2), 50/day (days 3-4), 100/day (days 5-6), then tier limit.
+model EmailWarmup {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  team_id         String   @db.ObjectId
+  sender_email    String   // The actual email address being warmed up
+  first_send_at   DateTime @db.Date // When the very first email was sent from this address
+  emails_sent_today Int    @default(0)
+  last_send_date  DateTime @db.Date // Calendar day of the last send (for daily reset logic)
+
+  team Team @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, sender_email])
+  @@index([sender_email])
 }
 
