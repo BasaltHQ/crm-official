@@ -5085,6 +5085,7 @@ model EmailWarmup {
   first_send_at   DateTime @db.Date // When the very first email was sent from this address
   emails_sent_today Int    @default(0)
   last_send_date  DateTime @db.Date // Calendar day of the last send (for daily reset logic)
+  active_days_count Int    @default(1) // Number of distinct active sending days
 
   team Team @relation(fields: [team_id], references: [id], onDelete: Cascade)
 
