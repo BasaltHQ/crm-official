@@ -902,12 +902,25 @@ export default function CampaignDetailPage() {
                                         Warming up: <span className="text-amber-400 font-mono select-all text-sm md:text-base font-semibold">{campaign.warmup.senderEmail}</span>
                                     </CardTitle>
                                 </div>
-                                <div className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 backdrop-blur-sm self-start md:self-auto">
-                                    <Clock className="w-4 h-4 text-amber-400 animate-spin-slow" />
-                                    <div className="text-xs">
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Next Batch Ready In</p>
-                                        <p className="text-sm font-black mt-0.5"><WarmupCountdown /></p>
+                                <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
+                                    <div className="flex items-center gap-3 bg-black/40 border border-white/5 rounded-xl px-4 py-2.5 backdrop-blur-sm">
+                                        <Clock className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                                        <div className="text-xs">
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Next Batch Ready In</p>
+                                            <p className="text-sm font-black mt-0.5"><WarmupCountdown /></p>
+                                        </div>
                                     </div>
+                                    {campaign.warmup.remaining > 0 && campaign.emails_sent < campaign.total_leads && (
+                                        <Button
+                                            size="sm"
+                                            className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-extrabold shadow-lg shadow-amber-500/25 px-5 h-11 rounded-xl"
+                                            onClick={handleRepair}
+                                            disabled={repairLoading}
+                                        >
+                                            {repairLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-black" />}
+                                            Continue Batch
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </CardHeader>

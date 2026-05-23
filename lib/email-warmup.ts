@@ -78,13 +78,16 @@ export async function checkWarmupQuota(
             };
         }
 
-        // Calculate days active (day 0 = first send day)
+        // Calculate days active using active_days_count if present, falling back to calendar days
         const firstSendDay = new Date(Date.UTC(
             record.first_send_at.getUTCFullYear(),
             record.first_send_at.getUTCMonth(),
             record.first_send_at.getUTCDate()
         ));
-        const daysActive = Math.floor((todayStart.getTime() - firstSendDay.getTime()) / (1000 * 60 * 60 * 24));
+        const calendarDaysActive = Math.floor((todayStart.getTime() - firstSendDay.getTime()) / (1000 * 60 * 60 * 24));
+        const daysActive = (record as any).active_days_count !== undefined && (record as any).active_days_count !== null
+            ? Math.max(0, (record as any).active_days_count - 1)
+            : calendarDaysActive;
 
         const phase = resolvePhase(daysActive);
 
@@ -168,6 +171,7 @@ export async function recordWarmupSend(
                     first_send_at: now,
                     emails_sent_today: quantity,
                     last_send_date: todayStart,
+                    active_days_count: 1,
                 },
             });
             systemLogger.info(`[EMAIL_WARMUP] New sender registered: ${normalizedEmail} (team ${teamId})`);
@@ -182,11 +186,25 @@ export async function recordWarmupSend(
         ));
         const isNewDay = lastSendDay.getTime() !== todayStart.getTime();
 
+        // Safe fallback for legacy records to populate active_days_count on the fly
+        const firstSendDay = new Date(Date.UTC(
+            existing.first_send_at.getUTCFullYear(),
+            existing.first_send_at.getUTCMonth(),
+            existing.first_send_at.getUTCDate()
+        ));
+        const calendarDaysActive = Math.floor((todayStart.getTime() - firstSendDay.getTime()) / (1000 * 60 * 60 * 24));
+        const currentActiveDays = (existing as any).active_days_count ?? Math.max(1, calendarDaysActive + 1);
+
         await prismadb.emailWarmup.update({
             where: { id: existing.id },
             data: {
                 emails_sent_today: isNewDay ? quantity : { increment: quantity },
                 last_send_date: todayStart,
+                active_days_count: isNewDay
+                    ? ((existing as any).active_days_count !== undefined && (existing as any).active_days_count !== null
+                        ? { increment: 1 }
+                        : currentActiveDays + 1)
+                    : undefined,
             },
         });
     } catch (error) {
