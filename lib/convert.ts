@@ -5,7 +5,7 @@
  * Every conversion here is deterministic, fast, and free.
  */
 
-import sharp from "sharp";
+import sharp, { type FormatEnum, type AvailableFormatInfo } from "sharp";
 import * as ExcelJS from "exceljs";
 import { parse as csvParse } from "csv-parse/sync";
 import mammoth from "mammoth";
@@ -25,7 +25,7 @@ type ConvertFn = (input: Buffer, fileName?: string) => Promise<ConversionResult>
 
 // ── Image Conversions (sharp) ──
 
-const imgConvert = (format: keyof sharp.FormatEnum, mime: string, ext: string): ConvertFn =>
+const imgConvert = (format: keyof FormatEnum | AvailableFormatInfo, mime: string, ext: string): ConvertFn =>
     async (input) => ({
         buffer: await sharp(input).toFormat(format).toBuffer(),
         mimeType: mime,
