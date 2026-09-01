@@ -235,6 +235,7 @@
     "nodemailer": "^9.0.5",
     "uuid": "$uuid",
     "postcss": "^8.5.23",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "decode-uri-component": "^0.5.0"
   }
 }
