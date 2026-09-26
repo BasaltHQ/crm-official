@@ -5,6 +5,15 @@ import useSWR, { mutate } from "swr";
 import fetcher from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -38,6 +47,7 @@ import {
 import {
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     Loader2,
     Circle,
     Plus,
@@ -53,7 +63,13 @@ import {
     Zap,
     Target,
     Search,
-    X
+    X,
+    ExternalLink,
+    Video,
+    MapPin,
+    Mail,
+    FileText,
+    CalendarPlus
 } from "lucide-react";
 import {
     DndContext,
@@ -182,9 +198,11 @@ function getPriorityBadgeVariant(priority: string) {
 
 
 const DraggableTask = ({ event, isMonthView }: { event: TaskEvent, isMonthView: boolean }) => {
+    const isGoogle = !!event.isGoogleEvent;
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: event.id,
         data: event,
+        disabled: isGoogle,
     });
 
     const style = {
@@ -199,118 +217,213 @@ const DraggableTask = ({ event, isMonthView }: { event: TaskEvent, isMonthView: 
                 <div
                     ref={setNodeRef}
                     style={style}
-                    {...listeners}
-                    {...attributes}
-                    className="cursor-grab active:cursor-grabbing mb-1 group/task"
+                    {...(isGoogle ? {} : listeners)}
+                    {...(isGoogle ? {} : attributes)}
+                    className={cn(
+                        "mb-1 group/task",
+                        isGoogle ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+                    )}
                 >
-                    <Link
-                        href={`/projects/tasks/viewtask/${event.id}`}
-                        className="block"
-                        onClick={(e) => {
-                            if (isDragging) e.preventDefault();
-                            e.stopPropagation();
-                        }}
-                    >
-                        <div className="flex items-center gap-1.5 text-xs p-1 rounded bg-muted/60 hover:bg-muted transition-colors truncate border border-transparent hover:border-primary/20">
-                            <StatusDot priority={event.priority} size="sm" />
-                            <span className="truncate">{event.title}</span>
-                        </div>
-                    </Link>
+                    {isGoogle ? (
+                        <a
+                            href={event.googleLink || "#"}
+                            target={event.googleLink ? "_blank" : undefined}
+                            rel="noopener noreferrer"
+                            className="block"
+                            onClick={(e) => {
+                                if (!event.googleLink) e.preventDefault();
+                                e.stopPropagation();
+                            }}
+                        >
+                            <div className="flex items-center gap-1.5 text-xs p-1 rounded bg-primary/10 hover:bg-primary/20 text-primary transition-colors truncate border border-primary/20">
+                                <div
+                                    className="h-1.5 w-1.5 rounded-full shrink-0 shadow-sm"
+                                    style={{ backgroundColor: event.googleColor?.background || '#4285f4' }}
+                                />
+                                <span className="truncate font-medium">{event.title}</span>
+                            </div>
+                        </a>
+                    ) : (
+                        <Link
+                            href={`/projects/tasks/viewtask/${event.id}`}
+                            className="block"
+                            onClick={(e) => {
+                                if (isDragging) e.preventDefault();
+                                e.stopPropagation();
+                            }}
+                        >
+                            <div className="flex items-center gap-1.5 text-xs p-1 rounded bg-muted/60 hover:bg-muted transition-colors truncate border border-transparent hover:border-primary/20">
+                                <StatusDot priority={event.priority} size="sm" />
+                                <span className="truncate">{event.title}</span>
+                            </div>
+                        </Link>
+                    )}
                 </div>
             </HoverCardTrigger>
             <HoverCardContent side="right" align="start" className="w-80 p-0 border-primary/20 bg-background/95 backdrop-blur-2xl shadow-2xl z-[100]">
-                <div className={`h-1 w-full bg-primary/20 ${event.priority === 'high' || event.priority === 'critical' ? 'bg-rose-500/50' : ''}`} />
-                <div className="p-4 space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                            <h4 className="text-sm font-bold leading-none">{event.title}</h4>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black opacity-50">
-                                Task Blueprint
-                            </p>
+                {isGoogle ? (
+                    <>
+                        <div
+                            className="h-1 w-full"
+                            style={{ backgroundColor: event.googleColor?.background || '#4285f4' }}
+                        />
+                        <div className="p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-bold leading-tight">{event.title}</h4>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black opacity-50">
+                                        Google Calendar Event
+                                    </p>
+                                </div>
+                                <Badge variant="outline" className="text-[9px] uppercase font-black px-1.5 h-4 border-primary/30 text-primary">
+                                    Calendar
+                                </Badge>
+                            </div>
+
+                            <div className="space-y-2 pt-1 border-t border-border/50 text-xs">
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Clock className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+                                    <span>{format(event.dueDateAt, "PPp")}</span>
+                                </div>
+                                {event.projectTitle && (
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <CalendarIcon className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+                                        <span className="truncate">{event.projectTitle}</span>
+                                    </div>
+                                )}
+                                {event.location && (
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Target className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+                                        <span className="truncate">{event.location}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                                {event.googleMeetLink && (
+                                    <Button
+                                        asChild
+                                        variant="default"
+                                        size="sm"
+                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest flex-1 rounded-lg"
+                                    >
+                                        <a href={event.googleMeetLink} target="_blank" rel="noopener noreferrer">
+                                            Join Meet
+                                        </a>
+                                    </Button>
+                                )}
+                                {event.googleLink && (
+                                    <Button
+                                        asChild
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-primary/5 hover:bg-primary/20 text-primary border border-primary/20 flex-1 rounded-lg"
+                                    >
+                                        <a href={event.googleLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                                            <span>Open Event</span>
+                                            <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                        <Badge
-                            variant={getPriorityBadgeVariant(event.priority || "normal") as any}
-                            className={cn(
-                                "text-[9px] uppercase font-black px-1.5 h-4",
-                                event.priority?.toLowerCase() === 'high' && "bg-orange-500/15 text-orange-500 border-orange-500/20",
-                                event.priority?.toLowerCase() === 'medium' && "bg-amber-500/15 text-amber-500 border-amber-500/20"
+                    </>
+                ) : (
+                    <>
+                        <div className={`h-1 w-full bg-primary/20 ${event.priority === 'high' || event.priority === 'critical' ? 'bg-rose-500/50' : ''}`} />
+                        <div className="p-4 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-bold leading-none">{event.title}</h4>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black opacity-50">
+                                        Task Blueprint
+                                    </p>
+                                </div>
+                                <Badge
+                                    variant={getPriorityBadgeVariant(event.priority || "normal") as any}
+                                    className={cn(
+                                        "text-[9px] uppercase font-black px-1.5 h-4",
+                                        event.priority?.toLowerCase() === 'high' && "bg-orange-500/15 text-orange-500 border-orange-500/20",
+                                        event.priority?.toLowerCase() === 'medium' && "bg-amber-500/15 text-amber-500 border-amber-500/20"
+                                    )}
+                                >
+                                    {event.priority}
+                                </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                                <div className="space-y-1">
+                                    <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">Squad Role</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <Users className="h-3 w-3 text-primary/60" />
+                                        <span className="text-[10px] font-bold">Assigned</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">Milestone</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <Target className="h-3 w-3 text-primary/60" />
+                                        <span className="text-[10px] font-bold truncate max-w-[100px]">{event.projectTitle || "Private"}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {event.taskStatus && (
+                                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50">
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn(
+                                            "h-1.5 w-1.5 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]",
+                                            event.taskStatus === 'COMPLETE' ? "bg-emerald-500 shadow-emerald-500/30" :
+                                                event.taskStatus === 'ACTIVE' ? "bg-sky-500 shadow-sky-500/30" : "bg-amber-500 shadow-amber-500/30"
+                                        )} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{event.taskStatus}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 opacity-40">
+                                        <Clock className="h-3 w-3" />
+                                        <span className="text-[10px] font-black">{format(event.dueDateAt, "HH:mm")}</span>
+                                    </div>
+                                </div>
                             )}
-                        >
-                            {event.priority}
-                        </Badge>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
-                        <div className="space-y-1">
-                            <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">Squad Role</span>
-                            <div className="flex items-center gap-1.5">
-                                <Users className="h-3 w-3 text-primary/60" />
-                                <span className="text-[10px] font-bold">Assigned</span>
+                            <div className="flex items-center gap-2 pt-2">
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-primary/5 hover:bg-primary/20 text-primary border border-primary/20 flex-1 rounded-lg"
+                                >
+                                    <Link href={`/projects/tasks/viewtask/${event.id}`}>
+                                        Dossier
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-emerald-500/5 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 flex-1 rounded-lg"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        toast.promise(
+                                            axios.put(`/api/projects/tasks/update-task/${event.id}`, {
+                                                taskStatus: "COMPLETED"
+                                            }),
+                                            {
+                                                loading: 'Updating status...',
+                                                success: () => {
+                                                    mutate("/api/projects/tasks");
+                                                    return 'Operational success.';
+                                                },
+                                                error: 'Failed to update.',
+                                            }
+                                        );
+                                    }}
+                                >
+                                    Execute
+                                </Button>
                             </div>
                         </div>
-                        <div className="space-y-1">
-                            <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">Milestone</span>
-                            <div className="flex items-center gap-1.5">
-                                <Target className="h-3 w-3 text-primary/60" />
-                                <span className="text-[10px] font-bold truncate max-w-[100px]">{event.projectTitle || "Private"}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {event.taskStatus && (
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50">
-                            <div className="flex items-center gap-2">
-                                <div className={cn(
-                                    "h-1.5 w-1.5 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]",
-                                    event.taskStatus === 'COMPLETE' ? "bg-emerald-500 shadow-emerald-500/30" :
-                                        event.taskStatus === 'ACTIVE' ? "bg-sky-500 shadow-sky-500/30" : "bg-amber-500 shadow-amber-500/30"
-                                )} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">{event.taskStatus}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 opacity-40">
-                                <Clock className="h-3 w-3" />
-                                <span className="text-[10px] font-black">{format(event.dueDateAt, "HH:mm")}</span>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-2 pt-2">
-                        <Button
-                            asChild
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-primary/5 hover:bg-primary/20 text-primary border border-primary/20 flex-1 rounded-lg"
-                        >
-                            <Link href={`/projects/tasks/viewtask/${event.id}`}>
-                                Dossier
-                            </Link>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-emerald-500/5 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 flex-1 rounded-lg"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toast.promise(
-                                    axios.put(`/api/projects/tasks/update-task/${event.id}`, {
-                                        taskStatus: "COMPLETED"
-                                    }),
-                                    {
-                                        loading: 'Updating status...',
-                                        success: () => {
-                                            mutate("/api/projects/tasks");
-                                            return 'Operational success.';
-                                        },
-                                        error: 'Failed to update.',
-                                    }
-                                );
-                            }}
-                        >
-                            Execute
-                        </Button>
-                    </div>
-                </div>
+                    </>
+                )}
             </HoverCardContent>
         </HoverCard>
     );
@@ -343,7 +456,7 @@ export default function ProjectCalendarView({ userId }: Props) {
     const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
     const [quickAddOpen, setQuickAddOpen] = useState(false);
     const [dayDetailOpen, setDayDetailOpen] = useState(false);
-    const [dayDetailTab, setDayDetailTab] = useState<"view" | "add">("view");
+    const [dayDetailTab, setDayDetailTab] = useState<"view" | "event" | "task" | "ooo" | "appointment">("view");
     const [fullDialogOpen, setFullDialogOpen] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [newTaskPriority, setNewTaskPriority] = useState("normal");
@@ -354,6 +467,26 @@ export default function ProjectCalendarView({ userId }: Props) {
     const [linkedRecordId, setLinkedRecordId] = useState("");
     const [linkedRecordType, setLinkedRecordType] = useState(""); // 'account' | 'opportunity' | 'contact' etc
     const [linkedRecordName, setLinkedRecordName] = useState("");
+
+    // Google Event Form States
+    const [eventTitle, setEventTitle] = useState("");
+    const [eventStartTime, setEventStartTime] = useState("09:00");
+    const [eventEndTime, setEventEndTime] = useState("10:00");
+    const [eventIsAllDay, setEventIsAllDay] = useState(false);
+    const [eventDescription, setEventDescription] = useState("");
+    const [eventLocation, setEventLocation] = useState("");
+    const [eventAttendees, setEventAttendees] = useState("");
+    const [eventAddMeet, setEventAddMeet] = useState(true);
+
+    // Task Google Sync State
+    const [syncTaskToGoogle, setSyncTaskToGoogle] = useState(true);
+    const [taskStartTime, setTaskStartTime] = useState("10:00");
+    const [taskDurationMinutes, setTaskDurationMinutes] = useState(30);
+
+    // Out of Office Form State
+    const [oooTitle, setOooTitle] = useState("Out of office");
+    const [oooEndDate, setOooEndDate] = useState<Date | null>(null);
+    const [oooDeclineMessage, setOooDeclineMessage] = useState("I am currently out of office and will respond upon my return.");
 
     // AI & Briefing States
     const [projectSearchOpen, setProjectSearchOpen] = useState(false);
@@ -376,62 +509,62 @@ export default function ProjectCalendarView({ userId }: Props) {
     const [isPulseEnabled, setIsPulseEnabled] = useState(false);
     const { data: pulseData, mutate: mutatePulse } = useSWR(isPulseEnabled ? "/api/calendar/pulse" : null, fetcher, { refreshInterval: 300000 });
 
-    // Google Calendar Sync State
-    const [googleEvents, setGoogleEvents] = useState<TaskEvent[]>([]);
-    const [isGoogleSynced, setIsGoogleSynced] = useState(false);
-    const [syncLoading, setSyncLoading] = useState(false);
+    // Google Calendar Range & Auto-Sync Hook
+    const gcalRange = useMemo(() => {
+        const start = startOfMonth(currentMonth);
+        const end = endOfMonth(currentMonth);
+        const rangeStart = new Date(start);
+        rangeStart.setDate(rangeStart.getDate() - 7);
+        const rangeEnd = new Date(end);
+        rangeEnd.setDate(rangeEnd.getDate() + 7);
+        return {
+            start: rangeStart.toISOString(),
+            end: rangeEnd.toISOString(),
+        };
+    }, [currentMonth]);
 
-    const syncGoogleCalendar = useCallback(async (targetMonth?: Date) => {
-        setSyncLoading(true);
-        try {
-            const month = targetMonth || currentMonth;
-            const start = startOfMonth(month);
-            const end = endOfMonth(month);
-            // Extend range to cover padded days
-            const rangeStart = new Date(start);
-            rangeStart.setDate(rangeStart.getDate() - 7);
-            const rangeEnd = new Date(end);
-            rangeEnd.setDate(rangeEnd.getDate() + 7);
-
-            const url = `/api/calendar/events?start=${encodeURIComponent(rangeStart.toISOString())}&end=${encodeURIComponent(rangeEnd.toISOString())}`;
+    const {
+        data: gcalData,
+        isLoading: gcalLoading,
+        isValidating: gcalValidating,
+        mutate: mutateGcal,
+    } = useSWR(
+        `/api/calendar/events?start=${encodeURIComponent(gcalRange.start)}&end=${encodeURIComponent(gcalRange.end)}`,
+        async (url: string) => {
             const res = await fetch(url);
             if (!res.ok) {
                 if (res.status === 404) {
-                    toast.error("Google Calendar not connected. Connect via Profile → Integrations.");
-                    return;
+                    return { ok: false, connected: false, events: [] };
                 }
-                throw new Error(await res.text());
+                return { ok: false, events: [] };
             }
-            const data = await res.json();
-            const gEvents: TaskEvent[] = (data.events || []).map((ev: any) => ({
-                id: `gcal_${ev.id}`,
-                title: ev.summary || "(No Title)",
-                dueDateAt: new Date(ev.startISO),
-                priority: "normal",
-                taskStatus: "GOOGLE_EVENT",
-                isGoogleEvent: true,
-                googleColor: ev.color || undefined,
-                googleLink: ev.htmlLink || undefined,
-                googleMeetLink: ev.hangoutLink || undefined,
-                location: ev.location || undefined,
-                projectTitle: ev.calendarSummary || undefined,
-            }));
-            setGoogleEvents(gEvents);
-            setIsGoogleSynced(true);
-            toast.success(`Synced ${gEvents.length} calendar events`);
-        } catch (e: any) {
-            toast.error(`Calendar sync failed: ${e?.message || e}`);
-        } finally {
-            setSyncLoading(false);
+            return res.json();
+        },
+        {
+            refreshInterval: 60000,
+            revalidateOnFocus: true,
+            shouldRetryOnError: false,
         }
-    }, [currentMonth]);
+    );
 
-    // Re-sync when month changes (if already synced)
-    useEffect(() => {
-        if (isGoogleSynced) {
-            syncGoogleCalendar(currentMonth);
-        }
-    }, [currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+    const isGoogleConnected = gcalData?.connected !== false && Array.isArray(gcalData?.events);
+
+    const googleEvents: TaskEvent[] = useMemo(() => {
+        if (!gcalData?.events || !Array.isArray(gcalData.events)) return [];
+        return gcalData.events.map((ev: any) => ({
+            id: `gcal_${ev.id}`,
+            title: ev.summary || "(No Title)",
+            dueDateAt: new Date(ev.startISO),
+            priority: "normal",
+            taskStatus: "GOOGLE_EVENT",
+            isGoogleEvent: true,
+            googleColor: ev.color || undefined,
+            googleLink: ev.htmlLink || undefined,
+            googleMeetLink: ev.hangoutLink || undefined,
+            location: ev.location || undefined,
+            projectTitle: ev.calendarSummary || undefined,
+        }));
+    }, [gcalData]);
 
     // Drag-and-Drop Sensors
     const sensors = useSensors(
@@ -583,16 +716,25 @@ export default function ProjectCalendarView({ userId }: Props) {
 
 
 
+    const openCreateModal = (type: "event" | "task" | "ooo" | "appointment", targetDate?: Date) => {
+        const d = targetDate || quickAddDate || new Date();
+        setQuickAddDate(d);
+        setOooEndDate(d);
+        setDayDetailTab(type);
+        setDayDetailOpen(true);
+    };
+
     const handleDayClick = (day: Date) => {
         const dayEvents = getEventsForDay(day);
         setQuickAddDate(day);
+        setOooEndDate(day);
         setSearchValue("");
         setNewTaskProjectId("");
 
         if (dayEvents.length > 0) {
             setDayDetailTab("view");
         } else {
-            setDayDetailTab("add");
+            setDayDetailTab("event");
         }
 
         setDayDetailOpen(true);
@@ -600,6 +742,98 @@ export default function ProjectCalendarView({ userId }: Props) {
         setNewTaskDescription("");
         setNewTaskPriority("normal");
         setNewTaskStatus("ACTIVE");
+        setEventTitle("");
+        setEventDescription("");
+    };
+
+    const handleCreateGoogleEvent = async () => {
+        if (!eventTitle.trim() || !quickAddDate) return;
+        setIsSubmitting(true);
+        try {
+            let startISO: string;
+            let endISO: string;
+
+            if (eventIsAllDay) {
+                const s = new Date(quickAddDate);
+                s.setHours(0, 0, 0, 0);
+                const e = new Date(quickAddDate);
+                e.setHours(23, 59, 59, 999);
+                startISO = s.toISOString();
+                endISO = e.toISOString();
+            } else {
+                const [sh, sm] = eventStartTime.split(":").map(Number);
+                const [eh, em] = eventEndTime.split(":").map(Number);
+                const s = new Date(quickAddDate);
+                s.setHours(sh || 9, sm || 0, 0, 0);
+                const e = new Date(quickAddDate);
+                e.setHours(eh || 10, em || 0, 0, 0);
+                if (e <= s) {
+                    e.setTime(s.getTime() + 60 * 60 * 1000);
+                }
+                startISO = s.toISOString();
+                endISO = e.toISOString();
+            }
+
+            const attendeeList = eventAttendees
+                .split(",")
+                .map((x) => x.trim())
+                .filter((x) => x && x.includes("@"));
+
+            const res = await axios.post("/api/calendar/schedule", {
+                title: eventTitle,
+                description: eventDescription,
+                start: startISO,
+                end: endISO,
+                location: eventLocation || (eventAddMeet ? "Google Meet" : undefined),
+                attendees: attendeeList,
+            });
+
+            if (res.data?.ok) {
+                toast.success("Event created on Google Calendar!");
+                mutateGcal();
+                setDayDetailOpen(false);
+                setEventTitle("");
+                setEventDescription("");
+                setEventLocation("");
+                setEventAttendees("");
+            } else {
+                toast.error(res.data?.error || "Failed to schedule event on Google Calendar");
+            }
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || err?.message || "Failed to create event");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCreateOOO = async () => {
+        if (!oooTitle.trim() || !quickAddDate) return;
+        setIsSubmitting(true);
+        try {
+            const start = new Date(quickAddDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(oooEndDate || quickAddDate);
+            end.setHours(23, 59, 59, 999);
+
+            const res = await axios.post("/api/calendar/schedule", {
+                title: `[Out of Office] ${oooTitle}`,
+                description: oooDeclineMessage,
+                start: start.toISOString(),
+                end: end.toISOString(),
+            });
+
+            if (res.data?.ok) {
+                toast.success("Out of office event scheduled on Google Calendar!");
+                mutateGcal();
+                setDayDetailOpen(false);
+            } else {
+                toast.error(res.data?.error || "Failed to schedule Out of office");
+            }
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || err?.message || "Failed to schedule Out of office");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleQuickAdd = async () => {
@@ -619,10 +853,37 @@ export default function ProjectCalendarView({ userId }: Props) {
                 contactId: linkedRecordType === 'contact' ? linkedRecordId : undefined,
                 leadId: linkedRecordType === 'lead' ? linkedRecordId : undefined,
             });
-            toast.success("Task created!");
+
+            // Also push to Google Calendar if toggle is active and Google is connected
+            if (syncTaskToGoogle && isGoogleConnected) {
+                try {
+                    const [th, tm] = taskStartTime.split(":").map(Number);
+                    const s = new Date(quickAddDate);
+                    s.setHours(th || 10, tm || 0, 0, 0);
+                    const e = new Date(s.getTime() + (taskDurationMinutes || 30) * 60 * 1000);
+
+                    await axios.post("/api/calendar/schedule", {
+                        title: `[Task] ${newTaskTitle}`,
+                        description: newTaskDescription
+                            ? `${newTaskDescription}\n\nCRM Priority: ${newTaskPriority}`
+                            : `CRM Task (Priority: ${newTaskPriority})`,
+                        start: s.toISOString(),
+                        end: e.toISOString(),
+                    });
+                    mutateGcal();
+                } catch (gcalErr) {
+                    console.error("Failed to sync task to Google Calendar:", gcalErr);
+                }
+            }
+
+            toast.success(
+                syncTaskToGoogle && isGoogleConnected
+                    ? "Task created & synced to Google Calendar!"
+                    : "Task created!"
+            );
             mutate("/api/projects/tasks");
-            setDayDetailOpen(false); // Close the tactical dialog
-            setDayDetailTab("view"); // Reset to activity overview for next entry
+            setDayDetailOpen(false);
+            setDayDetailTab("view");
             setNewTaskTitle("");
             setLinkedRecordId("");
             setLinkedRecordType("");
@@ -698,6 +959,8 @@ export default function ProjectCalendarView({ userId }: Props) {
         if (!over) return;
 
         const taskId = active.id as string;
+        if (taskId.startsWith("gcal_")) return;
+
         const newDateStr = over.id as string;
 
         // Parse date as local midnight (not UTC) to avoid off-by-one shifts
@@ -705,7 +968,7 @@ export default function ProjectCalendarView({ userId }: Props) {
         const newDate = new Date(year, month - 1, day, 0, 0, 0);
 
         const task = events.find(e => e.id === taskId);
-        if (!task) return;
+        if (!task || task.isGoogleEvent) return;
 
         // Use string comparison for day boundaries to be safe with timezones
         const currentTaskDate = format(new Date(task.dueDateAt), 'yyyy-MM-dd');
@@ -838,6 +1101,50 @@ export default function ProjectCalendarView({ userId }: Props) {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* Google Calendar Status / Quick Refresh */}
+                    {isGoogleConnected ? (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => {
+                                            mutateGcal();
+                                            toast.success("Google Calendar refreshed");
+                                        }}
+                                        disabled={gcalValidating}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/20 bg-background/50 hover:bg-primary/5 transition-all text-xs group"
+                                    >
+                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
+                                        <span className="text-[10px] font-bold text-muted-foreground group-hover:text-primary transition-colors">
+                                            Google Cal
+                                        </span>
+                                        {gcalValidating && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-xs">
+                                    Google Calendar auto-synced ({googleEvents.length} events loaded). Click to refresh now.
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    ) : gcalData?.connected === false ? (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Link
+                                        href="/profile?tab=integration"
+                                        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-border/70 hover:border-primary/40 bg-muted/20 text-xs text-muted-foreground hover:text-foreground transition-all"
+                                    >
+                                        <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-[10px] font-bold">Connect Google Cal</span>
+                                    </Link>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-xs">
+                                    Connect your Google account in Profile → Integrations to sync calendar events.
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    ) : null}
+
                     {/* Energy Pulse Widget */}
                     <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-background/50 border border-primary/10 rounded-2xl backdrop-blur-md shadow-inner group">
                         {!isPulseEnabled ? (
@@ -845,14 +1152,13 @@ export default function ProjectCalendarView({ userId }: Props) {
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
-                                            onClick={() => { setIsPulseEnabled(true); syncGoogleCalendar(); }}
-                                            disabled={syncLoading}
-                                            className="flex items-center gap-2 group/pulse p-1 px-2 rounded-xl hover:bg-primary/10 transition-all border border-transparent hover:border-primary/20 shadow-sm disabled:opacity-50"
+                                            onClick={() => { setIsPulseEnabled(true); }}
+                                            className="flex items-center gap-2 group/pulse p-1 px-2 rounded-xl hover:bg-primary/10 transition-all border border-transparent hover:border-primary/20 shadow-sm"
                                         >
                                             <div className="p-1.5 rounded-lg bg-primary/5 group-hover/pulse:bg-primary/20 transition-colors">
-                                                <Zap className={cn("h-3.5 w-3.5 text-primary opacity-40 group-hover/pulse:opacity-100 transition-opacity", syncLoading && "animate-spin")} />
+                                                <Zap className="h-3.5 w-3.5 text-primary opacity-40 group-hover/pulse:opacity-100 transition-opacity" />
                                             </div>
-                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 group-hover/pulse:text-primary transition-colors">{syncLoading ? 'Syncing...' : 'Start Sync'}</span>
+                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 group-hover/pulse:text-primary transition-colors">Energy Pulse</span>
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom" className="w-56 p-3 border-primary/20 bg-background/95 backdrop-blur-xl rounded-xl">
@@ -940,32 +1246,71 @@ export default function ProjectCalendarView({ userId }: Props) {
                         </Tooltip>
                     </TooltipProvider>
 
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    className="rounded-2xl h-10 px-6 font-black uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg"
-                                    onClick={() => {
-                                        setQuickAddDate(new Date());
-                                        setQuickAddOpen(true);
-                                        setNewTaskTitle("");
-                                        setNewTaskDescription("");
-                                        setNewTaskPriority("normal");
-                                        setNewTaskStatus("ACTIVE");
-                                        setNewTaskProjectId(""); // Clean slate for private reminders
-                                        setDayDetailTab("add");
-                                        setDayDetailOpen(true);
-                                    }}
-                                >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add Task
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="p-3 max-w-[200px] border-border/50 bg-background/95 backdrop-blur-xl">
-                                <p className="text-[10px] font-bold leading-tight">Create a new mission objective or event. Linked records can be attached during creation.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    {/* Google Calendar-Style + Create Menu */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button className="rounded-2xl h-10 px-5 font-black uppercase tracking-wider text-xs flex items-center gap-2 shadow-xl bg-primary hover:bg-primary/90 text-primary-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                <Plus className="h-4 w-4 stroke-[2.5]" />
+                                <span>Create</span>
+                                <ChevronDown className="h-3.5 w-3.5 opacity-70 ml-0.5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl bg-background/95 backdrop-blur-2xl border-border/50 shadow-2xl z-[150]">
+                            <DropdownMenuItem
+                                onClick={() => openCreateModal("event")}
+                                className="flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer hover:bg-primary/10 transition-colors text-xs font-bold"
+                            >
+                                <div className="h-6 w-6 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-500">
+                                    <CalendarIcon className="h-3.5 w-3.5" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="leading-none">Event</span>
+                                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">Google Calendar meeting</span>
+                                </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                                onClick={() => openCreateModal("task")}
+                                className="flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer hover:bg-primary/10 transition-colors text-xs font-bold"
+                            >
+                                <div className="h-6 w-6 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-500">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="leading-none">Task</span>
+                                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">CRM task + optional Google sync</span>
+                                </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                                onClick={() => openCreateModal("ooo")}
+                                className="flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer hover:bg-primary/10 transition-colors text-xs font-bold"
+                            >
+                                <div className="h-6 w-6 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-500">
+                                    <Clock className="h-3.5 w-3.5" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="leading-none">Out of office</span>
+                                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">Mark unavailable on calendar</span>
+                                </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator className="my-1 opacity-20" />
+
+                            <DropdownMenuItem
+                                onClick={() => openCreateModal("appointment")}
+                                className="flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer hover:bg-primary/10 transition-colors text-xs font-bold"
+                            >
+                                <div className="h-6 w-6 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-500">
+                                    <Users className="h-3.5 w-3.5" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="leading-none">Appointment schedule</span>
+                                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">Booking slots & availability</span>
+                                </div>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
@@ -988,27 +1333,83 @@ export default function ProjectCalendarView({ userId }: Props) {
                                             {quickAddDate ? format(quickAddDate, "EEEE, MMM do") : "Day Schedule"}
                                         </DialogTitle>
                                         <DialogDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1 opacity-50">
-                                            {dayDetailTab === "view" ? "Operational Overview" : "New Mission entry"}
+                                            {dayDetailTab === "view"
+                                                ? "Operational Overview"
+                                                : dayDetailTab === "event"
+                                                ? "New Google Calendar Event"
+                                                : dayDetailTab === "task"
+                                                ? "New CRM Task"
+                                                : dayDetailTab === "ooo"
+                                                ? "Out of Office Block"
+                                                : "Appointment Schedule"}
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="flex bg-muted/50 p-1 rounded-xl border border-border/30 gap-1">
+                                    <div className="flex items-center bg-muted/60 p-1 rounded-xl border border-border/40 gap-1 overflow-x-auto">
+                                        {getEventsForDay(quickAddDate || new Date()).length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDayDetailTab("view")}
+                                                className={cn(
+                                                    "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider shrink-0",
+                                                    dayDetailTab === "view"
+                                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                                        : "text-muted-foreground hover:text-foreground"
+                                                )}
+                                            >
+                                                Activity ({getEventsForDay(quickAddDate || new Date()).length})
+                                            </button>
+                                        )}
                                         <button
-                                            onClick={() => setDayDetailTab("view")}
+                                            type="button"
+                                            onClick={() => setDayDetailTab("event")}
                                             className={cn(
-                                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider",
-                                                dayDetailTab === "view" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider shrink-0",
+                                                dayDetailTab === "event"
+                                                    ? "bg-blue-600 text-white shadow-sm"
+                                                    : "text-muted-foreground hover:text-foreground"
                                             )}
                                         >
-                                            Activity ({getEventsForDay(quickAddDate || new Date()).length})
+                                            <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                                            Event
                                         </button>
                                         <button
-                                            onClick={() => setDayDetailTab("add")}
+                                            type="button"
+                                            onClick={() => setDayDetailTab("task")}
                                             className={cn(
-                                                "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider",
-                                                dayDetailTab === "add" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider shrink-0",
+                                                dayDetailTab === "task"
+                                                    ? "bg-emerald-600 text-white shadow-sm"
+                                                    : "text-muted-foreground hover:text-foreground"
                                             )}
                                         >
-                                            Add Task
+                                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                            Task
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDayDetailTab("ooo")}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider shrink-0",
+                                                dayDetailTab === "ooo"
+                                                    ? "bg-amber-600 text-white shadow-sm"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <div className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                            Out of office
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDayDetailTab("appointment")}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider shrink-0",
+                                                dayDetailTab === "appointment"
+                                                    ? "bg-purple-600 text-white shadow-sm"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <div className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                                            Appointment
                                         </button>
                                     </div>
                                 </div>
@@ -1023,8 +1424,8 @@ export default function ProjectCalendarView({ userId }: Props) {
                                                     <CalendarIcon className="h-6 w-6" />
                                                 </div>
                                                 <p className="text-sm font-medium italic">No active missions for this date.</p>
-                                                <Button variant="outline" size="sm" className="rounded-full text-[10px] font-black uppercase" onClick={() => setDayDetailTab("add")}>
-                                                    Log First Task
+                                                <Button variant="outline" size="sm" className="rounded-full text-[10px] font-black uppercase" onClick={() => setDayDetailTab("event")}>
+                                                    Create Event
                                                 </Button>
                                             </div>
                                         ) : (
@@ -1126,6 +1527,200 @@ export default function ProjectCalendarView({ userId }: Props) {
                                             ))
                                         )}
                                     </div>
+                                ) : dayDetailTab === "event" ? (
+                                    <div className="space-y-5 pt-1">
+                                        {/* Google Calendar Event Title */}
+                                        <div className="relative group">
+                                            <label className="absolute -top-2 left-3 bg-background px-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 transition-colors z-10">
+                                                Event Title
+                                            </label>
+                                            <Input
+                                                placeholder="e.g. Q3 Pipeline Review & Strategy"
+                                                value={eventTitle}
+                                                onChange={(e) => setEventTitle(e.target.value)}
+                                                onKeyDown={(e) => e.key === "Enter" && handleCreateGoogleEvent()}
+                                                autoFocus
+                                                className="h-14 text-lg font-bold bg-muted/20 border-border/50 focus:border-blue-500/50 focus:ring-blue-500/20 transition-all rounded-xl pl-4"
+                                            />
+                                        </div>
+
+                                        {/* Date & Time Settings */}
+                                        <div className="p-4 rounded-xl bg-muted/20 border border-border/30 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <CalendarIcon className="h-4 w-4 text-blue-500" />
+                                                    <span className="text-xs font-bold">
+                                                        {quickAddDate ? format(quickAddDate, "EEEE, MMMM do, yyyy") : "Date"}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">All day</span>
+                                                    <Switch
+                                                        checked={eventIsAllDay}
+                                                        onCheckedChange={setEventIsAllDay}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {!eventIsAllDay && (
+                                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/20">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 opacity-70">Start Time</label>
+                                                        <Input
+                                                            type="time"
+                                                            value={eventStartTime}
+                                                            onChange={(e) => setEventStartTime(e.target.value)}
+                                                            className="h-10 bg-background/50 border-border/30 rounded-lg text-xs font-semibold"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 opacity-70">End Time</label>
+                                                        <Input
+                                                            type="time"
+                                                            value={eventEndTime}
+                                                            onChange={(e) => setEventEndTime(e.target.value)}
+                                                            className="h-10 bg-background/50 border-border/30 rounded-lg text-xs font-semibold"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Google Meet Conferencing */}
+                                        <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                                    <Video className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-bold text-foreground">Google Meet</div>
+                                                    <div className="text-[10px] text-muted-foreground">Add video conferencing link automatically</div>
+                                                </div>
+                                            </div>
+                                            <Switch
+                                                checked={eventAddMeet}
+                                                onCheckedChange={setEventAddMeet}
+                                            />
+                                        </div>
+
+                                        {/* Location & Guests */}
+                                        <div className="space-y-3">
+                                            <div className="relative flex items-center">
+                                                <MapPin className="absolute left-3 h-4 w-4 text-muted-foreground/60" />
+                                                <Input
+                                                    placeholder="Add location or room"
+                                                    value={eventLocation}
+                                                    onChange={(e) => setEventLocation(e.target.value)}
+                                                    className="h-10 pl-9 bg-muted/20 border-border/40 text-xs rounded-xl"
+                                                />
+                                            </div>
+                                            <div className="relative flex items-center">
+                                                <Mail className="absolute left-3 h-4 w-4 text-muted-foreground/60" />
+                                                <Input
+                                                    placeholder="Add guests (emails separated by comma)"
+                                                    value={eventAttendees}
+                                                    onChange={(e) => setEventAttendees(e.target.value)}
+                                                    className="h-10 pl-9 bg-muted/20 border-border/40 text-xs rounded-xl"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Description */}
+                                        <div className="relative group">
+                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 opacity-70 mb-1 block">Description</label>
+                                            <Textarea
+                                                placeholder="Add meeting notes, agenda, or context..."
+                                                value={eventDescription}
+                                                onChange={(e) => setEventDescription(e.target.value)}
+                                                rows={3}
+                                                className="bg-muted/20 border-border/40 text-xs rounded-xl resize-none"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : dayDetailTab === "ooo" ? (
+                                    <div className="space-y-5 pt-1">
+                                        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                                            <div className="h-9 w-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                                                <CalendarPlus className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400">Out of Office Block</h4>
+                                                <p className="text-[11px] text-muted-foreground">Creates an Out of Office block on your Google Calendar to protect your focused time.</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Reason / Title */}
+                                        <div className="relative group">
+                                            <label className="absolute -top-2 left-3 bg-background px-1.5 text-[10px] font-black uppercase tracking-widest text-amber-500 transition-colors z-10">
+                                                Out of Office Reason
+                                            </label>
+                                            <Input
+                                                placeholder="Out of office"
+                                                value={oooTitle}
+                                                onChange={(e) => setOooTitle(e.target.value)}
+                                                autoFocus
+                                                className="h-14 text-lg font-bold bg-muted/20 border-border/50 focus:border-amber-500/50 focus:ring-amber-500/20 transition-all rounded-xl pl-4"
+                                            />
+                                        </div>
+
+                                        {/* Date confirmation */}
+                                        <div className="p-4 rounded-xl bg-muted/20 border border-border/30 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <CalendarIcon className="h-4 w-4 text-amber-500" />
+                                                <span className="text-xs font-bold">
+                                                    {quickAddDate ? format(quickAddDate, "EEEE, MMMM do, yyyy") : "Selected Day"}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase text-amber-500 px-2 py-0.5 rounded bg-amber-500/10">Full Day</span>
+                                        </div>
+
+                                        {/* Decline Message */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 opacity-70">
+                                                Decline message for new invitations
+                                            </label>
+                                            <Textarea
+                                                placeholder="Decline message (optional)..."
+                                                value={oooDeclineMessage}
+                                                onChange={(e) => setOooDeclineMessage(e.target.value)}
+                                                rows={3}
+                                                className="bg-muted/20 border-border/40 text-xs rounded-xl resize-none"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : dayDetailTab === "appointment" ? (
+                                    <div className="space-y-5 pt-1">
+                                        <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/20 space-y-4 text-center">
+                                            <div className="h-14 w-14 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center mx-auto">
+                                                <Clock className="h-7 w-7" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <h3 className="text-base font-bold text-foreground">Appointment Schedules & Booking</h3>
+                                                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                                                    Share bookable calendar links with clients and leads so they can schedule time directly on your CRM & Google Calendar.
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                                                <Link
+                                                    href="/crm/leads?tab=availability"
+                                                    onClick={() => setDayDetailOpen(false)}
+                                                    className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-purple-600/20"
+                                                >
+                                                    <span>Manage Availability</span>
+                                                    <ArrowRight className="h-3.5 w-3.5" />
+                                                </Link>
+                                                <a
+                                                    href="https://calendar.google.com"
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl border border-border/50 hover:bg-muted/30 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
+                                                >
+                                                    <span>Google Calendar</span>
+                                                    <ExternalLink className="h-3.5 w-3.5" />
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <div className="space-y-6 pt-2">
                                         {/* Main Input */}
@@ -1141,6 +1736,59 @@ export default function ProjectCalendarView({ userId }: Props) {
                                                 autoFocus
                                                 className="h-14 text-lg font-bold bg-muted/20 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all rounded-xl pl-4"
                                             />
+                                        </div>
+
+                                        {/* Google Calendar Sync Switch */}
+                                        <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                                        <CalendarPlus className="h-4 w-4" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs font-bold text-foreground">Sync to Google Calendar</div>
+                                                        <div className="text-[10px] text-muted-foreground">Also add as a scheduled event on your Google Calendar</div>
+                                                    </div>
+                                                </div>
+                                                <Switch
+                                                    checked={syncTaskToGoogle}
+                                                    onCheckedChange={setSyncTaskToGoogle}
+                                                />
+                                            </div>
+
+                                            {syncTaskToGoogle && (
+                                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-blue-500/10">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 opacity-70">Event Time</label>
+                                                        <Input
+                                                            type="time"
+                                                            value={taskStartTime}
+                                                            onChange={(e) => setTaskStartTime(e.target.value)}
+                                                            className="h-9 bg-background/50 border-border/30 rounded-lg text-xs font-semibold"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 opacity-70">Duration</label>
+                                                        <div className="flex items-center gap-1 bg-muted/20 p-1 rounded-lg border border-border/40">
+                                                            {[15, 30, 60].map((d) => (
+                                                                <button
+                                                                    key={d}
+                                                                    type="button"
+                                                                    onClick={() => setTaskDurationMinutes(d)}
+                                                                    className={cn(
+                                                                        "flex-1 py-1 text-[10px] font-bold rounded",
+                                                                        taskDurationMinutes === d
+                                                                            ? "bg-blue-600 text-white"
+                                                                            : "text-muted-foreground hover:text-foreground"
+                                                                    )}
+                                                                >
+                                                                    {d}m
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Row of Controls */}
@@ -1387,7 +2035,7 @@ export default function ProjectCalendarView({ userId }: Props) {
                                 {dayDetailTab === "view" ? (
                                     <div className="flex items-center justify-between">
                                         <p className="text-[10px] text-muted-foreground italic">
-                                            Tasks reflect current operational status.
+                                            Events & tasks reflect current operational schedule.
                                         </p>
                                         <Button
                                             variant="outline"
@@ -1395,6 +2043,64 @@ export default function ProjectCalendarView({ userId }: Props) {
                                             onClick={() => setDayDetailOpen(false)}
                                         >
                                             Close Overview
+                                        </Button>
+                                    </div>
+                                ) : dayDetailTab === "event" ? (
+                                    <div className="flex items-center justify-between">
+                                        <Button
+                                            variant="ghost"
+                                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                                            onClick={() => setDayDetailOpen(false)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            disabled={isSubmitting || !eventTitle.trim()}
+                                            onClick={handleCreateGoogleEvent}
+                                            className="relative group h-12 px-8 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all shadow-xl shadow-blue-600/20 overflow-hidden"
+                                        >
+                                            {isSubmitting ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <CalendarPlus className="h-4 w-4" />
+                                                    <span>Save to Google Calendar</span>
+                                                </div>
+                                            )}
+                                        </Button>
+                                    </div>
+                                ) : dayDetailTab === "ooo" ? (
+                                    <div className="flex items-center justify-between">
+                                        <Button
+                                            variant="ghost"
+                                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                                            onClick={() => setDayDetailOpen(false)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            disabled={isSubmitting || !oooTitle.trim()}
+                                            onClick={handleCreateOOO}
+                                            className="relative group h-12 px-8 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] transition-all shadow-xl shadow-amber-600/20 overflow-hidden"
+                                        >
+                                            {isSubmitting ? (
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <CalendarPlus className="h-4 w-4" />
+                                                    <span>Save Out of Office</span>
+                                                </div>
+                                            )}
+                                        </Button>
+                                    </div>
+                                ) : dayDetailTab === "appointment" ? (
+                                    <div className="flex items-center justify-end">
+                                        <Button
+                                            variant="outline"
+                                            className="text-xs font-black uppercase tracking-widest rounded-xl"
+                                            onClick={() => setDayDetailOpen(false)}
+                                        >
+                                            Close
                                         </Button>
                                     </div>
                                 ) : (
@@ -1449,29 +2155,85 @@ export default function ProjectCalendarView({ userId }: Props) {
                                         </div>
                                         <div className="grid gap-2">
                                             {group.tasks.map((event) => (
-                                                <Link
-                                                    key={event.id}
-                                                    href={`/projects/tasks/viewtask/${event.id}`}
-                                                    className={`flex items-center gap-4 p-3 rounded-xl border transition-[color,background-color,border-color,box-shadow] hover:shadow-md ${isDateToday ? "bg-primary/5 border-primary/20" : "bg-card hover:bg-muted/50"
-                                                        }`}
-                                                >
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <StatusDot priority={event.priority} />
-                                                            <span className="font-semibold">{event.title}</span>
-                                                            <Badge variant={getPriorityBadgeVariant(event.priority || "normal") as any} className="text-[10px] h-4 px-1.5 ml-auto sm:ml-0">
-                                                                {event.priority}
-                                                            </Badge>
-                                                        </div>
-                                                        {event.projectTitle && (
-                                                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                                                <span className="opacity-70">Project:</span>
-                                                                <span className="font-medium">{event.projectTitle}</span>
+                                                event.isGoogleEvent ? (
+                                                    <a
+                                                        key={event.id}
+                                                        href={event.googleLink || "#"}
+                                                        target={event.googleLink ? "_blank" : undefined}
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => {
+                                                            if (!event.googleLink) e.preventDefault();
+                                                        }}
+                                                        className={`flex items-center gap-4 p-3 rounded-xl border transition-[color,background-color,border-color,box-shadow] hover:shadow-md ${isDateToday ? "bg-primary/5 border-primary/20" : "bg-card hover:bg-muted/50"
+                                                            }`}
+                                                    >
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <div
+                                                                    className="h-2 w-2 rounded-full shrink-0"
+                                                                    style={{ backgroundColor: event.googleColor?.background || '#4285f4' }}
+                                                                />
+                                                                <span className="font-semibold">{event.title}</span>
+                                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-primary/30 text-primary">
+                                                                    Google Event
+                                                                </Badge>
+                                                                {event.googleMeetLink && (
+                                                                    <span
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            window.open(event.googleMeetLink, "_blank", "noopener,noreferrer");
+                                                                        }}
+                                                                        className="text-xs text-blue-500 hover:underline cursor-pointer font-medium ml-2"
+                                                                    >
+                                                                        Join Meet
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100" />
-                                                </Link>
+                                                            {(event.projectTitle || event.location) && (
+                                                                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
+                                                                    {event.projectTitle && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="opacity-70">Calendar:</span>
+                                                                            <span className="font-medium">{event.projectTitle}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {event.location && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="opacity-70">Location:</span>
+                                                                            <span className="font-medium">{event.location}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <ExternalLink className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100" />
+                                                    </a>
+                                                ) : (
+                                                    <Link
+                                                        key={event.id}
+                                                        href={`/projects/tasks/viewtask/${event.id}`}
+                                                        className={`flex items-center gap-4 p-3 rounded-xl border transition-[color,background-color,border-color,box-shadow] hover:shadow-md ${isDateToday ? "bg-primary/5 border-primary/20" : "bg-card hover:bg-muted/50"
+                                                            }`}
+                                                    >
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <StatusDot priority={event.priority} />
+                                                                <span className="font-semibold">{event.title}</span>
+                                                                <Badge variant={getPriorityBadgeVariant(event.priority || "normal") as any} className="text-[10px] h-4 px-1.5 ml-auto sm:ml-0">
+                                                                    {event.priority}
+                                                                </Badge>
+                                                            </div>
+                                                            {event.projectTitle && (
+                                                                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                                                    <span className="opacity-70">Project:</span>
+                                                                    <span className="font-medium">{event.projectTitle}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-30 group-hover:opacity-100" />
+                                                    </Link>
+                                                )
                                             ))}
                                         </div>
                                     </div>
