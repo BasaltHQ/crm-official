@@ -525,7 +525,6 @@ export default function ProjectCalendarView({ userId }: Props) {
 
     const {
         data: gcalData,
-        isLoading: gcalLoading,
         isValidating: gcalValidating,
         mutate: mutateGcal,
     } = useSWR(
