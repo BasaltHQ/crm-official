@@ -240,8 +240,15 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, events, calendars: calendarsResponse }, { status: 200 });
   } catch (e: any) {
-     
+    const errMsg = e?.response?.data?.error || e?.message || "";
     systemLogger.error("[CALENDAR_EVENTS_GET]", e?.message || e);
+    
+    if (errMsg.includes("unauthorized_client") || errMsg.includes("invalid_grant") || errMsg.includes("invalid_token")) {
+      return NextResponse.json(
+        { ok: false, connected: false, needsReconnect: true, error: "Google authorization expired or revoked. Please reconnect." },
+        { status: 401 }
+      );
+    }
     return new NextResponse("Failed to fetch events", { status: 500 });
   }
 }

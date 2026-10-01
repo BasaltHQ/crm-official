@@ -138,27 +138,35 @@ export async function getGmailAuthUrl(userId: string) {
 export async function exchangeCodeForTokens(userId: string, code: string) {
   const oauth2 = await getOAuth2Client();
   const { tokens } = await oauth2.getToken(code);
-  if (!tokens.access_token || !tokens.refresh_token) {
-    // In some cases Google doesn't resend refresh_token if already granted; ensure we keep existing one.
-    const existing = await prismadb.gmail_Tokens.findFirst({ where: { user: userId } });
-    await prismadb.gmail_Tokens.upsert({
-      where: { id: existing?.id || "new" },
-      update: {
-        access_token: encryptSecret(tokens.access_token || existing?.access_token || ""),
-        refresh_token: encryptSecret(tokens.refresh_token || existing?.refresh_token || ""),
-        scope: tokens.scope || existing?.scope || undefined,
-        expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : existing?.expiry_date || undefined,
-        provider: "google",
-        updatedAt: new Date(),
-      } as any,
-      create: {
-        user: userId,
-        provider: "google",
+
+  const existingTokens = await prismadb.gmail_Tokens.findMany({
+    where: { user: userId, provider: "google" },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const primaryExisting = existingTokens[0];
+
+  // Clean up duplicate old tokens if any exist
+  if (existingTokens.length > 1) {
+    const idsToDelete = existingTokens.slice(1).map((t: any) => t.id);
+    await prismadb.gmail_Tokens.deleteMany({
+      where: { id: { in: idsToDelete } },
+    });
+  }
+
+  const effectiveRefreshToken = tokens.refresh_token
+    ? encryptSecret(tokens.refresh_token)
+    : primaryExisting?.refresh_token;
+
+  if (primaryExisting) {
+    await prismadb.gmail_Tokens.update({
+      where: { id: primaryExisting.id },
+      data: {
         access_token: encryptSecret(tokens.access_token || ""),
-        refresh_token: encryptSecret(tokens.refresh_token || existing?.refresh_token || ""),
-        scope: tokens.scope || undefined,
+        refresh_token: effectiveRefreshToken || "",
+        scope: tokens.scope || primaryExisting.scope || undefined,
         expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
-        createdAt: new Date(),
+        provider: "google",
         updatedAt: new Date(),
       } as any,
     });
@@ -167,8 +175,8 @@ export async function exchangeCodeForTokens(userId: string, code: string) {
       data: {
         user: userId,
         provider: "google",
-        access_token: encryptSecret(tokens.access_token),
-        refresh_token: encryptSecret(tokens.refresh_token),
+        access_token: encryptSecret(tokens.access_token || ""),
+        refresh_token: effectiveRefreshToken || "",
         scope: tokens.scope || undefined,
         expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         createdAt: new Date(),
