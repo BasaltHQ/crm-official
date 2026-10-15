@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bot, FileText, Settings, Sparkles, Wand2, Zap, Globe, Code, Loader2, Sliders, FolderKanban, Target } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -55,7 +55,7 @@ export default function LeadGenWizardPage() {
     revalidateOnFocus: false,
     dedupingInterval: 30000,
   });
-  const availablePools = poolsData?.pools || [];
+  const availablePools = useMemo(() => poolsData?.pools || [], [poolsData?.pools]);
 
   // Fetch brand identity for ICP pre-fill
   const { data: brandData } = useSWR("/api/admin/brand", fetcher, {

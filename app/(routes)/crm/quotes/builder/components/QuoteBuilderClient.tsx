@@ -88,14 +88,15 @@ interface LineItem {
 
 export default function QuoteBuilderClient({ products, initialAccounts = [], initialContacts = [], initialLeads = [] }: QuoteBuilderClientProps) {
     const router = useRouter();
-    const [title, setTitle] = useState(`New Proposal - ${format(new Date(), "PP")}`);
+    const [title, setTitle] = useState(() => `New Proposal - ${format(new Date(), "PP")}`);
+    const [referenceId] = useState(() => `QB-${Math.random().toString(36).substring(2, 9).toUpperCase()}`);
     const [selectedAccount, setSelectedAccount] = useState<string>("");
     const [selectedContact, setSelectedContact] = useState<string>("");
     const [selectedLead, setSelectedLead] = useState<string>("");
     const [notes, setNotes] = useState("");
     const [terms, setTerms] = useState("Standard payment terms apply. Valid for 30 days.");
     const [expirationDate, setExpirationDate] = useState<Date>(
-        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days default
+        () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days default
     );
     const [items, setItems] = useState<LineItem[]>([]);
     const [taxRate, setTaxRate] = useState(0);
@@ -355,7 +356,7 @@ export default function QuoteBuilderClient({ products, initialAccounts = [], ini
                                     Internal Reference #
                                 </label>
                                 <div className="h-10 px-3 flex items-center bg-white/5 border border-white/10 rounded-md text-[10px] font-mono text-white/40 tracking-widest uppercase">
-                                    QB-{Math.random().toString(36).substring(2, 9).toUpperCase()}
+                                    {referenceId}
                                 </div>
                             </div>
                         </div>

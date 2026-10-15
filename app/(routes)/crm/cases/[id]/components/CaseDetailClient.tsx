@@ -79,6 +79,15 @@ const PRIORITY_COLORS: Record<string, string> = {
     CRITICAL: "bg-red-500/20 text-red-300 border-red-500/40",
 };
 
+function getTimeSince(date: string) {
+    const diff = Date.now() - new Date(date).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return `${Math.floor(diff / (1000 * 60))}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
 export default function CaseDetailClient({
     caseData,
     currentUserId,
@@ -237,14 +246,6 @@ export default function CaseDetailClient({
         });
     };
 
-    const getTimeSince = (date: string) => {
-        const diff = Date.now() - new Date(date).getTime();
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        if (hours < 1) return `${Math.floor(diff / (1000 * 60))}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        const days = Math.floor(hours / 24);
-        return `${days}d ago`;
-    };
 
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] bg-background overflow-hidden">

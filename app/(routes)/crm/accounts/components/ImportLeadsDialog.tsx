@@ -140,9 +140,6 @@ export default function ImportLeadsDialog({ pools, onCommitted, controlledOpen, 
   useEffect(() => {
       if (preselectedFile && open) {
           setFile(preselectedFile);
-          if (step === "destination" && poolId) {
-             // Don't auto advance past destination, user must pick pool
-          }
       }
   }, [preselectedFile, open]);
 

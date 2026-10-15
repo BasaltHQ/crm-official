@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import fetcher from '@/lib/fetcher';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutGrid, List as ListIcon } from "lucide-react";
 
 export default function LeadsView({ data, crmData }: Props) {
+  const router = useRouter();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -342,7 +344,7 @@ export default function LeadsView({ data, crmData }: Props) {
                               const res = await convertLeadToOpportunity(lead.id);
                               if (res.success && res.data?.opportunityId) {
                                 toast.success("Converted!");
-                                window.location.href = `/crm/opportunities/${res.data.opportunityId}`;
+                                router.push(`/crm/opportunities/${res.data.opportunityId}`);
                               } else {
                                 toast.error(res.error || "Failed");
                               }

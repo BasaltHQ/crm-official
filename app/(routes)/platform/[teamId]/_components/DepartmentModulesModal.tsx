@@ -25,6 +25,15 @@ interface Props {
     departmentName: string;
 }
 
+function getAllModuleIds(modules: CrmModule[]): string[] {
+    let ids: string[] = [];
+    modules.forEach(m => {
+        ids.push(m.id);
+        if (m.children) ids = [...ids, ...getAllModuleIds(m.children)];
+    });
+    return ids;
+}
+
 export function DepartmentModulesModal({ isOpen, onClose, departmentId, departmentName }: Props) {
     const [selected, setSelected] = useState<string[]>([]);
     const [parentLimits, setParentLimits] = useState<string[]>([]);
@@ -32,15 +41,6 @@ export function DepartmentModulesModal({ isOpen, onClose, departmentId, departme
     const [isFetching, setIsFetching] = useState(true);
 
     const isSuperAdmin = parentLimits.includes('all');
-
-    const getAllModuleIds = (modules: CrmModule[]): string[] => {
-        let ids: string[] = [];
-        modules.forEach(m => {
-            ids.push(m.id);
-            if (m.children) ids = [...ids, ...getAllModuleIds(m.children)];
-        });
-        return ids;
-    };
 
     const allModuleIds = useMemo(() => getAllModuleIds(CRM_MODULES), []);
 

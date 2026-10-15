@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Mail,
   Eye,
@@ -128,11 +128,7 @@ export function CampaignContactTracker({
   const [filter, setFilter] = useState<string>("all");
   const [previewFullscreenId, setPreviewFullscreenId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadItems();
-  }, [campaignId]);
-
-  async function loadItems() {
+  const loadItems = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(
@@ -144,9 +140,14 @@ export function CampaignContactTracker({
       }
     } catch {
       toast.error("Failed to load campaign contacts");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  }, [campaignId]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   async function handleApprove(actionId: string) {
     try {

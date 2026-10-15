@@ -185,6 +185,29 @@ export default function PortalSettingsPanel() {
         checkSlug();
     }, [debouncedSlug, isCreateMode, selectedPortal?.id]);
 
+    // Select a portal and load its settings into the form
+    const selectPortal = useCallback((portal: PortalConfig) => {
+        setSelectedPortal(portal);
+        setIsCreateMode(false);
+        setCustomSlug(portal.slug || "");
+        setFormData({
+            name: portal.name || "",
+            welcome_message: portal.welcome_message || "",
+            primary_color: portal.primary_color || "#0f766e",
+            secondary_color: portal.secondary_color || "#f5f5f5",
+            accent_color: portal.accent_color || "#10b981",
+            logo_url: portal.logo_url || "",
+            logo_type: (portal.logo_type as "custom" | "campaign") || "custom",
+            campaign_id: portal.campaign || portal.campaign_id || "",
+            theme_mode: portal.theme_mode || "AUTO",
+            dark_primary_color: portal.dark_primary_color || "#0f766e",
+            dark_secondary_color: portal.dark_secondary_color || "#1f2937",
+            dark_accent_color: portal.dark_accent_color || "#10b981",
+            enable_glass_effect: portal.enable_glass_effect !== false,
+            background_blur: portal.background_blur || 20,
+        });
+    }, []);
+
     // Load team, portals, and projects
     useEffect(() => {
         async function loadData() {
@@ -234,30 +257,7 @@ export default function PortalSettingsPanel() {
         }
 
         loadData();
-    }, [session]);
-
-    // Select a portal and load its settings into the form
-    const selectPortal = (portal: PortalConfig) => {
-        setSelectedPortal(portal);
-        setIsCreateMode(false);
-        setCustomSlug(portal.slug || "");
-        setFormData({
-            name: portal.name || "",
-            welcome_message: portal.welcome_message || "",
-            primary_color: portal.primary_color || "#0f766e",
-            secondary_color: portal.secondary_color || "#f5f5f5",
-            accent_color: portal.accent_color || "#10b981",
-            logo_url: portal.logo_url || "",
-            logo_type: (portal.logo_type as "custom" | "campaign") || "custom",
-            campaign_id: portal.campaign || portal.campaign_id || "",
-            theme_mode: portal.theme_mode || "AUTO",
-            dark_primary_color: portal.dark_primary_color || "#0f766e",
-            dark_secondary_color: portal.dark_secondary_color || "#1f2937",
-            dark_accent_color: portal.dark_accent_color || "#10b981",
-            enable_glass_effect: portal.enable_glass_effect !== false,
-            background_blur: portal.background_blur || 20,
-        });
-    };
+    }, [session, selectPortal]);
 
     // Start creating a new portal
     const startCreateMode = () => {

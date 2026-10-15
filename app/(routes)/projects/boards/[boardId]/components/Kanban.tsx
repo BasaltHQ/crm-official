@@ -172,16 +172,23 @@ const Kanban = (props: any) => {
     if (source.droppableId !== destination.droppableId) {
       const [removed] = sourceTasks.splice(source.index, 1);
       destinationTasks.splice(destination.index, 0, removed);
-      data[sourceColIndex].tasks = sourceTasks;
-      data[destinationColIndex].tasks = destinationTasks;
     } else {
       const [removed] = destinationTasks.splice(source.index, 1);
       destinationTasks.splice(destination.index, 0, removed);
-      data[destinationColIndex].tasks = destinationTasks;
     }
 
+    const newData = data.map((col: any, idx: number) => {
+      if (idx === sourceColIndex && source.droppableId !== destination.droppableId) {
+        return { ...col, tasks: sourceTasks };
+      }
+      if (idx === destinationColIndex) {
+        return { ...col, tasks: destinationTasks };
+      }
+      return col;
+    });
+
     try {
-      setData([...data]); // Force re-render with new reference
+      setData(newData);
       await axios.put(`/api/projects/tasks/update-kanban-position`, {
         resourceList: sourceTasks,
         destinationList: destinationTasks,

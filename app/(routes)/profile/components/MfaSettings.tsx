@@ -40,7 +40,7 @@ export function MfaSettings({ user }: MfaSettingsProps) {
             }
         };
         fetchStatus();
-    }, []);
+    }, [user.mfaMethod, user.mfaEnabled]);
 
     const fetchMfaSetup = async (type: string) => {
         setLoading(true);
