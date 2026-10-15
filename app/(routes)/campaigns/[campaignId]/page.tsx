@@ -356,7 +356,7 @@ export default function CampaignDetailPage() {
 
             setRepairProgress({ current: 0, total: missingLeads.length });
             setRepairStream(`Engaged. Queueing ${missingLeads.length} missed targets for LLM generation.`);
-            let sentCount = 0;
+            const stats = { sentCount: 0 };
             const CHUNK_SIZE = 1;
             
             for (let i = 0; i < missingLeads.length; i += CHUNK_SIZE) {
@@ -405,7 +405,8 @@ export default function CampaignDetailPage() {
 
                 if (sendRes.ok) {
                     const resJson = await sendRes.json();
-                    sentCount += resJson.sent || chunk.length;
+                    stats.sentCount += (resJson.sent || chunk.length);
+                    const sentCount = stats.sentCount;
                     
                     const progressState = { current: sentCount, total: missingLeads.length };
                     setRepairProgress(prev => ({ ...prev, current: sentCount }));
@@ -443,10 +444,10 @@ export default function CampaignDetailPage() {
                 }
             }
 
-            if (sentCount > 0) {
-                const streamMessage = `Repair sequence concluded. Successfully dispatched to ${sentCount} aliases.`;
+            if (stats.sentCount > 0) {
+                const streamMessage = `Repair sequence concluded. Successfully dispatched to ${stats.sentCount} aliases.`;
                 setRepairStream(streamMessage);
-                toast.success(`Dispatched ${sentCount} missed leads successfully!`, { id: toastId });
+                toast.success(`Dispatched ${stats.sentCount} missed leads successfully!`, { id: toastId });
                 
                 // Turn off repair tracking globally, flip active
                 await fetch(`/api/campaigns/${campaign.id}`, {

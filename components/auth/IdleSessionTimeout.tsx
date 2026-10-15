@@ -21,6 +21,7 @@ export default function IdleSessionTimeout() {
     const handleLogout = useCallback(async () => {
         await clearImpersonation();
         await signOut({ redirect: false });
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = `/sign-in?idle=true`;
     }, []);
 

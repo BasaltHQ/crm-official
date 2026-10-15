@@ -92,6 +92,7 @@ const AvatarDropdown = ({ avatar, userId, name, email }: Props) => {
             clearUserCache();
             await clearImpersonation();
             await signOut({ redirect: false });
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = `/sign-in?loggedOut=true`;
           }}>
             <LogOut className="w-4 h-4 inline-block mr-2 stroke-current text-gray-500" />

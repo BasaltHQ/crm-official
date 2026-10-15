@@ -145,7 +145,7 @@ export function BaseWorkflowNode({
                         <div className="flex-1 border border-white/5 rounded-lg bg-black/40 shadow-inner flex items-center justify-center p-4 relative overflow-hidden group-hover:border-white/10 transition-colors">
                             <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
                             <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-white/20 relative z-10 mix-blend-screen pointer-events-none">
-                                // NO CONF ARGS
+                                {"// NO CONF ARGS"}
                             </span>
                         </div>
                     )}

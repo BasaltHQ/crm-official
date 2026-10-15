@@ -46,7 +46,7 @@ export function TransformClient() {
         const tool = searchParams.get("tool");
         if (tool && ["EXCEL", "MARKDOWN", "JSON", "TEXT"].includes(tool)) {
             setTransformType(tool as TransformType);
-            if (step === "SELECT_TOOL") setStep("UPLOAD");
+            setStep((prev) => (prev === "SELECT_TOOL" ? "UPLOAD" : prev));
         }
     }, [searchParams]);
 

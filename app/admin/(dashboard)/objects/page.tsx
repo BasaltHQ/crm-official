@@ -39,20 +39,20 @@ export default function ObjectManagerPage() {
     const [description, setDescription] = useState("");
 
     useEffect(() => {
+        const fetchObjects = async () => {
+            try {
+                const res = await fetch("/api/schema/objects");
+                const data = await res.json();
+                setObjects(data);
+            } catch (error) {
+                toast.error("Failed to load objects");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         fetchObjects();
     }, []);
-
-    const fetchObjects = async () => {
-        try {
-            const res = await fetch("/api/schema/objects");
-            const data = await res.json();
-            setObjects(data);
-        } catch (error) {
-            toast.error("Failed to load objects");
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const handleCreate = async () => {
         try {

@@ -52,6 +52,7 @@ export function CommandComponent() {
       }
       if (e.key === "l" && e.metaKey) {
         clearUserCache();
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         clearImpersonation().then(async () => { await signOut({ redirect: false }); window.location.href = `/sign-in?loggedOut=true`; });
       }
     };
@@ -98,6 +99,7 @@ export function CommandComponent() {
               <span>Profile settings</span>
               <CommandShortcut>Shift + ⌘ + P</CommandShortcut>
             </CommandItem>
+            {/* eslint-disable-next-line @next/next/no-location-assign-relative-destination */}
             <CommandItem onClick={async () => { clearUserCache(); await clearImpersonation(); await signOut({ redirect: false }); window.location.href = `/sign-in?loggedOut=true`; }}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>

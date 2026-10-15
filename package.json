@@ -1,6 +1,6 @@
 {
   "name": "basaltcrm-app",
-  "version": "1.3.2n",
+  "version": "1.3.2p",
   "author": "Michael Milton (BasaltHQ)",
   "private": true,
   "scripts": {
@@ -237,6 +237,10 @@
     "postcss": "^8.5.23",
     "esbuild": "^0.28.1",
     "decode-uri-component": "^0.5.0",
-    "toml": "^4.3.0"
+    "toml": "^4.3.0",
+    "katex": "^0.18.2",
+    "postcss-selector-parser": "^7.1.6",
+    "argparse": "^2.0.1",
+    "chokidar": "^4.0.3"
   }
 }

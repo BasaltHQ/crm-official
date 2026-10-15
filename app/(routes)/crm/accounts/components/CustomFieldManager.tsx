@@ -29,20 +29,20 @@ export function CustomFieldManager() {
     const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        fetchFields();
-    }, []);
+        const fetchFields = async () => {
+            setLoading(true);
+            try {
+                const res = await axios.get("/api/crm/account/custom-fields");
+                setFields(res.data.definitions || []);
+            } catch (err) {
+                toast({ variant: "destructive", title: "Error", description: "Failed to load custom fields" });
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const fetchFields = async () => {
-        setLoading(true);
-        try {
-            const res = await axios.get("/api/crm/account/custom-fields");
-            setFields(res.data.definitions || []);
-        } catch (err) {
-            toast({ variant: "destructive", title: "Error", description: "Failed to load custom fields" });
-        } finally {
-            setLoading(false);
-        }
-    };
+        fetchFields();
+    }, [toast]);
 
     const saveFields = async (updatedFields: CustomFieldDefinition[]) => {
         setSaving(true);

@@ -31,24 +31,24 @@ export function EmailDeliveryStats({ teamId }: EmailDeliveryStatsProps) {
 
     useEffect(() => {
         if (!teamId) return;
-        fetchStats();
-    }, [teamId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const fetchStats = async () => {
-        setLoading(true);
-        try {
-            // We need a new endpoint for this: /api/teams/[teamId]/email-stats
-            const res = await fetch(`/api/teams/${teamId}/email-stats`);
-            if (res.ok) {
-                const data = await res.json();
-                setStats(data);
+        const fetchStats = async () => {
+            setLoading(true);
+            try {
+                // We need a new endpoint for this: /api/teams/[teamId]/email-stats
+                const res = await fetch(`/api/teams/${teamId}/email-stats`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setStats(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch email stats", error);
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error("Failed to fetch email stats", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+
+        fetchStats();
+    }, [teamId]);
 
     return (
         <Card>

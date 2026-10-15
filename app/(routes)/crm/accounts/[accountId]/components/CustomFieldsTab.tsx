@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,9 @@ export function CustomFieldsTab({ accountId, definitions, values, tabName }: Cus
         .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
     const isCollection = tabFields[0]?.isCollection;
-    const collectionData: any[] = isCollection ? (Array.isArray(values[tabName]) ? values[tabName] : []) : [];
+    const collectionData: any[] = useMemo(() => {
+        return isCollection ? (Array.isArray(values[tabName]) ? values[tabName] : []) : [];
+    }, [isCollection, values, tabName]);
 
     const startEdit = useCallback((key: string, currentValue: any) => {
         setEditingKey(key);

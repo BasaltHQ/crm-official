@@ -141,7 +141,7 @@ export function PlanSelector({ subscription, teamId, isPlatformAdmin = false }: 
             if (!res.ok) throw new Error(data.error || "Failed to create checkout");
 
             if (data.url) {
-                window.location.href = data.url;
+                window.location.assign(data.url);
             }
         } catch (err: any) {
             toast.error(err.message || "Checkout failed");
@@ -168,7 +168,7 @@ export function PlanSelector({ subscription, teamId, isPlatformAdmin = false }: 
             if (!res.ok) throw new Error(data.error || "Failed to create checkout");
 
             if (data.url) {
-                window.location.href = data.url;
+                window.location.assign(data.url);
             }
         } catch (err: any) {
             toast.error(err.message || "Top-up failed");
@@ -186,7 +186,7 @@ export function PlanSelector({ subscription, teamId, isPlatformAdmin = false }: 
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to open portal");
-            if (data.url) window.location.href = data.url;
+            if (data.url) window.location.assign(data.url);
         } catch (err: any) {
             toast.error(err.message || "Could not open billing portal");
         } finally {

@@ -33,6 +33,7 @@ export default function SetupOrganizationPage() {
                 });
                 
                 // Hard refresh to reload the NextAuth session so layout.tsx picks up the new team ID
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                 window.location.href = "/dashboard";
             }
         } catch (error) {

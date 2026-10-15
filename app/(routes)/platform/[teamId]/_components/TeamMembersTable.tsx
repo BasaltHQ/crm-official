@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { MoreHorizontal, Shield, User, Trash, Search, Plus, KeyRound, Ban, CheckCircle, Fingerprint, UserPlus, Building2, Layers } from "lucide-react";
+import { MoreHorizontal, Shield, User, Trash, Search, Plus, KeyRound, Ban, CheckCircle, Fingerprint, UserPlus, Building2, Layers, AlertCircle } from "lucide-react";
 import { UserModulesModal } from "./UserModulesModal";
 import { AssignDepartmentModal } from "./AssignDepartmentModal";
 import { useSignedUrl } from "@/hooks/use-signed-url";

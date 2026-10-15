@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,13 +45,7 @@ export function TeamEmailSettings({ teamId }: TeamEmailSettingsProps) {
     const [replyDomainInput, setReplyDomainInput] = useState("");
     const [replyLoading, setReplyLoading] = useState(false);
 
-    useEffect(() => {
-        if (!teamId) return;
-        fetchConfig();
-        fetchReplyDomain();
-    }, [teamId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const fetchConfig = async () => {
+    const fetchConfig = useCallback(async () => {
         if (!teamId) return;
         try {
             const res = await fetch(`/api/teams/${teamId}/email-config`);
@@ -63,9 +57,9 @@ export function TeamEmailSettings({ teamId }: TeamEmailSettingsProps) {
         } catch (error) {
             console.error("Failed to fetch email config", error);
         }
-    };
+    }, [teamId]);
 
-    const fetchReplyDomain = async () => {
+    const fetchReplyDomain = useCallback(async () => {
         if (!teamId) return;
         try {
             const res = await fetch(`/api/teams/${teamId}/email-config/reply-domain`);
@@ -76,7 +70,13 @@ export function TeamEmailSettings({ teamId }: TeamEmailSettingsProps) {
         } catch (error) {
             console.error("Failed to fetch reply domain config", error);
         }
-    };
+    }, [teamId]);
+
+    useEffect(() => {
+        if (!teamId) return;
+        fetchConfig();
+        fetchReplyDomain();
+    }, [teamId, fetchConfig, fetchReplyDomain]);
 
     const handleRemove = async () => {
         if (!config || !teamId || !confirm("Are you sure? This will stop future campaigns from using this email.")) return;
