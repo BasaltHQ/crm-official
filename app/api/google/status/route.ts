@@ -49,6 +49,24 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, connected: false }, { status: 200 });
     }
 
+    // Verify token liveness if expired
+    let isLive = true;
+    const isExpired = !token.expiry_date || new Date(token.expiry_date).getTime() <= Date.now();
+    if (isExpired) {
+      try {
+        const { getGoogleOAuth2ForUser } = await import("@/lib/gmail");
+        const oauth2 = await getGoogleOAuth2ForUser(userId);
+        if (!oauth2) {
+          isLive = false;
+        } else {
+          await oauth2.getAccessToken();
+        }
+      } catch (authErr: any) {
+        systemLogger.warn("[GOOGLE_STATUS_GET] Token refresh failed:", authErr?.message);
+        isLive = false;
+      }
+    }
+
     // Compute scope coverage
     const grantedScopes: string[] =
       typeof (token as any)?.scope === "string" ? (token as any).scope.split(" ") : [];
@@ -59,7 +77,8 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         ok: true,
-        connected: true,
+        connected: isLive,
+        needsReconnect: !isLive,
         provider: "google",
         updatedAt: token.updatedAt ? new Date(token.updatedAt).toISOString() : undefined,
         hasRequiredScopes,

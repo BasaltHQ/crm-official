@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { toast } from "react-hot-toast";
 import {
   FaFacebook,
@@ -1507,10 +1508,10 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess = true, b
             Upgrade today to build your professional brand identity.
           </p>
           <Button
-            onClick={() => window.location.href = "/pricing"}
+            asChild
             className="px-8 py-6 h-auto text-lg font-bold uppercase italic shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
           >
-            Upgrade Now
+            <Link href="/pricing">Upgrade Now</Link>
           </Button>
         </div>
 

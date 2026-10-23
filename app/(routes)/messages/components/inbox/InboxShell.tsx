@@ -265,6 +265,19 @@ export function InboxShell(props: InboxShellProps) {
     }, [props.selectedMessageId, props.selectedSubmissionId, props.selectedNotificationId, isDesktop]);
 
     // ─── Keyboard Shortcuts (Desktop) ───
+    const {
+        filteredMessages,
+        selectedMessageId,
+        selectedMessage,
+        onSelectMessage,
+        onMessageRead,
+        onReply,
+        onArchiveMessage,
+        onDeleteMessage,
+        onCompose,
+        onClearSelection,
+    } = props;
+
     React.useEffect(() => {
         if (!isDesktop) return;
 
@@ -273,57 +286,69 @@ export function InboxShell(props: InboxShellProps) {
             const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
             if (tag === "input" || tag === "textarea" || tag === "select") return;
 
-            const msgs = props.filteredMessages;
-            const currentIdx = msgs.findIndex(m => m.id === props.selectedMessageId);
+            const msgs = filteredMessages;
+            const currentIdx = msgs.findIndex(m => m.id === selectedMessageId);
 
             switch (e.key.toLowerCase()) {
                 case "j": // Next message
                     e.preventDefault();
                     if (currentIdx < msgs.length - 1) {
                         const next = msgs[currentIdx + 1];
-                        props.onSelectMessage(next.id);
-                        props.onMessageRead(next);
+                        onSelectMessage(next.id);
+                        onMessageRead(next);
                     }
                     break;
                 case "k": // Previous message
                     e.preventDefault();
                     if (currentIdx > 0) {
                         const prev = msgs[currentIdx - 1];
-                        props.onSelectMessage(prev.id);
-                        props.onMessageRead(prev);
+                        onSelectMessage(prev.id);
+                        onMessageRead(prev);
                     }
                     break;
                 case "r": // Reply
-                    if (props.selectedMessage) {
+                    if (selectedMessage) {
                         e.preventDefault();
-                        props.onReply();
+                        onReply();
                     }
                     break;
                 case "e": // Archive
-                    if (props.selectedMessage) {
+                    if (selectedMessage) {
                         e.preventDefault();
-                        props.onArchiveMessage(props.selectedMessage.id);
+                        onArchiveMessage(selectedMessage.id);
                     }
                     break;
                 case "#": // Delete
-                    if (props.selectedMessage) {
+                    if (selectedMessage) {
                         e.preventDefault();
-                        props.onDeleteMessage(props.selectedMessage.id);
+                        onDeleteMessage(selectedMessage.id);
                     }
                     break;
                 case "c": // Compose
                     e.preventDefault();
-                    props.onCompose();
+                    onCompose();
                     break;
                 case "escape":
-                    props.onClearSelection();
+                    onClearSelection();
                     break;
             }
         };
 
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [isDesktop, props.filteredMessages, props.selectedMessageId, props.selectedMessage]);
+    }, [
+        isDesktop,
+        filteredMessages,
+        selectedMessageId,
+        selectedMessage,
+        onSelectMessage,
+        onMessageRead,
+        onReply,
+        onArchiveMessage,
+        onDeleteMessage,
+        onCompose,
+        onClearSelection,
+    ]);
 
     // Mobile folder pills
     const mobileFolderPills: { id: NavId; label: string; icon: React.ElementType; count: number }[] = [

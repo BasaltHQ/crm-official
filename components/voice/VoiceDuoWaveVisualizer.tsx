@@ -52,10 +52,199 @@ export default function VoiceDuoWaveVisualizer({
   const shineDirRef = useRef(1); // +1 to right, -1 to left
 
   // Base shape randomness for organic motion
-  const noiseSeed = useMemo(() => Math.random() * 1000, []);
+  const [noiseSeed] = useState(() => Math.random() * 1000);
   const noise = (x: number) => {
     // lightweight pseudo-noise
     return Math.sin(x * 1.3 + noiseSeed) * 0.5 + Math.sin(x * 0.73 + noiseSeed * 1.7) * 0.5;
+  };
+
+  const leftDotRef = useRef<HTMLDivElement>(null);
+  const rightDotRef = useRef<HTMLDivElement>(null);
+
+  const updateLevels = () => {
+    const leftAnalyser = leftAnalyserRef.current;
+    const rightAnalyser = rightAnalyserRef.current;
+
+    const computeRms = (analyser: AnalyserNode | null) => {
+      if (!analyser) return 0;
+      const timeData = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(timeData);
+      let sum = 0;
+      for (let i = 0; i < timeData.length; i++) {
+        const v = (timeData[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / timeData.length);
+      // pleasing boost + clamp
+      return Math.min(1, rms * 1.9);
+    };
+
+    // Smooth updates
+    const lPrev = leftLevelRef.current;
+    const rPrev = rightLevelRef.current;
+    const lInst = computeRms(leftAnalyser);
+    const rInst = computeRms(rightAnalyser);
+    const lSmooth = lPrev * 0.8 + lInst * 0.2;
+    const rSmooth = rPrev * 0.8 + rInst * 0.2;
+
+    leftLevelRef.current = lSmooth;
+    rightLevelRef.current = rSmooth;
+
+    const isLeftActive = lSmooth > 0.015;
+    const isRightActive = rSmooth > 0.015;
+
+    leftActiveRef.current = isLeftActive;
+    rightActiveRef.current = isRightActive;
+
+    if (leftDotRef.current) {
+      leftDotRef.current.style.background = isLeftActive
+        ? "radial-gradient(circle, #22d3ee 0%, #3b82f6 100%)"
+        : "rgba(255,255,255,0.35)";
+      leftDotRef.current.style.boxShadow = isLeftActive ? "0 0 18px rgba(59,130,246,0.8)" : "none";
+    }
+
+    if (rightDotRef.current) {
+      rightDotRef.current.style.background = isRightActive
+        ? "radial-gradient(circle, #8b5cf6 0%, #60a5fa 100%)"
+        : "rgba(255,255,255,0.35)";
+      rightDotRef.current.style.boxShadow = isRightActive ? "0 0 18px rgba(96,165,250,0.8)" : "none";
+    }
+
+    // Phase advances proportional to overall energy
+    const energy = Math.max(0.15, (lSmooth + rSmooth) * 0.5);
+    phaseRef.current += 0.02 + energy * 0.03;
+
+    // Shine direction follows dominance
+    shineDirRef.current = lSmooth > rSmooth ? 1 : -1;
+    shineTRef.current = clamp(shineTRef.current + shineDirRef.current * (0.004 + energy * 0.006), 0.0, 1.0);
+  };
+
+  const draw = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    if (canvas.width !== Math.floor(W * dpr) || canvas.height !== Math.floor(H * dpr)) {
+      canvas.width = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    // Glass backdrop shimmer (subtle)
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+    bgGrad.addColorStop(0, "rgba(255,255,255,0.09)");
+    bgGrad.addColorStop(1, "rgba(255,255,255,0.02)");
+    ctx.fillStyle = bgGrad;
+    roundRect(ctx, 0, 0, W, H, 18);
+    ctx.fill();
+
+    // Wave gradient across (blend left/right palettes)
+    const waveGrad = ctx.createLinearGradient(0, 0, W, 0);
+    waveGrad.addColorStop(0.0, leftColors[0]);
+    waveGrad.addColorStop(0.18, leftColors[1]);
+    waveGrad.addColorStop(0.5, mixHex(leftColors[1], rightColors[0], 0.5));
+    waveGrad.addColorStop(0.82, rightColors[0]);
+    waveGrad.addColorStop(1.0, rightColors[1]);
+
+    // Compute spatial amplitude mixing
+    const baseY = H * 0.5;
+    const leftLevel = leftLevelRef.current;
+    const rightLevel = rightLevelRef.current;
+    const phase = phaseRef.current;
+
+    // Main unified wave
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    const freq = 0.018; // horizontal frequency
+    const thickness = 2.2;
+    for (let x = 0; x <= W; x += 2) {
+      const t = x / W; // 0..1
+      // spatial bias curve (emphasize edges)
+      const lBias = Math.pow(1 - t, 1.6);
+      const rBias = Math.pow(t, 1.6);
+      const amp = (leftLevel * lBias + rightLevel * rBias) * (H * 0.22);
+
+      // organic variability
+      const organic = noise(x * 0.006 + phase * 0.7) * amp * 0.35;
+
+      const y =
+        baseY +
+        Math.sin(x * freq + phase * 1.15) * amp * 0.75 +
+        Math.sin(x * freq * 0.55 - phase * 0.9) * (amp * 0.45) +
+        organic;
+
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = waveGrad;
+    ctx.lineWidth = thickness;
+    ctx.shadowColor = hexToRgba(leftColors[1], leftActiveRef.current ? 0.28 : 0.12);
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+
+    // Fill under wave for glass tint
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
+    fillGrad.addColorStop(0, "rgba(255,255,255,0.08)");
+    fillGrad.addColorStop(1, "rgba(255,255,255,0.02)");
+    ctx.fillStyle = fillGrad;
+    ctx.fill();
+
+    // Two subtle overlay strokes left/right to hint duality
+    // Left overlay
+    ctx.beginPath();
+    for (let x = 0; x <= W * 0.5; x += 2) {
+      const t = x / (W * 0.5);
+      const amp = leftLevel * Math.pow(1 - t, 1.3) * (H * 0.15);
+      const y = baseY + Math.sin(x * freq * 1.6 + phase * 1.4) * amp;
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = hexToRgba(leftColors[1], leftActiveRef.current ? 0.85 : 0.35);
+    ctx.lineWidth = 1.2;
+    ctx.shadowColor = hexToRgba(leftColors[1], leftActiveRef.current ? 0.35 : 0.15);
+    ctx.shadowBlur = leftActiveRef.current ? 10 : 6;
+    ctx.stroke();
+
+    // Right overlay
+    ctx.beginPath();
+    for (let x = W; x >= W * 0.5; x -= 2) {
+      const t = (W - x) / (W * 0.5);
+      const amp = rightLevel * Math.pow(1 - t, 1.3) * (H * 0.15);
+      const y = baseY + Math.sin(x * freq * 1.6 + phase * 1.1) * amp;
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = hexToRgba(rightColors[0], rightActiveRef.current ? 0.85 : 0.35);
+    ctx.lineWidth = 1.2;
+    ctx.shadowColor = hexToRgba(rightColors[0], rightActiveRef.current ? 0.35 : 0.15);
+    ctx.shadowBlur = rightActiveRef.current ? 10 : 6;
+    ctx.stroke();
+
+    // Moving shine that shifts left/right dominance
+    const shineT = shineTRef.current;
+    const shineX = shineT * W;
+    const shineGrad = ctx.createRadialGradient(shineX, baseY, 0, shineX, baseY, W * 0.65);
+    const activeColor = leftActiveRef.current ? leftColors[1] : rightColors[0];
+    shineGrad.addColorStop(0, hexToRgba(activeColor, 0.15));
+    shineGrad.addColorStop(1, "rgba(255,255,255,0.00)");
+    ctx.fillStyle = shineGrad;
+    ctx.globalCompositeOperation = "lighter";
+    roundRect(ctx, 0, 0, W, H, 18);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+
+    // Edge highlights
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 18);
+    ctx.stroke();
   };
 
   // Initialize / update audio graph when streams change
@@ -159,175 +348,7 @@ export default function VoiceDuoWaveVisualizer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leftStream, rightStream]);
 
-  const updateLevels = () => {
-    const leftAnalyser = leftAnalyserRef.current;
-    const rightAnalyser = rightAnalyserRef.current;
-
-    const computeRms = (analyser: AnalyserNode | null) => {
-      if (!analyser) return 0;
-      const timeData = new Uint8Array(analyser.fftSize);
-      analyser.getByteTimeDomainData(timeData);
-      let sum = 0;
-      for (let i = 0; i < timeData.length; i++) {
-        const v = (timeData[i] - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / timeData.length);
-      // pleasing boost + clamp
-      return Math.min(1, rms * 1.9);
-    };
-
-    // Smooth updates
-    const lPrev = leftLevelRef.current;
-    const rPrev = rightLevelRef.current;
-    const lInst = computeRms(leftAnalyser);
-    const rInst = computeRms(rightAnalyser);
-    const lSmooth = lPrev * 0.8 + lInst * 0.2;
-    const rSmooth = rPrev * 0.8 + rInst * 0.2;
-
-    leftLevelRef.current = lSmooth;
-    rightLevelRef.current = rSmooth;
-
-    leftActiveRef.current = lSmooth > 0.015;
-    rightActiveRef.current = rSmooth > 0.015;
-
-    // Phase advances proportional to overall energy
-    const energy = Math.max(0.15, (lSmooth + rSmooth) * 0.5);
-    phaseRef.current += 0.02 + energy * 0.03;
-
-    // Shine direction follows dominance
-    shineDirRef.current = lSmooth > rSmooth ? 1 : -1;
-    shineTRef.current = clamp(shineTRef.current + shineDirRef.current * (0.004 + energy * 0.006), 0.0, 1.0);
-  };
-
-  const draw = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const W = canvas.clientWidth;
-    const H = canvas.clientHeight;
-    if (canvas.width !== Math.floor(W * dpr) || canvas.height !== Math.floor(H * dpr)) {
-      canvas.width = Math.floor(W * dpr);
-      canvas.height = Math.floor(H * dpr);
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Clear
-    ctx.clearRect(0, 0, W, H);
-
-    // Glass backdrop shimmer (subtle)
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, "rgba(255,255,255,0.09)");
-    bgGrad.addColorStop(1, "rgba(255,255,255,0.02)");
-    ctx.fillStyle = bgGrad;
-    roundRect(ctx, 0, 0, W, H, 18);
-    ctx.fill();
-
-    // Wave gradient across (blend left/right palettes)
-    const waveGrad = ctx.createLinearGradient(0, 0, W, 0);
-    waveGrad.addColorStop(0.0, leftColors[0]);
-    waveGrad.addColorStop(0.18, leftColors[1]);
-    waveGrad.addColorStop(0.5, mixHex(leftColors[1], rightColors[0], 0.5));
-    waveGrad.addColorStop(0.82, rightColors[0]);
-    waveGrad.addColorStop(1.0, rightColors[1]);
-
-    // Compute spatial amplitude mixing
-    const baseY = H * 0.5;
-    const leftLevel = leftLevelRef.current;
-    const rightLevel = rightLevelRef.current;
-    const phase = phaseRef.current;
-
-    // Main unified wave
-    ctx.beginPath();
-    ctx.moveTo(0, baseY);
-    const freq = 0.018; // horizontal frequency
-    const thickness = 2.2;
-    for (let x = 0; x <= W; x += 2) {
-      const t = x / W; // 0..1
-      // spatial bias curve (emphasize edges)
-      const lBias = Math.pow(1 - t, 1.6);
-      const rBias = Math.pow(t, 1.6);
-      const amp = (leftLevel * lBias + rightLevel * rBias) * (H * 0.22);
-
-      // organic variability
-      const organic = noise(x * 0.006 + phase * 0.7) * amp * 0.35;
-
-      const y =
-        baseY +
-        Math.sin(x * freq + phase * 1.15) * amp * 0.75 +
-        Math.sin(x * freq * 1.9 + phase * 0.8) * amp * 0.25 +
-        organic;
-
-      ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = waveGrad;
-    ctx.lineWidth = thickness;
-    ctx.shadowColor = hexToRgba(leftColors[1], leftActiveRef.current ? 0.28 : 0.12);
-    ctx.shadowBlur = 12;
-    ctx.stroke();
-
-    // Fill under wave for glass tint
-    ctx.lineTo(W, H);
-    ctx.lineTo(0, H);
-    ctx.closePath();
-    const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
-    fillGrad.addColorStop(0, "rgba(255,255,255,0.08)");
-    fillGrad.addColorStop(1, "rgba(255,255,255,0.02)");
-    ctx.fillStyle = fillGrad;
-    ctx.fill();
-
-    // Two subtle overlay strokes left/right to hint duality
-    // Left overlay
-    ctx.beginPath();
-    for (let x = 0; x <= W * 0.5; x += 2) {
-      const t = x / (W * 0.5);
-      const amp = leftLevel * Math.pow(1 - t, 1.3) * (H * 0.15);
-      const y = baseY + Math.sin(x * freq * 1.6 + phase * 1.4) * amp;
-      ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = hexToRgba(leftColors[1], leftActiveRef.current ? 0.85 : 0.35);
-    ctx.lineWidth = 1.2;
-    ctx.shadowColor = hexToRgba(leftColors[1], leftActiveRef.current ? 0.35 : 0.15);
-    ctx.shadowBlur = leftActiveRef.current ? 10 : 6;
-    ctx.stroke();
-
-    // Right overlay
-    ctx.beginPath();
-    for (let x = W; x >= W * 0.5; x -= 2) {
-      const t = (W - x) / (W * 0.5);
-      const amp = rightLevel * Math.pow(1 - t, 1.3) * (H * 0.15);
-      const y = baseY + Math.sin(x * freq * 1.6 + phase * 1.1) * amp;
-      ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = hexToRgba(rightColors[0], rightActiveRef.current ? 0.85 : 0.35);
-    ctx.lineWidth = 1.2;
-    ctx.shadowColor = hexToRgba(rightColors[0], rightActiveRef.current ? 0.35 : 0.15);
-    ctx.shadowBlur = rightActiveRef.current ? 10 : 6;
-    ctx.stroke();
-
-    // Moving shine that shifts left/right dominance
-    const shineT = shineTRef.current;
-    const shineX = shineT * W;
-    const shineGrad = ctx.createRadialGradient(shineX, baseY, 0, shineX, baseY, W * 0.65);
-    const activeColor = leftActiveRef.current ? leftColors[1] : rightColors[0];
-    shineGrad.addColorStop(0, hexToRgba(activeColor, 0.15));
-    shineGrad.addColorStop(1, "rgba(255,255,255,0.00)");
-    ctx.fillStyle = shineGrad;
-    ctx.globalCompositeOperation = "lighter";
-    roundRect(ctx, 0, 0, W, H, 18);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-
-    // Edge highlights
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 1;
-    roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 18);
-    ctx.stroke();
-  };
-
+  
   return (
     <div
       className={[
@@ -348,12 +369,11 @@ export default function VoiceDuoWaveVisualizer({
       <div className="relative flex items-center justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <div
+            ref={leftDotRef}
             className="h-2 w-2 rounded-full transition-colors"
             style={{
-              background: leftActiveRef.current
-                ? "radial-gradient(circle, #22d3ee 0%, #3b82f6 100%)"
-                : "rgba(255,255,255,0.35)",
-              boxShadow: leftActiveRef.current ? "0 0 18px rgba(59,130,246,0.8)" : "none",
+              background: "rgba(255,255,255,0.35)",
+              boxShadow: "none",
             }}
           />
           <div className="text-[11px] uppercase tracking-wide text-white/80 dark:text-white/70">{leftLabel}</div>
@@ -361,12 +381,11 @@ export default function VoiceDuoWaveVisualizer({
         <div className="flex items-center gap-2">
           <div className="text-[11px] uppercase tracking-wide text-white/80 dark:text-white/70">{rightLabel}</div>
           <div
+            ref={rightDotRef}
             className="h-2 w-2 rounded-full transition-colors"
             style={{
-              background: rightActiveRef.current
-                ? "radial-gradient(circle, #8b5cf6 0%, #60a5fa 100%)"
-                : "rgba(255,255,255,0.35)",
-              boxShadow: rightActiveRef.current ? "0 0 18px rgba(96,165,250,0.8)" : "none",
+              background: "rgba(255,255,255,0.35)",
+              boxShadow: "none",
             }}
           />
         </div>

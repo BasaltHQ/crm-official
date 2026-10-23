@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import StageProgressBar, { type StageDatum } from "@/components/StageProgressBar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +40,7 @@ const STAGES: PipelineStage[] = [
 ];
 
 export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Props) {
+  const router = useRouter();
   const [leads, setLeads] = useState<LeadLite[]>(leadsProp || []);
   const [selectedLeadId, setSelectedLeadId] = useState<string>("");
   const [activeStage, setActiveStage] = useState<PipelineStage>("Identify");
@@ -202,7 +204,7 @@ export default function ProcessPanel({ leads: leadsProp, crmData: _crmData }: Pr
         toast.success("Lead converted to Opportunity");
         // Optionally redirect or reload
         if (res.data?.opportunityId) {
-          window.location.href = `/crm/opportunities/${res.data.opportunityId}`;
+          router.push(`/crm/opportunities/${res.data.opportunityId}`);
         }
       } else {
         toast.error(res.error || "Failed to convert");

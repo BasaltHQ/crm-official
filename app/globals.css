@@ -824,7 +824,7 @@
   }
 
   /* Force dark input backgrounds - NO WHITE CONTAINERS */
-  input,
+  input:not([data-input-otp]):not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"]),
   textarea,
   select {
     background-color: hsl(var(--input)) !important;
@@ -833,11 +833,26 @@
     text-align: left !important;
   }
 
+  /* Ensure OTP inputs (e.g. Thirdweb / input-otp) stay transparent with visible digit slots */
+  input[data-input-otp],
+  [data-input-otp-container] input,
+  .tw-otp-input-container input {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: transparent !important;
+    border: 0 solid transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    caret-color: transparent !important;
+    outline: none !important;
+  }
+
   /* Override Chrome autofill white background */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active,
+  input:not([data-input-otp]):-webkit-autofill,
+  input:not([data-input-otp]):-webkit-autofill:hover,
+  input:not([data-input-otp]):-webkit-autofill:focus,
+  input:not([data-input-otp]):-webkit-autofill:active,
   textarea:-webkit-autofill,
   select:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px hsl(var(--input)) inset !important;

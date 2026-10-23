@@ -6,11 +6,12 @@ import { useTheme } from "next-themes";
 import { inAppWallet, createWallet } from "thirdweb/wallets";
 import { base } from "thirdweb/chains";
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
 
 export default function ThirdwebLoginEmbed() {
+  const router = useRouter();
   const account = useActiveAccount();
   const wallet = useActiveWallet();
   const { data: profiles } = useProfiles({ client });
@@ -108,12 +109,12 @@ export default function ThirdwebLoginEmbed() {
       if (email) params.set("email", email);
       if (displayName) params.set("name", displayName);
 
-      window.location.href = `/api/auth/thirdweb/bridge?${params.toString()}`;
+      router.push(`/api/auth/thirdweb/bridge?${params.toString()}`);
     };
 
     waitForLoginThenBridge();
     return () => { cancelled = true; };
-  }, [account, profiles]);
+  }, [account, profiles, disconnect, wallet, router]);
 
   // Remove Thirdweb branding via DOM mutation observer
   useEffect(() => {
@@ -210,7 +211,7 @@ export default function ThirdwebLoginEmbed() {
             },
             doLogout: async () => {
               await fetch("/api/auth/thirdweb/logout", { method: "POST" });
-              window.location.href = "/sign-in";
+              router.push("/sign-in");
             },
           }}
           appMetadata={{

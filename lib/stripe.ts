@@ -11,7 +11,7 @@ if (!process.env.STRIPE_API_KEY) {
     console.warn("[Stripe] STRIPE_API_KEY is not set. Stripe features will be unavailable.");
 }
 
-export const stripe = new Stripe(process.env.STRIPE_API_KEY || "", {
+export const stripe = new Stripe(process.env.STRIPE_API_KEY || "sk_test_placeholder", {
     apiVersion: "2026-02-25.clover",
     typescript: true,
 });

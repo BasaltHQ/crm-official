@@ -541,6 +541,7 @@ export default function ChatBoard({ sessionId, initialMessages, isTemporary, onR
                                                 if (!items || items.length === 0) return null;
                                                 return (
                                                     <MessageBubble
+                                                        key={p.toolCallId || `${m.id}-${i}`}
                                                         id={p.toolCallId || `${m.id}-${i}`}
                                                         role="assistant"
                                                         content={items.map((item: any, idx: number) =>

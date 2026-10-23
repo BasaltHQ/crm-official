@@ -131,7 +131,7 @@ export function InboxMessageDetail({
                 });
             }
         }
-    }, [selectedMessage?.id]);
+    }, [selectedMessage?.id, selectedMessage?._thread]);
 
     if (!selectedMessage) {
         return (

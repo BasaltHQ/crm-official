@@ -161,8 +161,8 @@ function CreateEntitlementForm({ onSubmit }: { onSubmit: (data: any) => void }) 
     const [type, setType] = useState("cases");
     const [totalCases, setTotalCases] = useState("50");
     const [responseTime, setResponseTime] = useState("4");
-    const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
-    const [endDate, setEndDate] = useState(
+    const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
+    const [endDate, setEndDate] = useState(() =>
         new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
     );
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -248,27 +248,7 @@ export default function CalendarIntegrationPanel() {
   const [schedLoading, setSchedLoading] = useState<boolean>(false);
   const [eventLink, setEventLink] = useState<{ html?: string; meet?: string } | null>(null);
 
-  // Read query param "google" for post-OAuth feedback
-  useEffect(() => {
-    try {
-      const p = new URLSearchParams(window.location.search);
-      const google = p.get('google');
-      if (google === 'connected') {
-        toast.success('Google connected');
-        checkGoogleStatus();
-      } else if (google === 'error') {
-        toast.error('Google connection failed');
-      }
-    } catch { }
-  }, []);
-
-  // Initial connection status check against token presence
-  useEffect(() => {
-    checkGoogleStatus();
-
-  }, []);
-
-  const checkGoogleStatus = async () => {
+  const checkGoogleStatus = useCallback(async () => {
     setChecking(true);
     try {
       const res = await fetch('/api/google/status');
@@ -285,7 +265,26 @@ export default function CalendarIntegrationPanel() {
     } finally {
       setChecking(false);
     }
-  };
+  }, []);
+
+  // Read query param "google" for post-OAuth feedback
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const google = p.get('google');
+      if (google === 'connected') {
+        toast.success('Google connected');
+        checkGoogleStatus();
+      } else if (google === 'error') {
+        toast.error('Google connection failed');
+      }
+    } catch { }
+  }, [checkGoogleStatus]);
+
+  // Initial connection status check against token presence
+  useEffect(() => {
+    checkGoogleStatus();
+  }, [checkGoogleStatus]);
 
   const connectGoogle = async () => {
     try {
@@ -499,12 +498,14 @@ export default function CalendarIntegrationPanel() {
           </Button>
 
           <Button
-            onClick={() => window.location.href = "/api/microsoft/auth"}
+            asChild
             variant="outline"
             className="border-blue-200 hover:bg-blue-50 text-blue-700"
           >
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft Logo" className="w-4 h-4 mr-2" />
-            Connect Outlook
+            <a href="/api/microsoft/auth">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft Logo" className="w-4 h-4 mr-2" />
+              Connect Outlook
+            </a>
           </Button>
 
           <Button onClick={checkGoogleStatus} variant="outline">Refresh Status</Button>

@@ -70,6 +70,51 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
     CRITICAL: { label: "Critical", color: "bg-red-500/20 text-red-300 border-red-500/40 animate-pulse" },
 };
 
+function getTimeSince(date: string) {
+    const diff = Date.now() - new Date(date).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return `${Math.floor(diff / (1000 * 60))}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+interface ViewTabsProps {
+    activeView: string;
+    setActiveView: (view: string) => void;
+    router: any;
+}
+
+function ViewTabs({ activeView, setActiveView, router }: ViewTabsProps) {
+    return (
+        <div className="flex items-center gap-1 border-b border-border/50 px-4 md:px-6 lg:px-8 bg-background/95 backdrop-blur">
+            {[
+                { key: "list", label: "Cases", icon: List },
+                { key: "queue", label: "Queue", icon: Inbox },
+                { key: "chat", label: "Live Chat", icon: MessageSquareText },
+                { key: "kb", label: "Knowledge Base", icon: BookOpen },
+            ].map(tab => (
+                <button
+                    key={tab.key}
+                    onClick={() => {
+                        setActiveView(tab.key);
+                        router.push(tab.key === "list" ? "/crm/cases" : `/crm/cases?view=${tab.key}`);
+                    }}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-[1px]",
+                        activeView === tab.key
+                            ? "border-primary text-primary"
+                            : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    <tab.icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 export default function CasesClient({
     initialCases,
     stats,
@@ -165,48 +210,10 @@ export default function CasesClient({
         }
     };
 
-    const getTimeSince = (date: string) => {
-        const diff = Date.now() - new Date(date).getTime();
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        if (hours < 1) return `${Math.floor(diff / (1000 * 60))}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        const days = Math.floor(hours / 24);
-        return `${days}d ago`;
-    };
-
-    // Shared view tab bar for all views
-    const ViewTabs = () => (
-        <div className="flex items-center gap-1 border-b border-border/50 px-4 md:px-6 lg:px-8 bg-background/95 backdrop-blur">
-            {[
-                { key: "list", label: "Cases", icon: List },
-                { key: "queue", label: "Queue", icon: Inbox },
-                { key: "chat", label: "Live Chat", icon: MessageSquareText },
-                { key: "kb", label: "Knowledge Base", icon: BookOpen },
-            ].map(tab => (
-                <button
-                    key={tab.key}
-                    onClick={() => {
-                        setActiveView(tab.key);
-                        router.push(tab.key === "list" ? "/crm/cases" : `/crm/cases?view=${tab.key}`);
-                    }}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-[1px]",
-                        activeView === tab.key
-                            ? "border-primary text-primary"
-                            : "border-transparent text-muted-foreground hover:text-foreground"
-                    )}
-                >
-                    <tab.icon className="w-3.5 h-3.5" />
-                    {tab.label}
-                </button>
-            ))}
-        </div>
-    );
-
     if (activeView === "kb") {
         return (
             <div className="flex flex-col h-full">
-                <ViewTabs />
+                <ViewTabs activeView={activeView} setActiveView={setActiveView} router={router} />
                 <div className="flex-1 overflow-auto">
                     <KnowledgeBaseView initialArticles={initialArticles} />
                 </div>
@@ -217,7 +224,7 @@ export default function CasesClient({
     if (activeView === "chat") {
         return (
             <div className="flex flex-col h-full">
-                <ViewTabs />
+                <ViewTabs activeView={activeView} setActiveView={setActiveView} router={router} />
                 <div className="flex-1 overflow-auto px-4 md:px-6 lg:px-8 py-4 pb-36 md:pb-4">
                     <LiveChatConsole />
                 </div>
@@ -234,7 +241,7 @@ export default function CasesClient({
 
         return (
             <div className="flex flex-col h-full bg-background">
-                <ViewTabs />
+                <ViewTabs activeView={activeView} setActiveView={setActiveView} router={router} />
 
                 <div className="flex-1 overflow-auto px-4 md:px-6 lg:px-8 py-4 pb-36 md:pb-4">
                     {queueCases.length === 0 ? (
@@ -331,7 +338,7 @@ export default function CasesClient({
                         </Button>
                     </div>
 
-                    <ViewTabs />
+                    <ViewTabs activeView={activeView} setActiveView={setActiveView} router={router} />
 
                     {/* Stats Bar */}
                     {stats && (

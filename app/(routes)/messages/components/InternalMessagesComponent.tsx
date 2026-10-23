@@ -167,6 +167,10 @@ export function InternalMessagesComponent({
     const [selectedBatchIds, setSelectedBatchIds] = React.useState<string[]>([]);
     const [isBulkProcessing, setIsBulkProcessing] = React.useState(false);
 
+    const [composeOpen, setComposeOpen] = React.useState(false);
+    const [searchQuery, setSearchQuery] = React.useState("");
+    const [activeNav, setActiveNav] = React.useState<"inbox" | "dms" | "emails" | "sms" | "internal" | "sent" | "drafts" | "archive" | "trash" | "submissions" | "notifications">("inbox");
+
     // Handle URL params for deep linking
     React.useEffect(() => {
         const id = searchParams.get("id");
@@ -180,9 +184,6 @@ export function InternalMessagesComponent({
             setSelectedMessageId(id);
         }
     }, [searchParams]);
-    const [composeOpen, setComposeOpen] = React.useState(false);
-    const [searchQuery, setSearchQuery] = React.useState("");
-    const [activeNav, setActiveNav] = React.useState<"inbox" | "dms" | "emails" | "sms" | "internal" | "sent" | "drafts" | "archive" | "trash" | "submissions" | "notifications">("inbox");
     
     // Clear batch selection on nav change
     React.useEffect(() => {
