@@ -162,12 +162,7 @@
     "react-youtube": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "resend": "6.5.2",
-<<<<<<< HEAD
-    "server-only": "0.0.1",
-    "sharp": "^0.34.5",
-=======
     "sharp": "^0.35.3",
->>>>>>> d70ade3387c4674e631399d68e8ece250de61dad
     "sonner": "^2.0.7",
     "stripe": "^20.4.1",
     "styled-jsx": "^5.1.7",
