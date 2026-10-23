@@ -45,6 +45,7 @@ export default function CrmSidebar({ isMember = false, allowedModules = [] }: Cr
 
     // Permission Helper
     const hasAccess = (moduleId: string) => {
+        if (moduleId === 'decision-intelligence') return true;
         if (!allowedModules || allowedModules.length === 0) return false;
         if (allowedModules.includes('*')) return true;
 
@@ -83,6 +84,7 @@ export default function CrmSidebar({ isMember = false, allowedModules = [] }: Cr
 
     // Full Nav List relative to permissions
     const allNavItems = [
+        { id: 'decision-intelligence', label: "Decision Intelligence", href: "/crm/decision-intelligence", icon: Zap },
         { id: 'accounts', label: "Accounts", href: "/crm/accounts", icon: Building2 },
         { id: 'contacts', label: "Contacts", href: "/crm/contacts", icon: Contact },
         { id: 'leads', label: "Leads", href: "/crm/leads", icon: Users },

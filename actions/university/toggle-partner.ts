@@ -29,7 +29,7 @@ export async function managePartnerProfile(
         }
 
         // Must be level 21 or higher to be a partner
-        const level = user.level || 1;
+        const level = Math.max(user.university_level || 1, user.level || 1);
         if (level < 21) {
             return { error: "You must reach Strategic Master (Level 21) to join the Partner Network." };
         }
@@ -50,10 +50,10 @@ export async function managePartnerProfile(
                 { _id: new ObjectId(session.user.id) },
                 {
                     $set: {
-                        "partner_profile.agency_name": payload?.agency_name || currentProfile.agency_name || "",
-                        "partner_profile.website": payload?.website || currentProfile.website || "",
-                        "partner_profile.calendar_url": payload?.calendar_url || currentProfile.calendar_url || "",
-                        "partner_profile.bio": payload?.bio || currentProfile.bio || "",
+                        "partner_profile.agency_name": payload?.agency_name !== undefined ? payload.agency_name : (currentProfile.agency_name || ""),
+                        "partner_profile.website": payload?.website !== undefined ? payload.website : (currentProfile.website || ""),
+                        "partner_profile.calendar_url": payload?.calendar_url !== undefined ? payload.calendar_url : (currentProfile.calendar_url || ""),
+                        "partner_profile.bio": payload?.bio !== undefined ? payload.bio : (currentProfile.bio || ""),
                         "partner_profile.updated_at": new Date(),
                         updated_at: new Date()
                     }

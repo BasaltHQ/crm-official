@@ -35,12 +35,16 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpRight, ChevronRight, Sparkles, ExternalLink } from "lucide-react";
+import { ArrowUpRight, ChevronRight, Sparkles, ExternalLink, RefreshCw, Share2 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image"; // Added Image import as it was in the provided diff, assuming it's needed later
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 import { cn } from "@/lib/utils";
 import { managePartnerProfile } from "@/actions/university/toggle-partner";
+import { logUserMetric } from "@/actions/university/log-user-metric";
+import { evaluateMasteryProgress } from "@/actions/university/evaluate-progress";
 
 const PHASES = [
     { title: "The Foundation", id: "foundation", range: "0-15%", color: "text-blue-400", borderColor: "border-blue-500/20", bgColor: "bg-blue-500/10" },
@@ -54,205 +58,205 @@ const MILESTONES = [
     {
         id: 1, phase: "foundation", title: "System Onboarding", subtitle: "Getting settled in", icon: Users, xp: 50,
         requirements: [
-            { text: "Upload a personal avatar/profile picture", done: true, href: "/profile" },
-            { text: "Configure your personal time zone", done: true, href: "/profile" },
-            { text: "Navigate to the main CRM Dashboard", done: true, href: "/crm/dashboard" }
+            { text: "Upload a personal avatar/profile picture", flagKey: "avatar", done: true, href: "/profile" },
+            { text: "Configure your personal time zone", flagKey: "timezone", done: true, href: "/profile" },
+            { text: "Navigate to the main CRM Dashboard", flagKey: "dashboard", done: true, href: "/crm/dashboard" }
         ]
     },
     {
         id: 2, phase: "foundation", title: "The Communicator", subtitle: "Digital presence", icon: Layout, xp: 50,
         requirements: [
-            { text: "Configure your personal email signature", done: false, href: "/profile?tab=signature" },
-            { text: "Send a direct internal message to a peer", done: false, href: "/messages" },
-            { text: "Review your personal notification settings", done: false, href: "/profile" }
+            { text: "Configure your personal email signature", flagKey: "signature", done: false, href: "/profile?tab=signature" },
+            { text: "Send a direct internal message to a peer", flagKey: "message", done: false, href: "/messages" },
+            { text: "Review your personal notification settings", flagKey: "notifications", done: false, href: "/profile?tab=notifications" }
         ]
     },
     {
         id: 3, phase: "foundation", title: "Data Entry Novice", subtitle: "Core records", icon: Users, xp: 100,
         requirements: [
-            { text: "Create a new Lead or Contact manually", done: false, href: "/crm/leads" },
-            { text: "Add a comprehensive note to a profile", done: false, href: "/crm/leads" },
-            { text: "Update an existing contact's details", done: false, href: "/crm/contacts" }
+            { text: "Create a new Lead or Contact manually", flagKey: "lead_created", done: false, href: "/crm/leads" },
+            { text: "Add a comprehensive note to a profile", flagKey: "note_created", done: false, href: "/crm/leads" },
+            { text: "Update an existing contact's details", flagKey: "contact_updated", done: false, href: "/crm/contacts" }
         ]
     },
     {
         id: 4, phase: "foundation", title: "Task Manager", subtitle: "Daily operations", icon: Layout, xp: 100,
         requirements: [
-            { text: "Create a new Task with a specific due date", done: false, href: "/crm/tasks" },
-            { text: "Mark a scheduled activity as completed", done: false, href: "/crm/tasks" },
-            { text: "Link a follow-up task to an Opportunity", done: false, href: "/crm/opportunities" }
+            { text: "Create a new Task with a specific due date", flagKey: "created_task", done: false, href: "/projects/tasks" },
+            { text: "Mark a scheduled activity as completed", flagKey: "completed_task", done: false, href: "/projects/tasks" },
+            { text: "Link a follow-up task to an Opportunity", flagKey: "linked_task", done: false, href: "/crm/opportunities" }
         ]
     },
     {
         id: 5, phase: "foundation", title: "Insight Seeker", subtitle: "Navigating data", icon: ShieldCheck, xp: 150,
         requirements: [
-            { text: "Use global search to locate a record", done: false, href: "/crm/dashboard" },
-            { text: "Apply a custom filter to a Contact list view", done: false, href: "/crm/contacts" },
-            { text: "Pin or bookmark a frequently visited page", done: false, href: "/crm/dashboard" }
+            { text: "Use global search to locate a record", flagKey: "global_search", done: false, href: "/crm/dashboard" },
+            { text: "Apply a custom filter to a Contact list view", flagKey: "custom_filter", done: false, href: "/crm/contacts" },
+            { text: "Pin or bookmark a frequently visited page", flagKey: "bookmark", done: false, href: "/crm/dashboard" }
         ]
     },
     // Data Pioneer
     {
         id: 6, phase: "data-pioneer", title: "Opportunity Hunter", subtitle: "Pipeline basics", icon: Search, xp: 200,
         requirements: [
-            { text: "Create your first Deal/Opportunity", done: false, href: "/crm/opportunities" },
-            { text: "Assign an estimated revenue value", done: false, href: "/crm/opportunities" },
-            { text: "Move an Opportunity to a new pipeline stage", done: false, href: "/crm/opportunities" }
+            { text: "Create your first Deal/Opportunity", flagKey: "opportunity_created", done: false, href: "/crm/opportunities" },
+            { text: "Assign an estimated revenue value", flagKey: "opportunity_contact", done: false, href: "/crm/opportunities" },
+            { text: "Move an Opportunity to a new pipeline stage", flagKey: "opportunity_moved", done: false, href: "/crm/opportunities" }
         ]
     },
     {
         id: 7, phase: "data-pioneer", title: "Pipeline Organizer", subtitle: "Visual control", icon: Database, xp: 250,
         requirements: [
-            { text: "View and filter the Kanban opportunity board", done: false, href: "/crm/opportunities" },
-            { text: "Add a specific tag or label to a deal", done: false, href: "/crm/opportunities" },
-            { text: "Log a 'Next Step' description for a prospect", done: false, href: "/crm/opportunities" }
+            { text: "View and filter the Kanban opportunity board", flagKey: "kanban_filtered", done: false, href: "/crm/opportunities" },
+            { text: "Add a specific tag or label to a deal", flagKey: "opportunity_tagged", done: false, href: "/crm/opportunities" },
+            { text: "Log a 'Next Step' description for a prospect", flagKey: "opportunity_next_step", done: false, href: "/crm/opportunities" }
         ]
     },
     {
         id: 8, phase: "data-pioneer", title: "Engagement Specialist", subtitle: "Direct outreach", icon: Star, xp: 150,
         requirements: [
-            { text: "Connect your email account for outbound", done: false, href: "/profile?tab=integration" },
-            { text: "Send a tracked email directly from the CRM", done: false, href: "/crm/leads" },
-            { text: "Create a basic email template for quick use", done: false, href: "/emails" }
+            { text: "Connect your email account for outbound", flagKey: "email_connected", done: false, href: "/profile?tab=integration" },
+            { text: "Send a tracked email directly from the CRM", flagKey: "email_sent", done: false, href: "/crm/leads" },
+            { text: "Create a basic email template for quick use", flagKey: "email_template", done: false, href: "/emails" }
         ]
     },
     {
         id: 9, phase: "data-pioneer", title: "Meeting Coordinator", subtitle: "Time management", icon: Zap, xp: 300,
         requirements: [
-            { text: "Connect your external calendar to the CRM", done: false, href: "/profile?tab=integration" },
-            { text: "Generate and send a meeting booking link", done: false, href: "/crm/calendar" },
-            { text: "Log the outcome notes of a completed meeting", done: false, href: "/crm/calendar" }
+            { text: "Connect your external calendar to the CRM", flagKey: "calendar_connected", done: false, href: "/profile?tab=integration" },
+            { text: "Generate and send a meeting booking link", flagKey: "meeting_link", done: false, href: "/crm/calendar" },
+            { text: "Log the outcome notes of a completed meeting", flagKey: "meeting_note", done: false, href: "/crm/calendar" }
         ]
     },
     {
         id: 10, phase: "data-pioneer", title: "Collaboration Pro", subtitle: "Team synergy", icon: ShieldCheck, xp: 200,
         requirements: [
-            { text: "Mention (@tag) a team member in a record", done: false, href: "/crm/leads" },
-            { text: "Reassign a lead or task to another user", done: false, href: "/crm/leads" },
-            { text: "Share a specific CRM record link internally", done: false, href: "/crm/opportunities" }
+            { text: "Mention (@tag) a team member in a record", flagKey: "mention_user", done: false, href: "/crm/leads" },
+            { text: "Reassign a lead or task to another user", flagKey: "reassign_record", done: false, href: "/crm/leads" },
+            { text: "Share a specific CRM record link internally", flagKey: "share_record", done: false, href: "/crm/opportunities" }
         ]
     },
     // Outreach Architect
     {
         id: 11, phase: "outreach-architect", title: "Campaign Contributor", subtitle: "Scaled action", icon: Mail, xp: 200,
         requirements: [
-            { text: "Add a targeted contact to an active campaign", done: false, href: "/campaigns" },
-            { text: "Review the performance metrics of a sequence", done: false, href: "/campaigns" },
-            { text: "Pause or modify a specific prospect's state", done: false, href: "/crm/leads" }
+            { text: "Add a targeted contact to an active campaign", flagKey: "campaign_contact_added", done: false, href: "/campaigns" },
+            { text: "Review the performance metrics of a sequence", flagKey: "campaign_metrics_reviewed", done: false, href: "/campaigns" },
+            { text: "Pause or modify a specific prospect's state", flagKey: "prospect_state_modified", done: false, href: "/crm/leads" }
         ]
     },
     {
         id: 12, phase: "outreach-architect", title: "Data Hygiene Champion", subtitle: "Clean records", icon: TrendingUp, xp: 500,
         requirements: [
-            { text: "Identify and successfully merge a duplicate", done: false, href: "/crm/leads" },
-            { text: "Fill out missing information on 10 records", done: false, href: "/crm/contacts" },
-            { text: "Disqualify or archive stale, unresponsive leads", done: false, href: "/crm/leads" }
+            { text: "Identify and successfully merge a duplicate", flagKey: "duplicate_merged", done: false, href: "/crm/leads" },
+            { text: "Fill out missing information on 10 records", flagKey: "records_enriched_10", done: false, href: "/crm/contacts" },
+            { text: "Disqualify or archive stale, unresponsive leads", flagKey: "stale_leads_archived", done: false, href: "/crm/leads" }
         ]
     },
     {
         id: 13, phase: "outreach-architect", title: "Lead Wizard Apprentice", subtitle: "Sourcing intel", icon: PenTool, xp: 150,
         requirements: [
-            { text: "Review output from an AI-generated lead pool", done: false, href: "/crm/lead-pools" },
-            { text: "Save an Ideal Customer Profile (ICP) filter", done: false, href: "/crm/lead-pools" },
-            { text: "Read an auto-enriched company profile view", done: false, href: "/crm/accounts" }
+            { text: "Review output from an AI-generated lead pool", flagKey: "lead_pool_reviewed", done: false, href: "/crm/lead-pools" },
+            { text: "Save an Ideal Customer Profile (ICP) filter", flagKey: "icp_filter_saved", done: false, href: "/crm/lead-pools" },
+            { text: "Read an auto-enriched company profile view", flagKey: "company_profile_viewed", done: false, href: "/crm/accounts" }
         ]
     },
     {
         id: 14, phase: "outreach-architect", title: "Command Operator", subtitle: "Queue execution", icon: CheckCircle2, xp: 300,
         requirements: [
-            { text: "Access Sales Command / Power Dialer mode", done: false, href: "/crm/dialer" },
-            { text: "Process 5 consecutive outreach items in queue", done: false, href: "/crm/dialer" },
-            { text: "Drop a pre-recorded voicemail using Dialer", done: false, href: "/crm/dialer" }
+            { text: "Access Sales Command / Power Dialer mode", flagKey: "dialer_accessed", done: false, href: "/crm/dialer" },
+            { text: "Process 5 consecutive outreach items in queue", flagKey: "queue_processed_5", done: false, href: "/crm/dialer" },
+            { text: "Drop a pre-recorded voicemail using Dialer", flagKey: "voicemail_dropped", done: false, href: "/crm/dialer" }
         ]
     },
     {
         id: 15, phase: "outreach-architect", title: "Contract Initiator", subtitle: "Closing tools", icon: Target, xp: 400,
         requirements: [
-            { text: "Generate a drafted proposal or quote", done: false, href: "/crm/quotes" },
-            { text: "Send a digital document out for signature", done: false, href: "/crm/contracts" },
-            { text: "Review the status of a pending agreement", done: false, href: "/crm/contracts" }
+            { text: "Generate a drafted proposal or quote", flagKey: "quote_generated", done: false, href: "/crm/quotes" },
+            { text: "Send a digital document out for signature", flagKey: "contract_sent", done: false, href: "/crm/contracts" },
+            { text: "Review the status of a pending agreement", flagKey: "agreement_reviewed", done: false, href: "/crm/contracts" }
         ]
     },
     // Automation Specialist
     {
         id: 16, phase: "automation-specialist", title: "FlowState Explorer", subtitle: "Understanding logic", icon: Workflow, xp: 600,
         requirements: [
-            { text: "Navigate to the Automations & Rules builder", done: false, href: "/crm/workflows" },
-            { text: "Review the nodes of an active automated flow", done: false, href: "/crm/workflows" },
-            { text: "Trigger a workflow via a manual CRM action", done: false, href: "/crm/leads" }
+            { text: "Navigate to the Automations & Rules builder", flagKey: "workflows_visited", done: false, href: "/crm/workflows" },
+            { text: "Review the nodes of an active automated flow", flagKey: "workflow_nodes_reviewed", done: false, href: "/crm/workflows" },
+            { text: "Trigger a workflow via a manual CRM action", flagKey: "workflow_triggered", done: false, href: "/crm/leads" }
         ]
     },
     {
         id: 17, phase: "automation-specialist", title: "Routine Optimizer", subtitle: "Saving time", icon: Zap, xp: 450,
         requirements: [
-            { text: "Process 20+ leads simultaneously via bulk edit", done: false, href: "/crm/leads" },
-            { text: "Create a macro or quick-action shortcut", done: false, href: "/profile?tab=signatures" },
-            { text: "Customize a widget dashboard for your metrics", done: false, href: "/crm/dashboard" }
+            { text: "Process 20+ leads simultaneously via bulk edit", flagKey: "bulk_edit_20", done: false, href: "/crm/leads" },
+            { text: "Create a macro or quick-action shortcut", flagKey: "macro_created", done: false, href: "/profile?tab=signature" },
+            { text: "Customize a widget dashboard for your metrics", flagKey: "widget_customized", done: false, href: "/crm/dashboard" }
         ]
     },
     {
         id: 18, phase: "automation-specialist", title: "Pipeline Forecaster", subtitle: "Predictive insight", icon: Workflow, xp: 500,
         requirements: [
-            { text: "Review your projected revenue forecast report", done: false, href: "/reports" },
-            { text: "Ensure active deals have accurate probability", done: false, href: "/crm/opportunities" },
-            { text: "Successfully win a deal worth over $1,000", done: false, href: "/crm/opportunities" }
+            { text: "Review your projected revenue forecast report", flagKey: "forecast_reviewed", done: false, href: "/reports" },
+            { text: "Ensure active deals have accurate probability", flagKey: "deal_probability_set", done: false, href: "/crm/opportunities" },
+            { text: "Successfully win a deal worth over $1,000", flagKey: "won_deal_1000", done: false, href: "/crm/opportunities" }
         ]
     },
     {
         id: 19, phase: "automation-specialist", title: "AI Assistant User", subtitle: "AI acceleration", icon: Phone, xp: 400,
         requirements: [
-            { text: "Use AI to draft a contextual email response", done: false, href: "/messages" },
-            { text: "Request an AI summary of a lengthy thread", done: false, href: "/messages" },
-            { text: "Use the Prompts Lab to generate outreach copy", done: false, href: "/profile?tab=signatures" }
+            { text: "Use AI to draft a contextual email response", flagKey: "ai_email_drafted", done: false, href: "/messages" },
+            { text: "Request an AI summary of a lengthy thread", flagKey: "ai_thread_summary", done: false, href: "/messages" },
+            { text: "Use the Prompts Lab to generate outreach copy", flagKey: "used_prompt_lab", done: false, href: "/crm/university?tab=prompts" }
         ]
     },
     {
         id: 20, phase: "automation-specialist", title: "Success Advocate", subtitle: "Post-sale care", icon: Webhook, xp: 550,
         requirements: [
-            { text: "Transition a won deal into an active Customer", done: false, href: "/crm/opportunities" },
-            { text: "Create or respond to an internal Support Case", done: false, href: "/crm/cases" },
-            { text: "Log a detailed check-in call with a client", done: false, href: "/crm/contacts" }
+            { text: "Transition a won deal into an active Customer", flagKey: "won_deal_to_customer", done: false, href: "/crm/opportunities" },
+            { text: "Create or respond to an internal Support Case", flagKey: "support_case_handled", done: false, href: "/crm/cases" },
+            { text: "Log a detailed check-in call with a client", flagKey: "client_checkin_logged", done: false, href: "/crm/contacts" }
         ]
     },
     // Strategic Master
     {
         id: 21, phase: "strategic-master", title: "Elite Closer", subtitle: "Top performance", icon: ShieldCheck, xp: 750,
         requirements: [
-            { text: "Close won 5 or more deals in a single quarter", done: false, href: "/crm/opportunities" },
-            { text: "Maintain a win-rate above the standard average", done: false, href: "/reports" },
-            { text: "Successfully reactivate a previously lost deal", done: false, href: "/crm/opportunities" }
+            { text: "Close won 5 or more deals in a single quarter", flagKey: "closed_5_deals", done: false, href: "/crm/opportunities" },
+            { text: "Maintain a win-rate above the standard average", flagKey: "win_rate_above_avg", done: false, href: "/reports" },
+            { text: "Successfully reactivate a previously lost deal", flagKey: "reactivated_lost_deal", done: false, href: "/crm/opportunities" }
         ]
     },
     {
         id: 22, phase: "strategic-master", title: "Platform Mentor", subtitle: "Guiding others", icon: Users, xp: 600,
         requirements: [
-            { text: "Complete an advanced CRM training module", done: false, href: "/crm/university" },
-            { text: "Document a best practice in a team channel", done: false, href: "/messages" },
-            { text: "Have a personal template adopted by a peer", done: false, href: "/emails" }
+            { text: "Complete an advanced CRM training module", flagKey: "completed_training_module", done: false, href: "/crm/university?tab=compliance" },
+            { text: "Document a best practice in a team channel", flagKey: "documented_best_practice", done: false, href: "/messages" },
+            { text: "Have a personal template adopted by a peer", flagKey: "template_adopted", done: false, href: "/emails" }
         ]
     },
     {
         id: 23, phase: "strategic-master", title: "Data Detective", subtitle: "Deep analysis", icon: Trophy, xp: 1000,
         requirements: [
-            { text: "Build a custom analytics report query", done: false, href: "/reports" },
-            { text: "Export a cross-object segmented data list", done: false, href: "/databox" },
-            { text: "Identify a drop-off point in the sales funnel", done: false, href: "/reports" }
+            { text: "Build a custom analytics report query", flagKey: "custom_report_built", done: false, href: "/reports" },
+            { text: "Export a cross-object segmented data list", flagKey: "segmented_list_exported", done: false, href: "/databox" },
+            { text: "Identify a drop-off point in the sales funnel", flagKey: "funnel_dropoff_identified", done: false, href: "/reports" }
         ]
     },
     {
         id: 24, phase: "strategic-master", title: "Revenue Driver", subtitle: "Consistent value", icon: TrendingUp, xp: 1200,
         requirements: [
-            { text: "Hit active sales activity targets for two months", done: false, href: "/reports" },
-            { text: "Uncover an upsell opportunity from an account", done: false, href: "/crm/accounts" },
-            { text: "Achieve an average deal closure time under 14 days", done: false, href: "/reports" }
+            { text: "Hit active sales activity targets for two months", flagKey: "hit_activity_targets", done: false, href: "/reports" },
+            { text: "Uncover an upsell opportunity from an account", flagKey: "upsell_uncovered", done: false, href: "/crm/accounts" },
+            { text: "Achieve an average deal closure time under 14 days", flagKey: "closure_under_14_days", done: false, href: "/reports" }
         ]
     },
     {
         id: 25, phase: "strategic-master", title: "CRM Grandmaster", subtitle: "Ultimate mastery", icon: GraduationCap, xp: 2500,
         requirements: [
-            { text: "Log 500+ total logged communications", done: false, href: "/reports" },
-            { text: "Demonstrate high customer satisfaction metrics", done: false, href: "/reports" },
-            { text: "Maintain perfect CRM data hygiene for 30 days", done: false, href: "/crm/dashboard" }
+            { text: "Log 500+ total logged communications", flagKey: "logged_500_comms", done: false, href: "/reports" },
+            { text: "Demonstrate high customer satisfaction metrics", flagKey: "high_csat_metrics", done: false, href: "/reports" },
+            { text: "Maintain perfect CRM data hygiene for 30 days", flagKey: "hygiene_30_days", done: false, href: "/crm/dashboard" }
         ]
     },
 ];
@@ -274,6 +278,20 @@ function clamp(min: number, val: number, max: number) {
 }
 
 export default function CertificationPaths({ userLevel = 1, user, dynamicFlags = {} }: { userLevel?: number, user?: any, dynamicFlags?: Record<string, boolean> }) {
+    const router = useRouter();
+    const [currentLevel, setCurrentLevel] = React.useState<number>(userLevel);
+    const [flags, setFlags] = React.useState<Record<string, boolean>>(dynamicFlags);
+    const [verifyingKey, setVerifyingKey] = React.useState<string | null>(null);
+    const [syncing, setSyncing] = React.useState<boolean>(false);
+
+    React.useEffect(() => {
+        setCurrentLevel(userLevel);
+    }, [userLevel]);
+
+    React.useEffect(() => {
+        setFlags(dynamicFlags);
+    }, [dynamicFlags]);
+
     const [stage, setStage] = React.useState<string>("Step 10: Close Won");
     const [touches, setTouches] = React.useState<string>("3");
     const [daysToBooking, setDaysToBooking] = React.useState<string>("7");
@@ -287,6 +305,55 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
         bio: user?.partner_profile?.bio || "",
     });
     const [partnerStatus, setPartnerStatus] = React.useState<"idle" | "saving" | "success" | "error">("idle");
+
+    const handleSyncProgress = async () => {
+        setSyncing(true);
+        try {
+            const res = await evaluateMasteryProgress(user?.id);
+            if (res && !("error" in res)) {
+                setCurrentLevel(res.level || currentLevel);
+                setFlags(res.flags || flags);
+                if (res.leveledUp) {
+                    toast.success(`Rank Up! You reached Clearance Level ${res.level}!`);
+                } else {
+                    toast.success("Mastery progress synced with live CRM records.");
+                }
+                router.refresh();
+            }
+        } catch (err) {
+            toast.error("Failed to sync progress.");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const handleVerifyTask = async (e: React.MouseEvent, flagKey: string, text: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (verifyingKey) return;
+        setVerifyingKey(flagKey);
+        try {
+            await logUserMetric(flagKey);
+            const res = await evaluateMasteryProgress(user?.id);
+            if (res && !("error" in res)) {
+                setCurrentLevel(res.level || currentLevel);
+                setFlags(res.flags || { ...flags, [flagKey]: true });
+                if (res.leveledUp) {
+                    toast.success(`Milestone Complete! Advanced to Level ${res.level}!`);
+                } else {
+                    toast.success(`Verified: ${text}`);
+                }
+                router.refresh();
+            } else {
+                setFlags((prev) => ({ ...prev, [flagKey]: true }));
+                toast.success(`Verified: ${text}`);
+            }
+        } catch (err) {
+            toast.error("Could not verify requirement.");
+        } finally {
+            setVerifyingKey(null);
+        }
+    };
 
     const simulatorResult = React.useMemo(() => {
         const base = STAGE_WEIGHTS[stage] || 0;
@@ -303,18 +370,74 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
     }, [stage, touches, daysToBooking]);
 
     const totalRequirements = MILESTONES.reduce((acc, m) => acc + m.requirements.length, 0);
-    const completedRequirements = MILESTONES.reduce((acc, m) => acc + m.requirements.filter(r => r.done).length, 0);
+    const completedRequirements = MILESTONES.reduce((acc, m) => {
+        if (m.id < currentLevel) return acc + m.requirements.length;
+        if (m.id === currentLevel) {
+            return acc + m.requirements.filter((r) => !!flags[r.flagKey]).length;
+        }
+        return acc;
+    }, 0);
     const progressPct = Math.round((completedRequirements / totalRequirements) * 100);
 
     const totalXp = MILESTONES.reduce((acc, m) => {
-        const doneRatio = m.requirements.filter(r => r.done).length / m.requirements.length;
-        return acc + Math.round(m.xp * doneRatio);
+        if (m.id < currentLevel) return acc + m.xp;
+        if (m.id === currentLevel) {
+            const doneRatio = m.requirements.filter((r) => !!flags[r.flagKey]).length / m.requirements.length;
+            return acc + Math.round(m.xp * doneRatio);
+        }
+        return acc;
     }, 0);
 
     const maxTotalXp = MILESTONES.reduce((acc, m) => acc + m.xp, 0);
 
     return (
         <div className="space-y-6 pb-4">
+            {/* Overall Mastery Progress & XP Summary Bar */}
+            <Card className="bg-black/50 border-white/10 overflow-hidden">
+                <CardContent className="p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-black text-lg shrink-0">
+                            L{currentLevel}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-base font-black text-white uppercase tracking-tight">
+                                    {MILESTONES.find((m) => m.id === currentLevel)?.title || `Level ${currentLevel}`}
+                                </h4>
+                                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest">
+                                    {totalXp.toLocaleString()} / {maxTotalXp.toLocaleString()} XP
+                                </Badge>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                                {completedRequirements} of {totalRequirements} operational requirements verified across 5 Mastery Phases ({progressPct}% complete).
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="w-full lg:w-96 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            <span>Curriculum Completion</span>
+                            <span className="text-primary">{progressPct}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progressPct}%` }}
+                                className="h-full bg-gradient-to-r from-blue-500 via-emerald-500 to-amber-500"
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleSyncProgress}
+                        disabled={syncing}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-widest text-gray-200 transition-colors shrink-0 disabled:opacity-50"
+                    >
+                        <RefreshCw className={cn("w-3.5 h-3.5 text-primary", syncing && "animate-spin")} />
+                        {syncing ? "Syncing..." : "Sync Progress"}
+                    </button>
+                </CardContent>
+            </Card>
 
             {/* Matrix of Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
@@ -331,96 +454,21 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
 
                         <div className="space-y-6">
                             {MILESTONES.filter(m => m.phase === phase.id).map((milestone) => {
-                                const locked = isLocked(milestone, userLevel, user);
+                                const locked = isLocked(milestone, currentLevel, user);
 
-                                // If the milestone is below userLevel, it's done.
-                                // If the milestone is the userLevel, calculate dynamically 
+                                // If the milestone is below currentLevel, it's done.
+                                // If the milestone is the currentLevel, calculate dynamically from flags.
                                 const requirements = milestone.requirements.map(req => {
-                                    if (milestone.id < userLevel) return { ...req, done: true };
-                                    if (milestone.id === userLevel) {
-                                        let isReqDone = req.done;
-
-                                        // Level 1 logic: evaluate metrics from flags
-                                        if (milestone.id === 1) {
-                                            if (req.text.includes("avatar")) isReqDone = !!dynamicFlags["avatar"];
-                                            if (req.text.includes("time zone")) isReqDone = !!dynamicFlags["timezone"];
-                                            if (req.text.includes("Dashboard")) isReqDone = !!dynamicFlags["dashboard"];
-                                        }
-                                        
-                                        // Level 2 logic: map to dynamic flags
-                                        if (milestone.id === 2) {
-                                            if (req.text.includes("signature")) isReqDone = !!dynamicFlags["signature"];
-                                            if (req.text.includes("message")) isReqDone = !!dynamicFlags["message"];
-                                            if (req.text.includes("notification")) isReqDone = !!dynamicFlags["notifications"];
-                                        }
-
-                                        // Level 3 logic
-                                        if (milestone.id === 3) {
-                                            if (req.text.includes("Lead")) isReqDone = !!dynamicFlags["lead_created"];
-                                            if (req.text.includes("note")) isReqDone = !!dynamicFlags["note_created"];
-                                            if (req.text.includes("contact")) isReqDone = !!dynamicFlags["contact_updated"];
-                                        }
-
-                                        // Level 4 logic
-                                        if (milestone.id === 4) {
-                                            if (req.text.includes("Task")) isReqDone = !!dynamicFlags["created_task"];
-                                            if (req.text.includes("completed")) isReqDone = !!dynamicFlags["completed_task"];
-                                            if (req.text.includes("Opportunity")) isReqDone = !!dynamicFlags["linked_task"];
-                                        }
-
-                                        // Level 5 logic
-                                        if (milestone.id === 5) {
-                                            if (req.text.includes("global search")) isReqDone = !!dynamicFlags["global_search"];
-                                            if (req.text.includes("filter")) isReqDone = !!dynamicFlags["custom_filter"];
-                                            if (req.text.includes("bookmark")) isReqDone = !!dynamicFlags["bookmark"];
-                                        }
-
-                                        // Level 6 logic
-                                        if (milestone.id === 6) {
-                                            if (req.text.includes("active Opportunity")) isReqDone = !!dynamicFlags["opportunity_created"];
-                                            if (req.text.includes("primary contact")) isReqDone = !!dynamicFlags["opportunity_contact"];
-                                            if (req.text.includes("new pipeline stage")) isReqDone = !!dynamicFlags["opportunity_moved"];
-                                        }
-
-                                        // Level 7 logic
-                                        if (milestone.id === 7) {
-                                            if (req.text.includes("filter the Kanban")) isReqDone = !!dynamicFlags["kanban_filtered"];
-                                            if (req.text.includes("Add a specific tag")) isReqDone = !!dynamicFlags["opportunity_tagged"];
-                                            if (req.text.includes("Next Step")) isReqDone = !!dynamicFlags["opportunity_next_step"];
-                                        }
-
-                                        // Level 8 logic
-                                        if (milestone.id === 8) {
-                                            if (req.text.includes("Connect your email")) isReqDone = !!dynamicFlags["email_connected"];
-                                            if (req.text.includes("tracked email directly")) isReqDone = !!dynamicFlags["email_sent"];
-                                            if (req.text.includes("Create a basic email template")) isReqDone = !!dynamicFlags["email_template"];
-                                        }
-
-                                        // Level 9 logic
-                                        if (milestone.id === 9) {
-                                            if (req.text.includes("Connect your external calendar")) isReqDone = !!dynamicFlags["calendar_connected"];
-                                            if (req.text.includes("meeting booking link")) isReqDone = !!dynamicFlags["meeting_link"];
-                                            if (req.text.includes("outcome notes")) isReqDone = !!dynamicFlags["meeting_note"];
-                                        }
-
-                                        // Level 10 logic
-                                        if (milestone.id === 10) {
-                                            if (req.text.includes("Mention (@tag)")) isReqDone = !!dynamicFlags["mention_user"];
-                                            if (req.text.includes("Reassign a lead")) isReqDone = !!dynamicFlags["reassign_record"];
-                                            if (req.text.includes("Share a specific CRM")) isReqDone = !!dynamicFlags["share_record"];
-                                        }
-
-                                        if (milestone.id > 10) {
-                                            isReqDone = false;
-                                        }
-
+                                    if (milestone.id < currentLevel) return { ...req, done: true };
+                                    if (milestone.id === currentLevel) {
+                                        const isReqDone = !!flags[req.flagKey];
                                         return { ...req, done: isReqDone };
                                     }
                                     return { ...req, done: false };
                                 });
 
                                 const allReqsDone = requirements.every(r => r.done);
-                                const allDone = milestone.id < userLevel || (milestone.id === userLevel && allReqsDone);
+                                const allDone = milestone.id < currentLevel || (milestone.id === currentLevel && allReqsDone);
                                 const doneCount = requirements.filter(r => r.done).length;
                                 const totalCount = requirements.length;
 
@@ -488,18 +536,28 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                                                 <div className="space-y-2">
                                                     {requirements.map((req, ridx) => {
                                                         const isClickable = !!req.href;
+                                                        const canVerify = milestone.id === currentLevel && !req.done;
+                                                        const isVerifying = verifyingKey === req.flagKey;
                                                         const innerContent = (
                                                             <>
-                                                                <div className={cn(
-                                                                    "w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors",
-                                                                    req.done
-                                                                        ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
-                                                                        : isClickable
-                                                                            ? "border-white/20 bg-white/5 group-hover/item:border-white/40 group-hover/item:bg-white/10"
-                                                                            : "border-white/10 bg-white/5"
-                                                                )}>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={!canVerify || isVerifying}
+                                                                    onClick={(e) => canVerify && handleVerifyTask(e, req.flagKey, req.text)}
+                                                                    title={canVerify ? "Click to verify & mark complete" : undefined}
+                                                                    className={cn(
+                                                                        "w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors",
+                                                                        req.done
+                                                                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+                                                                            : canVerify
+                                                                                ? "border-primary/50 bg-primary/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 cursor-pointer"
+                                                                                : isClickable
+                                                                                    ? "border-white/20 bg-white/5 group-hover/item:border-white/40 group-hover/item:bg-white/10"
+                                                                                    : "border-white/10 bg-white/5"
+                                                                    )}
+                                                                >
                                                                     {req.done && <Check className="w-2.5 h-2.5" />}
-                                                                </div>
+                                                                </button>
                                                                 <span className={cn(
                                                                     "text-[10px] leading-snug font-bold transition-all duration-300 flex-1 flex flex-row items-center",
                                                                     req.done
@@ -520,7 +578,7 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                                                             return (
                                                                 <Link
                                                                     key={ridx}
-                                                                    href={(req as any).href}
+                                                                    href={req.href}
                                                                     className="flex items-center gap-3 p-1.5 -ml-1.5 rounded-md transition-colors hover:bg-white/5 cursor-pointer group/item"
                                                                 >
                                                                     {innerContent}
@@ -695,7 +753,7 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
             <div className="pt-8">
                 <Card className={cn(
                     "border overflow-hidden relative shadow-2xl transition-all duration-700 p-12",
-                    userLevel >= 25
+                    currentLevel >= 25
                         ? "bg-gradient-to-br from-amber-600/10 via-black to-blue-600/5 border-amber-500/20"
                         : "bg-gradient-to-br from-indigo-600/10 via-black to-slate-900 border-indigo-500/20"
                 )}>
@@ -703,11 +761,11 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                         <div className="relative">
                             <div className={cn(
                                 "w-28 h-28 rounded-3xl border flex items-center justify-center animate-pulse",
-                                userLevel >= 25
+                                currentLevel >= 25
                                     ? "bg-amber-500/10 border-amber-500/20 shadow-[0_0_50px_rgba(245,158,11,0.2)]"
                                     : "bg-indigo-500/10 border-indigo-500/20 shadow-[0_0_50px_rgba(99,102,241,0.2)]"
                             )}>
-                                {userLevel >= 25 ? (
+                                {currentLevel >= 25 ? (
                                     <Crown className="w-14 h-14 text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
                                 ) : (
                                     <Medal className="w-14 h-14 text-indigo-400 drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]" />
@@ -715,36 +773,36 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                             </div>
                             <div className={cn(
                                 "absolute -top-3 -right-3 w-10 h-10 rounded-full border-4 border-black flex items-center justify-center text-white font-black text-xs",
-                                userLevel >= 25 ? "bg-amber-500" : "bg-indigo-500"
+                                currentLevel >= 25 ? "bg-amber-500" : "bg-indigo-500"
                             )}>
-                                L{userLevel}
+                                L{currentLevel}
                             </div>
                         </div>
                         <div className="flex-1 space-y-4 text-center md:text-left">
                             <h3 className="text-3xl md:text-5xl font-black italic tracking-tight uppercase leading-none py-2 px-2">
-                                {userLevel >= 25 ? (
+                                {currentLevel >= 25 ? (
                                     <span className="bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">Ultimate Prestige: Master</span>
                                 ) : (
                                     <span className="bg-gradient-to-r from-indigo-400 to-indigo-600 bg-clip-text text-transparent">
-                                        Current Rank: {MILESTONES.find(m => m.id === userLevel)?.title || "Level " + userLevel}
+                                        Current Rank: {MILESTONES.find(m => m.id === currentLevel)?.title || "Level " + currentLevel}
                                     </span>
                                 )}
                             </h3>
                             <p className="text-gray-400 text-lg max-w-2xl leading-relaxed">
-                                {userLevel >= 25
+                                {currentLevel >= 25
                                     ? "This certification is the culmination of technical excellence. Reaching Level 25 proves you have mastered every aspect of modern RevOps automation."
-                                    : `You have successfully unlocked Clearance Level ${userLevel}. Wear this badge proudly on your profile as you progress toward Level 25. Complete next stage requirements to rank up.`}
+                                    : `You have successfully unlocked Clearance Level ${currentLevel}. Wear this badge proudly on your profile as you progress toward Level 25. Complete next stage requirements to rank up.`}
                             </p>
                             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-6">
-                                {userLevel >= 25 ? (
+                                {currentLevel >= 25 ? (
                                     ["Lvl 25 Badge", "Global Admin Status", "Prestige UI Skin", "Beta Tester Access"].map(tag => (
                                         <Badge key={tag} className="bg-amber-500/5 text-amber-500 border-amber-500/10 px-4 py-1.5 font-bold text-[11px] uppercase tracking-widest">{tag}</Badge>
                                     ))
                                 ) : (
                                     [
-                                        `Level ${userLevel} Badge Unlocked`,
-                                        "Digital Certificate Ready",
-                                        `Phase: ${MILESTONES.find(m => m.id === userLevel)?.phase || "Active"}`
+                                        `Level ${currentLevel} Badge Unlocked`,
+                                        currentLevel >= 5 ? "Digital Certificate Ready" : `Certificate Unlocks at Level 5`,
+                                        `Phase: ${MILESTONES.find(m => m.id === currentLevel)?.phase || "Active"}`
                                     ].map(tag => (
                                         <Badge key={tag} className="bg-indigo-500/5 text-indigo-400 border-indigo-500/10 px-4 py-1.5 font-bold text-[11px] uppercase tracking-widest">{tag}</Badge>
                                     ))
@@ -752,46 +810,59 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                             </div>
                         </div>
                         <div className="flex flex-col gap-3 z-20">
-                            {userLevel > 5 && (
-                                <>
-                                    <Link 
-                                        href={`/crm/university/certificate`}
-                                        className={cn(
-                                            "px-10 py-5 text-black text-center font-black uppercase text-xs tracking-[0.2em] rounded-2xl transition-[color,background-color,border-color,transform]",
-                                            userLevel >= 25
-                                                ? "bg-amber-500 hover:bg-amber-400 shadow-[0_10px_40px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95"
-                                                : "bg-indigo-500 hover:bg-indigo-400 shadow-[0_10px_40px_rgba(99,102,241,0.3)] hover:scale-105 active:scale-95"
-                                        )}
-                                    >
-                                        View Certificate
-                                    </Link>
-                                    {userLevel < 25 && (
-                                        <button className="px-10 py-5 bg-white/5 text-white font-black uppercase text-xs tracking-[0.2em] border border-white/10 rounded-2xl transition-all hover:bg-white/10 hover:border-white/30 hidden md:block">
-                                            Share Badge
-                                        </button>
+                            {currentLevel >= 5 && (
+                                <Link 
+                                    href={`/crm/university/certificate`}
+                                    className={cn(
+                                        "px-10 py-5 text-black text-center font-black uppercase text-xs tracking-[0.2em] rounded-2xl transition-[color,background-color,border-color,transform]",
+                                        currentLevel >= 25
+                                            ? "bg-amber-500 hover:bg-amber-400 shadow-[0_10px_40px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95"
+                                            : "bg-indigo-500 hover:bg-indigo-400 shadow-[0_10px_40px_rgba(99,102,241,0.3)] hover:scale-105 active:scale-95"
                                     )}
-                                </>
+                                >
+                                    View Certificate
+                                </Link>
                             )}
+                            <button
+                                onClick={() => {
+                                    const rankTitle = MILESTONES.find(m => m.id === currentLevel)?.title || `Level ${currentLevel}`;
+                                    const shareText = `I achieved Clearance Level ${currentLevel} (${rankTitle} — ${totalXp.toLocaleString()} XP) at BasaltCRM University!`;
+                                    navigator.clipboard.writeText(shareText);
+                                    toast.success("Mastery badge summary copied to clipboard!");
+                                }}
+                                className="flex items-center justify-center gap-2 px-10 py-5 bg-white/5 text-white font-black uppercase text-xs tracking-[0.2em] border border-white/10 rounded-2xl transition-all hover:bg-white/10 hover:border-white/30"
+                            >
+                                <Share2 className="w-4 h-4" />
+                                Share Badge
+                            </button>
                         </div>
                     </div>
 
                     {/* Background Decor */}
                     <div className={cn(
                         "absolute -bottom-20 -right-20 w-80 h-80 blur-[120px] pointer-events-none",
-                        userLevel >= 25 ? "bg-amber-500/5" : "bg-indigo-500/10"
+                        currentLevel >= 25 ? "bg-amber-500/5" : "bg-indigo-500/10"
                     )} />
                 </Card>
             </div>
 
             {/* Strategic Master Partner Network Opt-In */}
-            {userLevel >= 21 && (
+            {currentLevel >= 21 && (
                 <div className="pt-8">
                     <Card className="bg-black/60 border-amber-500/20 overflow-hidden relative">
                         <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber-400 to-amber-600" />
                         <CardHeader className="pl-8 pb-4">
-                            <div className="flex items-center gap-3 mb-2">
-                                <Trophy className="w-5 h-5 text-amber-500" />
-                                <CardTitle className="text-xl font-black text-white">Strategic Master Emissary Program</CardTitle>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <div className="flex items-center gap-3">
+                                    <Trophy className="w-5 h-5 text-amber-500" />
+                                    <CardTitle className="text-xl font-black text-white">Strategic Master Emissary Program</CardTitle>
+                                </div>
+                                <Link
+                                    href="/partners"
+                                    className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-amber-500 hover:text-amber-400 transition-colors"
+                                >
+                                    View Public Directory <ExternalLink className="w-3.5 h-3.5" />
+                                </Link>
                             </div>
                             <CardDescription className="text-gray-400 max-w-2xl">
                                 You have achieved Elite Status. You are now eligible to list your services as a Certified Partner on our public directory. Help other businesses architect and automate their CRM ecosystems.
@@ -846,7 +917,13 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                                         onClick={async () => {
                                             const newStatus = !isPartner;
                                             setIsPartner(newStatus);
-                                            await managePartnerProfile("TOGGLE_STATUS", { is_active: newStatus });
+                                            const res = await managePartnerProfile("TOGGLE_STATUS", { is_active: newStatus });
+                                            if (res.error) {
+                                                setIsPartner(!newStatus);
+                                                toast.error(res.error);
+                                            } else {
+                                                toast.success(newStatus ? "Profile listed on the Partner Directory!" : "Profile set to private.");
+                                            }
                                         }}
                                         className={cn(
                                             "w-12 h-6 rounded-full transition-colors relative",
@@ -866,7 +943,13 @@ export default function CertificationPaths({ userLevel = 1, user, dynamicFlags =
                                     onClick={async () => {
                                         setPartnerStatus("saving");
                                         const res = await managePartnerProfile("UPDATE", partnerForm);
-                                        setPartnerStatus(res.error ? "error" : "success");
+                                        if (res.error) {
+                                            setPartnerStatus("error");
+                                            toast.error(res.error);
+                                        } else {
+                                            setPartnerStatus("success");
+                                            toast.success("Partner profile updated!");
+                                        }
                                         setTimeout(() => setPartnerStatus("idle"), 3000);
                                     }}
                                     className="px-6 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-lg font-bold text-xs uppercase tracking-widest transition-colors"

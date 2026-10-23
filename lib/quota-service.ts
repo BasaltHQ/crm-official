@@ -2,6 +2,7 @@ import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 import { getTeamAiTokenBalance } from "@/lib/ai-tokens";
 import { SUBSCRIPTION_PLANS, resolveSlug } from "@/config/subscriptions";
+import { DECISION_SERVICES } from "@/lib/ai/reply-decisions";
 
 export type QuotaResource = "LEADS" | "USERS" | "STORAGE" | "CREDITS" | "AI_TOKENS" | "CONTACTS" | "ACCOUNTS" | "OPPORTUNITIES";
 
@@ -206,7 +207,8 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             }
             case "CREDITS": {
                 const currentUsage = await prismadb.crm_AiUsageLog.count({
-                    where: { tenant_id: teamId }
+                    // Decision Intelligence is included for every team.
+                    where: { tenant_id: teamId, service: { notIn: [...DECISION_SERVICES] } }
                 });
 
                 if (plan.max_credits !== -1 && currentUsage >= plan.max_credits) {

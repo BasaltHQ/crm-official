@@ -20,7 +20,10 @@ export default async function PartnersDirectory() {
         const usersCollection = await dbAdapter.getNativeCollection("Users");
         partners = await usersCollection.find({ 
             "partner_profile.is_active": true,
-            level: { $gte: 21 }
+            $or: [
+                { university_level: { $gte: 21 } },
+                { level: { $gte: 21 } }
+            ]
         }).toArray();
     } catch (e) {
         console.error("Failed to load partners:", e);
@@ -76,7 +79,7 @@ export default async function PartnersDirectory() {
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="text-[10px] font-black tracking-widest text-gray-500 uppercase block mb-1">Level</span>
-                                                    <span className="text-amber-500 font-black text-2xl leading-none block">{partner.level || 21}</span>
+                                                    <span className="text-amber-500 font-black text-2xl leading-none block">{partner.university_level || partner.level || 21}</span>
                                                 </div>
                                             </div>
 

@@ -72,3 +72,6 @@ standardize_headings_3.py
 /lightpanda/
 
 /chrome-stealth-data/
+
+# Local marketing browser captures
+/.basalt-previews/

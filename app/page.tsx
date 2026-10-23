@@ -1,16 +1,6 @@
-// @ts-nocheck
 export const dynamic = "force-dynamic";
 import { Metadata } from "next";
-import FluidNeuralWave from "./components/FluidNeuralWave";
-// import GeometricBackground from "./components/GeometricBackground";
-import BasaltNavbar from "@/components/basaltcrm-landing/BasaltNavbar";
-import BasaltHero from "@/components/basaltcrm-landing/BasaltHero";
-import BasaltFreeTools from "@/components/basaltcrm-landing/BasaltFreeTools";
-import BasaltAIProcess from "@/components/basaltcrm-landing/BasaltAIProcess";
-import BasaltComparisonSnippet from "@/components/basaltcrm-landing/BasaltComparisonSnippet";
-import BasaltFeatures from "@/components/basaltcrm-landing/BasaltFeatures";
-import BasaltSEO from "@/components/basaltcrm-landing/BasaltSEO";
-import BasaltAbout from "@/components/basaltcrm-landing/BasaltAbout";
+import BasaltLanding from "@/components/basalt-marketing/BasaltLanding";
 import BasaltFooter from "@/components/basaltcrm-landing/BasaltFooter";
 
 export const metadata: Metadata = {
@@ -48,29 +38,8 @@ const jsonLd = {
 
 export default function LandingPage() {
     return (
-        <div className="dark min-h-screen bg-black text-white font-sans selection:bg-cyan-500/30 overflow-x-hidden">
-            {/* Global Background - Fixed to cover detailed sections */}
-            <div className="fixed inset-0 z-0 opacity-40">
-                <FluidNeuralWave variant="complex" seed={1.5} />
-            </div>
-
-            {/* Content Overlay */}
-            <div className="relative z-10 flex flex-col min-h-screen">
-                <BasaltNavbar />
-
-                <main className="flex-grow">
-                    <BasaltHero />
-                    <BasaltFreeTools />
-                    <BasaltAIProcess />
-                    <BasaltComparisonSnippet />
-                    <BasaltFeatures />
-                    <BasaltSEO />
-                    <BasaltAbout />
-                </main>
-
-                <BasaltFooter />
-            </div>
-
+        <div className="dark min-h-screen bg-black text-white">
+            <BasaltLanding productId="crm" footer={<BasaltFooter />} />
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -2,11 +2,14 @@ import { getAiSdkModel, logAiUsage } from "@/lib/varuni";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { systemLogger } from "@/lib/logger";
+import { evaluateReplyIntelligence, type ReplyDecisionScope } from "@/lib/ai/reply-intelligence";
+import { deriveReplyDecision } from "@/lib/ai/reply-decisions";
 
 export interface SentimentResult {
   sentiment: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
   reasoning: string;
   suggestedAction: string;
+  decision?: ReturnType<typeof deriveReplyDecision>["decision"];
   extractedContact?: {
     firstName?: string;
     lastName?: string;
@@ -33,8 +36,10 @@ export async function analyzeReplySentiment(
     originalSubject?: string;
     leadName?: string;
     leadCompany?: string;
+    extractContact?: boolean;
   },
-  userId: string
+  userId: string,
+  decisionScope?: ReplyDecisionScope,
 ): Promise<SentimentResult> {
   const fallback: SentimentResult = {
     sentiment: "NEUTRAL",
@@ -44,9 +49,14 @@ export async function analyzeReplySentiment(
 
   if (!snippet || snippet.trim().length < 5) return fallback;
 
+  const primary = decisionScope ? await evaluateReplyIntelligence({
+    ...decisionScope, userId, reply: snippet, context,
+  }) : undefined;
+  if (primary && !context.extractContact) return primary;
+
   try {
     const { model, modelId, teamId } = await getAiSdkModel(userId);
-    if (!model) return fallback;
+    if (!model) return primary || fallback;
 
     const systemPrompt = [
       "You are a CRM AI assistant classifying the sentiment of a reply to a sales/outreach email.",
@@ -123,10 +133,11 @@ export async function analyzeReplySentiment(
       sentiment: object.sentiment,
       reasoning: object.reasoning,
       suggestedAction: object.suggestedAction,
+      ...primary,
       extractedContact: object.extractedContact,
     };
   } catch (err: any) {
     systemLogger.error(`[SENTIMENT] Analysis failed: ${err?.message}`);
-    return fallback;
+    return primary || fallback;
   }
 }

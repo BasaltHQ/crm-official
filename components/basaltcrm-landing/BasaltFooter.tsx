@@ -73,8 +73,8 @@ export default function BasaltFooter() {
                                 <div className="shield-gleam-container" />
                             </div>
                             <div>
-                                <span className="text-white text-xl tracking-widest" style={{ fontFamily: '"vox", sans-serif' }}>
-                                    <span style={{ fontWeight: 300 }}>BASALT</span><span style={{ fontWeight: 700 }}>CRM</span>
+                                <span className="basalt-wordmark text-white text-xl tracking-widest" style={{ fontFamily: '"BasaltVox", "vox", sans-serif', fontSynthesis: 'none' }}>
+                                    <span className="basalt-wordmark-base" style={{ fontWeight: 300 }}>BASALT</span><span className="basalt-wordmark-product" style={{ fontWeight: 700 }}>CRM</span>
                                 </span>
                                 <p className="text-[10px] text-cyan-500 font-mono mt-1 whitespace-nowrap">AI-POWERED RELATIONSHIPS</p>
                             </div>

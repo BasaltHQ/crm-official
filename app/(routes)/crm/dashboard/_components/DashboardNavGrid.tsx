@@ -19,6 +19,14 @@ import {
 // Alphabetical: Companies, Contacts, Contracts, Dashboard, Dialer, Leads, Leads Manager, Opportunities
 const navItems = [
     {
+        title: "Decision Intelligence",
+        description: "Jev reply insights · included for every team",
+        href: "/crm/decision-intelligence",
+        icon: Wand2,
+        color: "from-violet-500/20 to-cyan-500/20",
+        iconColor: "text-violet-400",
+    },
+    {
         title: "Accounts",
         description: "Manage client accounts",
         href: "/crm/accounts",
