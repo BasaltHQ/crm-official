@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const esbuild = require('esbuild');
 const postcss = require('postcss');
@@ -98,8 +99,21 @@ async function main() {
         responses[`/${id}`] = `<html lang="en" class="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Basalt ${id}</title><style>${css}body{margin:0;background:#090b0e;color:#f5f5f5;font-family:Arial,sans-serif}</style></head><body><div id="root"></div><script>${bundle.outputFiles[0].text.replaceAll('</script', '<\\/script')}</script></body></html>`;
         if(id==='hq')responses['/portal']=responses['/hq'];
     }
+    const previewRevision = crypto.createHash('sha256').update(Object.values(responses).join('\n')).digest('hex').slice(0, 12);
+    const freshnessScript = `<script>(()=>{if(window.self!==window.top)return;const revision=${JSON.stringify(previewRevision)};let checking=false;async function check(){if(checking||document.hidden)return;checking=true;try{const response=await fetch('/__basalt-preview',{cache:'no-store'});if(response.ok){const current=await response.json();if(current.revision!==revision){const next=new URL(location.href);next.searchParams.set('preview',current.revision);location.replace(next.href);}}}catch{}finally{checking=false;}}setInterval(check,5000);window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);})();</script>`;
+    if (process.argv.includes('--serve')) {
+        for (const route of Object.keys(responses)) responses[route] = responses[route].replace('</body>', `${freshnessScript}</body>`);
+        responses['/'] = `<html><head><title>Basalt family preview</title><style>body{margin:0;background:#090b0e;color:#fff;font:13px Arial}nav{height:48px;display:flex;align-items:center;gap:24px;padding:0 24px;border-bottom:1px solid #ffffff20}a{color:#c6d3e0;text-decoration:none}iframe{width:100%;height:calc(100vh - 49px);border:0}</style></head><body><nav><strong>BASALT / DESIGN REVIEW</strong>${Object.keys(roots).map(id=>`<a href="/${id}?preview=${previewRevision}" target="site">${id.toUpperCase()}</a>`).join('')}</nav><iframe name="site" src="/crm?preview=${previewRevision}" title="Basalt landing page preview"></iframe>${freshnessScript}</body></html>`;
+    }
     const server = http.createServer((request, response) => {
         const url = new URL(request.url, 'http://localhost');
+        response.setHeader('Cache-Control', 'no-store, max-age=0');
+        response.setHeader('X-Basalt-Preview-Revision', previewRevision);
+        if (url.pathname === '/__basalt-preview') {
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify({ revision: previewRevision }));
+            return;
+        }
         if(url.pathname.startsWith('/api/auth/thirdweb/')){
             response.setHeader('Content-Type','application/json');
             if(url.pathname.endsWith('/is-logged-in'))response.end('false');
@@ -115,12 +129,11 @@ async function main() {
         }
         if (/\.(png|webp)$/.test(url.pathname)) { const id = url.searchParams.get('product') || 'crm'; const file = path.join(roots[id], 'public', path.basename(url.pathname)); if (fs.existsSync(file)) { response.setHeader('Content-Type', url.pathname.endsWith('.webp') ? 'image/webp' : 'image/png'); response.end(fs.readFileSync(file)); return; } }
         if (['/fonts/vox-light.woff2', '/fonts/vox-bold.woff2'].includes(url.pathname)) { response.setHeader('Content-Type', 'font/woff2'); response.end(fs.readFileSync(path.join(root, 'public/fonts', path.basename(url.pathname)))); return; }
-        response.setHeader('Content-Type', 'text/html'); response.end(responses[request.url] || 'Local preview destination');
+        response.setHeader('Content-Type', 'text/html'); response.end(responses[url.pathname] || 'Local preview destination');
     });
     await new Promise(resolve => server.listen(Number(process.env.BASALT_REVIEW_PORT || 0), '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
     if (process.argv.includes('--serve')) {
-        responses['/'] = `<html><head><title>Basalt family preview</title><style>body{margin:0;background:#090b0e;color:#fff;font:13px Arial}nav{height:48px;display:flex;align-items:center;gap:24px;padding:0 24px;border-bottom:1px solid #ffffff20}a{color:#c6d3e0;text-decoration:none}iframe{width:100%;height:calc(100vh - 49px);border:0}</style></head><body><nav><strong>BASALT / DESIGN REVIEW</strong>${Object.keys(roots).map(id=>`<a href="/${id}" target="site">${id.toUpperCase()}</a>`).join('')}</nav><iframe name="site" src="/crm" title="Basalt landing page preview"></iframe></body></html>`;
         console.log(`Basalt family review: ${base}`);
         return;
     }
