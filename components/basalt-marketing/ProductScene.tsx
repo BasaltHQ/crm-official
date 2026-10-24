@@ -5,10 +5,11 @@ import type { SceneKind } from './products';
 import type { CoreRenderer } from './scene-renderer';
 import SceneFallback from './WorldFallback';
 import { sceneLabels } from './scene-choreography';
+import { sampleHeroFlight } from './hero-flight';
 
 const heroPose: Record<SceneKind, number> = { network: .18, crystal: .36, constellation: .6, modules: .48, pages: .42, wave: .35, shield: .50 };
 
-export default function ProductScene({ kind, accent, paused, progress = heroPose[kind] }: { kind: SceneKind; accent: string; paused: boolean; progress?: number | RefObject<number> }) {
+export default function ProductScene({ kind, accent, paused, autoplay = false, progress = heroPose[kind] }: { kind: SceneKind; accent: string; paused: boolean; autoplay?: boolean; progress?: number | RefObject<number> }) {
     const canvas = useRef<HTMLCanvasElement>(null);
     const stage = useRef<HTMLDivElement>(null);
     const annotations = useRef<HTMLDivElement>(null);
@@ -24,6 +25,7 @@ export default function ProductScene({ kind, accent, paused, progress = heroPose
     useEffect(() => {
         const element = canvas.current, container = stage.current;
         if (!element || !container) return;
+        const autoFlight = autoplay && kind === 'network' && typeof progressRef.current === 'number';
         const media = window.matchMedia('(prefers-reduced-motion: reduce)');
         const labels = new Map(Array.from(annotations.current?.children || []).map(element => [element.getAttribute('data-label'), element as HTMLElement]));
         let renderer: CoreRenderer | null = null, frame = 0, disposed = false, visible = false, dirty = true;
@@ -36,7 +38,16 @@ export default function ProductScene({ kind, accent, paused, progress = heroPose
             const interval = window.innerWidth <= 800 ? 1000 / 30 : 1000 / 45;
             if (dirty || now - lastFrame >= interval) {
                 if (lastFrame && !frozen) elapsed += Math.min((now - lastFrame) / 1000, .08);
-                if (!pausedRef.current) renderedProgress = media.matches ? Math.round(readProgress() * 3) / 3 : readProgress();
+                if (!pausedRef.current) {
+                    if (autoFlight && !media.matches) {
+                        const flight = sampleHeroFlight(elapsed, readProgress());
+                        renderedProgress = flight.progress;
+                        element.style.opacity = String(flight.opacity);
+                    } else {
+                        renderedProgress = media.matches ? Math.round(readProgress() * 3) / 3 : readProgress();
+                        element.style.opacity = '1';
+                    }
+                }
                 const projected = renderer.render(renderedProgress, elapsed, media.matches);
                 for (const label of projected) {
                     const node = labels.get(label.id);
@@ -95,7 +106,7 @@ export default function ProductScene({ kind, accent, paused, progress = heroPose
             document.removeEventListener('visibilitychange', wake); window.removeEventListener('basalt-marketing-motion', wake); window.removeEventListener('basalt-scene-progress', scrollProgress);
             media.removeEventListener('change', wake); element.removeEventListener('webglcontextlost', contextLost); element.removeEventListener('webglcontextrestored', restore);
         };
-    }, [kind, accent]);
+    }, [kind, accent, autoplay]);
 
     return <div ref={stage} className="bm-scene" data-layout="immersive" data-renderer={rendererState} data-scene={kind} aria-hidden="true">
         <svg className="bm-scene-fallback" viewBox="0 0 600 600" fill="none">
