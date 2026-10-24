@@ -434,7 +434,7 @@ export default function UniversityDashboard({ plan, userLevel, user, dynamicFlag
                             description="Click any pipeline stage below to inspect its activities and automated conversion triggers"
                             accentColor="blue"
                         >
-                            <PipelineFlow activeStage={activeStage} onStageSelect={setActiveStage} />
+                            <PipelineFlow activeStage={activeStage} onStageClick={setActiveStage} />
                         </FlowDiagramCard>
 
                         {/* Main Pipeline Mermaid Diagram */}

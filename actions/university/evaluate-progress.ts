@@ -4,6 +4,7 @@ import { dbAdapter } from "@/lib/database/db-adapter";
 import { prismadb } from "@/lib/prisma";
 import { addRawXP } from "@/actions/quests/add-raw-xp";
 import { ObjectId } from "mongodb";
+import type { UserMetrics } from "@prisma/client";
 
 // Master lookup of XP values matching CertificationPaths.tsx
 const LEVEL_XP_REWARDS: Record<number, number> = {
@@ -454,7 +455,7 @@ export async function evaluateMasteryProgress(userId: string) {
         }
 
         // Fetch all user metrics once for fast evaluation
-        const userMetricsRows = await prismadb.userMetrics.findMany({
+        const userMetricsRows: Pick<UserMetrics, "metricKey">[] = await prismadb.userMetrics.findMany({
             where: { userId },
             select: { metricKey: true }
         });

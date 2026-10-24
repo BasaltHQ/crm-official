@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
-    "build": "node ./scripts/update-version.js && prisma generate && node ./scripts/prisma-db-push-named.cjs && prisma db seed && cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
+    "build": "node ./scripts/update-version.js && prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start",
     "db:push:named": "node ./scripts/prisma-db-push-named.cjs",
     "lint": "eslint .",
