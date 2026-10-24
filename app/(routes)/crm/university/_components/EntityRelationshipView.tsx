@@ -147,7 +147,7 @@ export default function EntityRelationshipView() {
     const router = useRouter();
 
     const handleEntityClick = (entity: Entity) => {
-        router.push(`/en${entity.href}`);
+        router.push(entity.href);
     };
 
     return (

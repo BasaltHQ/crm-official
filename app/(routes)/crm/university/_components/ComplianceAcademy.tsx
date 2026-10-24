@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,29 +10,87 @@ import {
     MessageSquare,
     CheckCircle2,
     AlertCircle,
-    ArrowRight,
     Building2,
     Smartphone,
-    Scale,
     LifeBuoy,
+    Mail,
+    Lock,
+    Server,
+    Activity,
+    Check,
+    ClipboardCheck
 } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { logUserMetric } from "@/actions/university/log-user-metric";
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.1
-        }
-    }
-};
-
-const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-};
+const CHECKLIST_ITEMS = [
+    {
+        id: "spf_dkim",
+        label: "SPF & 2048-bit DKIM DNS records verified on sending domain",
+        category: "Email Auth"
+    },
+    {
+        id: "dmarc_policy",
+        label: "DMARC policy active (p=quarantine or p=reject) with RUA reporting",
+        category: "Email Auth"
+    },
+    {
+        id: "ten_dlc",
+        label: "10DLC Brand & Campaign registration approved by carriers",
+        category: "SMS 10DLC"
+    },
+    {
+        id: "opt_in_audit",
+        label: "Target Lead Pool audited for documented Prior Express Consent",
+        category: "TCPA / GDPR"
+    },
+    {
+        id: "unsubscribe_header",
+        label: "One-Click List-Unsubscribe header & 'Reply STOP' footer enabled",
+        category: "Deliverability"
+    },
+    {
+        id: "bounce_breaker",
+        label: "Automated hard-bounce (< 2%) and spam-complaint (< 0.1%) circuit breaker armed",
+        category: "Deliverability"
+    },
+];
 
 export default function ComplianceAcademy() {
+    const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+    const [moduleLogged, setModuleLogged] = useState(false);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("basalt_university_compliance_checklist");
+            if (saved) {
+                setCheckedItems(JSON.parse(saved));
+            }
+        } catch {}
+    }, []);
+
+    const handleToggleCheck = async (id: string) => {
+        const next = { ...checkedItems, [id]: !checkedItems[id] };
+        setCheckedItems(next);
+        try {
+            localStorage.setItem("basalt_university_compliance_checklist", JSON.stringify(next));
+        } catch {}
+
+        const completedCount = CHECKLIST_ITEMS.filter((item) => !!next[item.id]).length;
+        if (completedCount === CHECKLIST_ITEMS.length && !moduleLogged) {
+            setModuleLogged(true);
+            try {
+                await logUserMetric("completed_training_module");
+                toast.success("Pre-Launch Compliance Checklist Complete! Mastery training credit recorded.");
+            } catch {
+                toast.success("Pre-Launch Compliance Checklist Complete!");
+            }
+        }
+    };
+
+    const completedChecklistCount = CHECKLIST_ITEMS.filter((item) => !!checkedItems[item.id]).length;
+    const isChecklistComplete = completedChecklistCount === CHECKLIST_ITEMS.length;
+
     const tenDlcSteps = [
         {
             title: "Brand Registration",
@@ -63,6 +121,45 @@ export default function ComplianceAcademy() {
         }
     ];
 
+    const emailAuthPillars = [
+        {
+            protocol: "SPF",
+            name: "Sender Policy Framework",
+            record: "v=spf1 include:_spf.basaltcrm.com ~all",
+            description: "Authorizes BasaltCRM outbound mail servers to send on behalf of your root and subdomain.",
+            icon: Server,
+            color: "text-cyan-400",
+            bgColor: "bg-cyan-500/10",
+        },
+        {
+            protocol: "DKIM",
+            name: "DomainKeys Identified Mail",
+            record: "basalt._domainkey.yourdomain.com (2048-bit RSA)",
+            description: "Attaches a cryptographic signature to every email header so inbox providers verify it wasn't altered in transit.",
+            icon: Lock,
+            color: "text-indigo-400",
+            bgColor: "bg-indigo-500/10",
+        },
+        {
+            protocol: "DMARC",
+            name: "Domain-based Message Auth",
+            record: "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com",
+            description: "Instructs Gmail, Outlook, and enterprise gateways how to handle unauthenticated mail and sends daily reputation telemetry.",
+            icon: ShieldCheck,
+            color: "text-emerald-400",
+            bgColor: "bg-emerald-500/10",
+        },
+        {
+            protocol: "WARMUP",
+            name: "Progressive Volume Ramp",
+            record: "Max +15% daily volume | < 2.0% Bounce Limit",
+            description: "Gradually builds sender reputation on new domains and automatically pauses sequences if bounce thresholds spike.",
+            icon: Activity,
+            color: "text-amber-400",
+            bgColor: "bg-amber-500/10",
+        },
+    ];
+
     const complianceRules = [
         {
             title: "Prior Express Consent",
@@ -85,7 +182,7 @@ export default function ComplianceAcademy() {
     ];
 
     return (
-        <div className="space-y-6 pb-4">
+        <div className="space-y-8 pb-4">
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 {/* 10DLC Track */}
@@ -93,7 +190,7 @@ export default function ComplianceAcademy() {
                     <div className="flex items-center justify-between border-b border-white/5 pb-4">
                         <h3 className="text-2xl font-black flex items-center gap-3">
                             <Smartphone className="w-6 h-6 text-blue-400" />
-                            10DLC Path-to-Live
+                            10DLC Path-to-Live (SMS)
                         </h3>
                         <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-black text-gray-500 border-white/10 px-3 py-1">
                             Carrier Approved
@@ -189,6 +286,114 @@ export default function ComplianceAcademy() {
                     </Card>
                 </div>
             </div>
+
+            {/* Email Deliverability & Authentication Module */}
+            <div className="space-y-6 pt-4">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <h3 className="text-2xl font-black flex items-center gap-3">
+                        <Mail className="w-6 h-6 text-cyan-400" />
+                        Email Deliverability & Authentication
+                    </h3>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-black text-cyan-400 border-cyan-500/20 bg-cyan-500/5 px-3 py-1">
+                        RFC 7489 / Google & Yahoo 2024+ Standard
+                    </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {emailAuthPillars.map((pillar) => (
+                        <Card key={pillar.protocol} className="bg-white/[0.02] border-white/10 hover:border-white/20 transition-colors">
+                            <CardContent className="p-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className={cn("p-3 rounded-xl", pillar.bgColor, pillar.color)}>
+                                        <pillar.icon className="w-5 h-5" />
+                                    </div>
+                                    <Badge variant="secondary" className="font-mono text-[10px] font-black uppercase tracking-widest">
+                                        {pillar.protocol}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <h4 className="font-black text-base text-white">{pillar.name}</h4>
+                                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">{pillar.description}</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg bg-black/50 border border-white/5 font-mono text-[10px] text-gray-300 truncate">
+                                    {pillar.record}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+
+            {/* Interactive Pre-Launch Compliance Checklist */}
+            <Card className={cn(
+                "border overflow-hidden transition-colors",
+                isChecklistComplete
+                    ? "bg-emerald-500/[0.04] border-emerald-500/30"
+                    : "bg-white/[0.02] border-white/10"
+            )}>
+                <CardHeader className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <ClipboardCheck className={cn("w-6 h-6", isChecklistComplete ? "text-emerald-400" : "text-blue-400")} />
+                            <CardTitle className="text-xl font-black uppercase tracking-tight">
+                                Pre-Launch Compliance Checklist (1,000+ Prospect Campaigns)
+                            </CardTitle>
+                        </div>
+                        <CardDescription className="text-xs text-gray-400">
+                            Verify every item below before activating high-volume SMS or Email outbound sequences. Completing this checklist also awards University training credit.
+                        </CardDescription>
+                    </div>
+                    <Badge
+                        className={cn(
+                            "text-xs font-black uppercase tracking-widest px-4 py-1.5 shrink-0",
+                            isChecklistComplete
+                                ? "bg-emerald-500 text-black"
+                                : "bg-white/10 text-gray-300 border-white/10"
+                        )}
+                    >
+                        {completedChecklistCount} / {CHECKLIST_ITEMS.length} Verified
+                    </Badge>
+                </CardHeader>
+                <CardContent className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {CHECKLIST_ITEMS.map((item) => {
+                            const isChecked = !!checkedItems[item.id];
+                            return (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => handleToggleCheck(item.id)}
+                                    className={cn(
+                                        "flex items-center justify-between gap-4 p-4 rounded-2xl border text-left transition-all",
+                                        isChecked
+                                            ? "bg-emerald-500/10 border-emerald-500/30 text-white"
+                                            : "bg-black/40 border-white/10 text-gray-300 hover:border-white/25 hover:bg-white/5"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3.5 min-w-0">
+                                        <div
+                                            className={cn(
+                                                "w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors",
+                                                isChecked
+                                                    ? "bg-emerald-500 border-emerald-400 text-black"
+                                                    : "border-white/20 bg-white/5"
+                                            )}
+                                        >
+                                            {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                        </div>
+                                        <span className={cn("text-xs font-bold leading-snug", isChecked && "text-emerald-300")}>
+                                            {item.label}
+                                        </span>
+                                    </div>
+                                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-white/10 text-gray-400 shrink-0">
+                                        {item.category}
+                                    </Badge>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Opt-out Management Section */}
             <motion.div

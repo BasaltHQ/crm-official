@@ -45,7 +45,7 @@ export default function BasaltHero() {
 
                 {/* Conversion Subtitle */}
                 <p className="text-base md:text-lg text-cyan-400/80 max-w-2xl mx-auto mb-12 leading-relaxed opacity-0 animate-fadeInUp stagger-2 font-mono tracking-wide">
-                    AI-powered lead generation • Automated outreach • Free signature &amp; form builders — <span className="text-white font-semibold">starting at $0/mo</span>
+                    Jev Decision Intelligence • AI-powered lead generation • Automated outreach • Free signature &amp; form builders — <span className="text-white font-semibold">starting at $0/mo</span>
                 </p>
 
                 {/* CTA Buttons */}

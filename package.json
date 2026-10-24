@@ -5,10 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
-    "build": "node ./scripts/update-version.js && prisma generate && node ./scripts/prisma-db-push-named.cjs && prisma db seed && cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
+    "build": "node ./scripts/update-version.js && prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start",
     "db:push:named": "node ./scripts/prisma-db-push-named.cjs",
     "lint": "eslint .",
+    "test:reply-decisions": "cross-env NODE_ENV=production node --conditions=react-server --import tsx --test scripts/ai/reply-decisions.test.ts",
     "permissions:check": "ts-node scripts/check-permissions.ts",
     "doc:agent": "npx ts-node scripts/generate-agent-docs.ts",
     "doc:crm": "npx ts-node scripts/generate-module-docs.ts",
@@ -82,6 +83,7 @@
     "@types/pdfjs-dist": "^2.10.377",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/turndown": "^5.0.6",
+    "@typesafe-ai/sdk": "0.6.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.3",
     "@x402/core": "^2.23.0",
@@ -241,6 +243,7 @@
     "katex": "^0.18.2",
     "postcss-selector-parser": "^7.1.6",
     "argparse": "^2.0.1",
-    "chokidar": "^4.0.3"
+    "chokidar": "^4.0.3",
+    "follow-redirects": "^1.16.1"
   }
 }

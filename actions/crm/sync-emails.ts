@@ -28,7 +28,7 @@ export async function syncGmailForUser(userId: string, days: number = 7) {
             if (meta.data.threadId) threadIds.add(meta.data.threadId);
         }
 
-        const replyDetails = new Map<string, { email: string, snippet: string, date: string, threadId: string }>();
+        const replyDetails = new Map<string, { email: string, snippet: string, date: string, threadId: string, messageId: string }>();
         for (const tid of Array.from(threadIds)) {
             const th: any = await gmail.users.threads.get({ userId: "me", id: tid, format: "metadata", metadataHeaders: ["From", "Date"] });
             const messages = th.data.messages || [];
@@ -46,7 +46,8 @@ export async function syncGmailForUser(userId: string, days: number = 7) {
                         email: senderEmail,
                         snippet: m.snippet || "",
                         date: headers["date"] || new Date().toISOString(),
-                        threadId: tid
+                        threadId: tid,
+                        messageId: m.id || "",
                     });
                 }
             }
@@ -142,7 +143,13 @@ export async function syncGmailForUser(userId: string, days: number = 7) {
                             leadName: [targetFirstName, targetLastName].filter(Boolean).join(" "),
                             leadCompany: targetCompany || undefined,
                         },
-                        userId
+                        userId,
+                        {
+                            teamId: targetTeamId,
+                            outreachItemId: outreachItem.id,
+                            messageId: detail.messageId,
+                            provider: "gmail",
+                        },
                     );
 
                     // Update outreach item with reply data

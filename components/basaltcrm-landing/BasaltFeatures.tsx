@@ -18,6 +18,7 @@ export default function BasaltFeatures() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-32">
                     {[
+                        { icon: Cpu, title: "DECISION INTELLIGENCE", desc: "Powered by Jev: buying intent, reply signals, and decisions you can inspect. Included for every team.", tag: "JEV", color: "text-violet-400" },
                         { icon: Cpu, title: "NEURAL DISCOVERY", desc: "Autonomous ICP mapping using multi-agent site crawls.", tag: "PHASE 01", color: "text-cyan-400" },
                         { icon: Bot, title: "AGENCY CORES", desc: "Deploy digital workers for SDR and CSM roles.", tag: "PHASE 02", color: "text-violet-400" },
                         { icon: TrendingUp, title: "COMMAND CENTER", desc: "Predictive revenue forecasting with sentiment deep-dives.", tag: "PHASE 03", color: "text-emerald-400" },

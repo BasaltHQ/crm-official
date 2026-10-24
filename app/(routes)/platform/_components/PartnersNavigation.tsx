@@ -28,6 +28,16 @@ export const PartnersNavigation = ({
 }: PartnersNavigationProps) => {
     const cards = [
         {
+            key: 'decision-intelligence',
+            title: "Decision Intelligence",
+            description: "Jev decisions & usage",
+            icon: BarChart,
+            color: "from-violet-500/20 to-cyan-500/20",
+            iconColor: "text-violet-500",
+            href: "/platform/decision-intelligence",
+            hidden: hideSystemKeys
+        },
+        {
             key: 'system-keys',
             title: "Keys Hub",
             description: "AI system config",

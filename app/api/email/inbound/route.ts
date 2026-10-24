@@ -185,8 +185,15 @@ export async function POST(req: Request) {
             {
               originalSubject: matchedOutreachItem.subject || subject,
               leadName: isAccountOnly ? "Account Contact" : undefined,
+              extractContact: !!isAccountOnly,
             },
-            resolvedUserId || "sysadm"
+            resolvedUserId || "sysadm",
+            {
+              teamId: campaignRecord?.team_id,
+              outreachItemId: matchedOutreachItem.id,
+              messageId: inboundMessageId,
+              provider: "ses",
+            },
           );
 
           if (isAccountOnly && sentimentResult?.extractedContact) {
@@ -261,7 +268,8 @@ export async function POST(req: Request) {
         systemLogger.info(`[SES_INBOUND] ✅ Matched reply from ${fromAddress} to outreach item ${matchedOutreachItem.id}`);
 
         // Trigger AI auto-reply if enabled (fire-and-forget)
-        if (campaignRecord?.auto_reply_enabled) {
+        if (campaignRecord?.auto_reply_enabled && !sentimentResult?.decision?.stopContact &&
+            !sentimentResult?.decision?.automated && !sentimentResult?.decision?.requiresReview) {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://crm.basalthq.com";
           fetch(`${appUrl}/api/outreach/reply`, {
             method: "POST",

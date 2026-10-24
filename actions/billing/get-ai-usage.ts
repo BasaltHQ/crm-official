@@ -4,6 +4,7 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { systemLogger } from "@/lib/logger";
+import { DECISION_SERVICES } from "@/lib/ai/reply-decisions";
 
 interface AiUsageSummary {
     service: string;
@@ -25,7 +26,8 @@ export async function getTeamAiUsage(
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) return [];
 
-        const where: any = { tenant_id: teamId };
+        // Included decision-model usage is visible in Decision Intelligence, not invoices.
+        const where: any = { tenant_id: teamId, service: { notIn: [...DECISION_SERVICES] } };
         if (opts?.startDate || opts?.endDate) {
             where.createdAt = {};
             if (opts?.startDate) where.createdAt.gte = opts.startDate;
@@ -81,6 +83,7 @@ export async function getTeamAiUsageSummary(
         const logs = await (prismadb as any).crm_AiUsageLog.findMany({
             where: {
                 tenant_id: teamId,
+                service: { notIn: [...DECISION_SERVICES] },
                 createdAt: {
                     gte: startOfMonth,
                     lte: endOfMonth

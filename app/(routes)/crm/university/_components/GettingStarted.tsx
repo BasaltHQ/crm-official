@@ -275,7 +275,7 @@ function StepCard({
 
 // ─── Admin Guide ─────────────────────────────────────────────────────────────
 
-function AdminGuide({ plan, compact = false }: { plan?: string; compact?: boolean }) {
+function AdminGuide({ plan, compact = false, onSelectTab }: { plan?: string; compact?: boolean; onSelectTab?: (tabId: string) => void }) {
     const router = useRouter();
     const [completed, setCompleted] = useState<Record<string, boolean>>({});
     const [mounted, setMounted] = useState(false);
@@ -324,7 +324,7 @@ function AdminGuide({ plan, compact = false }: { plan?: string; compact?: boolea
                     </div>
                     {!compact && plan !== "FREE" && (
                         <button
-                            onClick={() => router.push("/crm/university")}
+                            onClick={() => (onSelectTab ? onSelectTab("certification") : router.push("/crm/university?tab=certification"))}
                             className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 transition-colors flex-shrink-0"
                         >
                             <GraduationCap className="w-3.5 h-3.5" />
@@ -403,7 +403,7 @@ function AdminGuide({ plan, compact = false }: { plan?: string; compact?: boolea
 
 // ─── Member Guide ─────────────────────────────────────────────────────────────
 
-function MemberGuide({ plan, isPreview = false }: { plan?: string; isPreview?: boolean }) {
+function MemberGuide({ plan, isPreview = false, onSelectTab }: { plan?: string; isPreview?: boolean; onSelectTab?: (tabId: string) => void }) {
     const router = useRouter();
     const [completed, setCompleted] = useState<Record<string, boolean>>({});
     const [mounted, setMounted] = useState(false);
@@ -462,6 +462,15 @@ function MemberGuide({ plan, isPreview = false }: { plan?: string; isPreview?: b
                         <p className="font-bold text-emerald-400">You're on your way! 🎉</p>
                         <p className="text-xs text-white/40 mt-0.5">Keep working your List and converting contacts.{plan !== "FREE" ? " Check Mastery Paths to level up your skills." : ""}</p>
                     </div>
+                    {plan !== "FREE" && (
+                        <button
+                            onClick={() => (onSelectTab ? onSelectTab("certification") : router.push("/crm/university?tab=certification"))}
+                            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 transition-colors flex-shrink-0"
+                        >
+                            <GraduationCap className="w-3.5 h-3.5" />
+                            Mastery Paths
+                        </button>
+                    )}
                 </motion.div>
             )}
 
@@ -503,7 +512,7 @@ function MemberGuide({ plan, isPreview = false }: { plan?: string; isPreview?: b
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
-export default function GettingStarted({ plan }: { plan?: string }) {
+export default function GettingStarted({ plan, onSelectTab }: { plan?: string; onSelectTab?: (tabId: string) => void }) {
     const { data: session } = useSession();
     const [viewMode, setViewMode] = useState<"admin" | "member">("admin");
 
@@ -565,11 +574,11 @@ export default function GettingStarted({ plan }: { plan?: string }) {
             <div className="max-w-4xl mx-auto">
                 {viewMode === "admin" ? (
                     <div className="space-y-6">
-                        <AdminGuide plan={plan} />
+                        <AdminGuide plan={plan} onSelectTab={onSelectTab} />
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        <MemberGuide plan={plan} isPreview={isAdmin} />
+                        <MemberGuide plan={plan} isPreview={isAdmin} onSelectTab={onSelectTab} />
                         {isAdmin && (
                             <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] mt-4">
                                 <p className="text-[11px] text-white/30 leading-relaxed italic">

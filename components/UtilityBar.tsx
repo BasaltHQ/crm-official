@@ -492,10 +492,29 @@ export default function UtilityBar() {
                                                             <p className="text-[11px] text-foreground/80 leading-relaxed font-medium">{overviewWhy}</p>
                                                         </div>
                                                     )}
+                                                    {overviewHow && (
+                                                        <div className="space-y-1">
+                                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">Execution Protocol</h4>
+                                                            <p className="text-[11px] text-foreground/80 leading-relaxed font-medium">{overviewHow}</p>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <Button size="sm" className={`w-full h-8 text-xs font-black uppercase border-none bg-gradient-to-r ${TAB_COLORS[activeTab]} shadow-lg`} onClick={() => setIsLearnOpen(false)}>
-                                                    Acknowledged
-                                                </Button>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="flex-1 h-8 text-[10px] font-black uppercase border-border"
+                                                        onClick={() => {
+                                                            setIsLearnOpen(false);
+                                                            router.push(`/crm/university?tab=${activeTab}`);
+                                                        }}
+                                                    >
+                                                        Open University
+                                                    </Button>
+                                                    <Button size="sm" className={`flex-1 h-8 text-[10px] font-black uppercase border-none bg-gradient-to-r ${TAB_COLORS[activeTab]} shadow-lg`} onClick={() => setIsLearnOpen(false)}>
+                                                        Acknowledged
+                                                    </Button>
+                                                </div>
                                             </PopoverContent>
                                         </Popover>
                                     </TooltipTrigger>

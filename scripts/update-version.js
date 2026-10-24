@@ -1,12 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 const packageJsonPath = path.join(__dirname, '..', 'package.json');
 
 try {
     // Get the latest commit message
-    const commitMessage = execSync('git log -1 --pretty=%B', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+    const commitMessage = execFileSync('git', ['log', '-1', '--pretty=%B'], { cwd: path.dirname(packageJsonPath), stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
     console.log(`Latest commit message: "${commitMessage}"`);
 
     // Regex to find version (e.g., v1.1.4e or 1.1.4e)
@@ -32,6 +32,5 @@ try {
         console.log('No version string found in the latest commit message. Skipping version update.');
     }
 } catch (error) {
-    console.error(`Error updating version: ${error.message} \n(Continuing build without updating version...)`);
-    // Do not fail the build if this script fails, just log a clean error
+    console.log('[build] Git version metadata is unavailable; keeping the existing package version.');
 }
