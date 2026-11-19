@@ -12,24 +12,47 @@ function getIdempotencyStore() {
   return processedIds
 }
 
+const WEBHOOK_TOLERANCE_SECONDS = 300; // 5 minutes
+
 function verifySignature(body: string, timestamp: string, headerSignature: string, secret: string): boolean {
   try {
-    // Many webhook schemes use base string `${timestamp}.${body}` with HMAC-SHA256 over the signing secret
+    if (!timestamp || !headerSignature || !secret) {
+      return false
+    }
+
+    const tsNum = Number(timestamp)
+    if (!Number.isFinite(tsNum)) {
+      return false
+    }
+    if (Math.abs(Math.floor(Date.now() / 1000) - tsNum) > WEBHOOK_TOLERANCE_SECONDS) {
+      return false
+    }
+
+    // Standard scheme uses base string `${timestamp}.${body}` with HMAC-SHA256 over the signing secret
     const base = `${timestamp}.${body}`
-    const hmac = crypto.createHmac('sha256', secret)
-    hmac.update(base)
-    const digestHex = hmac.digest('hex').toLowerCase()
+    const expectedBuf = crypto.createHmac('sha256', secret).update(base, 'utf8').digest()
 
     // Header may be in formats like: "v1=<hex>" or just the hex; support multiple comma-separated values
-    const candidates = (headerSignature || '')
+    const candidates = headerSignature
       .split(',')
       .map((s) => s.trim())
-      .map((s) => (s.includes('=') ? s.split('=')[1] : s))
-      .map((s) => s.toLowerCase())
+      .filter(Boolean)
+      .map((s) => (s.includes('=') ? s.split('=').slice(1).join('=') : s))
+      .map((s) => s.trim())
 
-    const match = candidates.some((sig) => sig === digestHex)
-    if (!match) systemLogger.error('[webhook] signature mismatch', { digestHex, candidates })
-    return match
+    for (const sig of candidates) {
+      if (!/^[0-9a-fA-F]{64}$/.test(sig)) continue
+      const candidateBuf = Buffer.from(sig, 'hex')
+      if (
+        candidateBuf.length === expectedBuf.length &&
+        crypto.timingSafeEqual(candidateBuf, expectedBuf)
+      ) {
+        return true
+      }
+    }
+
+    systemLogger.warn('[webhook] signature verification failed')
+    return false
   } catch (e) {
     systemLogger.error('[webhook] verifySignature error', e)
     return false
@@ -68,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!verifySignature(rawBody, timestamp, signature, secret)) {
-    return new NextResponse('Invalid signature', { status: 400 })
+    return new NextResponse('Invalid signature', { status: 401 })
   }
 
   // Idempotency: avoid duplicate processing

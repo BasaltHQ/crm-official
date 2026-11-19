@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { processDealWithAgent } from "@/lib/agents/deal-agent";
 import { systemLogger } from "@/lib/logger";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 /**
  * POST /api/agents/deal/process
@@ -13,20 +12,12 @@ import { prismadb } from "@/lib/prisma";
  *   opportunityId: string;
  *   replySnippet?: string;  // Latest reply from the prospect
  * }
- *
- * Can be called:
- * - Automatically by the email-sync cron when a positive reply is detected
- * - Manually from the campaign contact tracker UI
  */
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      // Also accept cron secret for automated triggers
-      const cronSecret = req.headers.get("x-cron-secret");
-      if (cronSecret !== process.env.CRON_SECRET) {
-        return new NextResponse("Unauthorized", { status: 401 });
-      }
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error || !session?.user?.id || !teamInfo) {
+      return error || new NextResponse("Unauthorized", { status: 401 });
     }
 
     const body = await req.json();
@@ -53,17 +44,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Opportunity not found or no account linked" }, { status: 404 });
     }
 
+    if (!validateResourceOwnership(teamInfo.teamId, opportunity.team_id, teamInfo.isPlatformAdmin)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Load campaign document IDs if linked
     let documentIds: string[] = [];
     if (opportunity.campaign) {
       const campaign = await prismadb.crm_Outreach_Campaigns.findUnique({
         where: { id: opportunity.campaign },
-        select: { document_ids: true },
+        select: { document_ids: true, team_id: true },
       });
-      documentIds = campaign?.document_ids || [];
+      if (campaign && (!campaign.team_id || campaign.team_id === opportunity.team_id)) {
+        documentIds = campaign.document_ids || [];
+      }
     }
 
-    const userId = session?.user?.id || opportunity.assigned_to || "";
+    const userId = session.user.id;
 
     const result = await processDealWithAgent({
       opportunityId: opportunity.id,
@@ -71,7 +68,7 @@ export async function POST(req: Request) {
       accountId: opportunity.account,
       contactId: opportunity.contact || undefined,
       leadId: opportunity.lead_id || undefined,
-      teamId: opportunity.team_id || "",
+      teamId: opportunity.team_id || teamInfo.teamId || "",
       userId,
       replySnippet: body.replySnippet,
       documentIds,

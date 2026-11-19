@@ -1,17 +1,29 @@
 "use server";
 
 import { prismadbCrm } from "@/lib/prisma-crm";
-import { prismadb } from "@/lib/prisma";
 import { consumeLeadGenCredits } from "@/lib/scraper/credits";
 import { visitWebsiteForAgent, executeToolCall } from "@/lib/scraper/agentic-scraper";
-import { z } from "zod";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { assertSafeExternalUrl } from "@/lib/security/ssrf-guard";
 
 export async function manualAgentEnrichment(
   candidateId: string,
-  userId: string
+  _callerUserId?: string
 ): Promise<{ success: boolean; message: string; data?: any }> {
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error || !session?.user?.id || !teamInfo) {
+    return { success: false, message: "Unauthorized." };
+  }
+
+  const effectiveUserId = session.user.id;
+  const teamId = teamInfo.teamId;
+  const isPlatformAdmin = Boolean(teamInfo.isPlatformAdmin);
+
+  if (!teamId && !isPlatformAdmin) {
+    return { success: false, message: "User has no team association." };
+  }
+
   const db: any = prismadbCrm;
-  const mainDb: any = prismadb;
 
   // 1. Fetch Candidate
   const candidate = await db.crm_Lead_Candidates.findUnique({
@@ -22,23 +34,34 @@ export async function manualAgentEnrichment(
     return { success: false, message: "Candidate or domain not found." };
   }
 
-  // 2. Fetch User and Team to verify plan/credits
-  const user = await mainDb.users.findUnique({
-    where: { id: userId },
-    select: { team_id: true, is_admin: true, is_account_admin: true, assigned_role: { select: { name: true } } }
+  // 2. Fetch and verify Pool ownership before charging credits or scraping
+  const pool = await db.crm_Lead_Pools.findUnique({
+    where: { id: candidate.pool },
+    select: { id: true, icpConfig: true, team_id: true }
   });
 
-  if (!user?.team_id) {
-    return { success: false, message: "User has no team association." };
+  if (!pool) {
+    return { success: false, message: "Lead pool not found." };
   }
 
-  const isPlatformAdmin = user.assigned_role?.name === "SuperAdmin" || user.is_admin || user.is_account_admin;
+  if (!isPlatformAdmin && (!teamId || pool.team_id !== teamId)) {
+    return { success: false, message: "Forbidden: You do not have access to this lead pool." };
+  }
+
+  const url = /^https?:\/\//i.test(candidate.domain)
+    ? candidate.domain
+    : `https://${candidate.domain}`;
+  try {
+    await assertSafeExternalUrl(url);
+  } catch {
+    return { success: false, message: "Invalid or disallowed candidate domain." };
+  }
 
   // 3. Consume Credits
   // We explicitly charge 5 credits for this deep manual search
-  if (!isPlatformAdmin) {
+  if (!isPlatformAdmin && teamId) {
     try {
-      await consumeLeadGenCredits(user.team_id, 5);
+      await consumeLeadGenCredits(teamId, 5);
     } catch (e: any) {
       return { success: false, message: e.message || "Insufficient AI Credits for deep research." };
     }
@@ -46,14 +69,9 @@ export async function manualAgentEnrichment(
 
   try {
     // 4. Scrape Data using Agentic Engine
-    const pool = await db.crm_Lead_Pools.findUnique({
-      where: { id: candidate.pool },
-      select: { id: true, icpConfig: true }
-    });
     const icp = pool?.icpConfig || {};
 
-    const url = `https://${candidate.domain}`;
-    const siteData = await visitWebsiteForAgent(url, userId, icp);
+    const siteData = await visitWebsiteForAgent(url, effectiveUserId, icp);
 
     if (siteData.error) {
       throw new Error(siteData.error);
@@ -73,7 +91,7 @@ export async function manualAgentEnrichment(
     const context = {
       jobId: "MANUAL_ENRICHMENT",
       poolId: candidate.pool,
-      userId: userId,
+      userId: effectiveUserId,
       icp: icp,
       logs: [] // don't track background logs since there is no running job
     };

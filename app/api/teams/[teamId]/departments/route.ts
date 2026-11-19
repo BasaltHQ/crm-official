@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 
 /**
@@ -8,14 +7,27 @@ import { prismadb } from "@/lib/prisma";
  * Lists all departments under the given organization team.
  */
 export async function GET(
-    req: Request,
+    _req: Request,
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     const { teamId } = await params;
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
+            // Also allow members currently scoped to a child department of teamId to list sibling departments
+            let isChildMember = false;
+            if (teamInfo!.teamId) {
+                const callerTeam = await prismadb.team.findUnique({
+                    where: { id: teamInfo!.teamId },
+                    select: { parent_id: true },
+                });
+                isChildMember = callerTeam?.parent_id === teamId;
+            }
+            if (!isChildMember) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
         }
 
         const departments = await prismadb.team.findMany({

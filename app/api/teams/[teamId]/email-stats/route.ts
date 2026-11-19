@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 
-export async function GET(req: Request, props: { params: Promise<{ teamId: string }> }) {
+export async function GET(_req: Request, props: { params: Promise<{ teamId: string }> }) {
     const params = await props.params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!validateResourceOwnership(teamInfo!.teamId, params.teamId, teamInfo!.isPlatformAdmin)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     try {
-        // Fetch last 10 sent items for this team
-        // We assume sent items map to campaigns owned by the team or user
-        // Since we don't have direct team_id on Outreach_Items, we link via User or Campaign
-        // Campaign has team_id.
-        // Let's filter items where campaign -> team_id matches
-
         const items = await prismadb.crm_Outreach_Items.findMany({
             where: {
                 status: "SENT",
@@ -24,7 +21,7 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
             },
             take: 10,
             orderBy: {
-                sentAt: 'desc'
+                sentAt: "desc"
             },
             select: {
                 id: true,
@@ -46,13 +43,12 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
             }
         });
 
-        // Map to simpler format, with fallback for pool candidates without a lead record
         const mapped = (items as any[]).map(item => {
             const lead = item.assigned_lead || {
-                firstName: item.candidate_name?.split(' ')[0] || '',
-                lastName: item.candidate_name?.split(' ').slice(1).join(' ') || '',
-                email: item.candidate_email || 'Unknown',
-                company: item.candidate_company || '',
+                firstName: item.candidate_name?.split(" ")[0] || "",
+                lastName: item.candidate_name?.split(" ").slice(1).join(" ") || "",
+                email: item.candidate_email || "Unknown",
+                company: item.candidate_company || "",
             };
             return {
                 id: item.id,
@@ -64,9 +60,8 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
         });
 
         return NextResponse.json(mapped);
-
     } catch (error: any) {
         console.error("Failed to fetch email stats", error);
-        return NextResponse.json({ error: error.message || "Internal Error" }, { status: 500 });
+        return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }

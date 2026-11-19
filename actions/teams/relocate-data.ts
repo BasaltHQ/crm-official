@@ -1,9 +1,9 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
+import { normalizeTeamSlug, requirePlatformAdmin } from "@/lib/security/authz";
 
 export type RelocatableEntityType = "ACCOUNT" | "LEAD" | "CONTACT" | "OPPORTUNITY";
 
@@ -17,16 +17,19 @@ export async function relocateEntity(
     targetTeamSlug: string
 ) {
     try {
-        const currentUser = await getCurrentUserTeamId();
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { error: "Unauthorized: Platform Admin required." };
+        }
 
-        // 🛑 God Mode Check
-        if (false) {
-            return { error: "Unauthorized: God Mode required for cross-team data relocation." };
+        const normalizedSlug = normalizeTeamSlug(targetTeamSlug);
+        if (!normalizedSlug) {
+            return { error: "Invalid target team slug." };
         }
 
         // 1. Resolve Target Team
-        const targetTeam = await prismadb.team.findUnique({
-            where: { slug: targetTeamSlug },
+        const targetTeam = await prismadb.team.findFirst({
+            where: { slug: { equals: normalizedSlug, mode: "insensitive" } },
             select: { id: true, name: true }
         });
 

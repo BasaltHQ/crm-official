@@ -1,7 +1,10 @@
 "use server";
 
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { normalizeRoleName } from "@/lib/security/authz";
 import { dbAdapter } from "@/lib/database/db-adapter";
+
+const ALLOWED_QUEST_STATUSES = new Set(["DRAFT", "ACTIVE", "COMPLETED", "ARCHIVED"]);
 
 /**
  * Toggle quest status: DRAFT -> ACTIVE, ACTIVE -> COMPLETED, etc.
@@ -12,17 +15,25 @@ export async function toggleQuestStatus(
     newStatus: "DRAFT" | "ACTIVE" | "COMPLETED" | "ARCHIVED"
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const teamInfo = await getCurrentUserTeamId();
-        if (!teamInfo?.teamId || !teamInfo?.userId) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) {
             return { success: false, error: "NOT_AUTHENTICATED" };
         }
+        const userId = session.user.id;
 
-        const role = teamInfo.teamRole as string;
-        if (!["SUPER_ADMIN", "OWNER", "ADMIN", "PLATFORM_ADMIN"].includes(role)) {
+        if (!ALLOWED_QUEST_STATUSES.has(newStatus)) {
+            return { success: false, error: "INVALID_STATUS" };
+        }
+
+        const role = normalizeRoleName(teamInfo.teamRole);
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin && !["SUPER_ADMIN", "OWNER", "ADMIN", "PLATFORM_ADMIN"].includes(role)) {
             return { success: false, error: "INSUFFICIENT_PERMISSIONS" };
         }
 
         const { ObjectId } = require("mongodb");
+        if (!questId || !ObjectId.isValid(questId)) {
+            return { success: false, error: "QUEST_NOT_FOUND" };
+        }
         const questCollection = await dbAdapter.getNativeCollection("Quest");
 
         const quest = await questCollection.findOne({
@@ -32,13 +43,13 @@ export async function toggleQuestStatus(
 
         if (!quest) return { success: false, error: "QUEST_NOT_FOUND" };
 
-        // Only the creator or SUPER_ADMIN can toggle
-        if (quest.created_by.toString() !== teamInfo.userId && role !== "SUPER_ADMIN" && role !== "PLATFORM_ADMIN" && role !== "OWNER") {
+        // Only the creator or tenant OWNER / platform admin can toggle
+        if (quest.created_by.toString() !== userId && !teamInfo.isPlatformAdmin && role !== "SUPER_ADMIN" && role !== "PLATFORM_ADMIN" && role !== "OWNER") {
             return { success: false, error: "INSUFFICIENT_PERMISSIONS" };
         }
 
         await questCollection.updateOne(
-            { _id: new ObjectId(questId) },
+            { _id: new ObjectId(questId), team_id: new ObjectId(teamInfo.teamId) },
             { $set: { status: newStatus, updated_at: new Date() } }
         );
 

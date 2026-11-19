@@ -1,14 +1,13 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { systemLogger } from "@/lib/logger";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function getAllSubscriptions() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const admin = await requirePlatformAdmin();
+        if (!admin) return [];
 
         // Fetching all platform subscriptions
         // Refresh: 2026-02-12-v5 (Internal Path)

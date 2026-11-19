@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { sendAssignmentNotification } from "@/lib/notifications/assignment-notify";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
@@ -16,10 +15,8 @@ export async function POST(
     { params }: { params: Promise<{ poolId: string }> }
 ) {
     const { poolId } = await params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     try {
         const { userId } = await req.json();
@@ -31,37 +28,45 @@ export async function POST(
             );
         }
 
-        // Check if user is admin
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: {
-                name: true,
-                is_admin: true,
-                is_account_admin: true,
-                assigned_role: { select: { name: true } },
-                team_id: true,
-            },
-        });
-
-        const isSuperAdmin = user?.assigned_role?.name === "SuperAdmin";
-        const isAdmin = user?.is_admin || user?.is_account_admin;
-
-        if (!isSuperAdmin && !isAdmin) {
+        if (!teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
             return NextResponse.json(
                 { error: "Only admins can assign members to pools" },
                 { status: 403 }
             );
         }
 
-        // Get current pool
+        // Get current pool and verify tenant ownership
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
             where: { id: poolId },
-            select: { id: true, assigned_members: true, name: true, description: true },
+            select: { id: true, team_id: true, assigned_members: true, name: true, description: true },
         });
 
         if (!pool) {
             return NextResponse.json(
                 { error: "Pool not found" },
+                { status: 404 }
+            );
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json(
+                { error: "Forbidden" },
+                { status: 403 }
+            );
+        }
+
+        // Verify target member belongs to the pool's team
+        const targetTeamId = pool.team_id || teamInfo!.teamId;
+        const assignedMember = await prismadb.users.findFirst({
+            where: {
+                id: String(userId),
+                ...(targetTeamId ? { team_id: targetTeamId } : {}),
+            },
+            select: { id: true, name: true, email: true },
+        });
+        if (!assignedMember) {
+            return NextResponse.json(
+                { error: "Member not found in this team" },
                 { status: 404 }
             );
         }
@@ -83,21 +88,15 @@ export async function POST(
             },
         });
 
-        // Fetch member details for notification
-        const assignedMember = await prismadb.users.findUnique({
-            where: { id: userId },
-            select: { id: true, name: true, email: true },
-        });
-
         // Send notification (fire and forget)
-        if (assignedMember?.email) {
+        if (assignedMember.email) {
             sendAssignmentNotification({
                 memberEmail: assignedMember.email,
                 memberName: assignedMember.name || "Team Member",
                 memberId: assignedMember.id,
-                senderId: session.user.id,
-                teamId: user?.team_id || undefined,
-                assignedByName: user?.name || "Admin",
+                senderId: session!.user.id,
+                teamId: targetTeamId || undefined,
+                assignedByName: session!.user.name || "Admin",
                 assignmentType: "pool",
                 assignmentName: pool.name || "List",
                 assignmentId: poolId,
@@ -106,7 +105,7 @@ export async function POST(
             }).catch((err) => systemLogger.error("[NOTIFY] Pool assignment notification failed:", err));
         }
 
-        await logActivityInternal(session.user.email || "SYSTEM", "UPDATE", "crm_Lead_Pools", `Assigned member ${userId} to pool ${poolId}`);
+        await logActivityInternal(session!.user.email || "SYSTEM", "UPDATE", "crm_Lead_Pools", `Assigned member ${userId} to pool ${poolId}`);
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
         systemLogger.error("[POOL_ASSIGN_MEMBER_POST]", error);
@@ -123,10 +122,8 @@ export async function DELETE(
     { params }: { params: Promise<{ poolId: string }> }
 ) {
     const { poolId } = await params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     try {
         const { searchParams } = new URL(req.url);
@@ -139,36 +136,30 @@ export async function DELETE(
             );
         }
 
-        // Check if user is admin
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: {
-                is_admin: true,
-                is_account_admin: true,
-                assigned_role: { select: { name: true } },
-            },
-        });
-
-        const isSuperAdmin = user?.assigned_role?.name === "SuperAdmin";
-        const isAdmin = user?.is_admin || user?.is_account_admin;
-
-        if (!isSuperAdmin && !isAdmin) {
+        if (!teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
             return NextResponse.json(
                 { error: "Only admins can remove members from pools" },
                 { status: 403 }
             );
         }
 
-        // Get current pool
+        // Get current pool and verify tenant ownership
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
             where: { id: poolId },
-            select: { id: true, assigned_members: true },
+            select: { id: true, team_id: true, assigned_members: true },
         });
 
         if (!pool) {
             return NextResponse.json(
                 { error: "Pool not found" },
                 { status: 404 }
+            );
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json(
+                { error: "Forbidden" },
+                { status: 403 }
             );
         }
 
@@ -182,7 +173,7 @@ export async function DELETE(
             },
         });
 
-        await logActivityInternal(session.user.email || "SYSTEM", "UPDATE", "crm_Lead_Pools", `Removed member ${userId} from pool ${poolId}`);
+        await logActivityInternal(session!.user.email || "SYSTEM", "UPDATE", "crm_Lead_Pools", `Removed member ${userId} from pool ${poolId}`);
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
         systemLogger.error("[POOL_REMOVE_MEMBER_DELETE]", error);
@@ -199,15 +190,13 @@ export async function GET(
     { params }: { params: Promise<{ poolId: string }> }
 ) {
     const { poolId } = await params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     try {
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
             where: { id: poolId },
-            select: { id: true, assigned_members: true },
+            select: { id: true, user: true, team_id: true, assigned_members: true },
         });
 
         if (!pool) {
@@ -217,15 +206,33 @@ export async function GET(
             );
         }
 
+        if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json(
+                { error: "Forbidden" },
+                { status: 403 }
+            );
+        }
+
         const memberIds = pool.assigned_members || [];
+        if (
+            !teamInfo!.isPlatformAdmin &&
+            !teamInfo!.isAdmin &&
+            pool.user !== session!.user.id &&
+            !memberIds.includes(session!.user.id)
+        ) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         if (memberIds.length === 0) {
             return NextResponse.json({ members: [] }, { status: 200 });
         }
 
-        // Get member details
+        // Get member details scoped to pool's team if present
         const members = await prismadb.users.findMany({
-            where: { id: { in: memberIds } },
+            where: {
+                id: { in: memberIds },
+                ...(pool.team_id ? { team_id: pool.team_id } : {}),
+            },
             select: {
                 id: true,
                 name: true,

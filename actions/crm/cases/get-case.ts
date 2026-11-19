@@ -1,13 +1,12 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export const getCase = async (caseId: string) => {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return null;
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error || !teamInfo) return null;
 
     try {
         const caseData = await (prismadb as any).crm_Cases.findUnique({
@@ -94,6 +93,11 @@ export const getCase = async (caseId: string) => {
                 },
             },
         });
+
+        if (!caseData) return null;
+        if (!validateResourceOwnership(teamInfo.teamId, caseData.team_id, teamInfo.isPlatformAdmin)) {
+            return null;
+        }
 
         return caseData;
     } catch (error) {

@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 export async function GET(req: Request, props: { params: Promise<{ teamId: string }> }) {
     const params = await props.params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!validateResourceOwnership(teamInfo!.teamId, params.teamId, teamInfo!.isPlatformAdmin)) {
+        return new NextResponse("Forbidden", { status: 403 });
+    }
 
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10) || 20));
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
 
@@ -25,7 +28,7 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
         };
 
         if (status && status !== "ALL") {
-            // @ts-ignore - Status enum matching might need casting, but string works for Prisma filters often
+            // @ts-ignore
             whereClause.status = status;
         }
 
@@ -51,7 +54,7 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
                 take: limit,
                 skip: skip,
                 orderBy: {
-                    sentAt: 'desc'
+                    sentAt: "desc"
                 },
                 include: {
                     assigned_lead: {
@@ -88,9 +91,8 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
                 totalPages: Math.ceil(total / limit)
             }
         });
-
     } catch (error: any) {
         console.error("Failed to fetch emails", error);
-        return new NextResponse(error.message, { status: 500 });
+        return new NextResponse("Internal Error", { status: 500 });
     }
 }

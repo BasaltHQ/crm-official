@@ -1,21 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 // GET: Fetch all domain verification requests across teams (platform admin only)
 export async function GET(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    // Verify platform admin
-    const user = await prismadb.users.findUnique({
-        where: { id: session.user.id },
-        select: { is_admin: true, assigned_team: { select: { slug: true } } }
-    });
-
-    const isInternal = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
-    if (!user?.is_admin && !isInternal) {
+    const admin = await requirePlatformAdmin();
+    if (!admin) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -52,16 +42,8 @@ export async function GET(req: Request) {
 
 // PATCH: Update domain verification status (approve / reject)
 export async function PATCH(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const user = await prismadb.users.findUnique({
-        where: { id: session.user.id },
-        select: { is_admin: true, assigned_team: { select: { slug: true } } }
-    });
-
-    const isInternal = user?.assigned_team?.slug === "ledger1" || user?.assigned_team?.slug === "basalt" || user?.assigned_team?.slug === "basalthq";
-    if (!user?.is_admin && !isInternal) {
+    const admin = await requirePlatformAdmin();
+    if (!admin) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

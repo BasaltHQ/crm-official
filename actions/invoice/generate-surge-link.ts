@@ -1,18 +1,17 @@
-
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { createSurgeCheckoutSession } from "@/lib/surge";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function generateSurgeLink(invoiceId: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            throw new Error("Unauthorized");
+        const teamInfo = await getCurrentUserTeamId();
+        if (!teamInfo?.userId || !teamInfo?.teamId) {
+            return { success: false, error: "Unauthorized" };
         }
 
         const invoice = await prismadb.invoices.findUnique({
@@ -20,19 +19,20 @@ export async function generateSurgeLink(invoiceId: string) {
         });
 
         if (!invoice) {
-            throw new Error("Invoice not found");
+            return { success: false, error: "Invoice not found" };
         }
 
-        // Ensure we have a tenant/team ID to fetch config
-        // Assuming invoice.assigned_team_id or similar marks the tenant context
-        // Or if user is associated with a team.
-        // For now, let's try to infer from invoice's relations if possible, or use user's team if simple.
-        // However, invoice.team_id field exists in schema.
-
         const tenantId = invoice.team_id;
-
         if (!tenantId) {
-            throw new Error("Invoice is not associated with a team/tenant");
+            return { success: false, error: "Invoice is not associated with a team/tenant" };
+        }
+
+        // Enforce strict tenant ownership unless Platform Admin
+        if (tenantId !== teamInfo.teamId && !teamInfo.isPlatformAdmin) {
+            const admin = await requirePlatformAdmin();
+            if (!admin) {
+                return { success: false, error: "Forbidden: Invoice does not belong to your team" };
+            }
         }
 
         const checkout = await createSurgeCheckoutSession(tenantId, invoice);

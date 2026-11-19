@@ -1,10 +1,57 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { normalizeRoleName } from "@/lib/security/authz";
 import { revalidatePath } from "next/cache";
 import { ApprovalProcessStatus, ApprovalRequestStatus, ApprovalAction, Prisma } from "@prisma/client";
+
+const ALLOWED_APPROVAL_MODELS = new Set([
+    "crm_Leads",
+    "crm_Contacts",
+    "crm_Accounts",
+    "crm_Opportunities",
+    "crm_Cases",
+    "crm_Quotes",
+    "crm_Contracts",
+]);
+
+const BLOCKED_APPROVAL_UPDATE_FIELDS = new Set([
+    "id",
+    "_id",
+    "v",
+    "__v",
+    "team_id",
+    "tenant_id",
+    "createdBy",
+    "created_by",
+    "is_admin",
+    "is_account_admin",
+    "team_role",
+    "plan_id",
+    "subscription_plan",
+    "password",
+    "mfaSecret",
+    "mfaBackupCodes",
+    "resetToken",
+    "resetTokenExpires",
+    "openAi_keys",
+    "__proto__",
+    "constructor",
+    "prototype",
+]);
+
+function sanitizeApprovalUpdateData(raw: Record<string, any>): Record<string, any> {
+    const out: Record<string, any> = {};
+    for (const [key, val] of Object.entries(raw || {})) {
+        const trimmed = key.trim();
+        if (!trimmed || trimmed.startsWith("$") || BLOCKED_APPROVAL_UPDATE_FIELDS.has(trimmed)) {
+            continue;
+        }
+        out[trimmed] = val;
+    }
+    return out;
+}
 
 // ============================================================================
 // APPROVAL PROCESS CRUD
@@ -12,12 +59,17 @@ import { ApprovalProcessStatus, ApprovalRequestStatus, ApprovalAction, Prisma } 
 
 export async function getApprovalProcesses(teamId: string, objectType?: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
 
-        if (!teamId || teamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(teamId)) return [];
+        const effectiveTeamId = teamInfo.isPlatformAdmin && teamId ? teamId : teamInfo.teamId;
+        if (!effectiveTeamId || effectiveTeamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(effectiveTeamId)) return [];
 
-        const where: { team_id: string; object_type?: string } = { team_id: teamId };
+        if (teamId && !validateResourceOwnership(teamInfo.teamId, teamId, teamInfo.isPlatformAdmin)) {
+            return [];
+        }
+
+        const where: { team_id: string; object_type?: string } = { team_id: effectiveTeamId };
         if (objectType) where.object_type = objectType;
 
         const processes = await prismadb.approvalProcess.findMany({
@@ -39,8 +91,8 @@ export async function getApprovalProcesses(teamId: string, objectType?: string) 
 
 export async function getApprovalProcess(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
 
         if (!id || id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id)) return null;
 
@@ -68,6 +120,11 @@ export async function getApprovalProcess(id: string) {
                 },
             },
         });
+
+        if (!process) return null;
+        if (!validateResourceOwnership(teamInfo.teamId, process.team_id, teamInfo.isPlatformAdmin)) {
+            return null;
+        }
 
         return process;
     } catch (error) {
@@ -100,8 +157,24 @@ interface CreateApprovalProcessData {
 
 export async function createApprovalProcess(data: CreateApprovalProcessData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
+
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden — admin privileges required" };
+        }
+
+        if (!ALLOWED_APPROVAL_MODELS.has(data.object_type)) {
+            return { success: false, error: `Unsupported object_type: ${data.object_type}` };
+        }
+
+        const effectiveTeamId = teamInfo.isPlatformAdmin && data.team_id ? data.team_id : teamInfo.teamId;
+        if (!effectiveTeamId) {
+            return { success: false, error: "No team context" };
+        }
+        if (data.team_id && !validateResourceOwnership(teamInfo.teamId, data.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const process = await prismadb.approvalProcess.create({
             data: {
@@ -114,7 +187,7 @@ export async function createApprovalProcess(data: CreateApprovalProcessData) {
                 allow_recall: data.allow_recall ?? true,
                 lock_record: data.lock_record ?? true,
                 order: data.order ?? 0,
-                team_id: data.team_id,
+                team_id: effectiveTeamId,
                 createdBy: session.user.id,
                 status: ApprovalProcessStatus.DRAFT,
                 steps: {
@@ -142,10 +215,21 @@ export async function createApprovalProcess(data: CreateApprovalProcessData) {
 
 export async function updateApprovalProcessStatus(id: string, status: ApprovalProcessStatus) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden" };
+        }
 
         if (!id || id.length !== 24) return { success: false, error: "Invalid process ID" };
+
+        const existing = await prismadb.approvalProcess.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing || !validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const process = await prismadb.approvalProcess.update({
             where: { id },
@@ -162,12 +246,22 @@ export async function updateApprovalProcessStatus(id: string, status: ApprovalPr
 
 export async function deleteApprovalProcess(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden" };
+        }
 
         if (!id || id.length !== 24) return { success: false, error: "Invalid process ID" };
 
-        // Delete steps, then request actions, then requests, then process
+        const existing = await prismadb.approvalProcess.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing || !validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
+
         await prismadb.approvalRequestAction.deleteMany({
             where: { request: { process_id: id } },
         });
@@ -187,14 +281,6 @@ export async function deleteApprovalProcess(id: string) {
     }
 }
 
-// ============================================================================
-// APPROVAL REQUEST OPERATIONS
-// ============================================================================
-
-/**
- * Submit a record for approval.
- * Finds the matching approval process and creates a request.
- */
 export async function submitForApproval(data: {
     record_id: string;
     record_type: string;
@@ -203,17 +289,34 @@ export async function submitForApproval(data: {
     record_snapshot?: Prisma.InputJsonValue;
 }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
 
-        if (!data.team_id || data.team_id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(data.team_id)) {
-            return { success: false, error: "Invalid team ID" };
+        if (!ALLOWED_APPROVAL_MODELS.has(data.record_type)) {
+            return { success: false, error: "Unsupported record_type" };
         }
 
-        // Find active approval process for this object type
+        const effectiveTeamId = teamInfo.isPlatformAdmin && data.team_id ? data.team_id : teamInfo.teamId;
+        if (!effectiveTeamId || effectiveTeamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(effectiveTeamId)) {
+            return { success: false, error: "Invalid team ID" };
+        }
+        if (data.team_id && !validateResourceOwnership(teamInfo.teamId, data.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
+
+        // Verify target record belongs to effectiveTeamId
+        const targetModel = (prismadb as any)[data.record_type];
+        const targetRecord = await targetModel?.findFirst?.({
+            where: { id: data.record_id, team_id: effectiveTeamId },
+            select: { id: true },
+        });
+        if (!targetRecord) {
+            return { success: false, error: "Record not found in your team" };
+        }
+
         const process = await prismadb.approvalProcess.findFirst({
             where: {
-                team_id: data.team_id,
+                team_id: effectiveTeamId,
                 object_type: data.record_type,
                 status: ApprovalProcessStatus.ACTIVE,
             },
@@ -231,7 +334,6 @@ export async function submitForApproval(data: {
             return { success: false, error: "Approval process has no steps configured" };
         }
 
-        // Check entry criteria if defined
         if (process.entry_criteria) {
             const { evaluateFormula } = await import("@/lib/validation-engine");
             const recordData = data.record_snapshot as Record<string, unknown> ?? {};
@@ -241,11 +343,11 @@ export async function submitForApproval(data: {
             }
         }
 
-        // Check if already pending
         const existing = await prismadb.approvalRequest.findFirst({
             where: {
                 record_id: data.record_id,
                 record_type: data.record_type,
+                team_id: effectiveTeamId,
                 status: ApprovalRequestStatus.PENDING,
             },
         });
@@ -264,7 +366,7 @@ export async function submitForApproval(data: {
                 record_snapshot: data.record_snapshot ?? null,
                 status: ApprovalRequestStatus.PENDING,
                 current_step: 1,
-                team_id: data.team_id,
+                team_id: effectiveTeamId,
             },
         });
 
@@ -276,9 +378,6 @@ export async function submitForApproval(data: {
     }
 }
 
-/**
- * Process an approval action (approve/reject/recall/reassign)
- */
 export async function processApprovalAction(data: {
     request_id: string;
     action: ApprovalAction;
@@ -286,8 +385,8 @@ export async function processApprovalAction(data: {
     reassign_to?: string;
 }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
 
         if (!data.request_id || data.request_id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(data.request_id)) {
             return { success: false, error: "Invalid request ID" };
@@ -308,11 +407,14 @@ export async function processApprovalAction(data: {
             return { success: false, error: "Approval request not found" };
         }
 
+        if (!validateResourceOwnership(teamInfo.teamId, request.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
+
         if (request.status !== ApprovalRequestStatus.PENDING) {
             return { success: false, error: "This request is no longer pending" };
         }
 
-        // Find current step
         const currentStep = request.process.steps.find(
             (s: { step_number: number }) => s.step_number === request.current_step
         );
@@ -320,7 +422,24 @@ export async function processApprovalAction(data: {
             return { success: false, error: "Current approval step not found" };
         }
 
-        // Record the action
+        // Verify actor authorization for this step / action
+        if (data.action === ApprovalAction.RECALL) {
+            if (request.submitted_by !== session.user.id && !teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+                return { success: false, error: "Forbidden — only the submitter or an admin can recall" };
+            }
+        } else if (!teamInfo.isPlatformAdmin && !teamInfo.isAdmin) {
+            if (currentStep.approver_type === "SPECIFIC_USER" && currentStep.approver_user_id !== session.user.id) {
+                return { success: false, error: "Forbidden — you are not the designated approver" };
+            }
+            if (
+                currentStep.approver_type === "ROLE" &&
+                currentStep.approver_role &&
+                normalizeRoleName(teamInfo.teamRole) !== normalizeRoleName(currentStep.approver_role)
+            ) {
+                return { success: false, error: "Forbidden — insufficient role for this approval step" };
+            }
+        }
+
         await prismadb.approvalRequestAction.create({
             data: {
                 request_id: request.id,
@@ -332,21 +451,17 @@ export async function processApprovalAction(data: {
             },
         });
 
-        // Process the action
         if (data.action === ApprovalAction.APPROVE) {
-            // Check if there's a next step
             const nextStep = request.process.steps.find(
                 (s: { step_number: number }) => s.step_number === request.current_step + 1
             );
 
             if (nextStep) {
-                // Move to next step
                 await prismadb.approvalRequest.update({
                     where: { id: request.id },
                     data: { current_step: nextStep.step_number },
                 });
             } else {
-                // Final approval — mark as approved
                 await prismadb.approvalRequest.update({
                     where: { id: request.id },
                     data: {
@@ -355,17 +470,22 @@ export async function processApprovalAction(data: {
                     },
                 });
 
-                // Execute final approval actions (if any)
-                if (request.process.final_approval_actions && typeof request.process.final_approval_actions === 'object' && !Array.isArray(request.process.final_approval_actions)) {
+                if (
+                    ALLOWED_APPROVAL_MODELS.has(request.record_type) &&
+                    request.process.final_approval_actions &&
+                    typeof request.process.final_approval_actions === 'object' &&
+                    !Array.isArray(request.process.final_approval_actions)
+                ) {
                     try {
-                        const modelName = request.record_type as keyof typeof prismadb;
-                        const updateData = request.process.final_approval_actions as Record<string, any>;
-
-                        // @ts-ignore - dynamic prisma model access
-                        await prismadb[modelName].update({
-                            where: { id: request.record_id },
-                            data: updateData
-                        });
+                        const safeUpdateData = sanitizeApprovalUpdateData(
+                            request.process.final_approval_actions as Record<string, any>
+                        );
+                        if (Object.keys(safeUpdateData).length > 0 && request.team_id) {
+                            await (prismadb as any)[request.record_type].updateMany({
+                                where: { id: request.record_id, team_id: request.team_id },
+                                data: safeUpdateData,
+                            });
+                        }
                     } catch (err) {
                         console.error(`Failed to execute final approval actions for ${request.record_type} ${request.record_id}`, err);
                     }
@@ -380,17 +500,22 @@ export async function processApprovalAction(data: {
                 },
             });
 
-            // Execute final rejection actions (if any)
-            if (request.process.final_rejection_actions && typeof request.process.final_rejection_actions === 'object' && !Array.isArray(request.process.final_rejection_actions)) {
+            if (
+                ALLOWED_APPROVAL_MODELS.has(request.record_type) &&
+                request.process.final_rejection_actions &&
+                typeof request.process.final_rejection_actions === 'object' &&
+                !Array.isArray(request.process.final_rejection_actions)
+            ) {
                 try {
-                    const modelName = request.record_type as keyof typeof prismadb;
-                    const updateData = request.process.final_rejection_actions as Record<string, any>;
-
-                    // @ts-ignore - dynamic prisma model access
-                    await prismadb[modelName].update({
-                        where: { id: request.record_id },
-                        data: updateData
-                    });
+                    const safeUpdateData = sanitizeApprovalUpdateData(
+                        request.process.final_rejection_actions as Record<string, any>
+                    );
+                    if (Object.keys(safeUpdateData).length > 0 && request.team_id) {
+                        await (prismadb as any)[request.record_type].updateMany({
+                            where: { id: request.record_id, team_id: request.team_id },
+                            data: safeUpdateData,
+                        });
+                    }
                 } catch (err) {
                     console.error(`Failed to execute final rejection actions for ${request.record_type} ${request.record_id}`, err);
                 }
@@ -416,23 +541,24 @@ export async function processApprovalAction(data: {
     }
 }
 
-/**
- * Get pending approval requests for the current user
- */
 export async function getMyPendingApprovals(teamId?: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
+
+        const effectiveTeamId = teamInfo.isPlatformAdmin && teamId ? teamId : teamInfo.teamId;
+        if (!effectiveTeamId || effectiveTeamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(effectiveTeamId)) {
+            return [];
+        }
+        if (teamId && !validateResourceOwnership(teamInfo.teamId, teamId, teamInfo.isPlatformAdmin)) {
+            return [];
+        }
 
         const where: Prisma.ApprovalRequestWhereInput = {
             status: ApprovalRequestStatus.PENDING,
+            team_id: effectiveTeamId,
         };
 
-        if (teamId && teamId.length === 24 && /^[0-9a-fA-F]{24}$/.test(teamId)) {
-            where.team_id = teamId;
-        }
-
-        // Get all pending requests where the current user is the approver at the current step
         const requests = await prismadb.approvalRequest.findMany({
             where,
             orderBy: { createdAt: 'desc' },
@@ -457,7 +583,6 @@ export async function getMyPendingApprovals(teamId?: string) {
             },
         });
 
-        // Filter to only requests where user is the current step approver
         const myRequests = requests.filter((req: any) => {
             const currentStep = req.process.steps.find((s: { step_number: number }) => s.step_number === req.current_step);
             if (!currentStep) return false;
@@ -465,8 +590,11 @@ export async function getMyPendingApprovals(teamId?: string) {
                 return currentStep.approver_user_id === session.user?.id;
             }
             if (currentStep.approver_type === 'ROLE') {
-                // Match against user's team_role
-                return true; // simplified — in production, check user's role
+                if (!currentStep.approver_role) return teamInfo.isAdmin;
+                return (
+                    teamInfo.isAdmin ||
+                    normalizeRoleName(teamInfo.teamRole) === normalizeRoleName(currentStep.approver_role)
+                );
             }
             return false;
         });
@@ -478,20 +606,19 @@ export async function getMyPendingApprovals(teamId?: string) {
     }
 }
 
-/**
- * Get all approval requests for a specific record
- */
 export async function getRecordApprovals(recordId: string, recordType: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
 
         if (!recordId || recordId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(recordId)) return [];
+        if (!teamInfo.teamId && !teamInfo.isPlatformAdmin) return [];
 
         const requests = await prismadb.approvalRequest.findMany({
             where: {
                 record_id: recordId,
                 record_type: recordType,
+                ...(teamInfo.isPlatformAdmin && !teamInfo.teamId ? {} : { team_id: teamInfo.teamId! }),
             },
             orderBy: { createdAt: 'desc' },
             include: {

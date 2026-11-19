@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
-// This cron job should be called securely, perhaps via Vercel Cron or validated request
+const ALLOWED_RETENTION_MODELS: Record<string, { prismaKey: string; dateField: string }> = {
+    systemActivity: { prismaKey: "systemActivity", dateField: "createdAt" },
+    SystemActivity: { prismaKey: "systemActivity", dateField: "createdAt" },
+    crm_AiUsageLog: { prismaKey: "crm_AiUsageLog", dateField: "createdAt" },
+    crm_ApiLogs: { prismaKey: "crm_ApiLogs", dateField: "timestamp" },
+    notification: { prismaKey: "notification", dateField: "createdAt" },
+    Notification: { prismaKey: "notification", dateField: "createdAt" },
+};
+
+// This cron job should be called securely via CRON_SECRET
 export async function GET(req: Request) {
+    const cronAuth = requireCronAuth(req);
+    if (cronAuth instanceof Response) return cronAuth;
+
     try {
         // Find all active retention policies
         const policies = await (prismadb as any).dataRetentionPolicy.findMany({
@@ -13,6 +26,13 @@ export async function GET(req: Request) {
 
         for (const policy of policies) {
             const { model_name, retention_days, action } = policy;
+
+            const targetModel = ALLOWED_RETENTION_MODELS[String(model_name || "")];
+            if (!targetModel) {
+                console.warn(`[DATA_RETENTION] Skipping disallowed model_name: ${model_name}`);
+                results.push({ model_name, error: "Disallowed retention model", status: "skipped" });
+                continue;
+            }
             
             // Calculate cutoff date
             const cutoffDate = new Date();
@@ -20,12 +40,10 @@ export async function GET(req: Request) {
 
             // Execute action based on policy
             if (action === "DELETE") {
-                // Dynamically delete from the appropriate model based on timestamp
-                // Most models use createdAt, but if we need a mapping, we can add it here
                 try {
-                    const result = await (prismadb as any)[model_name].deleteMany({
+                    const result = await (prismadb as any)[targetModel.prismaKey].deleteMany({
                         where: {
-                            createdAt: {
+                            [targetModel.dateField]: {
                                 lt: cutoffDate
                             }
                         }

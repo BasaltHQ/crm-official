@@ -26,7 +26,24 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // SOC2 Type 1 / 2 Control: Enforce allowed MIME types to prevent XSS/RCE/Malware
+    // SOC2 Type 1 / 2 Control: Enforce strict extension + canonical MIME allowlist to prevent XSS/RCE/Malware
+    const EXT_TO_MIME: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+      pdf: "application/pdf",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      doc: "application/msword",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      xls: "application/vnd.ms-excel",
+      csv: "text/csv",
+      txt: "text/plain",
+      md: "text/markdown",
+      json: "application/json",
+    };
+
     const allowedMimeTypes = [
       "image/jpeg",
       "image/png",
@@ -40,19 +57,27 @@ export async function POST(req: NextRequest) {
       "text/csv",
       "text/markdown",
       "application/json",
-      "text/plain"
+      "text/plain",
+      "application/octet-stream",
     ];
 
     const fileExt = file.name?.split('.').pop()?.toLowerCase() || '';
-    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'txt', 'md', 'json'];
+    const allowedExtensions = Object.keys(EXT_TO_MIME);
+    const dangerousExtensions = [
+      'svg', 'html', 'htm', 'xhtml', 'xml', 'mhtml',
+      'exe', 'sh', 'bat', 'cmd', 'ps1',
+      'js', 'mjs', 'cjs', 'php', 'py', 'ts', 'jsx', 'tsx',
+    ];
 
-    if (file.type && !allowedMimeTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
-      return NextResponse.json({ error: `Invalid file type (${file.type}). Only standard documents and images are allowed.` }, { status: 400 });
-    }
-    const dangerousExtensions = ['svg', 'html', 'htm', 'exe', 'sh', 'js', 'php', 'py', 'ts', 'jsx', 'tsx'];
     if (dangerousExtensions.includes(fileExt)) {
       return NextResponse.json({ error: "File extension not permitted." }, { status: 400 });
     }
+
+    if (!allowedExtensions.includes(fileExt) || (file.type && !allowedMimeTypes.includes(file.type))) {
+      return NextResponse.json({ error: `Invalid file type (${file.type || fileExt}). Only standard documents and raster images are allowed.` }, { status: 400 });
+    }
+
+    const canonicalMimeType = EXT_TO_MIME[fileExt] || "application/octet-stream";
 
     const url = new URL(req.url);
     const context = url.searchParams.get("context");
@@ -127,9 +152,9 @@ export async function POST(req: NextRequest) {
     }
 
     const blobClient = containerClient.getBlockBlobClient(key);
-    systemLogger.info("[GENERIC_UPLOAD_POST] Uploading blob", { key, type: file.type, size: buffer.length });
+    systemLogger.info("[GENERIC_UPLOAD_POST] Uploading blob", { key, type: canonicalMimeType, size: buffer.length });
     await blobClient.uploadData(buffer, {
-      blobHTTPHeaders: { blobContentType: file.type || "application/octet-stream" },
+      blobHTTPHeaders: { blobContentType: canonicalMimeType },
     });
     const fileUrl = blobClient.url;
     systemLogger.info("[GENERIC_UPLOAD_POST] Uploaded blob URL:", fileUrl);
@@ -138,7 +163,7 @@ export async function POST(req: NextRequest) {
     const doc = await (prismadb.documents as any).create({
       data: {
         document_name: file.name || fileNameSafe,
-        document_file_mimeType: file.type || "application/octet-stream",
+        document_file_mimeType: canonicalMimeType,
         document_file_url: fileUrl,
         team_id: teamId, // Assign team
         status: "ACTIVE",

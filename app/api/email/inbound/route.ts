@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 import { analyzeReplySentiment } from "@/actions/crm/analyze-sentiment";
 import { ensureContactForLead } from "@/actions/crm/lead-conversions";
+import { verifyAndConfirmSnsRequest } from "@/lib/security/sns-verify";
 /**
  * POST /api/email/inbound
  * Webhook for AWS SES Inbound Email via Amazon SNS.
@@ -10,28 +11,19 @@ import { ensureContactForLead } from "@/actions/crm/lead-conversions";
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    
-    let body;
-    try {
-      body = JSON.parse(rawBody);
-    } catch {
-      return new NextResponse("Invalid JSON", { status: 400 });
+    const snsCheck = await verifyAndConfirmSnsRequest(rawBody);
+    if (!snsCheck.valid) {
+      systemLogger.warn(`[SES_INBOUND] Rejected unverified SNS request: ${snsCheck.error}`);
+      return NextResponse.json({ error: snsCheck.error || "Unauthorized" }, { status: 401 });
+    }
+    if (snsCheck.confirmed) {
+      systemLogger.info(`[SES_INBOUND] Confirmed SNS Subscription`);
+      return NextResponse.json({ success: true, confirmed: true });
     }
 
-    // 1. Handle SNS Subscription Confirmation
-    if (body.Type === "SubscriptionConfirmation") {
-      systemLogger.info(`[SES_INBOUND] Confirming SNS Subscription`);
-      if (body.SubscribeURL) {
-        try {
-          await fetch(body.SubscribeURL, { cache: "no-store", method: "GET" });
-        } catch (fetchErr) {
-          systemLogger.error(`[SES_INBOUND] SNS confirmation failed:`, fetchErr);
-        }
-      }
-      return new NextResponse("OK", { status: 200 });
-    }
+    const body = snsCheck.payload!;
 
-    // 2. Handle Notification (Actual Email)
+    // Handle Notification (Actual Email)
     if (body.Type === "Notification") {
       let emailMessage;
       try {
@@ -271,9 +263,17 @@ export async function POST(req: Request) {
         if (campaignRecord?.auto_reply_enabled && !sentimentResult?.decision?.stopContact &&
             !sentimentResult?.decision?.automated && !sentimentResult?.decision?.requiresReview) {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://crm.basalthq.com";
+          const internalSecret =
+            process.env.SYNTHESIS_SECRET ||
+            process.env.CRON_SECRET ||
+            process.env.JWT_SECRET ||
+            "";
           fetch(`${appUrl}/api/outreach/reply`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-secret": internalSecret,
+            },
             body: JSON.stringify({
               outreachItemId: matchedOutreachItem.id,
               inboundThreadId: newThread.id,

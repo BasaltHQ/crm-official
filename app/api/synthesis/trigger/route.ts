@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getAiSdkModel, logAiUsage } from "@/lib/varuni";
@@ -7,8 +8,18 @@ import { systemLogger } from "@/lib/logger";
 
 export async function POST(req: Request) {
     try {
-        const secret = req.headers.get("x-synthesis-secret");
-        if (secret !== (process.env.SYNTHESIS_SECRET || "internal-secret")) {
+        const expectedSecret = process.env.SYNTHESIS_SECRET;
+        if (!expectedSecret) {
+            return NextResponse.json({ error: "Synthesis secret is not configured" }, { status: 500 });
+        }
+
+        const secret = req.headers.get("x-synthesis-secret") || "";
+        const expectedBuf = Buffer.from(expectedSecret, "utf8");
+        const providedBuf = Buffer.from(secret, "utf8");
+        if (
+            expectedBuf.length !== providedBuf.length ||
+            !crypto.timingSafeEqual(expectedBuf, providedBuf)
+        ) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -18,6 +29,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, reason: "No payload to synthesize" });
         }
 
+        const payloadTenantId: string | null = payload.tenant_id || payload.team_id || null;
+
         // Try to identify context references from the URL or payload
         let accountId: string | undefined;
         let leadId: string | undefined;
@@ -25,16 +38,36 @@ export async function POST(req: Request) {
         // Very basic heuristic to find IDs depending on your exact routes
         if (payload.accountId) {
             accountId = payload.accountId;
-        } else if (path.includes("/accounts/")) {
+        } else if (typeof path === "string" && path.includes("/accounts/")) {
             const match = path.match(/\/accounts\/([a-f\d]{24})/i);
             if (match) accountId = match[1];
         }
 
         if (payload.leadId) {
             leadId = payload.leadId;
-        } else if (path.includes("/leads/")) {
+        } else if (typeof path === "string" && path.includes("/leads/")) {
             const match = path.match(/\/leads\/([a-f\d]{24})/i);
             if (match) leadId = match[1];
+        }
+
+        if (accountId) {
+            const account = await prismadb.crm_Accounts.findUnique({
+                where: { id: accountId },
+                select: { id: true, team_id: true },
+            });
+            if (!account || (payloadTenantId && account.team_id && account.team_id !== payloadTenantId)) {
+                return NextResponse.json({ error: "Forbidden: Account tenant mismatch" }, { status: 403 });
+            }
+        }
+
+        if (leadId) {
+            const lead = await prismadb.crm_Leads.findUnique({
+                where: { id: leadId },
+                select: { id: true, team_id: true },
+            });
+            if (!lead || (payloadTenantId && lead.team_id && lead.team_id !== payloadTenantId)) {
+                return NextResponse.json({ error: "Forbidden: Lead tenant mismatch" }, { status: 403 });
+            }
         }
 
         const { model } = await getAiSdkModel("system", "analysis");

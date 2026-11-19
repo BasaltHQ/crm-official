@@ -1,5 +1,4 @@
-"use server";
-
+// Server-side Quest reward utility module (NOT a client-callable Server Action)
 import { dbAdapter } from "@/lib/database/db-adapter";
 import { calculateXPAward, computeLevelFromXP } from "@/lib/quest-engine/xp-curve";
 import { checkAndAwardBadges, type AchievementCheckStats } from "@/lib/quest-engine/badge-engine";
@@ -23,6 +22,9 @@ export async function awardQuestRewards(params: {
 } | null> {
     try {
         const { ObjectId } = require("mongodb");
+        if (!params?.questId || !ObjectId.isValid(params.questId) || !params?.userId || !ObjectId.isValid(params.userId)) {
+            return null;
+        }
         const questCollection = await dbAdapter.getNativeCollection("Quest");
         const progressCollection = await dbAdapter.getNativeCollection("QuestProgress");
         const usersCollection = await dbAdapter.getNativeCollection("Users");
@@ -34,7 +36,7 @@ export async function awardQuestRewards(params: {
             quest_id: new ObjectId(params.questId),
             user_id: new ObjectId(params.userId),
         });
-        if (!progress || progress.qp_awarded > 0) return null; // Already awarded
+        if (!progress || !progress.is_completed || progress.qp_awarded > 0) return null; // Not completed or already awarded
 
         const baseQP = quest.qp_reward || 100;
         const baseXP = quest.xp_reward || 50;
@@ -78,9 +80,9 @@ export async function awardQuestRewards(params: {
         const currentPrestige = user?.prestige || 0;
         const levelResult = calculateXPAward(currentXPTotal, totalXP, currentPrestige);
 
-        // Update progress with rewards
-        await progressCollection.updateOne(
-            { _id: progress._id },
+        // Atomically claim reward on progress record to prevent duplicate awards
+        const claimResult = await progressCollection.updateOne(
+            { _id: progress._id, is_completed: true, qp_awarded: { $lte: 0 } },
             {
                 $set: {
                     qp_awarded: totalQP,
@@ -90,6 +92,7 @@ export async function awardQuestRewards(params: {
                 },
             }
         );
+        if (claimResult.modifiedCount === 0) return null;
 
         // Update user aggregate fields
         const levelState = computeLevelFromXP(levelResult.newXPTotal, currentPrestige);

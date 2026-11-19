@@ -1,8 +1,7 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 
 // ============================================================================
@@ -11,17 +10,19 @@ import { revalidatePath } from "next/cache";
 
 export async function getValidationRules(teamId: string, objectType?: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
 
-        const where: { team_id: string; object_type?: string } = { team_id: teamId };
-        if (objectType) where.object_type = objectType;
-
-        // Ensure teamId is a valid ObjectId string for MongoDB
-        if (!teamId || teamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(teamId)) {
-            console.warn("[ValidationRules] Invalid teamId provided:", teamId);
+        const effectiveTeamId = teamInfo.isPlatformAdmin && teamId ? teamId : teamInfo.teamId;
+        if (!effectiveTeamId || effectiveTeamId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(effectiveTeamId)) {
             return [];
         }
+        if (teamId && !validateResourceOwnership(teamInfo.teamId, teamId, teamInfo.isPlatformAdmin)) {
+            return [];
+        }
+
+        const where: { team_id: string; object_type?: string } = { team_id: effectiveTeamId };
+        if (objectType) where.object_type = objectType;
 
         const rules = await prismadb.validationRule.findMany({
             where,
@@ -40,8 +41,8 @@ export async function getValidationRules(teamId: string, objectType?: string) {
 
 export async function getValidationRule(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
 
         const rule = await prismadb.validationRule.findUnique({
             where: { id },
@@ -49,6 +50,11 @@ export async function getValidationRule(id: string) {
                 creator: { select: { id: true, name: true, avatar: true } },
             },
         });
+
+        if (!rule) return null;
+        if (!validateResourceOwnership(teamInfo.teamId, rule.team_id, teamInfo.isPlatformAdmin)) {
+            return null;
+        }
 
         return rule;
     } catch (error) {
@@ -71,8 +77,20 @@ interface CreateValidationRuleData {
 
 export async function createValidationRule(data: CreateValidationRuleData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
+
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden — admin privileges required" };
+        }
+
+        const effectiveTeamId = teamInfo.isPlatformAdmin && data.team_id ? data.team_id : teamInfo.teamId;
+        if (!effectiveTeamId) {
+            return { success: false, error: "No team context" };
+        }
+        if (data.team_id && !validateResourceOwnership(teamInfo.teamId, data.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const rule = await prismadb.validationRule.create({
             data: {
@@ -84,7 +102,7 @@ export async function createValidationRule(data: CreateValidationRuleData) {
                 trigger_on: data.trigger_on || "SAVE",
                 is_active: data.is_active ?? true,
                 order: data.order ?? 0,
-                team_id: data.team_id,
+                team_id: effectiveTeamId,
                 createdBy: session.user.id,
             },
         });
@@ -110,8 +128,19 @@ interface UpdateValidationRuleData {
 
 export async function updateValidationRule(id: string, data: UpdateValidationRuleData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden" };
+        }
+
+        const existing = await prismadb.validationRule.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing || !validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const rule = await prismadb.validationRule.update({
             where: { id },
@@ -128,8 +157,19 @@ export async function updateValidationRule(id: string, data: UpdateValidationRul
 
 export async function deleteValidationRule(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden" };
+        }
+
+        const existing = await prismadb.validationRule.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing || !validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         await prismadb.validationRule.delete({ where: { id } });
 
@@ -143,11 +183,17 @@ export async function deleteValidationRule(id: string) {
 
 export async function toggleValidationRule(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const existing = await prismadb.validationRule.findUnique({ where: { id } });
         if (!existing) return { success: false, error: "Rule not found" };
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const rule = await prismadb.validationRule.update({
             where: { id },

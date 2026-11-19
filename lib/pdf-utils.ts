@@ -1,5 +1,17 @@
 import { launchBrowser, closeBrowser } from "./browser";
 import { format } from "date-fns";
+import { escapeHtml } from "@/lib/security/ssrf-guard";
+
+async function lockDownPdfPage(page: any) {
+    await page.setRequestInterception(true);
+    page.on("request", (req: any) => {
+        if (req.url().startsWith("data:")) {
+            req.continue();
+        } else {
+            req.abort();
+        }
+    });
+}
 
 /**
  * Generates a professional PDF report for a form submission.
@@ -10,12 +22,13 @@ export async function generateSubmissionPdf(submission: any) {
     const browser = await launchBrowser();
     try {
         const page = await browser.newPage();
+        await lockDownPdfPage(page);
 
-        const rows = Object.entries(submission.data)
+        const rows = Object.entries(submission.data || {})
             .map(([key, value]) => `
                 <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                    <div style="font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase;">${key.replace(/_/g, " ")}</div>
-                    <div style="font-size: 14px; color: #000; word-break: break-all;">${value || "-"}</div>
+                    <div style="font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase;">${escapeHtml(key.replace(/_/g, " "))}</div>
+                    <div style="font-size: 14px; color: #000; word-break: break-all;">${escapeHtml(value || "-")}</div>
                 </div>
             `).join("");
 
@@ -25,11 +38,11 @@ export async function generateSubmissionPdf(submission: any) {
                     <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
                         <div>
                             <h1 style="margin: 0; font-size: 24px;">Form Submission Report</h1>
-                            <p style="margin: 5px 0 0 0; color: #666;">${submission.form?.name}</p>
+                            <p style="margin: 5px 0 0 0; color: #666;">${escapeHtml(submission.form?.name)}</p>
                         </div>
                         <div style="text-align: right; font-size: 12px; color: #999;">
-                            ID: ${submission.id}<br>
-                            Date: ${format(new Date(submission.createdAt), "PPP pp")}
+                            ID: ${escapeHtml(submission.id)}<br>
+                            Date: ${escapeHtml(format(new Date(submission.createdAt), "PPP pp"))}
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -42,7 +55,7 @@ export async function generateSubmissionPdf(submission: any) {
             </html>
         `;
 
-        await page.setContent(html);
+        await page.setContent(html, { waitUntil: "domcontentloaded" });
         const pdfBuffer = await page.pdf({
             format: "A4",
             margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },
@@ -58,17 +71,19 @@ export async function generateQuotePdf(quote: any) {
     const browser = await launchBrowser();
     try {
         const page = await browser.newPage();
+        await lockDownPdfPage(page);
 
-        const itemsRows = quote.items.map((item: any) => `
+        const items = Array.isArray(quote.items) ? quote.items : [];
+        const itemsRows = items.map((item: any) => `
             <tr>
                 <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                    <div style="font-weight: bold; font-size: 14px;">${item.product.name}</div>
-                    <div style="font-size: 10px; color: #666; font-family: monospace;">${item.product.sku}</div>
+                    <div style="font-weight: bold; font-size: 14px;">${escapeHtml(item.product?.name)}</div>
+                    <div style="font-size: 10px; color: #666; font-family: monospace;">${escapeHtml(item.product?.sku)}</div>
                 </td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${item.unitPrice.toLocaleString()}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.discount > 0 ? `<span style="color: #059669; font-weight: bold;">-${item.discount}%</span>` : '-'}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">$${item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${escapeHtml(item.quantity)}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">$${escapeHtml(Number(item.unitPrice || 0).toLocaleString())}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${Number(item.discount) > 0 ? `<span style="color: #059669; font-weight: bold;">-${escapeHtml(item.discount)}%</span>` : '-'}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">$${escapeHtml(Number(item.totalPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }))}</td>
             </tr>
         `).join("");
 
@@ -95,23 +110,23 @@ export async function generateQuotePdf(quote: any) {
                 <body>
                     <div class="header">
                         <div>
-                            <h1 class="title">${quote.title}</h1>
-                            <div style="font-family: monospace; color: #64748b;">${quote.quoteNumber}</div>
+                            <h1 class="title">${escapeHtml(quote.title)}</h1>
+                            <div style="font-family: monospace; color: #64748b;">${escapeHtml(quote.quoteNumber)}</div>
                         </div>
                         <div class="quote-info">
                             <div class="label">Proposal Date</div>
-                            <div style="font-weight: bold;">${format(new Date(quote.createdAt), "MMMM dd, yyyy")}</div>
+                            <div style="font-weight: bold;">${escapeHtml(format(new Date(quote.createdAt), "MMMM dd, yyyy"))}</div>
                             <div class="label" style="margin-top: 15px;">Valid Until</div>
-                            <div style="font-weight: bold; color: #e11d48;">${quote.expirationDate ? format(new Date(quote.expirationDate), "MMMM dd, yyyy") : "N/A"}</div>
+                            <div style="font-weight: bold; color: #e11d48;">${quote.expirationDate ? escapeHtml(format(new Date(quote.expirationDate), "MMMM dd, yyyy")) : "N/A"}</div>
                         </div>
                     </div>
 
                     <div class="info-grid">
                         <div class="info-box">
                             <div class="label">Prepared For</div>
-                            <div style="font-size: 18px; font-weight: bold;">${quote.account?.name || "No Account"}</div>
-                            ${quote.contact ? `<div style="color: #475569;">${quote.contact.first_name} ${quote.contact.last_name}</div>` : ""}
-                            ${quote.contact?.email ? `<div style="color: #2563eb; font-size: 12px;">${quote.contact.email}</div>` : ""}
+                            <div style="font-size: 18px; font-weight: bold;">${escapeHtml(quote.account?.name || "No Account")}</div>
+                            ${quote.contact ? `<div style="color: #475569;">${escapeHtml(quote.contact.first_name)} ${escapeHtml(quote.contact.last_name)}</div>` : ""}
+                            ${quote.contact?.email ? `<div style="color: #2563eb; font-size: 12px;">${escapeHtml(quote.contact.email)}</div>` : ""}
                         </div>
                         <div class="info-box" style="text-align: right; background: #fff;">
                             <div class="label">Issuing Entity</div>
@@ -139,15 +154,15 @@ export async function generateQuotePdf(quote: any) {
                         <div class="totals-box">
                             <div class="total-row">
                                 <span style="color: #64748b;">Subtotal</span>
-                                <span style="font-family: monospace;">$${quote.items.reduce((acc: number, i: any) => acc + (i.unitPrice * i.quantity), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span style="font-family: monospace;">$${escapeHtml(items.reduce((acc: number, i: any) => acc + (Number(i.unitPrice || 0) * Number(i.quantity || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 }))}</span>
                             </div>
                             <div class="total-row" style="color: #059669;">
                                 <span>Volume Discount</span>
-                                <span style="font-family: monospace;">-$${(quote.items.reduce((acc: number, i: any) => acc + (i.unitPrice * i.quantity), 0) - quote.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span style="font-family: monospace;">-$${escapeHtml((items.reduce((acc: number, i: any) => acc + (Number(i.unitPrice || 0) * Number(i.quantity || 0)), 0) - Number(quote.totalAmount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 }))}</span>
                             </div>
                             <div class="total-row grand-total">
                                 <span>TOTAL</span>
-                                <span style="font-family: monospace;">$${quote.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span style="font-family: monospace;">$${escapeHtml(Number(quote.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }))}</span>
                             </div>
                         </div>
                     </div>
@@ -158,13 +173,13 @@ export async function generateQuotePdf(quote: any) {
                     </div>
 
                     <div class="footer">
-                        Generated by Basalt CRM Secure Proposal System | ${format(new Date(), "PP")}
+                        Generated by Basalt CRM Secure Proposal System | ${escapeHtml(format(new Date(), "PP"))}
                     </div>
                 </body>
             </html>
         `;
 
-        await page.setContent(html);
+        await page.setContent(html, { waitUntil: "domcontentloaded" });
         const pdfBuffer = await page.pdf({
             format: "A4",
             margin: { top: "1cm", bottom: "1cm", left: "1cm", right: "1cm" },

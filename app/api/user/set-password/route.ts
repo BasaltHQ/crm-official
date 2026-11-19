@@ -1,31 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 import { prismadb } from "@/lib/prisma";
-import { hash, compare } from "bcryptjs";
 import { hashPassword, comparePassword } from "@/lib/password-utils";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/user/set-password
- * Allows a logged-in user (OAuth or credentials) to set/update their local password.
- *
- * Request body:
- *   {
- *     "newPassword": string,
- *     "currentPassword": string | null // optional; required only if user already has a password
- *   }
- *
- * Behavior:
- * - If the user has no password (e.g., OAuth account), currentPassword is NOT required.
- * - If the user has an existing password (credentials account), currentPassword must match.
- * - newPassword must meet basic complexity (min 8 chars).
- */
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const session = await requireApiAuth();
+  if (session instanceof NextResponse) return session;
 
   let body: { newPassword?: string; currentPassword?: string | null };
   try {

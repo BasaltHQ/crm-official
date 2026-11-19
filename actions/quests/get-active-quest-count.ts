@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { dbAdapter } from "@/lib/database/db-adapter";
 
 /**
@@ -9,8 +9,8 @@ import { dbAdapter } from "@/lib/database/db-adapter";
  */
 export async function getActiveQuestCount(): Promise<number> {
     try {
-        const teamInfo = await getCurrentUserTeamId();
-        if (!teamInfo?.teamId) return 0;
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return 0;
 
         const { ObjectId } = require("mongodb");
         const collection = await dbAdapter.getNativeCollection("Quest");

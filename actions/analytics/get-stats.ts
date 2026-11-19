@@ -2,8 +2,21 @@
 
 import { prismadb } from "@/lib/prisma";
 import { format, subDays } from "date-fns";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function getAnalyticsStats() {
+    const admin = await requirePlatformAdmin();
+    if (!admin) {
+        return {
+            totalVisitors: 0,
+            totalPageViews: 0,
+            chartData: [],
+            topPages: [],
+            geoData: [],
+            cityData: [],
+            recentViews: [],
+        };
+    }
     try {
         const now = new Date();
         const thirtyDaysAgo = subDays(now, 30);

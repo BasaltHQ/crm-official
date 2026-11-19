@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { runLeadGenPipeline } from "@/actions/leads/run-pipeline";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -16,10 +15,8 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { jobId } = await params;
   if (!jobId) {
@@ -27,8 +24,27 @@ export async function POST(
   }
 
   try {
-    // Fire and forget! The promise will continue executing in the Plesk 
-    // Node.js process even after the HTTP response is sent.
+    const job = await (prismadbCrm as any).crm_Lead_Gen_Jobs.findUnique({
+      where: { id: jobId },
+      select: {
+        id: true,
+        user: true,
+        assigned_pool: { select: { team_id: true } },
+      },
+    });
+    if (!job) {
+      return new NextResponse("Job not found", { status: 404 });
+    }
+
+    const canRun =
+      teamInfo!.isPlatformAdmin ||
+      job.user === session!.user.id ||
+      (teamInfo!.isAdmin &&
+        validateResourceOwnership(teamInfo!.teamId, job.assigned_pool?.team_id || null, false));
+
+    if (!canRun) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
     // First, mark as running
     await (prismadbCrm as any).crm_Lead_Gen_Jobs.update({
@@ -44,7 +60,7 @@ export async function POST(
 
     runLeadGenPipeline({
       jobId,
-      userId: session.user.id,
+      userId: session!.user.id,
     }).catch(async (error) => {
       systemLogger.error(`[BACKGROUND_JOB_ERROR] Pipeline failed for job ${jobId}:`, error);
       try {

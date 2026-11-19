@@ -24,6 +24,9 @@ export function MfaSettings({ user }: MfaSettingsProps) {
     const [totpCode, setTotpCode] = useState("");
     const [isTotpActive, setIsTotpActive] = useState(false);
     const [isWebauthnActive, setIsWebauthnActive] = useState(false);
+    const [disableTarget, setDisableTarget] = useState<"totp" | "webauthn" | "all" | null>(null);
+    const [stepUpPassword, setStepUpPassword] = useState("");
+    const [stepUpCode, setStepUpCode] = useState("");
 
     const isMfaEnabled = isTotpActive || isWebauthnActive;
 
@@ -97,35 +100,59 @@ export function MfaSettings({ user }: MfaSettingsProps) {
         }
     };
 
-    const resetMethod = async (method: "totp" | "webauthn") => {
-        setLoading(true);
-        try {
-            await axios.post("/api/user/mfa/disable", { method });
-            if (method === "totp") {
-                setIsTotpActive(false);
-                toast({ title: "Authenticator Reset", description: "You can set it up again anytime." });
-            } else {
-                setIsWebauthnActive(false);
-                toast({ title: "Passkey Reset", description: "You can register a new passkey anytime." });
-            }
-            router.refresh();
-        } catch {
-            toast({ variant: "destructive", title: "Error", description: "Failed to reset method." });
-        } finally {
-            setLoading(false);
-        }
+    const resetMethod = (method: "totp" | "webauthn") => {
+        setStepUpPassword("");
+        setStepUpCode("");
+        setDisableTarget(method);
     };
 
-    const disableAll = async () => {
+    const disableAll = () => {
+        setStepUpPassword("");
+        setStepUpCode("");
+        setDisableTarget("all");
+    };
+
+    const confirmDisableMfa = async () => {
+        if (!disableTarget) return;
+        if (!stepUpPassword && stepUpCode.length !== 6) {
+            toast({
+                variant: "destructive",
+                title: "Verification Required",
+                description: "Please enter your current password or 6-digit authenticator code."
+            });
+            return;
+        }
+
         setLoading(true);
         try {
-            await axios.post("/api/user/mfa/disable", { method: "all" });
-            toast({ title: "MFA Disabled", description: "All authentication methods have been removed." });
-            setIsTotpActive(false);
-            setIsWebauthnActive(false);
+            await axios.post("/api/user/mfa/disable", {
+                method: disableTarget,
+                password: stepUpPassword || undefined,
+                code: stepUpCode.length === 6 ? stepUpCode : undefined,
+            });
+
+            if (disableTarget === "totp") {
+                setIsTotpActive(false);
+                toast({ title: "Authenticator Reset", description: "You can set it up again anytime." });
+            } else if (disableTarget === "webauthn") {
+                setIsWebauthnActive(false);
+                toast({ title: "Passkey Reset", description: "You can register a new passkey anytime." });
+            } else {
+                setIsTotpActive(false);
+                setIsWebauthnActive(false);
+                toast({ title: "MFA Disabled", description: "All authentication methods have been removed." });
+            }
+
+            setDisableTarget(null);
+            setStepUpPassword("");
+            setStepUpCode("");
             router.refresh();
-        } catch {
-            toast({ variant: "destructive", title: "Error", description: "Failed to disable MFA." });
+        } catch (err: any) {
+            toast({
+                variant: "destructive",
+                title: "Verification Failed",
+                description: err?.response?.data?.error || "Failed to verify identity and update MFA settings."
+            });
         } finally {
             setLoading(false);
         }
@@ -286,6 +313,60 @@ export function MfaSettings({ user }: MfaSettingsProps) {
                         </div>
                     </div>
                 ) : null}
+
+                {disableTarget && setupStep === "idle" && (
+                    <div className="p-4 bg-amber-500/5 rounded-xl border border-amber-500/20 space-y-4">
+                        <div>
+                            <h4 className="text-sm font-bold text-amber-400">Confirm Identity</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Enter your current password{isTotpActive ? " or 6-digit authenticator code" : ""} to confirm this MFA change.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Input
+                                type="password"
+                                placeholder="Current password"
+                                value={stepUpPassword}
+                                onChange={(e) => setStepUpPassword(e.target.value)}
+                                autoComplete="current-password"
+                            />
+                            {isTotpActive && (
+                                <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    placeholder="Or 6-digit authenticator code"
+                                    value={stepUpCode}
+                                    onChange={(e) => setStepUpCode(e.target.value.replace(/\D/g, ""))}
+                                    autoComplete="one-time-code"
+                                />
+                            )}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setDisableTarget(null);
+                                    setStepUpPassword("");
+                                    setStepUpCode("");
+                                }}
+                                disabled={loading}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={confirmDisableMfa}
+                                disabled={loading || (!stepUpPassword && stepUpCode.length !== 6)}
+                            >
+                                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                Confirm
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
                 {isMfaEnabled && setupStep === "idle" && (
                     <div className="mt-8 pt-6 border-t border-white/5">

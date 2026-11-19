@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 import { prismadb } from "@/lib/prisma";
 import { logActivityInternal } from "@/actions/audit";
-import { encryptSecret } from "@/lib/encryption";
+import { encryptSecret, isMaskedSecret, maskSecretValue } from "@/lib/encryption";
 import { systemLogger } from "@/lib/logger";
 
 // POST /api/teams/[teamId]/ai-config - Update team AI configuration
@@ -12,13 +12,18 @@ export async function POST(
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
         }
 
-        const resolvedParams = await params;
-        const { teamId } = resolvedParams;
+        const { teamId } = await params;
+
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Not authorized to modify this team's settings" }, { status: 403 });
+        }
 
         let body: any;
         try {
@@ -29,32 +34,24 @@ export async function POST(
 
         const { provider, modelId, useSystemKey, apiKey, services } = body;
 
-        // Validate provider string is non-empty
         if (!provider || typeof provider !== "string" || provider.trim().length === 0) {
             return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
         }
 
-        // Verify user belongs to this team or is a global admin
-        const user = await prismadb.users.findUnique({
-            where: { email: session.user.email },
-            select: {
-                team_id: true,
-                team_role: true,
-                assigned_team: { select: { slug: true } }
-            },
+        const existingTeamConfig = await prismadb.teamAiConfig.findUnique({
+            where: { team_id: teamId },
+            select: { apiKey: true },
         });
 
-        // PLATFORM_ADMIN has god mode - no team restriction
-        const isGlobalAdmin = user?.team_role === "PLATFORM_ADMIN";
-        const isTeamAdmin = user?.team_id === teamId && ["OWNER", "ADMIN", "PLATFORM_ADMIN"].includes(user?.team_role || "");
-
-        if (!isGlobalAdmin && !isTeamAdmin) {
-            return NextResponse.json({ error: "Not authorized to modify this team's settings" }, { status: 403 });
+        let encryptedKey: string | null = null;
+        if (!useSystemKey) {
+            if (isMaskedSecret(apiKey) || apiKey === "HasValue") {
+                encryptedKey = existingTeamConfig?.apiKey ?? null;
+            } else {
+                encryptedKey = encryptSecret(apiKey || null);
+            }
         }
 
-        const encryptedKey = useSystemKey ? null : encryptSecret(apiKey || null);
-
-        // Upsert team AI config
         const config = await prismadb.teamAiConfig.upsert({
             where: { team_id: teamId },
             create: {
@@ -74,12 +71,10 @@ export async function POST(
             },
         });
 
-        // ── PLATFORM ADMIN: Also update SystemAiConfig (global defaults for all teams) ──
-        // When a platform admin saves from the system config page, the same provider/model
-        // should be set as the global fallback for teams without their own config.
-        if (isGlobalAdmin || user?.assigned_team?.slug === "basalthq") {
+        // ONLY verified Platform Admins may write global SystemAiConfig
+        const platformAdmin = await requirePlatformAdmin();
+        if (platformAdmin && !teamInfo!.isImpersonating) {
             try {
-                // Find existing system config for this provider, or use the first active one
                 const existingSystemConfig = await prismadb.systemAiConfig.findFirst({
                     where: { provider },
                 });
@@ -91,11 +86,9 @@ export async function POST(
                     configuration: { services: services || {} },
                 };
 
-                // Only set apiKey on system config if it's an IAM-managed provider (Bedrock)
-                // or if the admin explicitly provided a key
                 if (provider === "BEDROCK") {
                     systemConfigData.apiKey = "MANAGED_BY_IAM";
-                } else if (!useSystemKey && apiKey) {
+                } else if (!useSystemKey && encryptedKey) {
                     systemConfigData.apiKey = encryptedKey;
                 }
 
@@ -110,18 +103,26 @@ export async function POST(
                     });
                 }
 
-                systemLogger.info(`[SYSTEM_AI_CONFIG] Platform admin updated global AI defaults: provider=${provider}, model=${modelId}, services=${JSON.stringify(services || {})}`);
+                systemLogger.info(
+                    `[SYSTEM_AI_CONFIG] Platform admin updated global AI defaults: provider=${provider}, model=${modelId}`
+                );
             } catch (sysErr) {
-                // Don't fail the whole request if system config update fails
                 systemLogger.error("[SYSTEM_AI_CONFIG] Failed to update system config:", sysErr);
             }
         }
 
-        const actorId = (session.user as any)?.id;
-        if (actorId) {
-            await logActivityInternal(actorId, "UPDATE", "TeamAiConfig", `Updated AI config for team ${teamId} (provider: ${provider})`, teamId);
-        }
-        return NextResponse.json({ ...config, apiKey: config.apiKey ? "HasValue" : null });
+        await logActivityInternal(
+            session!.user.id,
+            "UPDATE",
+            "TeamAiConfig",
+            `Updated AI config for team ${teamId} (provider: ${provider})`,
+            teamId
+        );
+
+        return NextResponse.json({
+            ...config,
+            apiKey: maskSecretValue(config.apiKey),
+        });
     } catch (error) {
         systemLogger.error("[TEAM_AI_CONFIG_POST]", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -130,23 +131,35 @@ export async function POST(
 
 // GET /api/teams/[teamId]/ai-config - Get team AI configuration
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
         }
 
-        const resolvedParams = await params;
-        const { teamId } = resolvedParams;
+        const { teamId } = await params;
+
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         const config = await prismadb.teamAiConfig.findUnique({
             where: { team_id: teamId },
         });
 
-        return NextResponse.json(config);
+        if (!config) {
+            return NextResponse.json(null);
+        }
+
+        return NextResponse.json({
+            ...config,
+            apiKey: maskSecretValue(config.apiKey),
+        });
     } catch (error) {
         systemLogger.error("[TEAM_AI_CONFIG_GET]", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

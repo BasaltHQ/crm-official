@@ -1,15 +1,24 @@
 
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 
 export async function updateInvoice(invoiceId: string, data: FormData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return { error: "Unauthorized" };
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) return { error: "Unauthorized" };
+
+        const existing = await prismadb.invoices.findUnique({
+            where: { id: invoiceId },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) return { error: "Invoice not found" };
+
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { error: "Forbidden" };
+        }
 
         const partner = data.get("partner") as string;
         const payment_status = data.get("payment_status") as string;

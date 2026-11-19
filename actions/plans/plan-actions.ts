@@ -1,37 +1,13 @@
 
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-
-// Ensure only internal team admins can manage plans
-async function checkAuth() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return { error: "Unauthorized" };
-
-    const user = await prismadb.users.findUnique({
-        where: { id: session.user.id },
-        include: { assigned_team: true }
-    }) as any;
-
-    const isInternalTeam = ["ledger1", "basalthq", "basalt"].includes(user?.assigned_team?.slug);
-    // PLATFORM_ADMIN has god mode - no team restriction required
-    const isGlobalAdmin = user.team_role === "PLATFORM_ADMIN";
-    const isBoss = isInternalTeam && user.team_role === "OWNER";
-
-    // Also allow legacy global admin flag for now, or just stick to new roles
-    const isAdmin = user?.is_admin || isGlobalAdmin || isBoss;
-
-    if (!isAdmin) return { error: "Forbidden" };
-
-    return { success: true };
-}
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function createPlan(data: any) {
-    const auth = await checkAuth();
-    if (auth.error) return auth;
+    const admin = await requirePlatformAdmin();
+    if (!admin) return { error: "Forbidden" };
 
     try {
         await prismadb.plan.create({
@@ -60,8 +36,8 @@ export async function createPlan(data: any) {
 }
 
 export async function updatePlan(id: string, data: any) {
-    const auth = await checkAuth();
-    if (auth.error) return auth;
+    const admin = await requirePlatformAdmin();
+    if (!admin) return { error: "Forbidden" };
 
     try {
         await prismadb.plan.update({
@@ -91,8 +67,8 @@ export async function updatePlan(id: string, data: any) {
 }
 
 export async function deletePlan(id: string) {
-    const auth = await checkAuth();
-    if (auth.error) return auth;
+    const admin = await requirePlatformAdmin();
+    if (!admin) return { error: "Forbidden" };
 
     try {
         // Check if used
@@ -116,8 +92,16 @@ export async function deletePlan(id: string) {
 }
 
 export async function getPlans() {
-    // Public read for now (or auth check if sensitive)
+    const admin = await requirePlatformAdmin();
     const plans = await prismadb.plan.findMany({
+        ...(admin
+            ? {}
+            : {
+                  where: {
+                      isActive: true,
+                      slug: { in: ["STARTER", "GROWTH", "SCALE"] },
+                  },
+              }),
         orderBy: { price: 'asc' }
     });
     return plans;

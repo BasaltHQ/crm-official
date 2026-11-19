@@ -1,8 +1,7 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
@@ -14,8 +13,8 @@ export type ActionResponse = {
 
 export async function createInvoiceFromOpportunity(opportunityId: string): Promise<ActionResponse> {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -29,6 +28,10 @@ export async function createInvoiceFromOpportunity(opportunityId: string): Promi
 
         if (!opportunity) {
             return { success: false, error: "Opportunity not found" };
+        }
+
+        if (!validateResourceOwnership(teamInfo.teamId, opportunity.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
         }
 
         // Determine client details

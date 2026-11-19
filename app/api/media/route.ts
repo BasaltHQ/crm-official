@@ -1,15 +1,37 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { logActivity } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
+import { getSessionAndTeam } from "@/lib/api-utils";
+
+async function getScopedTeamUserIds(teamId: string | null, currentUserId: string): Promise<string[]> {
+    if (!teamId) return [currentUserId];
+    const teamMembers = await prismadb.users.findMany({
+        where: { team_id: teamId },
+        select: { id: true },
+    });
+    return Array.from(new Set([currentUserId, ...teamMembers.map((u) => u.id)]));
+}
+
+function isValidHttpUrl(rawUrl: unknown): boolean {
+    if (typeof rawUrl !== "string" || !rawUrl.trim()) return false;
+    try {
+        const parsed = new URL(rawUrl);
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user) {
-            return new NextResponse("Unauthorized", { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
+            return error || new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        if (!teamInfo.isAdmin) {
+            return new NextResponse("Forbidden: Admin access required", { status: 403 });
         }
 
         const body = await req.json();
@@ -17,6 +39,10 @@ export async function POST(req: Request) {
 
         if (!url || !filename) {
             return new NextResponse("Missing required fields", { status: 400 });
+        }
+
+        if (!isValidHttpUrl(url)) {
+            return new NextResponse("Invalid URL: Only http(s) URLs are allowed", { status: 400 });
         }
 
         const mediaItem = await (prismadb as any).mediaItem.create({
@@ -31,7 +57,7 @@ export async function POST(req: Request) {
                 caption: caption || "",
                 altText: altText || "",
                 description: description || "",
-                userId: (session.user as any).id,
+                userId: session.user.id,
             },
         });
 
@@ -46,31 +72,40 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user) {
-            return new NextResponse("Unauthorized", { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
+            return error || new NextResponse("Unauthorized", { status: 401 });
         }
 
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") || "";
         const onlyPublic = searchParams.get("public") === "true";
-        const limit = parseInt(searchParams.get("limit") || "50");
-        const page = parseInt(searchParams.get("page") || "1");
+        const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10) || 50));
+        const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
         const skip = (page - 1) * limit;
 
-        const where: any = {};
-        if (search) {
-            where.OR = [
-                { filename: { contains: search, mode: "insensitive" } },
-                { title: { contains: search, mode: "insensitive" } },
-                { description: { contains: search, mode: "insensitive" } },
-            ];
+        const andConditions: any[] = [];
+
+        if (!teamInfo.isGlobalAdmin) {
+            const allowedUserIds = await getScopedTeamUserIds(teamInfo.teamId, session.user.id);
+            andConditions.push({ userId: { in: allowedUserIds } });
         }
 
-        // Public filter
-        if (onlyPublic) {
-            where.isPublic = true;
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { filename: { contains: search, mode: "insensitive" } },
+                    { title: { contains: search, mode: "insensitive" } },
+                    { description: { contains: search, mode: "insensitive" } },
+                ],
+            });
         }
+
+        if (onlyPublic) {
+            andConditions.push({ isPublic: true });
+        }
+
+        const where: any = andConditions.length > 0 ? { AND: andConditions } : {};
 
         const [items, total] = await Promise.all([
             (prismadb as any).mediaItem.findMany({
@@ -91,9 +126,13 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user) {
-            return new NextResponse("Unauthorized", { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
+            return error || new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        if (!teamInfo.isAdmin) {
+            return new NextResponse("Forbidden: Admin access required", { status: 403 });
         }
 
         const body = await req.json();
@@ -101,6 +140,18 @@ export async function PUT(req: Request) {
 
         if (!id) {
             return new NextResponse("ID required", { status: 400 });
+        }
+
+        const existing = await (prismadb as any).mediaItem.findUnique({ where: { id } });
+        if (!existing) {
+            return new NextResponse("Not Found", { status: 404 });
+        }
+
+        if (!teamInfo.isPlatformAdmin) {
+            const allowedUserIds = await getScopedTeamUserIds(teamInfo.teamId, session.user.id);
+            if (!existing.userId || !allowedUserIds.includes(existing.userId)) {
+                return new NextResponse("Forbidden", { status: 403 });
+            }
         }
 
         const dataToUpdate: any = {
@@ -130,9 +181,13 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user) {
-            return new NextResponse("Unauthorized", { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
+            return error || new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        if (!teamInfo.isAdmin) {
+            return new NextResponse("Forbidden: Admin access required", { status: 403 });
         }
 
         const { searchParams } = new URL(req.url);
@@ -140,6 +195,18 @@ export async function DELETE(req: Request) {
 
         if (!id) {
             return new NextResponse("ID required", { status: 400 });
+        }
+
+        const existing = await (prismadb as any).mediaItem.findUnique({ where: { id } });
+        if (!existing) {
+            return new NextResponse("Not Found", { status: 404 });
+        }
+
+        if (!teamInfo.isPlatformAdmin) {
+            const allowedUserIds = await getScopedTeamUserIds(teamInfo.teamId, session.user.id);
+            if (!existing.userId || !allowedUserIds.includes(existing.userId)) {
+                return new NextResponse("Forbidden", { status: 403 });
+            }
         }
 
         await (prismadb as any).mediaItem.delete({

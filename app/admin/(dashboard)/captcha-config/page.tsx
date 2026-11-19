@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import Container from "@/app/(routes)/components/ui/Container";
 import { CaptchaConfigForm } from "@/app/(routes)/settings/team/_components/CaptchaConfigForm";
+import { maskFields, SECRET_FIELDS } from "@/lib/encryption";
 
 export default async function AdminCaptchaConfigPage() {
     const session = await getServerSession(authOptions);
@@ -34,9 +35,10 @@ export default async function AdminCaptchaConfigPage() {
         );
     }
 
-    const captchaConfig = await (prismadb as any).teamCaptchaConfig.findUnique({
+    const rawCaptchaConfig = await (prismadb as any).teamCaptchaConfig.findUnique({
         where: { team_id: teamId }
     });
+    const captchaConfig = maskFields(rawCaptchaConfig, SECRET_FIELDS.TeamCaptchaConfig);
 
     return (
         <Container

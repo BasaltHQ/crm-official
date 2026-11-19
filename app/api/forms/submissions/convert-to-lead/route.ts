@@ -1,17 +1,14 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        const userId = session.user.id;
-        const teamId = (session.user as any).team_id;
+        const userId = session!.user.id;
+        const teamId = teamInfo!.teamId;
 
         if (!teamId) {
             return NextResponse.json({ error: "No team associated" }, { status: 400 });
@@ -36,8 +33,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Submission not found" }, { status: 404 });
         }
 
-        if (submission.team_id !== teamId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        const resourceTeamId = submission.team_id || submission.form?.team_id || null;
+        if (!validateResourceOwnership(teamId, resourceTeamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         if (submission.lead_id) {

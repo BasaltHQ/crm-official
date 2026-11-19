@@ -4,85 +4,156 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { addLeadGenCredits } from "@/lib/scraper/credits";
+import { resolveBillingTeamId } from "@/lib/team-billing";
+import { SUBSCRIPTION_PLANS, resolveSlug } from "@/config/subscriptions";
 import { systemLogger } from "@/lib/logger";
 
 const ONBOARDING_BONUS_CREDITS = 25;
 const BONUS_KEY = "onboarding_bonus_claimed";
 
+const ALLOWED_MILESTONES = new Set([
+    "first_lead",
+    "first_account",
+    "first_contact",
+    "first_campaign",
+    "first_opportunity",
+    "first_call",
+    "first_outreach_email",
+    "profile_completed",
+    "email_verified",
+    "onboarding_complete",
+    "quick_launch_complete",
+]);
+
 /**
- * Awards bonus LeadGen credits when a FREE user completes onboarding milestones.
- * 
- * Milestones that trigger the bonus:
- * - Completing the Quick Launch checklist (all 5 steps)
- * - Logging their first call
+ * Awards bonus LeadGen credits when a STARTER (Free) user completes onboarding milestones.
  * 
  * Rules:
- * - Only awarded ONCE per team (idempotent)
- * - Only for FREE plan users (paid plans already have generous allocations)
- * - Awards 25 bonus credits
+ * - Milestone must belong to explicit ALLOWED_MILESTONES allowlist
+ * - Resolves DEPARTMENT to parent billing organization
+ * - Only awarded ONCE per milestone per billing organization (persisted in TeamAiConfig.configuration BEFORE crediting)
+ * - Only for STARTER / FREE plan organizations
  */
 export async function claimOnboardingBonus(milestone: string) {
     try {
-        const session = await getServerSession(authOptions);
-        const user = session?.user as any;
+        if (!milestone || typeof milestone !== "string") {
+            return { success: false, error: "Invalid milestone" };
+        }
 
-        if (!user?.id || !user?.team_id) {
+        const normalizedMilestone = milestone.trim().toLowerCase();
+        if (!ALLOWED_MILESTONES.has(normalizedMilestone)) {
+            return { success: false, error: "Unsupported onboarding milestone" };
+        }
+
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
             return { success: false, error: "Not authenticated" };
         }
 
-        const teamId = user.team_id;
+        const dbUser = await prismadb.users.findUnique({
+            where: { id: session.user.id },
+            select: { team_id: true, userStatus: true },
+        });
 
-        // 1. Fetch team to check plan
+        if (!dbUser?.team_id || dbUser.userStatus === "INACTIVE") {
+            return { success: false, error: "Not authenticated or no team assigned" };
+        }
+
+        const billingTeamId = await resolveBillingTeamId(dbUser.team_id);
+
+        // 1. Fetch billing team to check plan
         const team = await prismadb.team.findUnique({
-            where: { id: teamId },
-            select: { subscription_plan: true, slug: true }
+            where: { id: billingTeamId },
+            select: {
+                subscription_plan: true,
+                slug: true,
+                assigned_plan: { select: { slug: true } },
+            },
         });
 
         if (!team) {
             return { success: false, error: "Team not found" };
         }
 
-        // 2. Only award to FREE plan users (paid already have enough)
-        // BasaltHQ is exempt/unlimited anyway, skip bonus noise
-        if (team.slug === "BasaltHQ" || (team.subscription_plan && team.subscription_plan !== "FREE")) {
-            return { success: false, error: "Bonus only available for Free plan users", alreadyPaid: true };
+        // 2. Only award to STARTER (legacy FREE) plan teams (paid/exempt already have generous allocations)
+        const internalSlugs = ["basalthq", "basalt", "ledger1"];
+        const resolvedPlan = resolveSlug(team.assigned_plan?.slug || team.subscription_plan);
+        if (
+            internalSlugs.includes((team.slug || "").toLowerCase()) ||
+            resolvedPlan !== "STARTER"
+        ) {
+            return {
+                success: false,
+                error: "Bonus only available for Starter plan users",
+                alreadyPaid: true,
+            };
         }
 
-        // 3. Check if bonus was already claimed (idempotent)
-        // We store this in TeamAiConfig metadata to avoid schema changes
-        const config = await (prismadb as any).teamAiConfig.findUnique({
-            where: { team_id: teamId },
-            select: { metadata: true }
+        // 3. Check if bonus was already claimed (idempotent) inside TeamAiConfig.configuration
+        const config = await prismadb.teamAiConfig.findUnique({
+            where: { team_id: billingTeamId },
+            select: { configuration: true },
         });
 
-        const metadata = (config?.metadata as Record<string, any>) || {};
-        const bonusKey = `${BONUS_KEY}_${milestone}`;
+        const existingConfiguration =
+            config?.configuration &&
+            typeof config.configuration === "object" &&
+            !Array.isArray(config.configuration)
+                ? (config.configuration as Record<string, any>)
+                : {};
 
-        if (metadata[bonusKey]) {
-            return { success: false, error: "Bonus already claimed for this milestone", alreadyClaimed: true };
+        const claimedMilestones =
+            existingConfiguration.onboarding_bonuses &&
+            typeof existingConfiguration.onboarding_bonuses === "object" &&
+            !Array.isArray(existingConfiguration.onboarding_bonuses)
+                ? (existingConfiguration.onboarding_bonuses as Record<string, any>)
+                : {};
+
+        const bonusKey = `${BONUS_KEY}_${normalizedMilestone}`;
+        if (existingConfiguration[bonusKey] || claimedMilestones[normalizedMilestone]) {
+            return {
+                success: false,
+                error: "Bonus already claimed for this milestone",
+                alreadyClaimed: true,
+            };
         }
 
-        // 4. Award the credits
-        await addLeadGenCredits(teamId, ONBOARDING_BONUS_CREDITS);
+        // 4. Persist claim state inside TeamAiConfig.configuration BEFORE crediting!
+        const claimedAt = new Date().toISOString();
+        const updatedConfiguration = {
+            ...existingConfiguration,
+            [bonusKey]: claimedAt,
+            onboarding_bonuses: {
+                ...claimedMilestones,
+                [normalizedMilestone]: claimedAt,
+            },
+        };
 
-        // 5. Mark as claimed
-        await (prismadb as any).teamAiConfig.update({
-            where: { team_id: teamId },
-            data: {
-                metadata: {
-                    ...metadata,
-                    [bonusKey]: new Date().toISOString()
-                }
-            }
+        await prismadb.teamAiConfig.upsert({
+            where: { team_id: billingTeamId },
+            update: {
+                configuration: updatedConfiguration,
+            },
+            create: {
+                team_id: billingTeamId,
+                leadgen_credits_balance: SUBSCRIPTION_PLANS.STARTER.limits.leadgen_credits,
+                leadgen_credits_last_reset: new Date(),
+                configuration: updatedConfiguration,
+            },
         });
 
-        systemLogger.error(`[ONBOARDING_BONUS] Awarded ${ONBOARDING_BONUS_CREDITS} credits to team ${teamId} for milestone: ${milestone}`);
+        // 5. Award the credits
+        await addLeadGenCredits(billingTeamId, ONBOARDING_BONUS_CREDITS);
+
+        systemLogger.info(
+            `[ONBOARDING_BONUS] Awarded ${ONBOARDING_BONUS_CREDITS} credits to team ${billingTeamId} for milestone: ${normalizedMilestone}`
+        );
 
         return {
             success: true,
             creditsAwarded: ONBOARDING_BONUS_CREDITS,
-            milestone,
-            message: `🎉 You earned ${ONBOARDING_BONUS_CREDITS} bonus LeadGen credits!`
+            milestone: normalizedMilestone,
+            message: `🎉 You earned ${ONBOARDING_BONUS_CREDITS} bonus LeadGen credits!`,
         };
     } catch (error) {
         systemLogger.error("[ONBOARDING_BONUS] Error:", error);

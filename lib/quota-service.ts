@@ -3,6 +3,7 @@ import { systemLogger } from "@/lib/logger";
 import { getTeamAiTokenBalance } from "@/lib/ai-tokens";
 import { SUBSCRIPTION_PLANS, resolveSlug } from "@/config/subscriptions";
 import { DECISION_SERVICES } from "@/lib/ai/reply-decisions";
+import { resolveBillingTeamId } from "@/lib/team-billing";
 
 export type QuotaResource = "LEADS" | "USERS" | "STORAGE" | "CREDITS" | "AI_TOKENS" | "CONTACTS" | "ACCOUNTS" | "OPPORTUNITIES";
 
@@ -14,32 +15,74 @@ const DEFAULT_CRM_LIMITS: Record<string, number> = {
     OPPORTUNITIES: 1000,
 };
 
+function getStarterFallbackLimit(resource: QuotaResource): number {
+    const starter = SUBSCRIPTION_PLANS.STARTER.limits;
+    switch (resource) {
+        case "USERS":
+            return starter.max_users;
+        case "STORAGE":
+            return starter.max_storage;
+        case "CREDITS":
+            return starter.credits;
+        case "AI_TOKENS":
+            return starter.ai_tokens;
+        default:
+            return DEFAULT_CRM_LIMITS[resource] ?? 1000;
+    }
+}
+
+async function resolveEffectivePlan(team: any) {
+    const legacyPlan = (team as any)?.subscription_plan as string | undefined;
+    const canonicalSlug = resolveSlug(team?.assigned_plan?.slug || legacyPlan);
+    const canonicalConfig = SUBSCRIPTION_PLANS[canonicalSlug] || SUBSCRIPTION_PLANS.STARTER;
+
+    if (team?.assigned_plan) {
+        return { plan: team.assigned_plan, legacyPlan, canonicalSlug };
+    }
+
+    const dbPlan =
+        (await prismadb.plan.findFirst({ where: { slug: canonicalSlug } })) ||
+        (await prismadb.plan.findFirst({ where: { slug: "STARTER" } })) ||
+        (await prismadb.plan.findFirst({ where: { slug: "FREE" } }));
+
+    if (dbPlan) {
+        return { plan: dbPlan, legacyPlan, canonicalSlug };
+    }
+
+    // Never fail open if Plan DB rows are missing — synthesize from canonical STARTER/plan config
+    return {
+        plan: {
+            slug: canonicalConfig.slug,
+            max_users: canonicalConfig.limits.max_users,
+            max_storage: canonicalConfig.limits.max_storage,
+            max_credits: canonicalConfig.limits.credits,
+        },
+        legacyPlan,
+        canonicalSlug,
+    };
+}
+
 /**
  * Resolve the effective CRM record limit for a given resource.
  * Priority: Plan DB field → Canonical SUBSCRIPTION_PLANS config → hardcoded default.
  * Returns -1 for unlimited.
  */
 function resolveCrmLimit(plan: any, teamSubscriptionPlan: string | null | undefined, resource: QuotaResource): number {
-    // 1. Check the team's legacy subscription_plan enum for EXEMPT/ENTERPRISE bypass
     const canonicalSlug = resolveSlug(plan?.slug || teamSubscriptionPlan);
     const canonicalPlan = SUBSCRIPTION_PLANS[canonicalSlug];
 
-    // If the canonical plan says unlimited (-1) for all resources, bypass
     if (canonicalPlan) {
         const limits = canonicalPlan.limits;
-        // EXEMPT and ENTERPRISE have all limits set to -1
         if (limits.max_users === -1 && limits.max_storage === -1 && limits.credits === -1) {
             return -1;
         }
     }
 
-    // 2. Check if the DB plan model has the field (future-proofing)
     const fieldName = `max_${resource.toLowerCase()}`;
     if (plan && typeof plan[fieldName] === "number") {
         return plan[fieldName];
     }
 
-    // 3. Fall back to hardcoded defaults
     return DEFAULT_CRM_LIMITS[resource] ?? 1000;
 }
 
@@ -48,25 +91,25 @@ function resolveCrmLimit(plan: any, teamSubscriptionPlan: string | null | undefi
  */
 export async function getTeamQuotaLimit(teamId: string, resource: QuotaResource): Promise<number> {
     try {
+        const billingTeamId = await resolveBillingTeamId(teamId);
         const team = await prismadb.team.findUnique({
-            where: { id: teamId },
+            where: { id: billingTeamId },
             include: { assigned_plan: true }
         });
 
         if (!team) return 0;
 
-        const legacyPlan = (team as any).subscription_plan as string | undefined;
-        if (legacyPlan === "EXEMPT" || legacyPlan === "ENTERPRISE") return -1;
-
-        const plan = team.assigned_plan;
-        if (!plan || plan.slug === "EXEMPT" || plan.slug === "ENTERPRISE") return -1;
+        const { plan, legacyPlan, canonicalSlug } = await resolveEffectivePlan(team);
+        if (canonicalSlug === "EXEMPT" || canonicalSlug === "ENTERPRISE") {
+            return -1;
+        }
 
         switch (resource) {
             case "USERS": {
                 let limit = plan.max_users;
                 if (limit !== -1) {
                     const sub = await prismadb.crm_Subscriptions.findFirst({
-                        where: { tenant_id: teamId, payment_provider: "STRIPE", status: "ACTIVE" },
+                        where: { tenant_id: billingTeamId, payment_provider: "STRIPE", status: "ACTIVE" },
                         select: { quantity: true }
                     });
                     if (sub && sub.quantity) {
@@ -81,11 +124,12 @@ export async function getTeamQuotaLimit(teamId: string, resource: QuotaResource)
             case "OPPORTUNITIES": return resolveCrmLimit(plan, legacyPlan, "OPPORTUNITIES");
             case "STORAGE": return plan.max_storage;
             case "CREDITS": return plan.max_credits;
-            case "AI_TOKENS": return -1; // Unbounded per check logic
-            default: return -1;
+            case "AI_TOKENS": return SUBSCRIPTION_PLANS[canonicalSlug]?.limits?.ai_tokens ?? SUBSCRIPTION_PLANS.STARTER.limits.ai_tokens;
+            default: return getStarterFallbackLimit(resource);
         }
-    } catch {
-        return -1;
+    } catch (error) {
+        systemLogger.error("[QUOTA_LIMIT_ERROR]", error);
+        return getStarterFallbackLimit(resource);
     }
 }
 
@@ -108,40 +152,37 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             }
         }
 
+        // Resolve DEPARTMENT parent_id to parent organization before checking plans/quotas
+        const billingTeamId = await resolveBillingTeamId(teamId);
+
         const team = await prismadb.team.findUnique({
-            where: { id: teamId },
+            where: { id: billingTeamId },
             include: { assigned_plan: true }
         });
 
         if (!team) return { allowed: false, message: "Team not found" };
 
-        // ── Early bypass: EXEMPT or ENTERPRISE on legacy enum ──
-        const legacyPlan = (team as any).subscription_plan as string | undefined;
-        if (legacyPlan === "EXEMPT" || legacyPlan === "ENTERPRISE") {
+        const { plan, legacyPlan, canonicalSlug } = await resolveEffectivePlan(team);
+
+        if (canonicalSlug === "EXEMPT" || canonicalSlug === "ENTERPRISE") {
             return { allowed: true };
         }
 
-        if (!team.assigned_plan) {
-            const freePlan = await prismadb.plan.findUnique({ where: { slug: "FREE" } });
-            if (!freePlan) return { allowed: true };
-            (team as any).assigned_plan = freePlan;
-        }
-
-        const plan = team.assigned_plan!;
-
-        // ── Early bypass: EXEMPT or ENTERPRISE on assigned plan slug ──
-        if (plan.slug === "EXEMPT" || plan.slug === "ENTERPRISE") {
-            return { allowed: true };
-        }
+        // Aggregate counts across parent org + child departments so department creation cannot multiply limits
+        const childDepts = await prismadb.team.findMany({
+            where: { parent_id: billingTeamId },
+            select: { id: true },
+        });
+        const orgTeamIds = [billingTeamId, ...childDepts.map((d) => d.id)];
 
         switch (resource) {
             case "USERS": {
-                const userCount = await prismadb.users.count({ where: { team_id: teamId } });
+                const userCount = await prismadb.users.count({ where: { team_id: { in: orgTeamIds } } });
                 let limit = plan.max_users;
                 
                 if (limit !== -1) {
                     const sub = await prismadb.crm_Subscriptions.findFirst({
-                        where: { tenant_id: teamId, payment_provider: "STRIPE", status: "ACTIVE" },
+                        where: { tenant_id: billingTeamId, payment_provider: "STRIPE", status: "ACTIVE" },
                         select: { quantity: true }
                     });
                     if (sub && sub.quantity) {
@@ -157,7 +198,7 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             case "LEADS": {
                 const limit = resolveCrmLimit(plan, legacyPlan, "LEADS");
                 if (limit === -1) break;
-                const leadCount = await (prismadb as any).crm_Leads.count({ where: { team_id: teamId } });
+                const leadCount = await (prismadb as any).crm_Leads.count({ where: { team_id: { in: orgTeamIds } } });
                 if (leadCount >= limit) {
                     return { allowed: false, message: `Lead limit reached (${limit} leads max)` };
                 }
@@ -166,7 +207,7 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             case "CONTACTS": {
                 const limit = resolveCrmLimit(plan, legacyPlan, "CONTACTS");
                 if (limit === -1) break;
-                const contactCount = await prismadb.crm_Contacts.count({ where: { team_id: teamId } });
+                const contactCount = await prismadb.crm_Contacts.count({ where: { team_id: { in: orgTeamIds } } });
                 if (contactCount >= limit) {
                     return { allowed: false, message: `Contact limit reached (${limit} contacts max)` };
                 }
@@ -175,7 +216,7 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             case "ACCOUNTS": {
                 const limit = resolveCrmLimit(plan, legacyPlan, "ACCOUNTS");
                 if (limit === -1) break;
-                const accountCount = await prismadb.crm_Accounts.count({ where: { team_id: teamId } });
+                const accountCount = await prismadb.crm_Accounts.count({ where: { team_id: { in: orgTeamIds } } });
                 if (accountCount >= limit) {
                     return { allowed: false, message: `Account limit reached (${limit} accounts max)` };
                 }
@@ -184,17 +225,16 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             case "OPPORTUNITIES": {
                 const limit = resolveCrmLimit(plan, legacyPlan, "OPPORTUNITIES");
                 if (limit === -1) break;
-                const opportunityCount = await prismadb.crm_Opportunities.count({ where: { team_id: teamId } });
+                const opportunityCount = await prismadb.crm_Opportunities.count({ where: { team_id: { in: orgTeamIds } } });
                 if (opportunityCount >= limit) {
                     return { allowed: false, message: `Opportunity limit reached (${limit} opportunities max)` };
                 }
                 break;
             }
             case "STORAGE": {
-                // -1 = unlimited storage
                 if (plan.max_storage === -1) break;
                 const docs = await prismadb.documents.aggregate({
-                    where: { team_id: teamId },
+                    where: { team_id: { in: orgTeamIds } },
                     _sum: { size: true }
                 });
                 const usedBytes = docs._sum.size || 0;
@@ -207,8 +247,7 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
             }
             case "CREDITS": {
                 const currentUsage = await prismadb.crm_AiUsageLog.count({
-                    // Decision Intelligence is included for every team.
-                    where: { tenant_id: teamId, service: { notIn: [...DECISION_SERVICES] } }
+                    where: { tenant_id: { in: orgTeamIds }, service: { notIn: [...DECISION_SERVICES] } }
                 });
 
                 if (plan.max_credits !== -1 && currentUsage >= plan.max_credits) {
@@ -217,8 +256,7 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
                 break;
             }
             case "AI_TOKENS": {
-                const balance = await getTeamAiTokenBalance(teamId);
-                // -1 = unlimited
+                const balance = await getTeamAiTokenBalance(billingTeamId);
                 if (balance !== -1 && balance <= 0) {
                     return { allowed: false, message: "AI token balance exhausted. Top up or upgrade your plan." };
                 }
@@ -229,6 +267,6 @@ export async function checkTeamQuota(teamId: string, resource: QuotaResource, us
         return { allowed: true };
     } catch (error) {
         systemLogger.error("[QUOTA_CHECK_ERROR]", error);
-        return { allowed: true }; // Fail open for UX, but log error
+        return { allowed: false, message: "Unable to verify plan quota at this time. Please try again." };
     }
 }

@@ -1,24 +1,70 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prismadb as prisma } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/voice/elevenlabs/pre-call
- * ElevenLabs Pre-Call Webhook endpoint.
- * 
- * When AWS Chime bridges the SIP call to ElevenLabs, we spoof the Caller ID 
- * to be the Lead's actual phone number. ElevenLabs receives the SIP INVITE 
- * and fires this webhook with `caller_id` set to the Lead's phone number.
- * 
- * This endpoint:
- * 1. Parses the caller_id from the ElevenLabs payload.
- * 2. Looks up the Lead in the CRM database.
- * 3. Returns a JSON payload with `dynamic_variables` to instantly customize 
- *    the AI Agent's prompt before it speaks.
- */
+const WEBHOOK_TOLERANCE_SECONDS = 300;
+
+function verifyVoiceWebhookAuth(req: Request, rawBody: string, secret: string): boolean {
+  // 1. Check ElevenLabs-Signature: "t=<timestamp>,v0=<hmac_sha256_hex>"
+  const sigHeader = req.headers.get("elevenlabs-signature");
+  if (sigHeader) {
+    const parts = sigHeader.split(",").map((p) => p.trim());
+    const tPart = parts.find((p) => p.startsWith("t="));
+    const v0Parts = parts.filter((p) => p.startsWith("v0="));
+    if (tPart && v0Parts.length > 0) {
+      const ts = Number(tPart.slice(2));
+      if (
+        Number.isFinite(ts) &&
+        Math.abs(Math.floor(Date.now() / 1000) - ts) <= WEBHOOK_TOLERANCE_SECONDS
+      ) {
+        const expected = crypto
+          .createHmac("sha256", secret)
+          .update(`${ts}.${rawBody}`, "utf8")
+          .digest();
+        for (const v0 of v0Parts) {
+          const hex = v0.slice(3);
+          if (!/^[0-9a-fA-F]{64}$/.test(hex)) continue;
+          const candidate = Buffer.from(hex, "hex");
+          if (candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // 2. Check shared secret header (x-webhook-secret / Authorization: Bearer <secret>)
+  const headerSecret =
+    req.headers.get("x-webhook-secret")?.trim() ||
+    req.headers.get("x-elevenlabs-secret")?.trim() ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    "";
+  if (!headerSecret) return false;
+
+  const expectedBuf = Buffer.from(secret, "utf8");
+  const providedBuf = Buffer.from(headerSecret, "utf8");
+  return (
+    expectedBuf.length === providedBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, providedBuf)
+  );
+}
+
 export async function POST(req: Request) {
+  const secret = process.env.ELEVENLABS_WEBHOOK_SECRET || process.env.VOICE_WEBHOOK_SECRET;
+  if (!secret) {
+    systemLogger.error("[ELEVENLABS_PRE_CALL] Missing ELEVENLABS_WEBHOOK_SECRET / VOICE_WEBHOOK_SECRET");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+
+  const rawBody = await req.text();
+  if (!verifyVoiceWebhookAuth(req, rawBody, secret)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const payload = await req.json();
+    const payload = JSON.parse(rawBody);
     systemLogger.info("[ELEVENLABS_PRE_CALL_WEBHOOK_RECEIVED]", JSON.stringify(payload));
 
     // ElevenLabs payload structure includes caller_id, sometimes under 'call' object or root

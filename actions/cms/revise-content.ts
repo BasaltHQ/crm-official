@@ -1,6 +1,7 @@
 "use server";
 
 import { getAiSdkModel, isReasoningModel, logAiUsage } from "@/lib/varuni";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 import { generateText } from "ai";
 
 export async function reviseContent(
@@ -8,6 +9,8 @@ export async function reviseContent(
     instruction: string,
     type: "blog" | "docs" | "career"
 ) {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden");
     const { model, modelId, teamId } = await getAiSdkModel("system");
     if (!model) {
         throw new Error("AI model not configured");

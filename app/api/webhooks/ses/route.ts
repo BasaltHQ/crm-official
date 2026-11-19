@@ -1,24 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prismadb } from '@/lib/prisma';
 import { systemLogger } from '@/lib/logger';
+import { verifyAndConfirmSnsRequest } from '@/lib/security/sns-verify';
 
 export async function POST(req: Request) {
     try {
         const bodyText = await req.text();
-        const snsPayload = JSON.parse(bodyText);
-
-        // Handle AWS SNS Subscription Confirmation
-        if (snsPayload.Type === 'SubscriptionConfirmation' && snsPayload.SubscribeURL) {
-            systemLogger.info('[SES_WEBHOOK] Received SubscriptionConfirmation');
-            const res = await fetch(snsPayload.SubscribeURL);
-            if (res.ok) {
-                systemLogger.info('[SES_WEBHOOK] Successfully confirmed SNS subscription');
-                return NextResponse.json({ success: true, confirmed: true });
-            } else {
-                systemLogger.error('[SES_WEBHOOK] Failed to confirm SNS subscription');
-                return NextResponse.json({ success: false }, { status: 500 });
-            }
+        const snsCheck = await verifyAndConfirmSnsRequest(bodyText);
+        if (!snsCheck.valid) {
+            systemLogger.warn(`[SES_WEBHOOK] Rejected unverified SNS request: ${snsCheck.error}`);
+            return NextResponse.json({ error: snsCheck.error || 'Unauthorized' }, { status: 401 });
         }
+        if (snsCheck.confirmed) {
+            systemLogger.info('[SES_WEBHOOK] Successfully confirmed SNS subscription');
+            return NextResponse.json({ success: true, confirmed: true });
+        }
+
+        const snsPayload = snsCheck.payload!;
 
         if (snsPayload.Type === 'Notification') {
             const sesEvent = JSON.parse(snsPayload.Message);

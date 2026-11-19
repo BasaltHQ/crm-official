@@ -1,22 +1,42 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { prismadb } from "@/lib/prisma";
 
-/**
- * GET /oauth/authorize
- * Scaffold for BasaltCRM OAuth Authorization Code + PKCE provider.
- *
- * Query params:
- * - response_type=code
- * - client_id=BASALTECHO_CLIENT_ID
- * - redirect_uri=https://basaltecho.example.com/api/crm/connect/callback (or similar)
- * - scope=softphone:control outreach:write leads:read
- * - state=random-string
- * - code_challenge=BASE64URL(SHA256(code_verifier))
- * - code_challenge_method=S256
- *
- * Behavior (scaffold):
- * - Validates required parameters and returns a simulated "authorize_url" that BasaltECHO would open.
- * - In a full implementation, this would render a consent screen and on approval redirect to redirect_uri?code=...&state=...
- */
+async function isAllowedRedirectUri(rawUri: string): Promise<boolean> {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUri);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && parsed.hostname === "localhost" && parsed.protocol === "http:")) {
+    return false;
+  }
+
+  const allowedOrigins = new Set<string>([
+    "https://echo.basalthq.com",
+    "https://crm.basalthq.com",
+  ]);
+
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    try {
+      allowedOrigins.add(new URL(process.env.NEXT_PUBLIC_APP_URL).origin);
+    } catch { /* ignore */ }
+  }
+
+  try {
+    const echoService = await prismadb.systemServices.findFirst({
+      where: { name: "basaltecho" },
+      select: { serviceUrl: true },
+    });
+    if (echoService?.serviceUrl) {
+      allowedOrigins.add(new URL(echoService.serviceUrl).origin);
+    }
+  } catch { /* ignore */ }
+
+  return allowedOrigins.has(parsed.origin);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,13 +59,16 @@ export async function GET(req: NextRequest) {
     if (!redirectUri) {
       return NextResponse.json({ ok: false, error: "missing_redirect_uri" }, { status: 400 });
     }
+    if (!(await isAllowedRedirectUri(redirectUri))) {
+      return NextResponse.json({ ok: false, error: "invalid_redirect_uri" }, { status: 400 });
+    }
     if (!codeChallenge || codeChallengeMethod !== "S256") {
       return NextResponse.json({ ok: false, error: "invalid_pkce" }, { status: 400 });
     }
 
     // If caller explicitly wants JSON, preserve scaffold JSON behavior.
     if (modeJson) {
-      const mockCode = `mock_code_${Math.random().toString(36).slice(2, 10)}`;
+      const mockCode = `mock_code_${crypto.randomBytes(32).toString("hex")}`;
       const suggestedRedirect = `${redirectUri}${redirectUri.includes("?") ? "&" : "?"}code=${encodeURIComponent(mockCode)}${state ? `&state=${encodeURIComponent(state)}` : ""}`;
       return NextResponse.json(
         {
@@ -63,10 +86,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Default: redirect to branded consent UI (valid URL path) preserving all query params (locale default: en)
-    // Note: route groups like (authpopup) are not part of the URL; use a query flag to indicate popup behavior
     const origin = url.origin;
     const ui = new URL(`${origin}/oauth/authorize`);
-    // forward known params
     ui.searchParams.set("response_type", responseType!);
     ui.searchParams.set("client_id", clientId!);
     ui.searchParams.set("redirect_uri", redirectUri!);
@@ -74,7 +95,6 @@ export async function GET(req: NextRequest) {
     if (state) ui.searchParams.set("state", state);
     ui.searchParams.set("code_challenge", codeChallenge!);
     ui.searchParams.set("code_challenge_method", codeChallengeMethod);
-    // hint to UI to render as popup
     ui.searchParams.set("popup", "1");
     return NextResponse.redirect(ui.toString(), { status: 302 });
   } catch (e: any) {

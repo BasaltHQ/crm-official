@@ -1,8 +1,7 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
@@ -14,8 +13,8 @@ export type ActionResponse = {
 
 export async function convertLeadToOpportunity(leadId: string): Promise<ActionResponse> {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -27,16 +26,25 @@ export async function convertLeadToOpportunity(leadId: string): Promise<ActionRe
             return { success: false, error: "Lead not found" };
         }
 
+        if (!validateResourceOwnership(teamInfo.teamId, lead.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
+
         if (lead.status === "CONVERTED") {
             return { success: false, error: "Lead is already converted" };
         }
 
-        // 0.5 Create/Find Account (if applicable)
+        const targetTeamId = lead.team_id || teamInfo.teamId;
+
+        // 0.5 Create/Find Account (strictly scoped to lead's tenant)
         let accountId = lead.accountsIDs || "";
 
         if (lead.company && !accountId) {
             const existingAccount = await prismadb.crm_Accounts.findFirst({
-                where: { name: lead.company },
+                where: {
+                    name: lead.company,
+                    ...(targetTeamId ? { team_id: targetTeamId } : {}),
+                },
             });
             if (existingAccount) {
                 accountId = existingAccount.id;
@@ -49,29 +57,30 @@ export async function convertLeadToOpportunity(leadId: string): Promise<ActionRe
                         office_phone: lead.phone,
                         description: lead.description,
                         assigned_to_user: lead.assigned_to ? { connect: { id: lead.assigned_to } } : undefined,
-                        assigned_team: lead.team_id ? { connect: { id: lead.team_id } } : undefined,
+                        assigned_team: targetTeamId ? { connect: { id: targetTeamId } } : undefined,
                     }
                 });
                 accountId = newAccount.id;
             }
 
-            // Sync account backwards to lead if we generated/found one
             await prismadb.crm_Leads.update({
                 where: { id: lead.id },
                 data: { accountsIDs: accountId }
             });
         }
 
-        // 1. Create/Find Contact
+        // 1. Create/Find Contact (strictly scoped to lead's tenant)
         let contactId = "";
         if (lead.email) {
             const existingContact = await prismadb.crm_Contacts.findFirst({
-                where: { email: lead.email },
+                where: {
+                    email: lead.email,
+                    ...(targetTeamId ? { team_id: targetTeamId } : {}),
+                },
             });
             if (existingContact) {
                 contactId = existingContact.id;
 
-                // Ensure existing contact is bound to account
                 if (accountId && !existingContact.accountsIDs) {
                     await prismadb.crm_Contacts.update({
                         where: { id: contactId },
@@ -88,11 +97,11 @@ export async function convertLeadToOpportunity(leadId: string): Promise<ActionRe
                     last_name: lead.lastName,
                     email: lead.email,
                     mobile_phone: lead.phone,
-                    // company: lead.company, // Contact does not have company scalar
                     position: lead.jobTitle,
                     description: lead.company ? `Company: ${lead.company}\n${lead.description || ""}` : lead.description,
                     assigned_to_user: lead.assigned_to ? { connect: { id: lead.assigned_to } } : undefined,
-                    crate_by_user: { connect: { id: session.user.id } }, // correct relation name from schema
+                    crate_by_user: { connect: { id: session.user.id } },
+                    assigned_team: targetTeamId ? { connect: { id: targetTeamId } } : undefined,
                     type: "Prospect",
                     assigned_accounts: accountId ? { connect: { id: accountId } } : undefined,
                 },

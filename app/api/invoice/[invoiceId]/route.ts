@@ -1,7 +1,6 @@
-import { authOptions } from "@/lib/auth";
 import { getBlobServiceClient } from "@/lib/s3-storage";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { NextResponse } from "next/server";
 import { systemLogger } from "@/lib/logger";
 
@@ -9,11 +8,8 @@ export const dynamic = "force-dynamic";
 
 //Get single invoice data
 export async function GET(request: Request, props: { params: Promise<{ invoiceId: string }> }) {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { invoiceId } = await props.params;
 
@@ -31,15 +27,17 @@ export async function GET(request: Request, props: { params: Promise<{ invoiceId
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
+  if (!validateResourceOwnership(teamInfo!.teamId, invoice.team_id, teamInfo!.isPlatformAdmin)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return NextResponse.json({ invoice }, { status: 200 });
 }
 
 //Delete single invoice by invoiceId
 export async function DELETE(request: Request, props: { params: Promise<{ invoiceId: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { invoiceId } = await props.params;
 
@@ -55,6 +53,10 @@ export async function DELETE(request: Request, props: { params: Promise<{ invoic
 
   if (!invoiceData) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
+
+  if (!validateResourceOwnership(teamInfo!.teamId, invoiceData.team_id, teamInfo!.isPlatformAdmin)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

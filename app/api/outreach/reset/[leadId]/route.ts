@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 /**
@@ -12,27 +11,23 @@ import { systemLogger } from "@/lib/logger";
 export async function POST(_: Request, props: { params: Promise<{ leadId: string }> }) {
   const params = await props.params;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     const leadId = params.leadId;
     if (!leadId) return new NextResponse("Missing leadId", { status: 400 });
 
-    // Ensure lead exists and (if not admin) is assigned to the user
     const lead = await prismadb.crm_Leads.findUnique({
       where: { id: leadId },
-      select: { id: true, assigned_to: true },
+      select: { id: true, assigned_to: true, team_id: true },
     });
     if (!lead) return new NextResponse("Lead not found", { status: 404 });
 
-    const user = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, is_admin: true, is_account_admin: true },
-    });
-    const isAdmin = !!(user?.is_admin || user?.is_account_admin);
-    if (!isAdmin && lead.assigned_to !== session.user.id) {
+    if (!validateResourceOwnership(teamInfo!.teamId, lead.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    if (!teamInfo!.isAdmin && lead.assigned_to !== session!.user.id) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -50,7 +45,7 @@ export async function POST(_: Request, props: { params: Promise<{ leadId: string
     await prismadb.crm_Lead_Activities.create({
       data: {
         lead: leadId,
-        user: session.user.id,
+        user: session!.user.id,
         type: "email_reset",
         metadata: { reason: "Manual reset by user" } as any,
       },

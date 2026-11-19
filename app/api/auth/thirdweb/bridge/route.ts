@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { thirdwebAuth } from "@/lib/thirdweb-auth";
+import { thirdwebAuth, isThirdwebConfigured } from "@/lib/thirdweb-auth";
 import { encode } from "next-auth/jwt";
 
 /**
@@ -21,6 +23,10 @@ function buildRedirect(path: string): string {
 
 export async function GET(req: NextRequest) {
   try {
+    if (!isThirdwebConfigured) {
+      return NextResponse.redirect(buildRedirect("/sign-in"));
+    }
+
     const token = req.cookies.get("thirdweb_auth_token")?.value;
     if (!token) {
       return NextResponse.redirect(buildRedirect("/sign-in"));
@@ -38,30 +44,59 @@ export async function GET(req: NextRequest) {
     const displayName = req.nextUrl.searchParams.get("name") || undefined;
 
     // ── Case 1: Already linked by address ──
-    let user = await prismadb.users.findFirst({
+    const alreadyLinked = await prismadb.users.findFirst({
       where: { thirdweb_address: address },
     });
 
-    // ── Case 2: Link by email (never overwrite existing name/data) ──
-    if (!user && email) {
-      const existingByEmail = await prismadb.users.findFirst({
-        where: { email },
-      });
+    let user = alreadyLinked;
 
-      if (existingByEmail) {
+    if (alreadyLinked) {
+      if (alreadyLinked.userStatus === "PENDING") {
+        return NextResponse.redirect(buildRedirect("/register"));
+      }
+      if (alreadyLinked.userStatus !== "ACTIVE") {
+        return NextResponse.redirect(buildRedirect("/sign-in?error=AccountInactive"));
+      }
+      if ((alreadyLinked as any).mfaEnabled) {
+        return NextResponse.redirect(buildRedirect("/sign-in?error=MfaRequired"));
+      }
+    }
+
+    // ── Case 2: Authenticated NextAuth session linking wallet ──
+    if (!user) {
+      const activeSession = await getServerSession(authOptions);
+      if (activeSession?.user?.id && !(activeSession as any).error) {
+        const sessionUser = await prismadb.users.findUnique({
+          where: { id: activeSession.user.id },
+        });
+        if (!sessionUser || sessionUser.userStatus !== "ACTIVE") {
+          return NextResponse.redirect(buildRedirect("/sign-in?error=AccountInactive"));
+        }
+        if (sessionUser.thirdweb_address && sessionUser.thirdweb_address !== address) {
+          return NextResponse.redirect(buildRedirect("/sign-in?error=WalletAlreadyLinked"));
+        }
         user = await prismadb.users.update({
-          where: { id: existingByEmail.id },
+          where: { id: sessionUser.id },
           data: {
             thirdweb_address: address,
             lastLoginAt: new Date(),
           },
         });
-        console.log(`[ThirdwebBridge] Linked ${address} → ${email} (${user.id})`);
+        console.log(`[ThirdwebBridge] Linked ${address} → authenticated user (${user.id})`);
       }
     }
 
-    // ── Case 3: Brand new user ──
+    // ── Case 3: Unauthenticated caller with email — block takeover if email exists, else create new user ──
     if (!user && email) {
+      const existingByEmail = await prismadb.users.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      });
+
+      if (existingByEmail) {
+        return NextResponse.redirect(buildRedirect("/sign-in?error=EmailAlreadyExists"));
+      }
+
       const userStatus =
         process.env.ALLOW_OPEN_REGISTRATION === "true" ? "ACTIVE" : "PENDING";
 
@@ -79,13 +114,13 @@ export async function GET(req: NextRequest) {
 
       console.log(`[ThirdwebBridge] Created ${email} (${user.id}) status=${userStatus}`);
 
-      if (userStatus === "PENDING") {
+      if (userStatus !== "ACTIVE") {
         return NextResponse.redirect(buildRedirect("/register"));
       }
     }
 
     // ── No user found and no email to create one ──
-    if (!user) {
+    if (!user || user.userStatus !== "ACTIVE") {
       return NextResponse.redirect(buildRedirect("/sign-in"));
     }
 
@@ -96,11 +131,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(buildRedirect("/sign-in"));
     }
 
-    // Minimal JWT payload — only what NextAuth's session callback needs.
     const sessionToken = await encode({
       token: {
         email: user.email,
+        name: user.name,
+        picture: user.avatar,
         id: user.id,
+        session_version: user.session_version ?? 1,
       },
       secret,
       maxAge: 8 * 60 * 60,
@@ -131,7 +168,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("[ThirdwebBridge] Error:", error?.message, error?.stack);
     return NextResponse.json(
-      { error: "Bridge failed", message: error?.message },
+      { error: "Bridge failed" },
       { status: 500 }
     );
   }

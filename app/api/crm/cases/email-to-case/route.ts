@@ -1,17 +1,30 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { systemLogger } from "@/lib/logger";
 
 // POST: Email-to-Case — Parse inbound email and create a case
 export async function POST(req: Request) {
     try {
-        // SOC2: Validate inbound API token to prevent unauthorized case creation
-        const token = req.headers.get("authorization") || req.headers.get("BASALT_TOKEN");
-        const storedToken = process.env.BASALT_TOKEN;
-        if (storedToken && token?.trim() !== storedToken.trim()) {
+        // SOC2: Validate inbound API token (fail closed when BASALT_TOKEN is unset)
+        const storedToken = process.env.BASALT_TOKEN?.trim();
+        if (!storedToken) {
+            systemLogger.error("[EMAIL_TO_CASE_POST] BASALT_TOKEN is not configured");
+            return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+        }
+
+        const rawToken =
+            req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+            req.headers.get("BASALT_TOKEN")?.trim() ||
+            "";
+        const providedBuf = Buffer.from(rawToken, "utf8");
+        const expectedBuf = Buffer.from(storedToken, "utf8");
+
+        if (
+            providedBuf.length === 0 ||
+            providedBuf.length !== expectedBuf.length ||
+            !crypto.timingSafeEqual(providedBuf, expectedBuf)
+        ) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 

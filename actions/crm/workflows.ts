@@ -1,10 +1,10 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { WorkflowStatus, ExecutionStatus, Prisma } from "@prisma/client";
+import { runWorkflowEngine } from "@/lib/workflow/engine";
 
 // ============================================================================
 // WORKFLOW CRUD OPERATIONS
@@ -12,17 +12,20 @@ import { WorkflowStatus, ExecutionStatus, Prisma } from "@prisma/client";
 
 export async function getWorkflows(teamId?: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
         }
 
-        if (teamId && teamId.length !== 24) return [];
+        const effectiveTeamId = teamInfo.isPlatformAdmin && teamId ? teamId : teamInfo.teamId;
+        if (!effectiveTeamId || effectiveTeamId.length !== 24) return [];
 
-        const where = teamId ? { team_id: teamId } : {};
+        if (teamId && !validateResourceOwnership(teamInfo.teamId, teamId, teamInfo.isPlatformAdmin)) {
+            return [];
+        }
 
         const workflows = await prismadb.crm_Workflow.findMany({
-            where,
+            where: { team_id: effectiveTeamId },
             orderBy: { updatedAt: 'desc' },
             include: {
                 creator: {
@@ -43,8 +46,8 @@ export async function getWorkflows(teamId?: string) {
 
 export async function getWorkflow(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
         }
 
@@ -62,6 +65,11 @@ export async function getWorkflow(id: string) {
                 }
             }
         });
+
+        if (!workflow) return null;
+        if (!validateResourceOwnership(teamInfo.teamId, workflow.team_id, teamInfo.isPlatformAdmin)) {
+            return null;
+        }
 
         return workflow;
     } catch (error) {
@@ -82,9 +90,17 @@ interface CreateWorkflowData {
 
 export async function createWorkflow(data: CreateWorkflowData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) {
             throw new Error("Unauthorized");
+        }
+
+        const effectiveTeamId = teamInfo.isPlatformAdmin && data.team_id ? data.team_id : teamInfo.teamId;
+        if (!effectiveTeamId) {
+            return { success: false, error: "No team context" };
+        }
+        if (data.team_id && !validateResourceOwnership(teamInfo.teamId, data.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
         }
 
         const workflow = await prismadb.crm_Workflow.create({
@@ -95,7 +111,7 @@ export async function createWorkflow(data: CreateWorkflowData) {
                 trigger_config: data.trigger_config ?? null,
                 nodes: data.nodes,
                 edges: data.edges,
-                team_id: data.team_id,
+                team_id: effectiveTeamId,
                 created_by: session.user.id,
                 status: WorkflowStatus.DRAFT
             }
@@ -120,12 +136,21 @@ interface UpdateWorkflowData {
 
 export async function updateWorkflow(id: string, data: UpdateWorkflowData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
         }
 
         if (!id || id.length !== 24) return { success: false, error: "Invalid workflow ID" };
+
+        const existing = await prismadb.crm_Workflow.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) return { success: false, error: "Workflow not found" };
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
         const updateData: Prisma.crm_WorkflowUpdateInput = {};
         if (data.name) updateData.name = data.name;
@@ -151,14 +176,22 @@ export async function updateWorkflow(id: string, data: UpdateWorkflowData) {
 
 export async function deleteWorkflow(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
         }
 
         if (!id || id.length !== 24) return { success: false, error: "Invalid workflow ID" };
 
-        // Delete executions first
+        const existing = await prismadb.crm_Workflow.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) return { success: false, error: "Workflow not found" };
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
+
         await prismadb.crm_Workflow_Execution.deleteMany({
             where: { workflow_id: id }
         });
@@ -181,9 +214,18 @@ export async function deleteWorkflow(id: string) {
 
 export async function activateWorkflow(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
+        }
+
+        const existing = await prismadb.crm_Workflow.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) return { success: false, error: "Workflow not found" };
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
         }
 
         const workflow = await prismadb.crm_Workflow.update({
@@ -201,9 +243,18 @@ export async function activateWorkflow(id: string) {
 
 export async function pauseWorkflow(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
+        }
+
+        const existing = await prismadb.crm_Workflow.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) return { success: false, error: "Workflow not found" };
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
         }
 
         const workflow = await prismadb.crm_Workflow.update({
@@ -223,39 +274,56 @@ export async function pauseWorkflow(id: string) {
 // WORKFLOW EXECUTION
 // ============================================================================
 
-import { runWorkflowEngine } from "@/lib/workflow/engine";
+async function triggerWorkflowInternal(workflowId: string, triggerData: Prisma.InputJsonValue = {}) {
+    if (!workflowId || workflowId.length !== 24) return { success: false, error: "Invalid workflow ID" };
+
+    const workflow = await prismadb.crm_Workflow.findUnique({
+        where: { id: workflowId }
+    });
+
+    if (!workflow || workflow.status !== WorkflowStatus.ACTIVE) {
+        return { success: false, error: "Workflow not found or not active" };
+    }
+
+    const execution = await prismadb.crm_Workflow_Execution.create({
+        data: {
+            workflow_id: workflowId,
+            status: ExecutionStatus.RUNNING,
+            trigger_data: triggerData,
+            completed_nodes: []
+        }
+    });
+
+    runWorkflowEngine(execution.id).catch(err => {
+        console.error(`[WORKFLOW_TRIGGER_ERROR] ${execution.id}:`, err);
+    });
+
+    return { success: true, executionId: execution.id };
+}
 
 export async function triggerWorkflow(workflowId: string, triggerData: Prisma.InputJsonValue = {}) {
     try {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
+            return { success: false, error: "Unauthorized" };
+        }
+
         if (!workflowId || workflowId.length !== 24) return { success: false, error: "Invalid workflow ID" };
 
-        // Get the workflow
         const workflow = await prismadb.crm_Workflow.findUnique({
-            where: { id: workflowId }
+            where: { id: workflowId },
+            select: { id: true, team_id: true, status: true },
         });
 
         if (!workflow || workflow.status !== WorkflowStatus.ACTIVE) {
             return { success: false, error: "Workflow not found or not active" };
         }
 
-        // Create execution record
-        const execution = await prismadb.crm_Workflow_Execution.create({
-            data: {
-                workflow_id: workflowId,
-                status: ExecutionStatus.RUNNING,
-                trigger_data: triggerData,
-                completed_nodes: []
-            }
-        });
+        if (!validateResourceOwnership(teamInfo.teamId, workflow.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
 
-        // Start workflow engine execution (Background for now)
-        // Note: For heavy execution, we'd use a queue (BullMQ/Simple Queue)
-        // For launch, we run it after the response - or as an async task 
-        runWorkflowEngine(execution.id).catch(err => {
-            console.error(`[WORKFLOW_TRIGGER_ERROR] ${execution.id}:`, err);
-        });
-
-        return { success: true, executionId: execution.id };
+        return await triggerWorkflowInternal(workflowId, triggerData);
     } catch (error) {
         console.error("Error triggering workflow:", error);
         return { success: false, error: "Failed to trigger workflow" };
@@ -264,9 +332,17 @@ export async function triggerWorkflow(workflowId: string, triggerData: Prisma.In
 
 export async function getExecutions(workflowId: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
+        }
+
+        const workflow = await prismadb.crm_Workflow.findUnique({
+            where: { id: workflowId },
+            select: { id: true, team_id: true },
+        });
+        if (!workflow || !validateResourceOwnership(teamInfo.teamId, workflow.team_id, teamInfo.isPlatformAdmin)) {
+            return [];
         }
 
         const executions = await prismadb.crm_Workflow_Execution.findMany({
@@ -282,33 +358,31 @@ export async function getExecutions(workflowId: string) {
     }
 }
 
-// ============================================================================
-// TRIGGER HELPERS - Called from other modules
-// ============================================================================
-
-/**
- * Trigger all workflows that match a specific trigger type
- * Called from DealRoom, Forms, Leads, etc.
- */
 export async function triggerWorkflowsByType(
     triggerType: string,
     triggerData: Prisma.InputJsonValue,
     teamId?: string
 ) {
     try {
-        const where: { trigger_type: string; status: WorkflowStatus; team_id?: string } = {
-            trigger_type: triggerType,
-            status: WorkflowStatus.ACTIVE
-        };
-
-        if (teamId) {
-            where.team_id = teamId;
+        let resolvedTeamId = teamId;
+        if (!resolvedTeamId) {
+            const { error, teamInfo } = await getSessionAndTeam();
+            if (error || !teamInfo?.teamId) {
+                return { success: false, error: "Missing teamId context for workflow trigger" };
+            }
+            resolvedTeamId = teamInfo.teamId;
         }
 
-        const workflows = await prismadb.crm_Workflow.findMany({ where });
+        const workflows = await prismadb.crm_Workflow.findMany({
+            where: {
+                trigger_type: triggerType,
+                status: WorkflowStatus.ACTIVE,
+                team_id: resolvedTeamId,
+            },
+        });
 
         const results = await Promise.all(
-            workflows.map((w: { id: string }) => triggerWorkflow(w.id, triggerData))
+            workflows.map((w: { id: string }) => triggerWorkflowInternal(w.id, triggerData))
         );
 
         return {

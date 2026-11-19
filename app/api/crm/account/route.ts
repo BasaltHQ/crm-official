@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
@@ -10,19 +8,16 @@ const isValidId = (id: any) => typeof id === "string" && id.length === 24;
 
 //Create new account route
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
   try {
-    const teamInfo = await getCurrentUserTeamId();
     const teamId = teamInfo?.teamId;
     const body = await req.json();
 
     // SOC2 CC6.1 / A1.2: Check account quotas before allowing creation
     if (teamId) {
       const { checkTeamQuota } = await import("@/lib/quota-service");
-      const quota = await checkTeamQuota(teamId, "ACCOUNTS", session.user.id);
+      const quota = await checkTeamQuota(teamId, "ACCOUNTS", session!.user.id);
       if (!quota.allowed) {
         return NextResponse.json({ error: quota.message }, { status: 403 });
       }
@@ -53,6 +48,16 @@ export async function POST(req: Request) {
       industry,
       custom_fields,
     } = body;
+
+    if (assigned_to && teamId && !teamInfo!.isPlatformAdmin) {
+      const assignee = await prismadb.users.findFirst({
+        where: { id: assigned_to, team_id: teamId },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return new NextResponse("Forbidden — invalid assignee", { status: 403 });
+      }
+    }
 
     const accountCount = await (prismadb.crm_Accounts as any).count({
       where: { team_id: isValidId(teamId) ? teamId : undefined }
@@ -126,10 +131,10 @@ export async function POST(req: Request) {
           annual_revenue: existingAccount.annual_revenue || annual_revenue,
           member_of: existingAccount.member_of || member_of,
           industry_type: (existingAccount.industry || finalIndustryId) ? { connect: { id: existingAccount.industry || finalIndustryId } } : undefined,
-          updatedBy: session.user.id,
+          updatedBy: session!.user.id,
         },
       });
-      await logActivityInternal(session.user.id, "UPDATE", "crm_Accounts", `Merged duplicate account: ${updatedAccount.name} (${updatedAccount.id})`, teamId || undefined);
+      await logActivityInternal(session!.user.id, "UPDATE", "crm_Accounts", `Merged duplicate account: ${updatedAccount.name} (${updatedAccount.id})`, teamId || undefined);
       return NextResponse.json({ newAccount: updatedAccount }, { status: 200 });
     }
 
@@ -137,8 +142,8 @@ export async function POST(req: Request) {
       data: {
         v: 0,
         assigned_team: isValidId(teamId) ? { connect: { id: teamId } } : undefined,
-        createdBy: session.user.id,
-        updatedBy: session.user.id,
+        createdBy: session!.user.id,
+        updatedBy: session!.user.id,
         name,
         office_phone,
         website,
@@ -166,7 +171,7 @@ export async function POST(req: Request) {
       },
     });
 
-    await logActivityInternal(session.user.id, "CREATE", "crm_Accounts", `Created account: ${newAccount.name} (${newAccount.id})`, teamId || undefined);
+    await logActivityInternal(session!.user.id, "CREATE", "crm_Accounts", `Created account: ${newAccount.name} (${newAccount.id})`, teamId || undefined);
     return NextResponse.json({ newAccount }, { status: 200 });
   } catch (error: any) {
     systemLogger.error("[NEW_ACCOUNT_POST]", error);
@@ -176,10 +181,8 @@ export async function POST(req: Request) {
 
 //Update account route
 export async function PUT(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
   try {
     const body = await req.json();
     const {
@@ -210,6 +213,31 @@ export async function PUT(req: Request) {
       custom_fields,
     } = body;
 
+    if (!id) {
+      return new NextResponse("Missing account id", { status: 400 });
+    }
+
+    const existing = await prismadb.crm_Accounts.findUnique({
+      where: { id },
+      select: { id: true, team_id: true },
+    });
+    if (!existing) {
+      return new NextResponse("Account not found", { status: 404 });
+    }
+    if (!validateResourceOwnership(teamInfo!.teamId, existing.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    if (assigned_to && existing.team_id && !teamInfo!.isPlatformAdmin) {
+      const assignee = await prismadb.users.findFirst({
+        where: { id: assigned_to, team_id: existing.team_id },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return new NextResponse("Forbidden — invalid assignee", { status: 403 });
+      }
+    }
+
     const escapeRegExp = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 
     let finalIndustryId = industry || null;
@@ -239,7 +267,7 @@ export async function PUT(req: Request) {
       },
       data: {
         v: 0,
-        updatedBy: session.user.id,
+        updatedBy: session!.user.id,
         name,
         office_phone,
         website,
@@ -267,8 +295,7 @@ export async function PUT(req: Request) {
       },
     });
 
-    const teamInfo = await getCurrentUserTeamId();
-    await logActivityInternal(session.user.id, "UPDATE", "crm_Accounts", `Updated account: ${newAccount.name} (${id})`, teamInfo?.teamId || undefined);
+    await logActivityInternal(session!.user.id, "UPDATE", "crm_Accounts", `Updated account: ${newAccount.name} (${id})`, teamInfo?.teamId || undefined);
     return NextResponse.json({ newAccount }, { status: 200 });
   } catch (error: any) {
     systemLogger.error("[UPDATE_ACCOUNT_PUT]", error);
@@ -278,23 +305,13 @@ export async function PUT(req: Request) {
 
 //GET all accounts route
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
   try {
-    const teamInfo = await getCurrentUserTeamId();
-    // If no team, return empty? 
-    // Or allow seeing all if System Admin? For now default to strict team isolation.
     const where: any = {};
     if (teamInfo?.teamId) {
       where.team_id = teamInfo.teamId;
     } else {
-      // Fallback: If no team, maybe return nothing?
-      // Or if admin?
-      // Let's return nothing if no team to be safe.
-      // Unless admin... let's stick to team_id check.
-      // If team_id is missing on user, they see nothing.
       return NextResponse.json([], { status: 200 });
     }
 

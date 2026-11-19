@@ -1,7 +1,26 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prismadb } from "@/lib/prisma";
 import { getGmailClientForUser } from "@/lib/gmail";
 import { systemLogger } from "@/lib/logger";
+
+function verifyGmailWebhookToken(req: Request, expectedToken: string): boolean {
+  const authHeader = req.headers.get("authorization");
+  const bearerToken =
+    authHeader && /^Bearer\s+/i.test(authHeader)
+      ? authHeader.replace(/^Bearer\s+/i, "").trim()
+      : null;
+  const queryToken = new URL(req.url).searchParams.get("token")?.trim() || null;
+  const provided = bearerToken || queryToken;
+  if (!provided) return false;
+
+  const expectedBuf = Buffer.from(expectedToken, "utf8");
+  const providedBuf = Buffer.from(provided, "utf8");
+  return (
+    expectedBuf.length === providedBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, providedBuf)
+  );
+}
 
 // Helper to pull fresh emails since historyId
 async function syncGmailInbox(userId: string, historyIdStr: string) {
@@ -80,6 +99,16 @@ async function syncGmailInbox(userId: string, historyIdStr: string) {
 }
 
 export async function POST(req: Request) {
+  const expectedToken = process.env.GMAIL_WEBHOOK_TOKEN;
+  if (!expectedToken) {
+    systemLogger.error("[GMAIL_WEBHOOK] GMAIL_WEBHOOK_TOKEN is not set");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+
+  if (!verifyGmailWebhookToken(req, expectedToken)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body: any = await req.json();
 

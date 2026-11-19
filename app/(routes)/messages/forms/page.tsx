@@ -11,6 +11,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { LearnLink } from "@/components/ui/LearnLink";
+import { maskFields, SECRET_FIELDS } from "@/lib/encryption";
 
 const FormsPage = async () => {
     const session = await getServerSession(authOptions);
@@ -53,10 +54,10 @@ const FormsPage = async () => {
     });
 
     // Fetch team captcha configuration
-    // Fetch team captcha configuration
-    const teamCaptchaConfig = teamId ? await prismadb.teamCaptchaConfig.findUnique({
+    const rawTeamCaptchaConfig = teamId ? await prismadb.teamCaptchaConfig.findUnique({
         where: { team_id: teamId }
     }) : null;
+    const teamCaptchaConfig = maskFields(rawTeamCaptchaConfig, SECRET_FIELDS.TeamCaptchaConfig);
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "https://yourdomain.com";
 

@@ -1,19 +1,18 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
 export async function getQuotes() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo?.teamId) return [];
 
         const quotes = await prismadb.crm_Quotes.findMany({
             where: {
-                team_id: (session.user as any).team_id,
+                team_id: teamInfo.teamId,
             },
             include: {
                 account: true,
@@ -21,7 +20,6 @@ export async function getQuotes() {
                 lead: true,
                 team: true,
                 items: {
-
                     include: {
                         product: true
                     }
@@ -67,8 +65,62 @@ export async function createQuote(data: {
     expirationDate?: Date;
 }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) throw new Error("Unauthorized");
+        const teamId = teamInfo.teamId;
+
+        // Verify ownership of all linked CRM entities BEFORE creating quote or logging activity
+        if (data.accountId) {
+            const acc = await prismadb.crm_Accounts.findUnique({
+                where: { id: data.accountId },
+                select: { id: true, team_id: true },
+            });
+            if (!acc || !validateResourceOwnership(teamId, acc.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid accountId");
+            }
+        }
+
+        if (data.contactId) {
+            const contact = await prismadb.crm_Contacts.findUnique({
+                where: { id: data.contactId },
+                select: { id: true, team_id: true },
+            });
+            if (!contact || !validateResourceOwnership(teamId, contact.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid contactId");
+            }
+        }
+
+        if (data.leadId) {
+            const lead = await prismadb.crm_Leads.findUnique({
+                where: { id: data.leadId },
+                select: { id: true, team_id: true },
+            });
+            if (!lead || !validateResourceOwnership(teamId, lead.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid leadId");
+            }
+        }
+
+        if (data.opportunityId) {
+            const opp = await prismadb.crm_Opportunities.findUnique({
+                where: { id: data.opportunityId },
+                select: { id: true, team_id: true },
+            });
+            if (!opp || !validateResourceOwnership(teamId, opp.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid opportunityId");
+            }
+        }
+
+        const productIds = Array.from(
+            new Set((data.items || []).map((i) => i.productId).filter(Boolean))
+        ) as string[];
+        if (productIds.length > 0 && !teamInfo.isPlatformAdmin) {
+            const ownedProducts = await prismadb.crm_Products.count({
+                where: { id: { in: productIds }, team_id: teamId },
+            });
+            if (ownedProducts !== productIds.length) {
+                throw new Error("Forbidden — invalid productId in quote items");
+            }
+        }
 
         const quoteNumber = `Q-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -84,7 +136,7 @@ export async function createQuote(data: {
             attachments: data.attachments || [],
             expirationDate: data.expirationDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             createdBy: session.user.id,
-            team_id: (session.user as any).team_id,
+            team_id: teamId,
             items: {
                 create: data.items.map(item => ({
                     productId: item.productId,
@@ -146,14 +198,11 @@ export async function createQuote(data: {
 
 export async function getQuoteById(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return null;
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) return null;
 
-        const quote = await prismadb.crm_Quotes.findFirst({
-            where: {
-                id,
-                team_id: (session.user as any).team_id,
-            },
+        const quote = await prismadb.crm_Quotes.findUnique({
+            where: { id },
             include: {
                 account: true,
                 contact: true,
@@ -161,7 +210,6 @@ export async function getQuoteById(id: string) {
                 lead: true,
                 team: true,
                 items: {
-
                     include: {
                         product: true
                     }
@@ -170,6 +218,9 @@ export async function getQuoteById(id: string) {
         });
 
         if (!quote) return null;
+        if (!validateResourceOwnership(teamInfo.teamId, quote.team_id, teamInfo.isPlatformAdmin)) {
+            return null;
+        }
         return {
             ...quote,
             taxRate: (quote as any).taxRateValue || 0
@@ -183,14 +234,20 @@ export async function getQuoteById(id: string) {
 
 export async function cancelQuote(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
+
+        const existing = await prismadb.crm_Quotes.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) throw new Error("Quote not found");
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            throw new Error("Forbidden");
+        }
 
         const quote = await prismadb.crm_Quotes.update({
-            where: {
-                id,
-                team_id: (session.user as any).team_id,
-            },
+            where: { id },
             data: {
                 status: "REJECTED"
             }
@@ -226,10 +283,19 @@ export async function cancelQuote(id: string) {
 
 export async function deleteQuote(id: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
 
-        // Delete associated items first (if not cascading)
+        // Verify quote exists and belongs to caller's team BEFORE deleting crm_QuoteItems!
+        const existing = await prismadb.crm_Quotes.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) throw new Error("Quote not found");
+        if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+            throw new Error("Forbidden");
+        }
+
         await prismadb.crm_QuoteItems.deleteMany({
             where: {
                 quoteId: id
@@ -237,10 +303,7 @@ export async function deleteQuote(id: string) {
         });
 
         await prismadb.crm_Quotes.delete({
-            where: {
-                id,
-                team_id: (session.user as any).team_id,
-            }
+            where: { id }
         });
 
         revalidatePath("/crm/quotes");

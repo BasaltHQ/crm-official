@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { dbAdapter } from "@/lib/database/db-adapter";
 import { computeLevelFromXP, getPrestigeTitle } from "@/lib/quest-engine/xp-curve";
 
@@ -41,8 +41,9 @@ export async function getMyQuestProgress(): Promise<{
     } | null;
 } | null> {
     try {
-        const teamInfo = await getCurrentUserTeamId();
-        if (!teamInfo?.teamId || !teamInfo?.userId) return null;
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return null;
+        const userId = session.user.id;
 
         const { ObjectId } = require("mongodb");
         const usersCollection = await dbAdapter.getNativeCollection("Users");
@@ -51,7 +52,7 @@ export async function getMyQuestProgress(): Promise<{
         const badgeCollection = await dbAdapter.getNativeCollection("UserBadge");
 
         const user = await usersCollection.findOne({
-            _id: new ObjectId(teamInfo.userId),
+            _id: new ObjectId(userId),
         });
         if (!user) return null;
 
@@ -63,13 +64,13 @@ export async function getMyQuestProgress(): Promise<{
 
         const completedCount = await progressCollection.countDocuments({
             quest_id: { $in: teamQuestIds.map((q: any) => q._id) },
-            user_id: new ObjectId(teamInfo.userId),
+            user_id: new ObjectId(userId),
             is_completed: true,
         });
 
         const activeCount = await progressCollection.countDocuments({
             quest_id: { $in: teamQuestIds.map((q: any) => q._id) },
-            user_id: new ObjectId(teamInfo.userId),
+            user_id: new ObjectId(userId),
             is_completed: false,
         });
 
@@ -83,7 +84,7 @@ export async function getMyQuestProgress(): Promise<{
             .sort({ quest_points_total: -1 })
             .toArray();
 
-        const rank = allMembers.findIndex((m: any) => m._id.toString() === teamInfo.userId) + 1;
+        const rank = allMembers.findIndex((m: any) => m._id.toString() === userId) + 1;
 
         // Compute level state
         const xpTotal = user.xp_total || 0;
@@ -93,7 +94,7 @@ export async function getMyQuestProgress(): Promise<{
 
         // Fetch earned badges
         const rawBadges = await badgeCollection
-            .find({ user_id: new ObjectId(teamInfo.userId) })
+            .find({ user_id: new ObjectId(userId) })
             .sort({ awarded_at: -1 })
             .toArray();
 

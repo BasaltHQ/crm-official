@@ -4,11 +4,17 @@ import dayjs from "dayjs";
 import axios from "axios";
 
 import { prismadb } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import AiTasksReportEmail from "@/emails/AiTasksReport";
 import sendEmail from "@/lib/sendmail";
 import { render } from "@react-email/render";
 
-export async function getUserAiTasks(session: any) {
+export async function getUserAiTasks(_clientSession?: any) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.error === "SessionInvalidated") {
+    return { message: "Unauthorized" };
+  }
 
 
   const today = dayjs().startOf("day");

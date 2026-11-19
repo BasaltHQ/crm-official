@@ -7,6 +7,7 @@ import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { prismadb } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/encryption";
 import { consumeAiTokens } from "@/lib/ai-tokens";
+import { assertSafeExternalUrl } from "@/lib/security/ssrf-guard";
 
 // ---------------------------------------------------------------------------
 // AI Service Type — formalizes the `service` label used in crm_AiUsageLog
@@ -37,11 +38,6 @@ export function isReasoningModel(modelId: string | undefined | null): boolean {
     return modelId.toLowerCase().includes("o1") ||
         modelId.toLowerCase().includes("gpt-5") ||
         modelId.toLowerCase().includes("deepseek-reasoner");
-}
-
-// Temporary fix for Azure OpenAI "unable to get local issuer certificate" in dev
-if (process.env.NODE_ENV === "development") {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
 /**
@@ -83,7 +79,11 @@ async function createProviderModel(
         return url.endsWith('/') ? url.slice(0, -1) : url;
     };
 
-    const effectiveBaseURL = baseURL || registryBaseUrl;
+    let effectiveBaseURL = cleanUrl(baseURL || registryBaseUrl);
+    if (effectiveBaseURL) {
+        const validated = await assertSafeExternalUrl(effectiveBaseURL, { allowHttp: false });
+        effectiveBaseURL = cleanUrl(validated.toString());
+    }
 
     const builtInBaseUrls: Record<string, string> = {
         GROK: "https://api.x.ai/v1",
@@ -344,23 +344,23 @@ export async function getAiSdkModel(
     let finalBaseURL: string | undefined;
     let finalResourceName: string | undefined;
 
-    // Helper to extract resourceName from config JSON
+    // Helper to extract resourceName and baseUrl from config JSON
     const extractResName = (c: unknown) => (c && typeof c === 'object' && 'resourceName' in c) ? (c as any).resourceName as string : undefined;
+    const extractCfgBaseUrl = (c: unknown) => (c && typeof c === 'object' && 'baseUrl' in c && typeof (c as any).baseUrl === 'string') ? (c as any).baseUrl as string : undefined;
 
     // If we have a provider and model, find the system config for that provider to get keys/urls
     const providerSystemConfig = systemConfigs.find((c: any) => c.provider === finalProvider);
 
     if (teamConfig && configSource === "team" && !teamConfig.useSystemKey && teamConfig.apiKey) {
         // Team provided their own key
-        finalApiKey = decryptSecret(teamConfig.apiKey) || teamConfig.apiKey;
-        // Team currently doesn't store baseUrl/resourceName in schema, so fallback to system
-        finalBaseURL = providerSystemConfig?.baseUrl || undefined;
+        finalApiKey = decryptSecret(teamConfig.apiKey) || undefined;
+        finalBaseURL = extractCfgBaseUrl(teamConfig.configuration) || providerSystemConfig?.baseUrl || undefined;
         finalResourceName = extractResName(providerSystemConfig?.configuration);
     } else {
         // Use system key for this provider
         if (providerSystemConfig) {
             if (providerSystemConfig.apiKey) {
-                finalApiKey = decryptSecret(providerSystemConfig.apiKey) || providerSystemConfig.apiKey;
+                finalApiKey = decryptSecret(providerSystemConfig.apiKey) || undefined;
             }
             finalBaseURL = providerSystemConfig.baseUrl || undefined;
             finalResourceName = extractResName(providerSystemConfig.configuration);

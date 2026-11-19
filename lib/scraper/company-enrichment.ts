@@ -3,10 +3,45 @@
  * Extracts detailed information from company websites
  */
 
+import net from "net";
 import { launchBrowser, newPageWithDefaults, closeBrowser } from "@/lib/scraper-browser";
 import { normalizeDomain, normalizeUrl, normalizeCompanyName, calculateCompanyConfidence } from "./normalize";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { analyzeCompanyWithAI } from "./ai-helpers";
+import { assertSafeExternalUrl, isPrivateOrReservedIp } from "@/lib/security/ssrf-guard";
+
+async function installSsrfPageGuard(page: any) {
+  await page.setRequestInterception(true);
+  page.on("request", (req: any) => {
+    const reqUrl = req.url();
+    if (reqUrl.startsWith("data:") || reqUrl.startsWith("blob:")) {
+      req.continue();
+      return;
+    }
+    try {
+      const parsed = new URL(reqUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        req.abort();
+        return;
+      }
+      const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+      if (
+        host === "localhost" ||
+        host.endsWith(".localhost") ||
+        host.endsWith(".local") ||
+        host.endsWith(".internal") ||
+        host === "metadata.google.internal" ||
+        (net.isIP(host) && isPrivateOrReservedIp(host))
+      ) {
+        req.abort();
+        return;
+      }
+      req.continue();
+    } catch {
+      req.abort();
+    }
+  });
+}
 
 type CompanyEnrichmentResult = {
   domain: string;
@@ -38,13 +73,15 @@ type CompanyEnrichmentResult = {
  * Extract metadata from company website HTML
  */
 async function extractCompanyMetadata(url: string): Promise<Partial<CompanyEnrichmentResult>> {
+  const safeTarget = await assertSafeExternalUrl(url);
   const browser = await launchBrowser();
   
   try {
     const page = await newPageWithDefaults(browser);
+    await installSsrfPageGuard(page);
     
     // Set shorter timeout for enrichment
-    await page.goto(url, { 
+    await page.goto(safeTarget.toString(), { 
       waitUntil: "domcontentloaded",
       timeout: 15000 
     });

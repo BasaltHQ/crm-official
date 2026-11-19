@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { generateRandomPassword } from "@/lib/utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import {
+  ALLOWED_TENANT_ROLES,
+  isPrivilegedSystemRole,
+  normalizeRoleName,
+  requirePlatformAdmin,
+  sanitizeUser,
+} from "@/lib/security/authz";
+import { escapeHtml } from "@/lib/security/ssrf-guard";
 import { logActivity } from "@/actions/audit";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
-
-import { hash } from "bcryptjs";
 import { hashPassword } from "@/lib/password-utils";
-
 import InviteUserEmail from "@/emails/InviteUser";
 import sendEmail from "@/lib/sendmail";
 import { render } from "@react-email/render";
@@ -16,13 +19,9 @@ import { systemLogger } from "@/lib/logger";
 import { verifyEmailIdentity } from "@/lib/aws/ses-verify";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
-
-  const teamInfo = await getCurrentUserTeamId();
   if (!teamInfo?.teamId) {
     return NextResponse.json(
       { error: "No active team found to invite user to." },
@@ -30,102 +29,153 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!teamInfo.isAdmin) {
+    return NextResponse.json(
+      { error: "Forbidden: Admin privileges required to invite users." },
+      { status: 403 }
+    );
+  }
+
   // SOC2 CC6.1 / A1.2: Check resource quotas before allowing invitation
-  if (teamInfo?.teamId) {
-    const { checkTeamQuota } = await import("@/lib/quota-service");
-    const quota = await checkTeamQuota(teamInfo.teamId, "USERS", teamInfo.userId);
-    if (!quota.allowed) {
-      return NextResponse.json({ error: quota.message }, { status: 403 });
-    }
+  const { checkTeamQuota } = await import("@/lib/quota-service");
+  const quota = await checkTeamQuota(teamInfo.teamId, "USERS", teamInfo.userId);
+  if (!quota.allowed) {
+    return NextResponse.json({ error: quota.message }, { status: 403 });
   }
 
   try {
     const body = await req.json();
     const { name, email, language, assigned_modules, role = "MEMBER" } = body;
 
-    if (!name || !email || !language) {
+    if (!name || !email || !language || typeof email !== "string" || typeof name !== "string") {
       return NextResponse.json(
         { error: "Name, Email, and Language is required!" },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    const password = generateRandomPassword();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedRole = normalizeRoleName(role);
+    const platformAdmin = await requirePlatformAdmin();
+    const isPlatformAdmin = Boolean(platformAdmin);
 
-    const origin = req.headers.get("origin");
-    const appUrl = origin || process.env.NEXT_PUBLIC_APP_URL;
-    console.log("InviteUser Route - appUrl:", appUrl);
+    if (isPrivilegedSystemRole(normalizedRole)) {
+      if (!isPlatformAdmin) {
+        return NextResponse.json(
+          { error: "Forbidden: Only Platform Admins can assign privileged system roles." },
+          { status: 403 }
+        );
+      }
+    } else if (!ALLOWED_TENANT_ROLES.has(normalizedRole)) {
+      return NextResponse.json({ error: "Invalid role specified." }, { status: 400 });
+    }
 
-    const message = `You have been invited to ${process.env.NEXT_PUBLIC_APP_NAME} \n\n Your username is: ${email} \n\n Your password is: ${password} \n\n Please login to ${appUrl} \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
+    const callerRole = normalizeRoleName(teamInfo.teamRole);
+    if (normalizedRole === "OWNER" && !isPlatformAdmin && callerRole !== "OWNER") {
+      return NextResponse.json(
+        { error: "Forbidden: Only an existing Owner or Platform Admin can assign the OWNER role." },
+        { status: 403 }
+      );
+    }
 
-    //Check if user already exists in local database
+    const safeModules = Array.isArray(assigned_modules)
+      ? assigned_modules.filter((m: unknown) => typeof m === "string")
+      : undefined;
+
+    const password = `Inv!${randomBytes(15).toString("base64url")}`;
+
+    // Never trust req.headers.get("origin") — prevents phishing link spoofing
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://crm.basalthq.com").replace(/\/+$/, "");
+    const appName = process.env.NEXT_PUBLIC_APP_NAME || "BasaltCRM";
+
+    const message = `You have been invited to ${appName} \n\n Your username is: ${normalizedEmail} \n\n Your password is: ${password} \n\n Please login to ${appUrl} \n\n Thank you \n\n ${appName}`;
+
+    // Check if user already exists in local database (case-insensitive)
     const checkexisting = await prismadb.users.findFirst({
       where: {
-        email: email,
+        email: { equals: normalizedEmail, mode: "insensitive" },
       },
     });
 
     if (checkexisting) {
-      // User exists. Instead of failing, move them to the new team.
+      if (checkexisting.team_id && checkexisting.team_id !== teamInfo.teamId) {
+        return NextResponse.json(
+          { error: "User already belongs to another organization." },
+          { status: 409 }
+        );
+      }
+
+      if (checkexisting.team_id === teamInfo.teamId) {
+        return NextResponse.json(
+          { error: "User is already a member of this team." },
+          { status: 409 }
+        );
+      }
+
+      if (!isPlatformAdmin && (checkexisting.is_admin || isPrivilegedSystemRole(checkexisting.team_role))) {
+        return NextResponse.json(
+          { error: "Forbidden: Cannot reassign a Platform Admin." },
+          { status: 403 }
+        );
+      }
+
       try {
         const user = await prismadb.users.update({
           where: { id: checkexisting.id },
           data: {
             team_id: teamInfo.teamId,
-            team_role: role,
-            assigned_modules: assigned_modules || checkexisting.assigned_modules,
+            team_role: normalizedRole,
+            assigned_modules: safeModules ?? checkexisting.assigned_modules,
+            session_version: { increment: 1 },
           },
         });
 
-        const existingMessage = `You have been added to a new team on ${process.env.NEXT_PUBLIC_APP_NAME}.\n\nPlease login to ${appUrl} to access your new team.\n\nThank you\n\n${process.env.NEXT_PUBLIC_APP_NAME}`;
+        const existingMessage = `You have been added to a team on ${appName}.\n\nPlease login to ${appUrl} to access your team.\n\nThank you\n\n${appName}`;
 
-        // Send a notification email to the existing user
         await sendEmail({
           from: process.env.EMAIL_FROM,
           to: user.email,
-          subject: `You have been added to a new team on ${process.env.NEXT_PUBLIC_APP_NAME}`,
+          subject: `You have been added to a team on ${appName}`,
           text: existingMessage,
-          html: `<p>You have been added to a new team on <strong>${process.env.NEXT_PUBLIC_APP_NAME}</strong>.</p><p>Please <a href="${appUrl}">login</a> to access your new team dashboard.</p>`,
+          html: `<p>You have been added to a team on <strong>${escapeHtml(appName)}</strong>.</p><p>Please <a href="${escapeHtml(appUrl)}">login</a> to access your team dashboard.</p>`,
         });
 
         await logActivity(
           "Added Existing User",
           "User Management",
-          `Added existing user ${email} to team ${teamInfo.teamId}`
+          `Added unassigned user ${normalizedEmail} to team ${teamInfo.teamId}`
         );
 
-        return NextResponse.json(user, { status: 200 });
+        return NextResponse.json(sanitizeUser(user), { status: 200 });
       } catch (err) {
         systemLogger.error("[INVITE_EXISTING_USER]", err);
         return new NextResponse("Error adding existing user to team", { status: 500 });
       }
     } else {
-      // New user creation
       let user;
       try {
         user = await prismadb.users.create({
           data: {
-            name,
+            name: name.trim(),
             username: "",
             avatar: "",
             account_name: "",
-            is_account_admin: false,
-            is_admin: false,
-            email,
+            is_account_admin: isPlatformAdmin && normalizedRole === "PLATFORM_ADMIN",
+            is_admin: isPlatformAdmin && normalizedRole === "PLATFORM_ADMIN",
+            email: normalizedEmail,
             userStatus: "ACTIVE",
             userLanguage: "en",
             password: await hashPassword(password),
-            assigned_modules: assigned_modules || [],
-            team_id: teamInfo.teamId, // Assign to the current team
-            team_role: role, // Default to MEMBER or provided role
+            mustChangePassword: true,
+            assigned_modules: safeModules || [],
+            team_id: teamInfo.teamId,
+            team_role: normalizedRole,
           },
         });
       } catch (createErr: any) {
         systemLogger.error("[INVITE_USER] Failed to create user:", createErr?.message || createErr);
         return NextResponse.json(
-          { error: `Failed to create user: ${createErr?.message || "Unknown database error"}` },
+          { error: "Failed to create user" },
           { status: 500 }
         );
       }
@@ -134,51 +184,44 @@ export async function POST(req: Request) {
         return new NextResponse("User not created", { status: 500 });
       }
 
-      // Send invitation email (non-blocking — user is already created)
       try {
         const emailHtml = await render(
           InviteUserEmail({
-            invitedByUsername: session.user?.name! || "admin",
-            username: user?.name!,
+            invitedByUsername: session!.user?.name || "admin",
+            username: user.name || "User",
             invitedUserPassword: password,
             userLanguage: "en",
-            appUrl: appUrl || "",
+            appUrl,
           })
         );
 
         await sendEmail({
           from: process.env.EMAIL_FROM,
           to: user.email,
-          subject: `You have been invited to ${process.env.NEXT_PUBLIC_APP_NAME}`,
+          subject: `You have been invited to ${appName}`,
           text: message,
           html: emailHtml,
         });
-
-        console.log("Invitation email sent successfully via Unified Relay");
       } catch (emailErr: any) {
-        // Log but don't fail — user was already created successfully
-        systemLogger.error(`[INVITE_USER] User ${email} created but invitation email failed:`, emailErr?.message || emailErr);
+        systemLogger.error(`[INVITE_USER] User ${normalizedEmail} created but invitation email failed:`, emailErr?.message || emailErr);
       }
 
-      // Auto-trigger SES email verification for the new user's email
       try {
-          await verifyEmailIdentity(user.email);
-          console.log(`[SES_VERIFY] Auto-triggered verification for invited user: ${user.email}`);
+        await verifyEmailIdentity(user.email);
       } catch (sesError) {
-          // Non-blocking — verification can be re-triggered from the post-login modal
-          systemLogger.error(`[SES_VERIFY] Failed to auto-trigger for ${user.email}:`, sesError);
+        systemLogger.error(`[SES_VERIFY] Failed to auto-trigger for ${user.email}:`, sesError);
       }
 
       await logActivity(
         "Invited User",
         "User Management",
-        `Invited user ${email} to team ${teamInfo.teamId}`
+        `Invited user ${normalizedEmail} to team ${teamInfo.teamId}`
       );
 
-      return NextResponse.json(user, { status: 200 });
+      return NextResponse.json(sanitizeUser(user), { status: 200 });
     }
   } catch (error) {
-    systemLogger.error("[USERACTIVATE_POST]", error);
-    return new NextResponse("Initial error", { status: 500 });
+    systemLogger.error("[INVITE_USER_POST]", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 }

@@ -5,19 +5,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { sendSmsEum } from "@/lib/aws/eum-sms";
 import crypto from "crypto";
 import { systemLogger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const body = await req.json();
         const { portalId, messageId, recipientIds } = body;
@@ -35,12 +32,16 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Portal not found" }, { status: 404 });
         }
 
-        // Get the message
+        if (!validateResourceOwnership(teamInfo!.teamId, portal.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Get the message and verify it belongs to this portal
         const message = await prismadb.crm_Portal_Message.findUnique({
             where: { id: messageId },
         });
 
-        if (!message) {
+        if (!message || message.portal !== portal.id) {
             return NextResponse.json({ error: "Message not found" }, { status: 404 });
         }
 
@@ -154,7 +155,7 @@ function buildNotificationSms(
 /**
  * Create a new portal recipient and get their access token
  */
-export async function createPortalRecipient(
+async function createPortalRecipient(
     portalId: string,
     leadId: string | null,
     email: string,

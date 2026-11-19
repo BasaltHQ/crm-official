@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { decryptSecret } from "@/lib/encryption";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 import { isE164 } from "@/lib/twilio/twilio-voice";
@@ -28,15 +29,19 @@ type Body = {
 };
 
 export async function POST(req: Request) {
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
+
+  const teamId = teamInfo?.teamId;
+  if (!teamId) {
+    return NextResponse.json({ ok: false, error: "No team context" }, { status: 403 });
+  }
 
   try {
     const body = (await req.json()) as Body;
 
-    // ── Feature Gate ──
-    const teamId = (session as any).team_id || (session as any).user?.team_id;
-    if (teamId) {
+    // ── Feature Gate (strictly enforced; never skipped) ──
+    if (!teamInfo.isPlatformAdmin) {
       const hasVoice = await requireFeature(teamId, "voice");
       if (!hasVoice) {
         return NextResponse.json({ error: "Voice dialing requires a Scale plan or higher" }, { status: 403 });
@@ -56,52 +61,42 @@ export async function POST(req: Request) {
     let agentDisplayName = "Darlene"; // Default, overridden by DB
 
     try {
-      const { getCurrentUserTeamId } = await import("@/lib/team-utils");
-      const teamInfo = await getCurrentUserTeamId();
-      if (teamInfo?.teamId) {
-        // Single integration lookup for all fields
-        const integration = await prismadb.tenant_Integrations.findUnique({
-          where: { tenant_id: teamInfo.teamId },
-          select: { elevenlabs_api_key: true, elevenlabs_agent_id: true, voice_agent_name: true },
-        });
-        if (integration?.elevenlabs_api_key) resolvedApiKey = integration.elevenlabs_api_key;
-        if (integration?.elevenlabs_agent_id) resolvedAgentId = integration.elevenlabs_agent_id;
-        if (integration?.voice_agent_name) agentDisplayName = integration.voice_agent_name;
+      const integration = await prismadb.tenant_Integrations.findUnique({
+        where: { tenant_id: teamId },
+        select: { elevenlabs_api_key: true, elevenlabs_agent_id: true, voice_agent_name: true },
+      });
+      const decryptedKey = decryptSecret(integration?.elevenlabs_api_key);
+      if (decryptedKey) resolvedApiKey = decryptedKey;
+      if (integration?.elevenlabs_agent_id) resolvedAgentId = integration.elevenlabs_agent_id;
+      if (integration?.voice_agent_name) agentDisplayName = integration.voice_agent_name;
 
-        // Brand info
-        const brand = await prismadb.brands.findFirst({
-          where: { team_id: teamInfo.teamId },
-          select: { brand_label: true, company_name: true, mission_statement: true, core_philosophy: true, tagline: true, description: true, brand_voice: true },
-          orderBy: { updatedAt: "desc" },
-        });
-        if (brand) {
-          const label = brand.brand_label || "";
-          brandName = (label && label !== "Default Brand") ? label : (brand.company_name || brandName);
-          const parts = [];
-          if (brand.tagline) parts.push(`Tagline: ${brand.tagline}`);
-          if (brand.mission_statement) parts.push(`Mission: ${brand.mission_statement}`);
-          if (brand.core_philosophy) parts.push(`Philosophy: ${brand.core_philosophy}`);
-          if (brand.description) parts.push(`About: ${brand.description}`);
-          if (brand.brand_voice && brand.brand_voice !== "Visionary") parts.push(`Tone: ${brand.brand_voice}`);
-          brandContext = parts.join("\n");
-        }
+      // Brand info
+      const brand = await prismadb.brands.findFirst({
+        where: { team_id: teamId },
+        select: { brand_label: true, company_name: true, mission_statement: true, core_philosophy: true, tagline: true, description: true, brand_voice: true },
+        orderBy: { updatedAt: "desc" },
+      });
+      if (brand) {
+        const label = brand.brand_label || "";
+        brandName = (label && label !== "Default Brand") ? label : (brand.company_name || brandName);
+        const parts = [];
+        if (brand.tagline) parts.push(`Tagline: ${brand.tagline}`);
+        if (brand.mission_statement) parts.push(`Mission: ${brand.mission_statement}`);
+        if (brand.core_philosophy) parts.push(`Philosophy: ${brand.core_philosophy}`);
+        if (brand.description) parts.push(`About: ${brand.description}`);
+        if (brand.brand_voice && brand.brand_voice !== "Visionary") parts.push(`Tone: ${brand.brand_voice}`);
+        brandContext = parts.join("\n");
       }
     } catch { /* use defaults */ }
 
     // ── Voice Quota Enforcement ──
-    try {
-      const { getCurrentUserTeamId } = await import("@/lib/team-utils");
-      const teamCheck = await getCurrentUserTeamId();
-      if (teamCheck?.teamId) {
-        const voiceQuota = await checkUsageQuota(teamCheck.teamId, session?.user?.id || null, "voice");
-        if (!voiceQuota.allowed) {
-          return NextResponse.json(
-            { ok: false, error: voiceQuota.message, remaining: voiceQuota.remaining, limit: voiceQuota.limit },
-            { status: 429 }
-          );
-        }
-      }
-    } catch { /* quota check failure should not block calls */ }
+    const voiceQuota = await checkUsageQuota(teamId, session?.user?.id || null, "voice");
+    if (!voiceQuota.allowed) {
+      return NextResponse.json(
+        { ok: false, error: voiceQuota.message, remaining: voiceQuota.remaining, limit: voiceQuota.limit },
+        { status: 429 }
+      );
+    }
 
     if (!resolvedAgentId) {
       return NextResponse.json({ ok: false, error: "Missing ElevenLabs Agent ID" }, { status: 400 });
@@ -121,22 +116,28 @@ export async function POST(req: Request) {
       campaign_instruction: "",
     };
 
+    // ── Verify explicit leadId ownership BEFORE looking up context ──
+    let lead: any = null;
+    if (body.leadId) {
+      lead = await prismadb.crm_Leads.findUnique({
+        where: { id: body.leadId },
+        select: {
+          id: true, team_id: true, firstName: true, lastName: true, company: true, jobTitle: true,
+          phone: true, lead_source: true, campaign: true, description: true,
+          pipeline_stage: true, voice_prompt_override: true, email: true,
+        },
+      });
+      if (!lead || !validateResourceOwnership(teamId, lead.team_id, teamInfo.isPlatformAdmin)) {
+        return NextResponse.json({ ok: false, error: "Forbidden — lead not found in your team" }, { status: 403 });
+      }
+    }
+
     // ── Look up lead + recent activity + campaign prompt ──
     try {
-      let lead: any = null;
-      if (body.leadId) {
-        lead = await prismadb.crm_Leads.findUnique({
-          where: { id: body.leadId },
-          select: {
-            id: true, firstName: true, lastName: true, company: true, jobTitle: true,
-            phone: true, lead_source: true, campaign: true, description: true,
-            pipeline_stage: true, voice_prompt_override: true, email: true,
-          },
-        });
-      }
       if (!lead) {
         lead = await prismadb.crm_Leads.findFirst({
           where: {
+            team_id: teamId,
             OR: [
               { phone: body.destination },
               { phone: body.destination.replace(/^\+1/, "") },
@@ -144,7 +145,7 @@ export async function POST(req: Request) {
           },
           orderBy: { updatedAt: "desc" },
           select: {
-            id: true, firstName: true, lastName: true, company: true, jobTitle: true,
+            id: true, team_id: true, firstName: true, lastName: true, company: true, jobTitle: true,
             phone: true, lead_source: true, campaign: true, description: true,
             pipeline_stage: true, voice_prompt_override: true, email: true,
           },

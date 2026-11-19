@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam } from "@/lib/api-utils";
 
 /**
  * CRM -> BasaltECHO credit check bridge
@@ -73,9 +73,8 @@ async function checkBalance(basaltechoBase: string, wallet: string) {
 }
 
 export async function GET(req: NextRequest) {
-  // ── Auth guard ──
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   try {
     const { base, wallet: walletDb } = await resolveBasaltECHO();
@@ -83,9 +82,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "basaltecho_base_unconfigured" }, { status: 500 });
     }
 
-    // Allow override via query
     const url = new URL(req.url);
     const walletOverride = String(url.searchParams.get("wo") || "").trim().toLowerCase();
+    if (walletOverride && !teamInfo?.isPlatformAdmin) {
+      return NextResponse.json({ ok: false, error: "Forbidden — walletOverride requires platform admin" }, { status: 403 });
+    }
+
     const wallet = (walletOverride || walletDb || "").toLowerCase();
     if (!wallet) {
       return NextResponse.json({ ok: false, error: "basaltecho_wallet_missing" }, { status: 400 });
@@ -100,7 +102,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, forwarded: { base, wallet }, balance: result },
+      { ok: true, balance: result },
       { status: 200 }
     );
   } catch (e: any) {
@@ -109,9 +111,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // ── Auth guard ──
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   try {
     const body = (await req.json().catch(() => ({}))) as CreditBody;
@@ -120,8 +121,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "basaltecho_base_unconfigured" }, { status: 500 });
     }
 
-    // Allow override via body
     const walletOverride = String(body?.walletOverride || "").trim().toLowerCase();
+    if (walletOverride && !teamInfo?.isPlatformAdmin) {
+      return NextResponse.json({ ok: false, error: "Forbidden — walletOverride requires platform admin" }, { status: 403 });
+    }
+
     const wallet = (walletOverride || walletDb || "").toLowerCase();
     if (!wallet) {
       return NextResponse.json({ ok: false, error: "basaltecho_wallet_missing" }, { status: 400 });
@@ -136,7 +140,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, forwarded: { base, wallet }, balance: result },
+      { ok: true, balance: result },
       { status: 200 }
     );
   } catch (e: any) {

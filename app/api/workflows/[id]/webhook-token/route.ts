@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { v4 as uuid } from "uuid";
 
 /**
@@ -13,15 +12,24 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { id } = await params;
+        const existing = await prismadb.crm_Workflow.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) {
+            return new NextResponse("Workflow not found", { status: 404 });
+        }
+        if (!validateResourceOwnership(teamInfo!.teamId, existing.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
+
         const token = uuid();
 
-        const workflow = await prismadb.crm_Workflow.update({
+        await prismadb.crm_Workflow.update({
             where: { id },
             data: { webhook_token: token },
         });
@@ -45,12 +53,20 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { id } = await params;
+        const existing = await prismadb.crm_Workflow.findUnique({
+            where: { id },
+            select: { id: true, team_id: true },
+        });
+        if (!existing) {
+            return new NextResponse("Workflow not found", { status: 404 });
+        }
+        if (!validateResourceOwnership(teamInfo!.teamId, existing.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
         await prismadb.crm_Workflow.update({
             where: { id },

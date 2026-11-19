@@ -186,23 +186,37 @@ const SideBar = async () => {
   };
   ensurePlatformMenu(activeNavStructure);
 
+  const sanitizeFontFamily = (font: unknown): string => {
+    if (!font) return "";
+    return String(font).replace(/[^a-zA-Z0-9 ,_-]/g, "").trim();
+  };
+
+  const sanitizeCssToken = (val: unknown, fallback: string): string => {
+    if (!val) return fallback;
+    const cleaned = String(val).replace(/[^a-zA-Z0-9.%_-]/g, "").trim();
+    return cleaned || fallback;
+  };
+
   const ensurePx = (val: string | undefined | null, def: string) => {
-    if (!val) return def;
-    const sVal = String(val);
+    const sVal = sanitizeCssToken(val, "");
+    if (!sVal) return def;
     if (sVal.endsWith('px') || sVal.endsWith('rem') || sVal.endsWith('em')) return sVal;
     return `${sVal}px`;
   };
 
+  const safeTitleFont = sanitizeFontFamily(config?.titleFont);
+  const safeItemFont = sanitizeFontFamily(config?.itemFont);
+
   const styleTag = `
     :root {
-      --nav-title-font: ${config?.titleFont ? `'${config?.titleFont}', sans-serif` : 'inherit'};
+      --nav-title-font: ${safeTitleFont ? `'${safeTitleFont}', sans-serif` : 'inherit'};
       --nav-title-size: ${ensurePx(config?.titleFontSize, '10px')};
-      --nav-title-weight: ${config?.titleFontWeight || '900'};
-      --nav-title-style: ${config?.titleFontStyle || 'normal'};
-      --nav-item-font: ${config?.itemFont ? `'${config?.itemFont}', sans-serif` : 'inherit'};
+      --nav-title-weight: ${sanitizeCssToken(config?.titleFontWeight, '900')};
+      --nav-title-style: ${sanitizeCssToken(config?.titleFontStyle, 'normal')};
+      --nav-item-font: ${safeItemFont ? `'${safeItemFont}', sans-serif` : 'inherit'};
       --nav-item-size: ${ensurePx(config?.itemFontSize, '12px')};
-      --nav-item-weight: ${config?.itemFontWeight || '900'};
-      --nav-item-style: ${config?.itemFontStyle || 'normal'};
+      --nav-item-weight: ${sanitizeCssToken(config?.itemFontWeight, '900')};
+      --nav-item-style: ${sanitizeCssToken(config?.itemFontStyle, 'normal')};
     }
   `;
 
@@ -220,11 +234,11 @@ const SideBar = async () => {
       <style dangerouslySetInnerHTML={{ __html: styleTag }} />
       <DynamicModuleMenu
         navStructure={activeNavStructure}
-        titleFont={config?.titleFont}
+        titleFont={safeTitleFont || undefined}
         titleFontSize={config?.titleFontSize}
         titleFontWeight={config?.titleFontWeight}
         titleFontStyle={config?.titleFontStyle}
-        itemFont={config?.itemFont}
+        itemFont={safeItemFont || undefined}
         itemFontSize={config?.itemFontSize}
         itemFontWeight={config?.itemFontWeight}
         itemFontStyle={config?.itemFontStyle}

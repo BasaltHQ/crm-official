@@ -1,17 +1,17 @@
 
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { escapeHtml } from "@/lib/security/ssrf-guard";
 import { sendEmailSES } from "@/lib/aws/ses";
 import crypto from "crypto";
 import { systemLogger } from "@/lib/logger";
 
 export async function sendInvoice(invoiceId: string, email: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return { error: "Unauthorized" };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session || !teamInfo) return { error: "Unauthorized" };
 
         const invoice = await prismadb.invoices.findUnique({
             where: { id: invoiceId },
@@ -19,10 +19,15 @@ export async function sendInvoice(invoiceId: string, email: string) {
 
         if (!invoice) return { error: "Invoice not found" };
 
+        if (!validateResourceOwnership(teamInfo.teamId, invoice.team_id, teamInfo.isPlatformAdmin)) {
+            return { error: "Forbidden" };
+        }
+
         const paymentLink = invoice.surge_payment_link;
         if (!paymentLink) return { error: "No payment link generated. Enable Crypto Payments first." };
 
         const userId = session.user.id;
+        const targetTeamId = invoice.team_id || teamInfo.teamId;
         const trackingToken = crypto.randomBytes(16).toString("hex");
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -32,11 +37,14 @@ export async function sendInvoice(invoiceId: string, email: string) {
         // Open Tracking Pixel
         const trackingPixel = `<img src="${baseUrl}/api/email/track/open?token=${trackingToken}" width="1" height="1" style="display:none;" />`;
 
-        // Log Activity to CRM if we can link to a lead
+        // Log Activity to CRM if we can link to a lead within the same tenant
         let targetLeadId = null;
         if (invoice.assigned_account_id) {
             const lead = await prismadb.crm_Leads.findFirst({
-                where: { accountsIDs: invoice.assigned_account_id }
+                where: {
+                    accountsIDs: invoice.assigned_account_id,
+                    ...(targetTeamId ? { team_id: targetTeamId } : {}),
+                }
             });
             if (lead) targetLeadId = lead.id;
         }
@@ -58,12 +66,22 @@ export async function sendInvoice(invoiceId: string, email: string) {
 
             // Create an Outreach Item for tracking
             let adhocCampaign = await prismadb.crm_Outreach_Campaigns.findFirst({
-                where: { name: "Ad-hoc Emails", user: userId }
+                where: {
+                    name: "Ad-hoc Emails",
+                    user: userId,
+                    ...(targetTeamId ? { team_id: targetTeamId } : {}),
+                }
             });
 
             if (!adhocCampaign) {
                 adhocCampaign = await prismadb.crm_Outreach_Campaigns.create({
-                    data: { name: "Ad-hoc Emails", user: userId, status: "ACTIVE", v: 0 }
+                    data: {
+                        name: "Ad-hoc Emails",
+                        user: userId,
+                        team_id: targetTeamId || undefined,
+                        status: "ACTIVE",
+                        v: 0,
+                    }
                 });
             }
 
@@ -75,7 +93,7 @@ export async function sendInvoice(invoiceId: string, email: string) {
                     status: "SENT",
                     subject: `Invoice #${invoice.invoice_number} Payment Link`,
                     body_text: `Here is your payment link for Invoice #${invoice.invoice_number}: ${paymentLink}`,
-                    body_html: `<p>Here is your payment link for Invoice <strong>#${invoice.invoice_number}</strong>:</p><p><a href="${trackedPaymentLink}">${paymentLink}</a></p>${trackingPixel}`,
+                    body_html: `<p>Here is your payment link for Invoice <strong>#${escapeHtml(invoice.invoice_number)}</strong>:</p><p><a href="${escapeHtml(trackedPaymentLink)}">${escapeHtml(paymentLink)}</a></p>${trackingPixel}`,
                     tracking_token: trackingToken,
                     sentAt: new Date(),
                     v: 0
@@ -83,14 +101,14 @@ export async function sendInvoice(invoiceId: string, email: string) {
             });
         }
 
-        // Build rich email HTML with invoice details
-        const invoiceNumber = invoice.invoice_number || invoiceId;
-        const invoiceAmount = invoice.invoice_amount || "0.00";
-        const invoiceCurrency = invoice.invoice_currency || "USD";
-        const dueDate = invoice.date_due ? new Date(invoice.date_due).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "Upon Receipt";
-        const invoiceStatus = invoice.payment_status || invoice.status || "UNPAID";
-        const partnerName = invoice.partner || "Valued Client";
-        const appName = process.env.NEXT_PUBLIC_APP_NAME || "BasaltCRM";
+        // Build rich email HTML with escaped invoice details
+        const invoiceNumber = escapeHtml(invoice.invoice_number || invoiceId);
+        const invoiceAmount = escapeHtml(invoice.invoice_amount || "0.00");
+        const invoiceCurrency = escapeHtml(invoice.invoice_currency || "USD");
+        const dueDate = escapeHtml(invoice.date_due ? new Date(invoice.date_due).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "Upon Receipt");
+        const invoiceStatus = escapeHtml(invoice.payment_status || invoice.status || "UNPAID");
+        const partnerName = escapeHtml(invoice.partner || "Valued Client");
+        const appName = escapeHtml(process.env.NEXT_PUBLIC_APP_NAME || "BasaltCRM");
 
         const emailHtml = `
 <!DOCTYPE html>

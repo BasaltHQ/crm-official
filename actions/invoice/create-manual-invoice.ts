@@ -1,20 +1,16 @@
 
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 export async function createManualInvoice(data: FormData) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return { error: "Unauthorized" };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session || !teamInfo) return { error: "Unauthorized" };
 
-        const teamInfo = await getCurrentUserTeamId();
-        const teamId = teamInfo?.teamId;
+        const teamId = teamInfo.teamId;
 
         const amount = parseFloat(data.get("amount") as string);
         const number = data.get("number") as string;
@@ -25,14 +21,17 @@ export async function createManualInvoice(data: FormData) {
             return { error: "Missing required fields" };
         }
 
-        // Fetch opportunity details if provided for better linking
+        // Fetch opportunity details if provided and verify tenant ownership
         let accountId: string | undefined;
         if (opportunityId && opportunityId !== "none") {
             const opp = await prismadb.crm_Opportunities.findUnique({
                 where: { id: opportunityId },
-                select: { account: true, lead_id: true }
+                select: { account: true, lead_id: true, team_id: true }
             });
-            if (opp?.account) accountId = opp.account;
+            if (!opp || !validateResourceOwnership(teamId, opp.team_id, teamInfo.isPlatformAdmin)) {
+                return { error: "Forbidden — invalid opportunity" };
+            }
+            if (opp.account) accountId = opp.account;
         }
 
         const newInvoice = await prismadb.invoices.create({

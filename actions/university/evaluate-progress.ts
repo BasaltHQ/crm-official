@@ -3,6 +3,8 @@
 import { dbAdapter } from "@/lib/database/db-adapter";
 import { prismadb } from "@/lib/prisma";
 import { addRawXP } from "@/actions/quests/add-raw-xp";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 import type { UserMetrics } from "@prisma/client";
 
@@ -429,8 +431,17 @@ async function evaluateSingleLevel(
     return { flags: resultFlags, tasksDoneCount };
 }
 
-export async function evaluateMasteryProgress(userId: string) {
+export async function evaluateMasteryProgress(_requestedUserId: string) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id || session.error === "SessionInvalidated") {
+            return null;
+        }
+        const userId = session.user.id;
+        if (_requestedUserId && _requestedUserId !== userId && !session.user.isAdmin) {
+            return null;
+        }
+
         const usersCol = await dbAdapter.getNativeCollection("Users");
         const user = await usersCol.findOne({ _id: new ObjectId(userId) });
         if (!user) return null;

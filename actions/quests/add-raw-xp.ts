@@ -1,9 +1,11 @@
-"use server";
-
+// Server-side XP utility module (NOT a client-callable Server Action)
 import { dbAdapter } from "@/lib/database/db-adapter";
 import { calculateXPAward, computeLevelFromXP } from "@/lib/quest-engine/xp-curve";
 import { checkAndAwardBadges, type AchievementCheckStats } from "@/lib/quest-engine/badge-engine";
 import { ObjectId } from "mongodb";
+
+const MAX_RAW_XP_AWARD = 500;
+const SAFE_FLAG_KEY_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
 
 /**
  * Directly awards raw XP for miscellaneous operational tasks outside of Quests
@@ -19,6 +21,10 @@ export async function addRawXP(params: {
     newBadges: string[];
 } | null> {
     try {
+        if (!params?.userId || !ObjectId.isValid(params.userId)) return null;
+        const safeXp = Math.max(0, Math.min(Math.floor(Number(params.xpAmount) || 0), MAX_RAW_XP_AWARD));
+        if (safeXp <= 0) return null;
+
         const usersCollection = await dbAdapter.getNativeCollection("Users");
         const user = await usersCollection.findOne({ _id: new ObjectId(params.userId) });
         if (!user) return null;
@@ -27,7 +33,7 @@ export async function addRawXP(params: {
         const currentPrestige = user.prestige || 0;
         
         // Calculate new XP bounds
-        const levelResult = calculateXPAward(currentXPTotal, params.xpAmount, currentPrestige);
+        const levelResult = calculateXPAward(currentXPTotal, safeXp, currentPrestige);
         const levelState = computeLevelFromXP(levelResult.newXPTotal, currentPrestige);
 
         // Update User Profile
@@ -97,6 +103,9 @@ export async function grantOneTimeXP(params: {
     newBadges: string[];
 } | null> {
     try {
+        if (!params?.userId || !ObjectId.isValid(params.userId)) return null;
+        if (!params?.flagKey || !SAFE_FLAG_KEY_REGEX.test(params.flagKey)) return null;
+
         const usersCollection = await dbAdapter.getNativeCollection("Users");
         const userObjectId = new ObjectId(params.userId);
 

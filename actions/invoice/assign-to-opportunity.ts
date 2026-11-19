@@ -1,16 +1,14 @@
 "use server";
 
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
 export async function assignInvoiceToOpportunity(invoiceId: string, opportunityId: string, type: string = "crm_opportunity") {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
         }
 
@@ -19,6 +17,10 @@ export async function assignInvoiceToOpportunity(invoiceId: string, opportunityI
         });
 
         if (!invoice) throw new Error("Invoice not found");
+
+        if (!validateResourceOwnership(teamInfo.teamId, invoice.team_id, teamInfo.isPlatformAdmin)) {
+            throw new Error("Forbidden");
+        }
 
         let amountInt = 0;
         if (invoice.invoice_amount) {
@@ -33,9 +35,16 @@ export async function assignInvoiceToOpportunity(invoiceId: string, opportunityI
             // Handle Project Opportunity (Feature)
             const opportunity = await prismadb.project_Opportunities.findUnique({
                 where: { id: opportunityId },
-                include: { invoices: true }
+                include: {
+                    invoices: true,
+                    assigned_project: { select: { team_id: true } },
+                }
             });
             if (!opportunity) throw new Error("Project Opportunity not found");
+
+            if (!validateResourceOwnership(teamInfo.teamId, opportunity.assigned_project?.team_id || null, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden");
+            }
 
             // Link in Invoice
             await prismadb.invoices.update({
@@ -80,6 +89,10 @@ export async function assignInvoiceToOpportunity(invoiceId: string, opportunityI
                 where: { id: opportunityId },
             });
             if (!opportunity) throw new Error("Opportunity not found");
+
+            if (!validateResourceOwnership(teamInfo.teamId, opportunity.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden");
+            }
 
             // 1. Connect the invoice
             await prismadb.invoices.update({

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { getSessionAndTeam, validateResourceOwnership, unauthorizedResponse } from "@/lib/api-utils";
+import {
+    ALLOWED_TENANT_ROLES,
+    isPrivilegedSystemRole,
+    normalizeRoleName,
+    requirePlatformAdmin,
+} from "@/lib/security/authz";
+import { escapeHtml } from "@/lib/security/ssrf-guard";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
@@ -17,45 +24,73 @@ export async function PATCH(
         const body = await req.json();
         const { team_role } = body;
 
-        if (!team_role) {
+        if (!team_role || typeof team_role !== "string") {
             return new NextResponse("Role is required", { status: 400 });
         }
 
-        // 1. Fetch the target user to verify they exist and belong to the correct team
+        const normalizedRole = normalizeRoleName(team_role);
+        const platformAdmin = await requirePlatformAdmin();
+        const isPlatformAdmin = Boolean(platformAdmin);
+
+        if (isPrivilegedSystemRole(normalizedRole)) {
+            if (!isPlatformAdmin) {
+                return new NextResponse("Forbidden: Only Platform Admins can assign privileged system roles", {
+                    status: 403,
+                });
+            }
+        } else if (!ALLOWED_TENANT_ROLES.has(normalizedRole)) {
+            return new NextResponse("Invalid role", { status: 400 });
+        }
+
         const targetUser = await prismadb.users.findUnique({
             where: { id: params.userId },
-            select: { id: true, email: true, team_id: true }
+            select: { id: true, email: true, team_id: true, team_role: true, is_admin: true },
         });
 
         if (!targetUser) {
             return new NextResponse("User not found", { status: 404 });
         }
 
-        // 2. SOC2 Ownership/RBAC Check - Admins can only edit users on their own team
-        if (!validateResourceOwnership(teamInfo!.teamId, targetUser.team_id, false)) {
+        if (!validateResourceOwnership(teamInfo!.teamId, targetUser.team_id, isPlatformAdmin)) {
             return await unauthorizedResponse("UPDATE_ROLE", `Users:${params.userId}`);
         }
 
-        const callerRole = teamInfo!.teamRole || "";
+        const callerRole = normalizeRoleName(teamInfo!.teamRole);
+        const canManageTeamRoles =
+            isPlatformAdmin ||
+            (teamInfo!.isAdmin && (callerRole === "OWNER" || callerRole === "ADMIN"));
 
-        // Only PLATFORM_ADMIN can assign PLATFORM_ADMIN role
-        if (team_role === "PLATFORM_ADMIN" && callerRole !== "PLATFORM_ADMIN") {
-            return new NextResponse("Unauthorized to assign PLATFORM_ADMIN", { status: 403 });
-        }
-
-        // Also prevent non-admins from changing roles
-        if (callerRole !== "PLATFORM_ADMIN" && callerRole !== "SUPER_ADMIN" && callerRole !== "ADMIN") {
+        if (!canManageTeamRoles) {
             return await unauthorizedResponse("UPDATE_ROLE", `Users:${params.userId}`);
         }
 
-        const updateData: any = {
-            team_role,
+        if (
+            !isPlatformAdmin &&
+            (targetUser.is_admin || isPrivilegedSystemRole(targetUser.team_role))
+        ) {
+            return new NextResponse("Forbidden: Cannot modify a Platform Admin", { status: 403 });
+        }
+
+        const targetCurrentRole = normalizeRoleName(targetUser.team_role);
+        if (
+            (normalizedRole === "OWNER" || targetCurrentRole === "OWNER") &&
+            !isPlatformAdmin &&
+            callerRole !== "OWNER"
+        ) {
+            return new NextResponse("Forbidden: Only an Owner or Platform Admin can assign or modify the OWNER role", {
+                status: 403,
+            });
+        }
+
+        const updateData: Record<string, any> = {
+            team_role: normalizedRole,
+            session_version: { increment: 1 },
         };
 
-        if (team_role === "PLATFORM_ADMIN") {
+        if (isPlatformAdmin && normalizedRole === "PLATFORM_ADMIN") {
             updateData.is_admin = true;
             updateData.is_account_admin = true;
-        } else if (team_role === "MEMBER" || team_role === "VIEWER") {
+        } else if (isPlatformAdmin && !isPrivilegedSystemRole(normalizedRole)) {
             updateData.is_admin = false;
         }
 
@@ -64,29 +99,28 @@ export async function PATCH(
                 id: params.userId,
             },
             data: updateData,
-            select: { email: true, team_role: true }
+            select: { email: true, team_role: true },
         });
 
-        // 3. SOC2 Audit Log
         await logActivityInternal(
             session!.user.id,
             "ROLE_CHANGE",
             "User Management",
-            `Updated role for ${user.email} to ${team_role}`,
+            `Updated role for ${user.email} to ${normalizedRole}`,
             teamInfo!.teamId || undefined
         );
 
-        // 4. SOC2 Critical Event Escalation Notification
         try {
             const sendEmail = (await import("@/lib/sendmail")).default;
+            const safeRole = escapeHtml(normalizedRole);
             await sendEmail({
                 to: user.email,
                 subject: "Security Alert: Platform Role Changed",
-                text: `Your account role has been changed to ${team_role} by an administrator. If you did not expect this, please contact your Security Officer or IT Admin immediately.`,
+                text: `Your account role has been changed to ${normalizedRole} by an administrator. If you did not expect this, please contact your Security Officer or IT Admin immediately.`,
                 html: `
-                    <p>Your account role has been changed to <strong>${team_role}</strong> by an administrator.</p>
+                    <p>Your account role has been changed to <strong>${safeRole}</strong> by an administrator.</p>
                     <p>If you did not expect this, please contact your Security Officer or IT Admin immediately.</p>
-                `
+                `,
             });
         } catch (emailError) {
             console.error("Failed to send SOC2 role escalation email:", emailError);

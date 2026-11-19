@@ -1,16 +1,26 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { v4 as uuidv4 } from "uuid";
 import { revalidatePath } from "next/cache";
 
 export async function createDealRoom(contractId: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
             throw new Error("Unauthorized");
+        }
+
+        const contract = await prismadb.crm_Contracts.findUnique({
+            where: { id: contractId },
+            select: { id: true, team_id: true },
+        });
+        if (!contract) {
+            return { success: false, error: "Contract not found" };
+        }
+        if (!validateResourceOwnership(teamInfo.teamId, contract.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
         }
 
         // Check if exists

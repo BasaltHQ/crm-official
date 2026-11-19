@@ -1,56 +1,60 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
+import { normalizeTeamSlug, requirePlatformAdmin } from "@/lib/security/authz";
 
 export const createTeam = async (name: string, slug: string, planId?: string) => {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session) {
-            return { error: "Unauthorized" };
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { error: "Unauthorized: Platform Admin required." };
         }
 
-        // Check if slug exists
-        const existing = await prismadb.team.findUnique({
+        const normalizedSlug = normalizeTeamSlug(slug || name);
+        if (!normalizedSlug) {
+            return { error: "Invalid team slug" };
+        }
+
+        // Check if slug exists (case-insensitive)
+        const existing = await prismadb.team.findFirst({
             where: {
-                slug
-            }
+                slug: { equals: normalizedSlug, mode: "insensitive" },
+            },
         });
 
         if (existing) {
             return { error: "Team with this ID already exists" };
         }
 
-
-        // Resolve plan: use provided planId or default to FREE tier
-        let resolvedPlanId = planId;
-        if (!resolvedPlanId) {
-            const freePlan = await prismadb.plan.findFirst({ where: { slug: "FREE" } });
-            if (freePlan) resolvedPlanId = freePlan.id;
+        // Resolve plan: use provided planId or default to STARTER (fallback FREE) tier
+        let selectedPlan = planId
+            ? await prismadb.plan.findUnique({ where: { id: planId } })
+            : null;
+        if (!selectedPlan) {
+            selectedPlan =
+                (await prismadb.plan.findFirst({ where: { slug: "STARTER" } })) ||
+                (await prismadb.plan.findFirst({ where: { slug: "FREE" } }));
         }
 
+        const resolvedPlanId = selectedPlan?.id;
         let renewalDate = null;
-        if (resolvedPlanId) {
-            const plan = await prismadb.plan.findUnique({ where: { id: resolvedPlanId } });
-            if (plan) {
-                const now = new Date();
-                if (plan.billing_cycle === 'MONTHLY') {
-                    renewalDate = new Date(now.setMonth(now.getMonth() + 1));
-                } else if (plan.billing_cycle === 'YEARLY') {
-                    renewalDate = new Date(now.setFullYear(now.getFullYear() + 1));
-                }
+        if (selectedPlan) {
+            const now = new Date();
+            if (selectedPlan.billing_cycle === "MONTHLY") {
+                renewalDate = new Date(now.setMonth(now.getMonth() + 1));
+            } else if (selectedPlan.billing_cycle === "YEARLY") {
+                renewalDate = new Date(now.setFullYear(now.getFullYear() + 1));
             }
         }
 
         const team = await prismadb.team.create({
             data: {
-                name,
-                slug,
+                name: String(name).trim(),
+                slug: normalizedSlug,
                 plan_id: resolvedPlanId,
+                subscription_plan: (selectedPlan?.slug || "STARTER") as any,
                 renewal_date: renewalDate,
             },
         });

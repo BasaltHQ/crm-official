@@ -5,32 +5,39 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { systemLogger } from "@/lib/logger";
 
+const allowSelfSigned =
+    process.env.SURGE_ALLOW_SELF_SIGNED === "true" &&
+    process.env.NODE_ENV !== "production";
+
+const httpsAgent = new https.Agent({
+    rejectUnauthorized: !allowSelfSigned,
+});
+
 export async function GET(
     request: NextRequest,
     context: { params: Promise<{ receiptId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session) {
+        if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
             return new Response("Unauthorized Access", { status: 401 });
         }
 
         const { receiptId } = await context.params;
+        if (!receiptId || !/^[a-zA-Z0-9_-]{1,128}$/.test(receiptId)) {
+            return new Response("Invalid receipt identifier", { status: 400 });
+        }
+
         const searchParams = request.nextUrl.searchParams;
 
         const paths = ['/portal/', '/p/', '/pay/', '/widget/'];
         let response = null;
-        let successfulPath = '';
 
         for (const path of paths) {
-            const surgeUrl = new URL(`https://surge.basalthq.com${path}${receiptId}`);
+            const surgeUrl = new URL(`https://surge.basalthq.com${path}${encodeURIComponent(receiptId)}`);
             searchParams.forEach((value, key) => {
                 surgeUrl.searchParams.append(key, value);
             });
-
-            systemLogger.error(`[SurgeProxy] Trying path ${path}: ${surgeUrl.toString()}`);
-
-            const agent = new https.Agent({ rejectUnauthorized: false });
 
             try {
                 const res = await axios.get(surgeUrl.toString(), {
@@ -38,25 +45,22 @@ export async function GET(
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                     },
-                    httpsAgent: agent,
+                    httpsAgent,
                     responseType: 'text',
                     timeout: 5000,
                     validateStatus: (status) => status === 200,
                 });
 
                 response = res;
-                successfulPath = path;
-                systemLogger.error(`[SurgeProxy] Success with path: ${path}`);
                 break;
-            } catch (err) {
-                console.warn(`[SurgeProxy] Path ${path} failed or timed out`);
+            } catch {
                 continue;
             }
         }
 
         if (!response) {
             systemLogger.error(`[SurgeProxy] All paths failed for receipt ${receiptId}`);
-            return new Response(`[BasaltSRM] Surge Handshake Error: All portal paths returned 404 or timed out.`, { status: 404 });
+            return new Response(`[BasaltCRM] Surge Handshake Error: All portal paths returned 404 or timed out.`, { status: 404 });
         }
 
         let html = response.data;
@@ -65,12 +69,9 @@ export async function GET(
         const injection = `
             <base href="https://surge.basalthq.com/">
             <script>
-                // Intercept any relative clicks/fetches to keep them on Surge
                 window.__PROXIED__ = true;
-                systemLogger.error("[BasaltSRM] Payment Layer Initialized via Proxy");
             </script>
             <style>
-                /* Ensure Surge content takes up full height and isn't hidden by overflow */
                 html, body { height: 100% !important; background: #000 !important; color: #fff !important; }
             </style>
         `;
@@ -81,12 +82,12 @@ export async function GET(
             html = `<head>${injection}</head>${html}`;
         }
 
-        // CRAFTED RESPONSE: Strip all restrictive headers from Surge
         return new Response(html, {
             headers: {
-                "Content-Type": "text/html",
-                "X-Frame-Options": "ALLOWALL",
-                "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval'; frame-ancestors *; img-src * data: blob:; font-src * data:;",
+                "Content-Type": "text/html; charset=utf-8",
+                "X-Frame-Options": "SAMEORIGIN",
+                "Content-Security-Policy": "default-src 'self' https://surge.basalthq.com https:; script-src 'self' 'unsafe-inline' https://surge.basalthq.com; style-src 'self' 'unsafe-inline' https://surge.basalthq.com https://fonts.googleapis.com; frame-ancestors 'self'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https://surge.basalthq.com https: wss:;",
+                "X-Content-Type-Options": "nosniff",
                 "X-Proxy-Handshake": "verified",
                 "Cache-Control": "no-store, must-revalidate",
             }
@@ -94,6 +95,6 @@ export async function GET(
 
     } catch (error: any) {
         systemLogger.error("[SurgeProxy] Critical Failure:", error);
-        return new Response(`Proxy Error: ${error.message}`, { status: 500 });
+        return new Response("Proxy Error", { status: 500 });
     }
 }

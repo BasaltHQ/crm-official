@@ -26,6 +26,10 @@ export async function GET(req: Request) {
         // [WEBHOOK SETUP] Register push notifications via Graph API
         const appUrl = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
         try {
+            const clientState = process.env.MICROSOFT_WEBHOOK_CLIENT_STATE;
+            if (!clientState) {
+                throw new Error("MICROSOFT_WEBHOOK_CLIENT_STATE is not configured");
+            }
             const graphClient = await getGraphClient(state);
             if (graphClient) {
                 const subPayload = {
@@ -33,7 +37,7 @@ export async function GET(req: Request) {
                     notificationUrl: `${appUrl}/api/webhooks/microsoft`,
                     resource: "me/messages",
                     expirationDateTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days (max is ~4230 minutes)
-                     clientState: "crm-webhook-sec"
+                    clientState,
                 };
                 
                 const subscription = await graphClient.api("/subscriptions").post(subPayload);

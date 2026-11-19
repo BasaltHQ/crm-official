@@ -1,50 +1,29 @@
 "use server";
 
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export async function searchOpportunities(query: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) return [];
 
-        const currentUser = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            include: { assigned_role: true }
-        });
+        const teamId = teamInfo.teamId;
+        if (!teamId && !teamInfo.isPlatformAdmin) return [];
 
-        if (!currentUser) return [];
+        const textSearch = [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { description: { contains: query, mode: "insensitive" as const } }
+        ];
 
-        const teamId = currentUser.team_id;
-        const roleName = currentUser.assigned_role?.name?.toUpperCase() || "";
-        const isSuperAdmin = currentUser.is_admin || roleName.includes("ADMIN");
-
-        // Build simple where clause
-        const whereClause: any = {
-            OR: [
-                { name: { contains: query, mode: "insensitive" } },
-                { description: { contains: query, mode: "insensitive" } }
-            ]
-        };
-
-        // Apply permission filters (unless super admin)
-        if (!isSuperAdmin) {
-            whereClause.AND = [
-                // Must match search query lookup above
-                { OR: whereClause.OR },
-                // AND must be accessible by user
-                {
-                    OR: [
-                        { assigned_to: session.user.id },
-                        { createdBy: session.user.id }, // Also include created by me
-                        ...(teamId ? [{ team_id: teamId }] : [])
-                    ]
-                }
-            ];
-            delete whereClause.OR; // Clean up top level OR
-        }
+        // Strictly scope CRM opportunities to caller's team (unless platform admin)
+        const whereClause: any = teamInfo.isPlatformAdmin && !teamId
+            ? { OR: textSearch }
+            : {
+                team_id: teamId,
+                OR: textSearch,
+            };
 
         const crmOppsPromise = prismadb.crm_Opportunities.findMany({
             where: whereClause,
@@ -53,13 +32,12 @@ export async function searchOpportunities(query: string) {
             select: { id: true, name: true, description: true }
         });
 
-        // Search Project Opportunities (Features)
-        // Permissions logic for project opps: usually tied to project access. 
-        // For simplicity, we'll check if user has access to the project.
-        // But for search speed, we'll just search by title and filter later or assume minimal leakage for now (or replicate logic).
-        // Let's assume broad search for now to find "XoinPay".
+        // Strictly scope Project Opportunities to projects owned by caller's team
         const projOppsPromise = prismadb.project_Opportunities.findMany({
             where: {
+                ...(teamInfo.isPlatformAdmin && !teamId
+                    ? {}
+                    : { assigned_project: { team_id: teamId } }),
                 OR: [
                     { title: { contains: query, mode: "insensitive" } },
                     { description: { contains: query, mode: "insensitive" } }

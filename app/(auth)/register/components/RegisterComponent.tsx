@@ -51,6 +51,16 @@ interface RegisterComponentProps {
 }
 
 export function RegisterComponent({ availablePlans, initialPlanSlug, initialCycle }: RegisterComponentProps) {
+  const safePlans = React.useMemo(
+    () =>
+      (availablePlans || []).filter(
+        (plan) =>
+          plan?.isActive !== false &&
+          ["STARTER", "GROWTH", "SCALE"].includes(String(plan?.slug || "").toUpperCase())
+      ),
+    [availablePlans]
+  );
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,12 +133,12 @@ export function RegisterComponent({ availablePlans, initialPlanSlug, initialCycl
 
   React.useEffect(() => {
     if (initialPlanSlug) {
-      const plan = availablePlans.find(p => p.slug.toLowerCase() === initialPlanSlug.toLowerCase());
+      const plan = safePlans.find(p => String(p.slug || "").toLowerCase() === initialPlanSlug.toLowerCase());
       if (plan) {
         form.setValue("planId", plan.id);
       }
     }
-  }, [initialPlanSlug, availablePlans, form]);
+  }, [initialPlanSlug, safePlans, form]);
 
   const onSubmit = async (data: BillboardFormValues) => {
     if (data.password !== data.confirmPassword) {
@@ -327,8 +337,8 @@ export function RegisterComponent({ availablePlans, initialPlanSlug, initialCycl
                   control={form.control}
                   name="planId"
                   render={({ field }) => {
-                    const selectedPlan = availablePlans.find(p => p.id === field.value);
-                    const isFree = selectedPlan?.price === 0 || selectedPlan?.slug === "FREE";
+                    const selectedPlan = safePlans.find(p => p.id === field.value);
+                    const isFree = String(selectedPlan?.slug || "").toUpperCase() === "STARTER";
                     return (
                       <FormItem>
                         <FormLabel>Selected Tier <span className="text-red-500">*</span></FormLabel>
@@ -339,10 +349,9 @@ export function RegisterComponent({ availablePlans, initialPlanSlug, initialCycl
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="bg-zinc-950 border-zinc-800">
-                            {availablePlans
-                              .filter(plan => !["TESTING", "EXEMPT", "ENTERPRISE"].includes(plan.slug))
+                            {safePlans
                               .map((plan) => {
-                                const isFreePlan = plan.price === 0 || plan.slug === "FREE";
+                                const isFreePlan = String(plan.slug || "").toUpperCase() === "STARTER";
                                 return (
                                 <SelectItem 
                                   key={plan.id} 

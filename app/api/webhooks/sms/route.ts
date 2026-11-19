@@ -6,6 +6,7 @@ import { z } from "zod";
 import { sendSmsEum } from "@/lib/aws/eum-sms";
 import { sendEmailSES } from "@/lib/aws/ses";
 import { systemLogger } from "@/lib/logger";
+import { verifyAndConfirmSnsRequest } from "@/lib/security/sns-verify";
 
 /**
  * POST /api/webhooks/sms
@@ -35,27 +36,30 @@ function inboundAiInstruction() {
 
 export async function POST(req: Request) {
   try {
-    // AWS SNS sends webhooks with this content type sometimes
-    const isSns = req.headers.get("x-amz-sns-message-type") !== null;
+    const rawBody = await req.text();
+    const snsCheck = await verifyAndConfirmSnsRequest(rawBody);
+    if (!snsCheck.valid) {
+      systemLogger.warn("[AWS_EUM_WEBHOOK] Rejected unverified SNS request:", snsCheck.error);
+      return NextResponse.json({ error: snsCheck.error || "Unauthorized" }, { status: 401 });
+    }
+    if (snsCheck.confirmed) {
+      systemLogger.info("[AWS_EUM_WEBHOOK] Confirmed SNS subscription.");
+      return NextResponse.json({ success: true, confirmed: true });
+    }
+
+    const snsPayload = snsCheck.payload!;
+    if (snsPayload.Type !== "Notification") {
+      return NextResponse.json({ success: true });
+    }
+
     let payload: any;
-
     try {
-      payload = await req.json();
-      // If it's an SNS confirmation, we must visit the SubscribeURL to confirm the webhook
-      if (payload.Type === "SubscriptionConfirmation" && payload.SubscribeURL) {
-        await fetch(payload.SubscribeURL);
-        systemLogger.info("[AWS_EUM_WEBHOOK] Confirmed SNS subscription.", {
-          url: payload.SubscribeURL,
-        });
-        return new NextResponse("OK", { status: 200 });
-      }
-
-      // AWS SNS wraps the actual EUM payload inside the "Message" field as a string
-      if (isSns && typeof payload.Message === "string") {
-        payload = JSON.parse(payload.Message);
-      }
-    } catch (e) {
-      return new NextResponse("Invalid JSON", { status: 400 });
+      payload =
+        typeof snsPayload.Message === "string"
+          ? JSON.parse(snsPayload.Message)
+          : snsPayload.Message;
+    } catch {
+      return new NextResponse("Invalid SNS Message JSON", { status: 400 });
     }
 
     // AWS EUM Inbound Payload format

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 import { prismadb } from "@/lib/prisma";
 import { verifyEmailIdentity, getIdentityVerificationStatus } from "@/lib/aws/ses-verify";
 import { systemLogger } from "@/lib/logger";
@@ -12,10 +12,8 @@ import { systemLogger } from "@/lib/logger";
  */
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const session = await requireApiAuth();
+        if (session instanceof NextResponse) return session;
 
         const user = await prismadb.users.findUnique({
             where: { id: session.user.id },
@@ -71,10 +69,8 @@ export async function GET() {
  */
 export async function POST() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const session = await requireApiAuth();
+        if (session instanceof NextResponse) return session;
 
         const user = await prismadb.users.findUnique({
             where: { id: session.user.id },
@@ -107,32 +103,22 @@ export async function POST() {
  * PUT /api/user/verify-email
  * Platform admin skip — marks email as verified without SES check.
  */
-export async function PUT(req: Request) {
+export async function PUT() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const session = await requireApiAuth();
+        if (session instanceof NextResponse) return session;
 
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: { team_role: true, is_admin: true, assigned_role: { select: { name: true } } }
-        });
-
-        const role = (user?.team_role || '').trim().toUpperCase();
-        const pRole = (user?.assigned_role?.name || '').trim().toUpperCase();
-        const isAdmin = user?.is_admin === true || ['SUPER_ADMIN', 'OWNER', 'PLATFORM_ADMIN', 'SYSADM', 'PLATFORM ADMIN', 'ADMIN'].includes(role) || pRole === 'SUPERADMIN';
-
-        if (!isAdmin) {
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await prismadb.users.update({
-            where: { id: session.user.id },
+            where: { id: admin.id },
             data: { sesEmailVerified: true }
         });
 
-        systemLogger.info(`[SES_USER_VERIFY] Email verification skipped by admin ${session.user.id}`);
+        systemLogger.info(`[SES_USER_VERIFY] Email verification skipped by platform admin ${admin.id}`);
         return NextResponse.json({ skipped: true });
     } catch (error) {
         systemLogger.error("[VERIFY_EMAIL_PUT]", error);

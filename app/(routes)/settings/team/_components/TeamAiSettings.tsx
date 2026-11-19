@@ -1,6 +1,7 @@
 
 import { prismadb } from "@/lib/prisma";
 import { AiConfigManager } from "@/components/ai/AiConfigManager";
+import { maskFields, SECRET_FIELDS } from "@/lib/encryption";
 
 interface TeamAiSettingsProps {
     teamId: string;
@@ -8,9 +9,10 @@ interface TeamAiSettingsProps {
 
 const TeamAiSettings = async ({ teamId }: TeamAiSettingsProps) => {
 
-    const teamConfig = await prismadb.teamAiConfig.findUnique({
+    const rawTeamConfig = await prismadb.teamAiConfig.findUnique({
         where: { team_id: teamId }
     });
+    const teamConfig = maskFields(rawTeamConfig, SECRET_FIELDS.TeamAiConfig);
 
     // Fetch system configs to determine which providers are enabled
     const systemConfigs = await prismadb.systemAiConfig.findMany();

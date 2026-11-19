@@ -1,14 +1,12 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
 
 export const getLeads = async () => {
-  const session = await getServerSession(authOptions);
+  const { error, session, teamInfo } = await getSessionAndTeam();
 
-  if (!session?.user?.id) {
+  if (error || !session?.user?.id || !teamInfo?.teamId) {
     return [];
   }
 
@@ -18,22 +16,12 @@ export const getLeads = async () => {
     select: { is_admin: true, is_account_admin: true },
   });
 
-  // Admins see all leads, regular users see only their assigned leads
-  const teamInfo = await getCurrentUserTeamId();
-
-  // If no team and not global admin, return empty
-  if (!teamInfo?.teamId && !teamInfo?.isGlobalAdmin) {
-    return [];
-  }
-
-  const whereClause: any = {};
-
-  if (teamInfo?.teamId) {
-            whereClause.team_id = teamInfo.teamId;
-        }
+  const whereClause: any = {
+    team_id: teamInfo.teamId,
+  };
 
   // If not admin/account_admin, restrict to assigned_to within the team
-  if (!user?.is_admin && !user?.is_account_admin) {
+  if (!user?.is_admin && !user?.is_account_admin && !teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
     whereClause.assigned_to = session.user.id;
   }
 
@@ -67,13 +55,12 @@ export const getLeads = async () => {
 
 //Get leads by month for chart
 export const getLeadsByMonth = async (startDate?: Date, endDate?: Date, departmentId?: string) => {
-  const teamInfo = await getCurrentUserTeamId();
-  if (!teamInfo?.teamId) return [];
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error || !teamInfo?.teamId) return [];
 
-  const whereClause: any = {};
-  if (teamInfo?.teamId) {
-            whereClause.team_id = teamInfo.teamId;
-        }
+  const whereClause: any = {
+    team_id: teamInfo.teamId,
+  };
 
   // Filter by Department (if applicable based on user assignment)
   if (departmentId && departmentId !== "all") {

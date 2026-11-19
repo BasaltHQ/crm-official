@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 import { verifyEmailIdentity, getIdentityVerificationStatus, deleteEmailIdentity } from "@/lib/aws/ses-verify";
 import { logActivityInternal } from "@/actions/audit";
-import { encryptSecret, decryptSecret } from "@/lib/encryption";
+import { encryptSecret, decryptSecret, isMaskedSecret } from "@/lib/encryption";
 import { systemLogger } from "@/lib/logger";
 
 const VALID_PURPOSES = ["GENERAL", "OUTREACH", "INBOUND"] as const;
+
+function isPlaceholderSecret(val: unknown): boolean {
+    return val === "HasValue" || isMaskedSecret(val);
+}
+
+function resolveIncomingSecret(incoming: unknown, existing: string | null | undefined): string | null | undefined {
+    if (!incoming || isPlaceholderSecret(incoming)) {
+        return existing;
+    }
+    return typeof incoming === "string" ? incoming : existing;
+}
 
 function maskConfig(config: any) {
     return {
@@ -24,13 +34,20 @@ function maskConfig(config: any) {
 
 export async function GET(req: Request, props: { params: Promise<{ teamId: string }> }) {
     const params = await props.params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!teamInfo!.isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
+    }
+
+    if (!validateResourceOwnership(teamInfo!.teamId, params.teamId, teamInfo!.isPlatformAdmin)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const url = new URL(req.url);
     const purpose = url.searchParams.get("purpose")?.toUpperCase();
 
-    // If a specific purpose is requested, return single config
     if (purpose && VALID_PURPOSES.includes(purpose as any)) {
         const config = await prismadb.teamEmailConfig.findUnique({
             where: { team_id_purpose: { team_id: params.teamId, purpose } }
@@ -38,7 +55,6 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
 
         if (!config) return NextResponse.json(null);
 
-        // Proactively check SES verification status
         if ((config.provider === "AWS_SES" || config.provider === "PLATFORM_SES") && config.verification_status === "PENDING") {
             const creds = config.provider === "AWS_SES" && config.aws_access_key_id && config.aws_secret_access_key
                 ? { accessKeyId: config.aws_access_key_id, secretAccessKey: decryptSecret(config.aws_secret_access_key) || config.aws_secret_access_key, region: config.aws_region }
@@ -57,12 +73,10 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
         return NextResponse.json(maskConfig(config));
     }
 
-    // No purpose specified — return all configs for the team
     const configs = await prismadb.teamEmailConfig.findMany({
         where: { team_id: params.teamId }
     });
 
-    // Proactively check pending SES configs
     const results = [];
     for (const config of configs) {
         if ((config.provider === "AWS_SES" || config.provider === "PLATFORM_SES") && config.verification_status === "PENDING") {
@@ -80,7 +94,7 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
                     results.push(maskConfig(updated));
                     continue;
                 }
-            } catch (err) {
+            } catch {
                 // Non-fatal — just return current status
             }
         }
@@ -92,8 +106,16 @@ export async function GET(req: Request, props: { params: Promise<{ teamId: strin
 
 export async function POST(req: Request, props: { params: Promise<{ teamId: string }> }) {
     const params = await props.params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!teamInfo!.isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
+    }
+
+    if (!validateResourceOwnership(teamInfo!.teamId, params.teamId, teamInfo!.isPlatformAdmin)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await req.json();
     const {
@@ -124,38 +146,35 @@ export async function POST(req: Request, props: { params: Promise<{ teamId: stri
     if (!from_email) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
     try {
-        // Fetch existing config for this purpose to merge keys if not provided
         const existingConfig = await prismadb.teamEmailConfig.findUnique({
             where: { team_id_purpose: { team_id: params.teamId, purpose: normalizedPurpose } }
         });
 
-        const finalAwsKey = aws_access_key_id || existingConfig?.aws_access_key_id;
-        const finalAwsSecret = aws_secret_access_key || existingConfig?.aws_secret_access_key;
-        const finalResendKey = resend_api_key || existingConfig?.resend_api_key;
-        const finalSendgridKey = sendgrid_api_key || existingConfig?.sendgrid_api_key;
-        const finalMailgunKey = mailgun_api_key || existingConfig?.mailgun_api_key;
-        const finalPostmarkToken = postmark_api_token || existingConfig?.postmark_api_token;
-        const finalSmtpPassword = smtp_password || existingConfig?.smtp_password;
+        const finalAwsKey = resolveIncomingSecret(aws_access_key_id, existingConfig?.aws_access_key_id);
+        const finalAwsSecret = resolveIncomingSecret(aws_secret_access_key, existingConfig?.aws_secret_access_key);
+        const finalResendKey = resolveIncomingSecret(resend_api_key, existingConfig?.resend_api_key);
+        const finalSendgridKey = resolveIncomingSecret(sendgrid_api_key, existingConfig?.sendgrid_api_key);
+        const finalMailgunKey = resolveIncomingSecret(mailgun_api_key, existingConfig?.mailgun_api_key);
+        const finalPostmarkToken = resolveIncomingSecret(postmark_api_token, existingConfig?.postmark_api_token);
+        const finalSmtpPassword = resolveIncomingSecret(smtp_password, existingConfig?.smtp_password);
 
         let verificationStatus = "PENDING";
 
-        // Verification Logic
         if (provider === "PLATFORM_SES") {
             const triggerVerification = !existingConfig || existingConfig.from_email !== from_email || existingConfig.provider !== "PLATFORM_SES";
             if (triggerVerification) {
                 await verifyEmailIdentity(from_email);
             }
-            // Check status — this now also checks domain-level verification
             const status = await getIdentityVerificationStatus(from_email);
             if (status === "SUCCESS") verificationStatus = "VERIFIED";
         } else if (provider === "AWS_SES") {
             if (!finalAwsKey || !finalAwsSecret) return NextResponse.json({ error: "AWS Credentials required" }, { status: 400 });
+            const rawAwsSecret = decryptSecret(finalAwsSecret) || finalAwsSecret;
             const triggerVerification = !existingConfig || existingConfig.from_email !== from_email || existingConfig.provider !== "AWS_SES";
             if (triggerVerification) {
-                await verifyEmailIdentity(from_email, { accessKeyId: finalAwsKey, secretAccessKey: finalAwsSecret, region: aws_region || "us-east-1" });
+                await verifyEmailIdentity(from_email, { accessKeyId: finalAwsKey, secretAccessKey: rawAwsSecret, region: aws_region || "us-east-1" });
             }
-            // Check status — this now also checks domain-level verification
-            const status = await getIdentityVerificationStatus(from_email, { accessKeyId: finalAwsKey, secretAccessKey: finalAwsSecret, region: aws_region || "us-east-1" });
+            const status = await getIdentityVerificationStatus(from_email, { accessKeyId: finalAwsKey, secretAccessKey: rawAwsSecret, region: aws_region || "us-east-1" });
             if (status === "SUCCESS") verificationStatus = "VERIFIED";
         } else if (provider === "RESEND") {
             if (!finalResendKey) return NextResponse.json({ error: "Resend API Key required" }, { status: 400 });
@@ -176,7 +195,6 @@ export async function POST(req: Request, props: { params: Promise<{ teamId: stri
             verificationStatus = "VERIFIED";
         }
 
-        // Save Config
         let config;
 
         const updateData = {
@@ -198,8 +216,6 @@ export async function POST(req: Request, props: { params: Promise<{ teamId: stri
             smtp_password: provider === "SMTP" ? encryptSecret(finalSmtpPassword) : undefined,
             verification_status: verificationStatus,
         };
-
-        systemLogger.error(`[EmailConfig] Saving for team ${params.teamId} (purpose: ${normalizedPurpose})`, { provider, from_email, isNew: !existingConfig });
 
         if (existingConfig) {
             config = await prismadb.teamEmailConfig.update({
@@ -232,23 +248,33 @@ export async function POST(req: Request, props: { params: Promise<{ teamId: stri
             });
         }
 
+        await logActivityInternal(
+            session!.user.id,
+            "UPDATE",
+            "TeamEmailConfig",
+            `Updated email config for team ${params.teamId} (provider: ${provider}, purpose: ${normalizedPurpose})`,
+            params.teamId
+        );
+
         return NextResponse.json(maskConfig(config));
     } catch (error: any) {
-        console.error("Email Config Error Details:", {
-            error: error.message,
-            stack: error.stack,
-            teamId: params.teamId
-        });
-
-        await logActivityInternal(session.user.id, "UPDATE", "TeamEmailConfig", `Updated email config for team ${params.teamId} (provider: ${provider}, purpose: ${normalizedPurpose})`, params.teamId);
-        return NextResponse.json({ error: error.message || "Failed to set config" }, { status: 500 });
+        systemLogger.error("[EMAIL_CONFIG_POST]", error);
+        return NextResponse.json({ error: "Failed to set config" }, { status: 500 });
     }
 }
 
 export async function DELETE(req: Request, props: { params: Promise<{ teamId: string }> }) {
     const params = await props.params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!teamInfo!.isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
+    }
+
+    if (!validateResourceOwnership(teamInfo!.teamId, params.teamId, teamInfo!.isPlatformAdmin)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const url = new URL(req.url);
     const purpose = (url.searchParams.get("purpose") || "GENERAL").toUpperCase();
@@ -267,18 +293,24 @@ export async function DELETE(req: Request, props: { params: Promise<{ teamId: st
         } else if (config.provider === "AWS_SES" && config.aws_access_key_id && config.aws_secret_access_key) {
             await deleteEmailIdentity(config.from_email, {
                 accessKeyId: config.aws_access_key_id,
-                secretAccessKey: config.aws_secret_access_key,
+                secretAccessKey: decryptSecret(config.aws_secret_access_key) || config.aws_secret_access_key,
                 region: config.aws_region
             });
         }
-    } catch (error) {
-        console.error("Failed to delete identity", error);
+    } catch (err) {
+        console.error("Failed to delete identity", err);
     }
 
     await prismadb.teamEmailConfig.delete({
         where: { id: config.id }
     });
 
-    await logActivityInternal(session.user.id, "DELETE", "TeamEmailConfig", `Deleted email config for team ${params.teamId} (provider: ${config.provider}, purpose: ${purpose})`, params.teamId);
+    await logActivityInternal(
+        session!.user.id,
+        "DELETE",
+        "TeamEmailConfig",
+        `Deleted email config for team ${params.teamId} (provider: ${config.provider}, purpose: ${purpose})`,
+        params.teamId
+    );
     return new NextResponse(null, { status: 204 });
 }

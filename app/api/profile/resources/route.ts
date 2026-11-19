@@ -1,8 +1,11 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { validateResourceOwnership } from "@/lib/api-utils";
 
 /**
  * GET/POST /api/profile/resources
@@ -36,7 +39,7 @@ function sanitizeResources(input: any): any[] {
   const out: any[] = [];
   for (const item of input) {
     if (!item || typeof item !== "object") continue;
-    const id = String(item.id || "").slice(0, 64) || Math.random().toString(36).slice(2);
+    const id = String(item.id || "").slice(0, 64) || crypto.randomBytes(8).toString("hex");
     const label = String(item.label || "").slice(0, 128) || "Link";
     const href = String(item.href || "");
     if (!isSafeUrl(href)) continue;
@@ -60,18 +63,26 @@ function parseResourceLinks(raw: any): any[] {
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const brandId = searchParams.get("brandId");
 
     if (brandId) {
-      // Brand-level resources
+      const teamInfo = await getCurrentUserTeamId();
       const brand = await prismadb.teamBrandIdentity.findUnique({
         where: { id: brandId },
-        select: { resource_links: true },
+        select: { team_id: true, resource_links: true },
       });
-      const resources = parseResourceLinks(brand?.resource_links);
+      if (!brand) {
+        return new NextResponse("Brand not found", { status: 404 });
+      }
+      if (!validateResourceOwnership(teamInfo?.teamId ?? null, brand.team_id, Boolean(teamInfo?.isPlatformAdmin))) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+      const resources = parseResourceLinks(brand.resource_links);
       return NextResponse.json({ resources }, { status: 200 });
     }
 
@@ -84,7 +95,6 @@ export async function GET(req: Request) {
     const resources = parseResourceLinks(user?.resource_links);
     return NextResponse.json({ resources }, { status: 200 });
   } catch (error) {
-
     systemLogger.error("[PROFILE_RESOURCES_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
@@ -93,7 +103,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const brandId = searchParams.get("brandId");
@@ -102,6 +114,18 @@ export async function POST(req: Request) {
     const sanitized = sanitizeResources(payload?.resourceLinks);
 
     if (brandId) {
+      const teamInfo = await getCurrentUserTeamId();
+      const brand = await prismadb.teamBrandIdentity.findUnique({
+        where: { id: brandId },
+        select: { id: true, team_id: true },
+      });
+      if (!brand) {
+        return new NextResponse("Brand not found", { status: 404 });
+      }
+      if (!validateResourceOwnership(teamInfo?.teamId ?? null, brand.team_id, Boolean(teamInfo?.isPlatformAdmin))) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+
       // Brand-level save
       await prismadb.teamBrandIdentity.update({
         where: { id: brandId },

@@ -5,10 +5,15 @@ import { Team } from "@prisma/client";
 import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sanitizeUser } from "@/lib/security/authz";
 
 //Get all users for admin module (Scoped to Team)
 export const getUsers = async () => {
   const session = await getServerSession(authOptions);
+  if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
+    return [];
+  }
+
   const teamInfo = await getCurrentUserTeamId();
   const teamId = teamInfo?.teamId;
 
@@ -33,7 +38,7 @@ export const getUsers = async () => {
   // Extract all department IDs
   const departmentIds = data
     .map((user: any) => user.department_id)
-    .filter((id: any) => id); // Filter out null/undefined
+    .filter((id: any) => id);
 
   // Fetch departments if there are any
   let departments: Team[] = [];
@@ -42,7 +47,7 @@ export const getUsers = async () => {
       where: {
         id: { in: departmentIds },
         // @ts-ignore - Resolving IDE sync issue, field exists in generated client
-        team_type: 'DEPARTMENT'
+        team_type: "DEPARTMENT"
       }
     });
   }
@@ -50,9 +55,9 @@ export const getUsers = async () => {
   // Create a map for quick lookup
   const deptMap = new Map(departments.map((d: any) => [d.id, d]));
 
-  // Attach assigned_department to users
+  // Attach assigned_department to users and strip sensitive credentials
   const enrichedData = data.map((user: any) => {
-    const copy = { ...user };
+    const copy = sanitizeUser({ ...user });
     if (user.department_id && deptMap.has(user.department_id)) {
       copy.assigned_department = deptMap.get(user.department_id);
     } else {
@@ -67,19 +72,20 @@ export const getUsers = async () => {
 //Get active users for Selects in app etc (Scoped to Team)
 export const getActiveUsers = async () => {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return [];
+  if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
+    return [];
+  }
 
   const teamInfo = await getCurrentUserTeamId();
   const teamId = teamInfo?.teamId;
 
   if (!teamId) {
-    // Fallback for platform admins who might not be in a specific team but need access
-    const isAdmin = (session.user as any).isAdmin || (session.user as any).role === "PLATFORM_ADMIN";
-    if (isAdmin) {
-      return await prismadb.users.findMany({
+    if (teamInfo?.isPlatformAdmin) {
+      const allActive = await prismadb.users.findMany({
         where: { userStatus: "ACTIVE" },
         orderBy: { created_on: "desc" }
       });
+      return sanitizeUser(allActive);
     }
     return [];
   }
@@ -96,7 +102,7 @@ export const getActiveUsers = async () => {
       ]
     },
   });
-  return data;
+  return sanitizeUser(data);
 };
 
 //Get new users by month for chart

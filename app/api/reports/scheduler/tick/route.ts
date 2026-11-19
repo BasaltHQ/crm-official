@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { deliverScheduledReports } from "@/lib/reports/report-delivery";
 import { systemLogger } from "@/lib/logger";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 /**
  * POST /api/reports/scheduler/tick
@@ -10,11 +11,8 @@ import { systemLogger } from "@/lib/logger";
  */
 export async function POST(req: Request) {
     try {
-        const authHeader = req.headers.get("authorization");
-        const cronSecret = process.env.CRON_SECRET;
-        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const cronAuth = requireCronAuth(req);
+        if (cronAuth instanceof Response) return cronAuth;
 
         const result = await deliverScheduledReports();
 

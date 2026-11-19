@@ -1,8 +1,7 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
@@ -15,23 +14,65 @@ export async function saveQuoteAsDocument(data: {
     contactId?: string;
     teamId: string;
 }) {
-
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo) throw new Error("Unauthorized");
+
+        const quote = await prismadb.crm_Quotes.findUnique({
+            where: { id: data.quoteId },
+            select: { id: true, team_id: true },
+        });
+        if (!quote || !validateResourceOwnership(teamInfo.teamId, quote.team_id, teamInfo.isPlatformAdmin)) {
+            throw new Error("Forbidden — invalid quoteId");
+        }
+
+        const effectiveTeamId = quote.team_id || teamInfo.teamId;
+        if (!effectiveTeamId) {
+            throw new Error("No team context");
+        }
+
+        if (data.leadId) {
+            const lead = await prismadb.crm_Leads.findUnique({
+                where: { id: data.leadId },
+                select: { id: true, team_id: true },
+            });
+            if (!lead || !validateResourceOwnership(effectiveTeamId, lead.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid leadId");
+            }
+        }
+
+        if (data.accountId) {
+            const acc = await prismadb.crm_Accounts.findUnique({
+                where: { id: data.accountId },
+                select: { id: true, team_id: true },
+            });
+            if (!acc || !validateResourceOwnership(effectiveTeamId, acc.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid accountId");
+            }
+        }
+
+        if (data.contactId) {
+            const contact = await prismadb.crm_Contacts.findUnique({
+                where: { id: data.contactId },
+                select: { id: true, team_id: true },
+            });
+            if (!contact || !validateResourceOwnership(effectiveTeamId, contact.team_id, teamInfo.isPlatformAdmin)) {
+                throw new Error("Forbidden — invalid contactId");
+            }
+        }
 
         const doc = await (prismadb.documents as any).create({
             data: {
                 document_name: data.documentName,
                 document_file_mimeType: "application/pdf",
                 document_file_url: data.documentUrl,
-                team_id: data.teamId,
+                team_id: effectiveTeamId,
                 status: "ACTIVE",
                 assigned_user: session.user.id,
                 leadsIDs: data.leadId ? [data.leadId] : [],
                 accountsIDs: data.accountId ? [data.accountId] : [],
                 contactsIDs: data.contactId ? [data.contactId] : [],
-                visibility: "PUBLIC",
+                visibility: "PRIVATE",
                 document_system_type: "OFFER",
                 notes: `Generated from Quote ID: ${data.quoteId}`
             }

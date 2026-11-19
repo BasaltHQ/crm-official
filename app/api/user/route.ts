@@ -6,6 +6,14 @@ import { hashPassword } from "@/lib/password-utils";
 import { logActivityInternal } from "@/actions/audit";
 import sendEmail from "@/lib/sendmail";
 import { systemLogger } from "@/lib/logger";
+import {
+  isReservedTeamSlug,
+  isSelfServicePlanSlug,
+  normalizeTeamSlug,
+  sanitizeUser,
+} from "@/lib/security/authz";
+import { escapeHtml } from "@/lib/security/ssrf-guard";
+import { isThirdwebConfigured, thirdwebAuth } from "@/lib/thirdweb-auth";
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +27,11 @@ export async function POST(req: Request) {
     // Validate required fields
     if (!name || !email || !language || !password || !confirmPassword || !companyName || !planId) {
       return new NextResponse("Missing required fields", { status: 400 });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      return new NextResponse("Invalid email address", { status: 400 });
     }
 
     // Verify Captcha
@@ -62,33 +75,62 @@ export async function POST(req: Request) {
       return new NextResponse("Password too long (max 128 characters).", { status: 400 });
     }
 
-    // ... (rest of validation) ...
-    // Check if user already exists
+    // Check if user already exists (case-insensitive)
     const checkexisting = await prismadb.users.findFirst({
       where: {
-        email: email,
+        email: { equals: normalizedEmail, mode: "insensitive" },
       },
     });
 
+    let canUpgradeThirdwebUser = false;
     if (checkexisting) {
-      // If the user was pre-created by Thirdweb (has wallet, no team, no password),
-      // allow them to complete registration by upgrading the existing record.
-      const isThirdwebProvisioned = checkexisting.thirdweb_address
-        && !checkexisting.team_id
-        && !checkexisting.password;
+      // Only allow upgrading a pre-created Thirdweb record if Thirdweb is configured
+      // AND the caller proves ownership of that wallet via a valid thirdweb_auth_token cookie.
+      const isThirdwebProvisioned = Boolean(
+        checkexisting.thirdweb_address &&
+        !checkexisting.team_id &&
+        !checkexisting.password
+      );
 
-      if (!isThirdwebProvisioned) {
+      if (isThirdwebProvisioned && isThirdwebConfigured) {
+        try {
+          const { cookies } = await import("next/headers");
+          const cookieStore = await cookies();
+          const thirdwebToken = cookieStore.get("thirdweb_auth_token")?.value;
+          if (thirdwebToken) {
+            const authResult = await thirdwebAuth.verifyJWT({ jwt: thirdwebToken });
+            if (
+              authResult.valid &&
+              authResult.parsedJWT?.sub &&
+              authResult.parsedJWT.sub.toLowerCase() === checkexisting.thirdweb_address!.toLowerCase()
+            ) {
+              canUpgradeThirdwebUser = true;
+            }
+          }
+        } catch (twErr) {
+          systemLogger.error("[Register] Thirdweb JWT verification failed:", twErr);
+        }
+      }
+
+      if (!canUpgradeThirdwebUser) {
         return new NextResponse("User already exist", { status: 409 });
       }
 
-      // Thirdweb user completing registration — update in place
-      systemLogger.info(`[Register] Thirdweb-provisioned user ${email} completing registration`);
+      systemLogger.info(`[Register] Verified Thirdweb-provisioned user ${normalizedEmail} completing registration`);
     }
 
-    // Check if team slug exists (simple slugify)
-    const slug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const checkSlug = await prismadb.team.findUnique({
-      where: { slug }
+    // Normalize and validate team slug
+    const slug = normalizeTeamSlug(companyName);
+    if (!slug) {
+      return new NextResponse("Invalid company name.", { status: 400 });
+    }
+
+    if (isReservedTeamSlug(companyName) || isReservedTeamSlug(slug)) {
+      return new NextResponse("Company name is reserved. Please choose another.", { status: 409 });
+    }
+
+    const checkSlug = await prismadb.team.findFirst({
+      where: { slug: { equals: slug, mode: "insensitive" } }
     });
 
     if (checkSlug) {
@@ -108,7 +150,8 @@ export async function POST(req: Request) {
           name: "Enterprise",
           slug: "ENTERPRISE",
           price: 0,
-          features: ["all"]
+          features: ["all"],
+          isActive: true,
         };
       }
     } else {
@@ -121,22 +164,28 @@ export async function POST(req: Request) {
       return new NextResponse("Invalid Plan selected", { status: 400 });
     }
 
-    const isFree = selectedPlan.price === 0 || selectedPlan.slug === "FREE";
+    const selectedSlugUpper = String(selectedPlan.slug || "").trim().toUpperCase();
 
     // Block Enterprise since it requires a custom contract
-    if (planId === "enterprise-contact") {
+    if (planId === "enterprise-contact" || selectedSlugUpper === "ENTERPRISE") {
       try {
         await sendEmail({
           to: "sysadm@basalthq.com, sales@basalthq.com",
           subject: `Interest in ${selectedPlan.name} Plan`,
-          text: `User ${name} (${email}) from company ${companyName} tried to register for the ${selectedPlan.name} plan.`,
-          html: `<p>User <strong>${name}</strong> (${email}) from company <strong>${companyName}</strong> tried to register for the <strong>${selectedPlan.name}</strong> plan.</p><p>As payment flows are custom for enterprise, their account was not created.</p>`
+          text: `User ${name} (${normalizedEmail}) from company ${companyName} tried to register for the ${selectedPlan.name} plan.`,
+          html: `<p>User <strong>${escapeHtml(name)}</strong> (${escapeHtml(normalizedEmail)}) from company <strong>${escapeHtml(companyName)}</strong> tried to register for the <strong>${escapeHtml(selectedPlan.name)}</strong> plan.</p><p>As payment flows are custom for enterprise, their account was not created.</p>`
         });
       } catch (err) {
         systemLogger.error("[Register] Failed to send plan interest email", err);
       }
       return new NextResponse("Thank you for your interest in Enterprise. Our team has been notified and will contact you shortly to configure your instance.", { status: 400 });
     }
+
+    if (!isSelfServicePlanSlug(selectedPlan.slug) || selectedPlan.isActive === false) {
+      return new NextResponse("Selected plan is not available for self-service registration.", { status: 400 });
+    }
+
+    const isFree = selectedSlugUpper === "STARTER";
 
     let initialStatus: string = isFree ? "ACTIVE" : "PENDING";
 
@@ -151,42 +200,102 @@ export async function POST(req: Request) {
 
     const hashedPassword = await hashPassword(password);
 
-    let avatarUrl = avatar;
-    if (avatar && avatar.startsWith("data:image")) {
+    let avatarUrl: string | null = null;
+    if (typeof avatar === "string" && avatar.trim().length > 0) {
+      const dataUriMatch = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/i.exec(
+        avatar.trim()
+      );
+      if (!dataUriMatch) {
+        return new NextResponse(
+          "Invalid avatar format. Only base64 PNG, JPEG, WEBP, or GIF images are allowed.",
+          { status: 400 }
+        );
+      }
+
+      const rawMime = dataUriMatch[1].toLowerCase();
+      const mimeType = rawMime === "image/jpg" ? "image/jpeg" : rawMime;
+      const base64Data = dataUriMatch[2].replace(/\s+/g, "");
+      const buffer = Buffer.from(base64Data, "base64");
+
+      if (buffer.length === 0 || buffer.length > 2 * 1024 * 1024) {
+        return new NextResponse("Avatar image must not exceed 2 MB.", { status: 400 });
+      }
+
+      const isPng =
+        buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47 &&
+        buffer[4] === 0x0d &&
+        buffer[5] === 0x0a &&
+        buffer[6] === 0x1a &&
+        buffer[7] === 0x0a;
+      const isJpeg =
+        buffer.length >= 3 &&
+        buffer[0] === 0xff &&
+        buffer[1] === 0xd8 &&
+        buffer[2] === 0xff;
+      const isGif =
+        buffer.length >= 6 &&
+        buffer.subarray(0, 4).toString("ascii") === "GIF8" &&
+        (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+        buffer[5] === 0x61;
+      const isWebp =
+        buffer.length >= 12 &&
+        buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+        buffer.subarray(8, 12).toString("ascii") === "WEBP";
+
+      const validMagic =
+        (mimeType === "image/png" && isPng) ||
+        (mimeType === "image/jpeg" && isJpeg) ||
+        (mimeType === "image/gif" && isGif) ||
+        (mimeType === "image/webp" && isWebp);
+
+      if (!validMagic) {
+        return new NextResponse("Avatar file content does not match declared image type.", {
+          status: 400,
+        });
+      }
+
+      const extMap: Record<string, string> = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/gif": "gif",
+        "image/webp": "webp",
+      };
+      const extension = extMap[mimeType] || "png";
+
       try {
         const { getBlobServiceClient } = await import("@/lib/s3-storage");
         const container = process.env.BLOB_STORAGE_CONTAINER;
         if (container) {
           const serviceClient = getBlobServiceClient();
           const containerClient = serviceClient.getContainerClient(container);
-
-          const base64Data = avatar.split(",")[1];
-          const buffer = Buffer.from(base64Data, "base64");
-          const mimeType = avatar.split(";")[0].split(":")[1];
-          const extension = mimeType.split("/")[1] || "png";
-          const key = `avatars / public / ${Date.now()}_${Math.random().toString(36).substring(7)}.${extension} `;
+          const key = `avatars/public/${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
 
           const blobClient = containerClient.getBlockBlobClient(key);
           await blobClient.uploadData(buffer, {
             blobHTTPHeaders: { blobContentType: mimeType },
           });
           avatarUrl = blobClient.url;
-          systemLogger.error("[Register] Avatar uploaded successfully:", avatarUrl);
+          systemLogger.info("[Register] Avatar uploaded successfully:", avatarUrl);
         }
       } catch (uploadError) {
         systemLogger.error("[Register] Avatar upload failed:", uploadError);
-        // Fallback to null or keep original if it was a URL
+        avatarUrl = null;
       }
     }
 
     let user;
-    if (checkexisting?.thirdweb_address && !checkexisting.team_id && !checkexisting.password) {
-      // Upgrade Thirdweb-provisioned user
+    if (checkexisting && canUpgradeThirdwebUser) {
+      // Upgrade verified Thirdweb-provisioned user
       user = await prismadb.users.update({
         where: { id: checkexisting.id },
         data: {
           name,
           username,
+          email: normalizedEmail,
           avatar: avatarUrl || checkexisting.avatar,
           userLanguage: "en",
           password: hashedPassword,
@@ -202,7 +311,7 @@ export async function POST(req: Request) {
         data: {
           name,
           username,
-          email,
+          email: normalizedEmail,
           avatar: avatarUrl,
           userLanguage: "en",
           password: hashedPassword,
@@ -222,6 +331,7 @@ export async function POST(req: Request) {
         slug: slug,
         owner_id: user.id,
         plan_id: selectedPlan.id,
+        subscription_plan: selectedSlugUpper as any,
         status: initialStatus === "PENDING" ? "PENDING" : "ACTIVE",
         members: {
           connect: { id: user.id }
@@ -243,7 +353,7 @@ export async function POST(req: Request) {
     const sub = await prismadb.crm_Subscriptions.create({
       data: {
         tenant_id: team.id,
-        customer_email: user.email,
+        customer_email: normalizedEmail,
         customer_wallet: wallet,
         plan_name: selectedPlan.name,
         amount: finalPrice,
@@ -261,7 +371,7 @@ export async function POST(req: Request) {
     // Freemail users (gmail, yahoo, etc.) are allowed to use the CRM but are NOT
     // eligible for outbound email services — they get a warning modal instead.
     const { isFreemailDomain } = await import("@/lib/freemail");
-    const isFreemail = isFreemailDomain(email);
+    const isFreemail = isFreemailDomain(normalizedEmail);
 
     if (isFreemail) {
       // Freemail: mark email as "verified" so they bypass the SES gate,
@@ -270,7 +380,7 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data: { sesEmailVerified: true, isFreemailAccount: true }
       });
-      systemLogger.info(`[Register] Freemail account (${email}) — SES skipped, warning flag set (Team: ${team.id})`);
+      systemLogger.info(`[Register] Freemail account (${normalizedEmail}) — SES skipped, warning flag set (Team: ${team.id})`);
     } else {
       // Workspace email: trigger full SES verification flow
       try {
@@ -282,7 +392,7 @@ export async function POST(req: Request) {
             team_id: team.id,
             purpose: "GENERAL",
             provider: "PLATFORM_SES",
-            from_email: email,
+            from_email: normalizedEmail,
             from_name: companyName,
             verification_status: "PENDING",
           }
@@ -290,11 +400,11 @@ export async function POST(req: Request) {
 
         if (isFree) {
           // Trigger the SES verification email immediately for free plans
-          await verifyEmailIdentity(email);
-          systemLogger.info(`[Register] SES verification triggered for ${email} (Team: ${team.id})`);
+          await verifyEmailIdentity(normalizedEmail);
+          systemLogger.info(`[Register] SES verification triggered for ${normalizedEmail} (Team: ${team.id})`);
         } else {
           // Defer verification until Stripe payment succeeds
-          systemLogger.info(`[Register] SES verification deferred pending payment for ${email} (Team: ${team.id})`);
+          systemLogger.info(`[Register] SES verification deferred pending payment for ${normalizedEmail} (Team: ${team.id})`);
         }
       } catch (sesError) {
         // Non-blocking — registration still succeeds if SES trigger fails
@@ -312,8 +422,8 @@ export async function POST(req: Request) {
 
         const checkout = await createStripeCheckoutSession(
           team.id,
-          user.email!,
-          selectedPlan.slug,
+          normalizedEmail,
+          selectedSlugUpper,
           billingCycle as "monthly" | "annual",
           team.name
         );
@@ -327,9 +437,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Send Emails
-    const sendFrom = process.env.EMAIL_FROM || "sales@basalthq.com";
-
     // Notify sysadm and sales that a new team was spawned
     try {
       await sendEmail({
@@ -338,20 +445,18 @@ export async function POST(req: Request) {
         text: `A new team has been spawned.\n\nTeam Name: ${team.name}\nTeam ID: ${team.id}\nPlan: ${selectedPlan.name}\nOwner: ${user.name} (${user.email})`,
         html: `<p>A new team has been spawned.</p>
                <ul>
-                 <li><strong>Team Name:</strong> ${team.name}</li>
-                 <li><strong>Team ID:</strong> ${team.id}</li>
-                 <li><strong>Plan:</strong> ${selectedPlan.name}</li>
-                 <li><strong>Owner:</strong> ${user.name} (${user.email})</li>
+                 <li><strong>Team Name:</strong> ${escapeHtml(team.name)}</li>
+                 <li><strong>Team ID:</strong> ${escapeHtml(team.id)}</li>
+                 <li><strong>Plan:</strong> ${escapeHtml(selectedPlan.name)}</li>
+                 <li><strong>Owner:</strong> ${escapeHtml(user.name)} (${escapeHtml(user.email)})</li>
                </ul>`
       });
     } catch (emailErr) {
       systemLogger.error("[Register] Failed to send new team notification email", emailErr);
     }
 
-    // ... (Email logic remains same)
-
     return NextResponse.json({
-      ...user,
+      ...sanitizeUser(user),
       teamId: team.id,
       requiresPayment: !isFree,
       isFreemailAccount: isFreemail,

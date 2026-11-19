@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export async function PATCH(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const body = await req.json();
         const { submissionId, status } = body;
@@ -17,11 +16,17 @@ export async function PATCH(req: NextRequest) {
         }
 
         const submission = await prismadb.formSubmission.findUnique({
-            where: { id: submissionId }
+            where: { id: submissionId },
+            include: { form: { select: { team_id: true } } },
         });
 
         if (!submission) {
             return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+        }
+
+        const resourceTeamId = submission.team_id || submission.form?.team_id || null;
+        if (!validateResourceOwnership(teamInfo!.teamId, resourceTeamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const updated = await prismadb.formSubmission.update({

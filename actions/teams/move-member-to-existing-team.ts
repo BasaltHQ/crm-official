@@ -1,9 +1,9 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
+import { normalizeRoleName, requirePlatformAdmin } from "@/lib/security/authz";
 
 /**
  * Moves a member to an existing team with a specified role.
@@ -15,12 +15,12 @@ export async function moveMemberToExistingTeam(
     newRole: string
 ) {
     try {
-        const currentUser = await getCurrentUserTeamId();
-
-        // 🛑 Security Check
-        if (false) {
-            return { error: "Unauthorized: Only Platform Admins can move members between teams." };
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { error: "Unauthorized: Platform Admin required." };
         }
+
+        const normalizedRole = normalizeRoleName(newRole);
 
         // 1. Verify target user exists
         const targetUser = await (prismadb.users as any).findUnique({
@@ -43,7 +43,7 @@ export async function moveMemberToExistingTeam(
             where: { id: userId },
             data: {
                 team_id: targetTeamId,
-                team_role: newRole
+                team_role: normalizedRole
             }
         });
 
@@ -52,7 +52,7 @@ export async function moveMemberToExistingTeam(
 
         return {
             success: true,
-            message: `Successfully moved ${targetUser.name || targetUser.email} to team "${targetTeam.name}" as ${newRole}.`
+            message: `Successfully moved ${targetUser.name || targetUser.email} to team "${targetTeam.name}" as ${normalizedRole}.`
         };
     } catch (error) {
         systemLogger.error("[MOVE_MEMBER_TO_EXISTING_TEAM]", error);

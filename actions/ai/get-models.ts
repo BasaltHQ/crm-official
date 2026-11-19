@@ -1,9 +1,15 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function getActiveAiModels() {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id || session.error === "SessionInvalidated") {
+            return [];
+        }
         const systemConfigs = await prismadb.systemAiConfig.findMany({
             where: { isActive: true },
             select: { id: true, modelId: true, provider: true }

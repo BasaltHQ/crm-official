@@ -1,5 +1,6 @@
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
+import { decryptSecret } from "@/lib/encryption";
 
 /**
  * Twilio Voice Helper
@@ -23,11 +24,12 @@ export async function getTwilioConfig(teamId: string): Promise<TwilioConfig | nu
     });
 
     if (!integration?.twilio_enabled) return null;
-    if (!integration.twilio_account_sid || !integration.twilio_auth_token) return null;
+    const decryptedToken = decryptSecret(integration.twilio_auth_token);
+    if (!integration.twilio_account_sid || !decryptedToken) return null;
 
     return {
       accountSid: integration.twilio_account_sid,
-      authToken: integration.twilio_auth_token,
+      authToken: decryptedToken,
       phoneNumber: integration.twilio_phone_number || "",
     };
   } catch (e: any) {

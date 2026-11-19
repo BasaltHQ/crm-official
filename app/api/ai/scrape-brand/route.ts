@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { getAiClient } from "@/lib/ai-helper";
 import { generateText } from "ai";
 import { systemLogger } from "@/lib/logger";
 import { logAiUsage } from "@/lib/varuni";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { safeFetch } from "@/lib/security/ssrf-guard";
 
 export const maxDuration = 300;
 
@@ -115,9 +115,9 @@ function extractVisualBrandSignals(html: string, baseUrl: string) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return new NextResponse("Unauthorized", { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user || !teamInfo) {
+            return error || new NextResponse("Unauthorized", { status: 401 });
         }
 
         const { url, teamId, preview } = await req.json();
@@ -126,11 +126,19 @@ export async function POST(req: Request) {
             return new NextResponse("URL and Team ID are required", { status: 400 });
         }
 
-        // Fetch website content
+        if (!validateResourceOwnership(teamInfo.teamId, teamId, teamInfo.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
+
+        if (!preview && !teamInfo.isAdmin) {
+            return new NextResponse("Forbidden: Admin access required", { status: 403 });
+        }
+
+        // Fetch website content via SSRF-safe fetcher
         const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
         let htmlText = "";
         try {
-            const res = await fetch(normalizedUrl, {
+            const res = await safeFetch(normalizedUrl, {
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Accept": "text/html,application/xhtml+xml",

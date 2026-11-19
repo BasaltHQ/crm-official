@@ -1,54 +1,56 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export async function PATCH(req: Request, context: { params: Promise<{ poolId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     const { poolId } = await context.params;
     if (!poolId) return new NextResponse("Missing poolId", { status: 400 });
 
-    const teamInfo = await getCurrentUserTeamId();
     const teamId = teamInfo?.teamId;
-    const isTeamAdmin = teamInfo?.isAdmin;
 
     const body = await req.json().catch(() => ({}));
     const projectId = String(body?.projectId || "").trim();
     if (!projectId) return new NextResponse("Missing projectId", { status: 400 });
 
-    // Validate project exists and accessible
+    // Validate project exists, belongs to tenant, and is accessible
     const project = await prismadb.boards.findUnique({
       where: { id: projectId },
       select: { id: true, user: true, sharedWith: true, team_id: true, visibility: true },
     });
     if (!project) return new NextResponse("Project not found", { status: 404 });
 
-    // Access: Owner OR Shared OR (Team Project AND Public)
-    const isOwner = project.user === session.user.id;
-    const isShared = (project.sharedWith || []).includes(session.user.id);
+    if (!validateResourceOwnership(teamId || null, project.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden Project Access", { status: 403 });
+    }
+
+    const isOwner = project.user === session!.user.id;
+    const isShared = (project.sharedWith || []).includes(session!.user.id);
     const isTeamPublic = !!(teamId && project.team_id === teamId && project.visibility === "public");
 
-    const canAccess = isOwner || isShared || isTeamPublic;
+    const canAccess = teamInfo!.isPlatformAdmin || isOwner || isShared || isTeamPublic;
     if (!canAccess) return new NextResponse("Forbidden Project Access", { status: 403 });
 
-    // Validate pool ownership or Admin
+    // Validate pool ownership and tenant scope (NEVER allow hijacking null-team pools of other users)
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
       select: { id: true, user: true, team_id: true, icpConfig: true },
     });
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
 
-    const isPoolOwner = pool.user === session.user.id;
-    // Allow any team member to assign project if pool belongs to team OR is orphaned (null)
-    const isPoolTeamMember = Boolean(teamId && (pool.team_id === teamId || pool.team_id === null));
+    if (!validateResourceOwnership(teamId || null, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
-    if (!isPoolOwner && !isPoolTeamMember) return new NextResponse("Forbidden", { status: 403 });
+    const isPoolOwner = pool.user === session!.user.id;
+    if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && !isPoolOwner) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
     const nextConfig = { ...(pool.icpConfig || {}), assignedProjectId: projectId };
     await (prismadbCrm as any).crm_Lead_Pools.update({

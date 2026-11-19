@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import DOMPurify from "isomorphic-dompurify";
 
 // --- Types ---
 
@@ -559,7 +560,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess = true, b
 
     try {
       const div = document.createElement("div");
-      div.innerHTML = html;
+      div.innerHTML = DOMPurify.sanitize(html);
 
       // Extract email from mailto: links
       const mailtoLinks = div.querySelectorAll('a[href^="mailto:"]');
@@ -2080,7 +2081,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess = true, b
                       className="min-h-[160px] rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/10 p-4 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-colors cursor-text overflow-auto text-sm"
                       role="textbox"
                       aria-label="Paste signature here"
-                      dangerouslySetInnerHTML={{ __html: pasteBuffer || '<span class="text-muted-foreground text-xs pointer-events-none select-none">Click here, then Ctrl+V / ⌘+V to paste your email signature...</span>' }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pasteBuffer || '<span class="text-muted-foreground text-xs pointer-events-none select-none">Click here, then Ctrl+V / ⌘+V to paste your email signature...</span>') }}
                     />
                   </div>
 
@@ -2110,7 +2111,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess = true, b
                       <Label className="text-sm">Imported Signature Preview</Label>
                       <div className="rounded-lg border bg-white p-6 min-h-[120px] overflow-hidden">
                         <div
-                          dangerouslySetInnerHTML={{ __html: importedRawHtml || pasteBuffer }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(importedRawHtml || pasteBuffer) }}
                           className="w-full"
                         />
                         <div className="absolute inset-0 z-10 pointer-events-none" />
@@ -2164,7 +2165,7 @@ const SignatureBuilder: React.FC<SignatureBuilderProps> = ({ hasAccess = true, b
               {/* Simulating email client dark mode reading pane */}
               <div
                 key={`${data.contactIconSize}-${data.template}-${data.accentColor}-${data.imageShape}-${data.contactFieldsOrder.join(',')}-${data.showSeparator}`}
-                dangerouslySetInnerHTML={{ __html: generateHTML() }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generateHTML()) }}
                 className="w-full signature-preview-wrapper"
               />
 

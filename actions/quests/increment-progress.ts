@@ -1,5 +1,4 @@
-"use server";
-
+// Server-side Quest progress tracking engine (NOT a client-callable Server Action)
 import { dbAdapter } from "@/lib/database/db-adapter";
 
 /**
@@ -17,6 +16,9 @@ export async function incrementQuestProgress(params: {
 }): Promise<void> {
     try {
         const { ObjectId } = require("mongodb");
+        if (!params?.userId || !ObjectId.isValid(params.userId) || !params?.teamId || !ObjectId.isValid(params.teamId)) {
+            return;
+        }
         const questCollection = await dbAdapter.getNativeCollection("Quest");
         const progressCollection = await dbAdapter.getNativeCollection("QuestProgress");
 
@@ -26,7 +28,7 @@ export async function incrementQuestProgress(params: {
         const activeQuests = await questCollection
             .find({
                 team_id: new ObjectId(params.teamId),
-                quest_type: params.questType,
+                quest_type: String(params.questType || ""),
                 status: "ACTIVE",
                 $and: [
                     { $or: [{ starts_at: null }, { starts_at: { $lte: now } }] },
@@ -37,7 +39,7 @@ export async function incrementQuestProgress(params: {
 
         if (activeQuests.length === 0) return;
 
-        const increment = params.incrementBy || 1;
+        const increment = Math.max(1, Math.min(Math.floor(Number(params.incrementBy) || 1), 1000));
 
         for (const quest of activeQuests) {
             // Check if user is enrolled

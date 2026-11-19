@@ -1,16 +1,17 @@
 
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { getSurgePaymentStatus } from "@/lib/surge";
 
 export async function verifySurgePayment(invoiceId: string) {
     try {
-        const session = await getServerSession(authOptions);
-        // Auth check
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) {
+            return { error: "Unauthorized" };
+        }
 
         const invoice = await prismadb.invoices.findUnique({
             where: { id: invoiceId },
@@ -18,6 +19,10 @@ export async function verifySurgePayment(invoiceId: string) {
 
         if (!invoice || !invoice.surge_payment_id) {
             return { error: "Invoice not found or no payment ID" };
+        }
+
+        if (!validateResourceOwnership(teamInfo.teamId, invoice.team_id, teamInfo.isPlatformAdmin)) {
+            return { error: "Forbidden" };
         }
 
         const tenantId = invoice.team_id;

@@ -7,6 +7,34 @@ import { sendTeamEmail } from "@/lib/email/team-mailer";
 import { systemLogger } from "@/lib/logger";
 import { generateSubmissionPdf } from "@/lib/pdf-utils";
 import { decryptSecret } from "@/lib/encryption";
+import { escapeHtml, safeFetch } from "@/lib/security/ssrf-guard";
+import { checkTeamQuota } from "@/lib/quota-service";
+
+const FORM_UPLOAD_EXT_TO_MIME: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    doc: "application/msword",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xls: "application/vnd.ms-excel",
+    csv: "text/csv",
+    txt: "text/plain",
+};
+
+const FORM_ALLOWED_MIMES = [
+    ...Object.values(FORM_UPLOAD_EXT_TO_MIME),
+    "application/octet-stream",
+];
+
+const FORM_BLOCKED_EXTENSIONS = new Set([
+    "svg", "html", "htm", "xhtml", "xml", "mhtml",
+    "exe", "sh", "bat", "cmd", "ps1",
+    "js", "mjs", "cjs", "php", "py", "ts", "jsx", "tsx",
+]);
 
 
 const corsHeaders = {
@@ -162,13 +190,14 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // --- 2. File Processing (Upload to Azure + Create Documents) ---
+        // --- 2. File Processing (Upload to S3 + Create Documents) ---
         const createdDocumentIds: string[] = [];
 
         if (uploadedFiles.length > 0) {
             // Strict Validation Limits
             const MAX_FILES = 5;
             const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+            const allowedExts = Object.keys(FORM_UPLOAD_EXT_TO_MIME);
 
             if (uploadedFiles.length > MAX_FILES) {
                 return NextResponse.json({ error: `Too many files. Maximum allowed is ${MAX_FILES}.` }, { status: 400, headers: corsHeaders });
@@ -177,6 +206,17 @@ export async function POST(req: NextRequest) {
             for (const file of uploadedFiles) {
                 if (file.size > MAX_FILE_SIZE) {
                     return NextResponse.json({ error: `File "${file.name}" exceeds the 10MB size limit.` }, { status: 400, headers: corsHeaders });
+                }
+                const ext = file.name?.split(".").pop()?.toLowerCase() || "";
+                if (FORM_BLOCKED_EXTENSIONS.has(ext) || !allowedExts.includes(ext) || (file.type && !FORM_ALLOWED_MIMES.includes(file.type))) {
+                    return NextResponse.json({ error: `File type for "${file.name}" is not permitted.` }, { status: 400, headers: corsHeaders });
+                }
+            }
+
+            if (form.team_id) {
+                const quota = await checkTeamQuota(form.team_id, "STORAGE");
+                if (!quota.allowed) {
+                    return NextResponse.json({ error: quota.message || "Storage quota exceeded." }, { status: 403, headers: corsHeaders });
                 }
             }
 
@@ -191,30 +231,28 @@ export async function POST(req: NextRequest) {
                 await containerClient.createIfNotExists();
 
                 for (const file of uploadedFiles) {
+                    const ext = file.name?.split(".").pop()?.toLowerCase() || "";
+                    const canonicalMime = FORM_UPLOAD_EXT_TO_MIME[ext] || "application/octet-stream";
                     const bytes = await file.arrayBuffer();
                     const buffer = Buffer.from(bytes);
                     const fileNameSafe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-                    // Use a generic "public_uploads" folder or similar since we don't have a logged-in user ID
-                    // We can use form.team_id for organization
                     const key = `uploads/${form.team_id}/${Date.now()}_${fileNameSafe}`;
 
                     const blobClient = containerClient.getBlockBlobClient(key);
                     await blobClient.uploadData(buffer, {
-                        blobHTTPHeaders: { blobContentType: file.type || "application/octet-stream" },
+                        blobHTTPHeaders: { blobContentType: canonicalMime },
                     });
 
                     // Create Document Record
                     const doc = await (prismadb as any).documents.create({
                         data: {
                             document_name: file.name,
-                            document_file_mimeType: file.type || "application/octet-stream",
+                            document_file_mimeType: canonicalMime,
                             document_file_url: blobClient.url,
                             team_id: form.team_id,
                             status: "ACTIVE",
                             key,
                             size: buffer.length,
-                            // No assigned_user for public uploads, or assign to form creator? 
-                            // Better to leave null or assign to form creator:
                             assigned_user: form.created_by,
                         }
                     });
@@ -222,8 +260,6 @@ export async function POST(req: NextRequest) {
                 }
             } catch (uploadError) {
                 console.error("Form file upload failed:", uploadError);
-                // We accept the submission but log the error? Or fail? 
-                // Let's log but proceed with text data to avoid total data loss
             }
         }
 
@@ -391,14 +427,15 @@ export async function POST(req: NextRequest) {
 
             // Trigger Verification Email immediately for compliance
             if (extracted_email && verificationToken) {
-                const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://crm-sand.basalthq.com'}/api/crm/verify-optin?token=${verificationToken}`;
+                const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://crm-sand.basalthq.com'}/api/crm/verify-optin?token=${encodeURIComponent(verificationToken)}`;
+                const safeFirstName = escapeHtml(finalFirstName || 'there');
                 const emailHtml = `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                     <h2 style="color: #333;">Please Confirm Your Subscription</h2>
-                    <p>Hi ${finalFirstName || 'there'},</p>
+                    <p>Hi ${safeFirstName},</p>
                     <p>Thank you for your interest! We received a request to subscribe this email address. To ensure we have the right person and comply with best practices, please confirm your subscription by clicking the button below.</p>
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="${verifyUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Yes, subscribe me to this list</a>
+                        <a href="${escapeHtml(verifyUrl)}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Yes, subscribe me to this list</a>
                     </div>
                     <p style="color: #666; font-size: 12px;">If you didn't make this request, you can safely ignore this email.</p>
                     </div>
@@ -475,6 +512,15 @@ export async function POST(req: NextRequest) {
 
                 // Send individually for better reliability and to avoid bulk-mail filters
                 const timestamp = format(new Date(), "HH:mm:ss");
+                const safeFormName = escapeHtml(form.name);
+                const safeExtractedName = extracted_name ? escapeHtml(extracted_name) : "";
+                const safeExtractedEmail = extracted_email ? escapeHtml(extracted_email) : "";
+                const safeExtractedCompany = extracted_company ? escapeHtml(extracted_company) : "";
+                const submittedFieldsHtml = Object.entries(submittedData)
+                    .map(([k, v]) => `<tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 140px; vertical-align: top;">${escapeHtml(k)}</td><td style="padding: 6px 0; color: #111827; font-size: 13px; word-break: break-word;">${escapeHtml(v)}</td></tr>`)
+                    .join("");
+                const safeLeadLink = escapeHtml(`${process.env.NEXT_PUBLIC_APP_URL || ""}/crm/leads/${encodeURIComponent(String(createdLeadId || ""))}`);
+
                 for (const recipient of recipients) {
                     try {
                         await sendTeamEmail(form.team_id, {
@@ -488,23 +534,24 @@ export async function POST(req: NextRequest) {
                                 <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                                     <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 32px; text-align: center;">
                                         <h2 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: 0.05em; text-transform: uppercase;">New Submission</h2>
-                                        <p style="color: #9ca3af; margin: 8px 0 0 0; font-size: 14px;">${form.name}</p>
+                                        <p style="color: #9ca3af; margin: 8px 0 0 0; font-size: 14px;">${safeFormName}</p>
                                     </div>
                                     
                                     <div style="padding: 32px;">
                                         <div style="margin-bottom: 32px;">
                                             <h3 style="color: #111827; font-size: 18px; margin: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Applicant Details</h3>
                                             <table style="width: 100%; border-collapse: collapse;">
-                                                ${extracted_name ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Name</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_name}</td></tr>` : ""}
-                                                ${extracted_email ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Email</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_email}</td></tr>` : ""}
-                                                ${extracted_company ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Company</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${extracted_company}</td></tr>` : ""}
-                                                <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Time</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${format(new Date(), "PPP pp")}</td></tr>
+                                                ${safeExtractedName ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Name</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${safeExtractedName}</td></tr>` : ""}
+                                                ${safeExtractedEmail ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Email</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${safeExtractedEmail}</td></tr>` : ""}
+                                                ${safeExtractedCompany ? `<tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Company</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${safeExtractedCompany}</td></tr>` : ""}
+                                                <tr><td style="padding: 8px 0; color: #6b7280; font-size: 14px; width: 100px;">Time</td><td style="padding: 8px 0; color: #111827; font-size: 14px; font-weight: 600;">${escapeHtml(format(new Date(), "PPP pp"))}</td></tr>
+                                                ${submittedFieldsHtml}
                                             </table>
                                         </div>
 
                                         <div style="background-color: #f3f4f6; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 32px;">
                                             <p style="color: #4b5563; font-size: 14px; margin: 0 0 16px 0;">A full PDF report has been generated and attached to this email.</p>
-                                            <a href="${process.env.NEXT_PUBLIC_APP_URL}/crm/leads/${createdLeadId}" 
+                                            <a href="${safeLeadLink}" 
                                                style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
                                                View in Control Center
                                             </a>
@@ -529,13 +576,15 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        if (extracted_email && (form.auto_respond || true)) { // User requested generic auto-reply, force enabled for now or verify form config
+        if (extracted_email && Boolean(form.auto_respond)) {
             try {
+                const autoBodyText = form.auto_respond_body || "Thank you for contacting us. We have received your message and will get back to you shortly.";
                 await sendTeamEmail(form.team_id, {
                     to: extracted_email,
                     from: undefined, // Use team config
                     subject: form.auto_respond_subject || `Received: ${form.name}`,
-                    text: form.auto_respond_body || "Thank you for contacting us. We have received your message and will get back to you shortly.",
+                    text: autoBodyText,
+                    html: `<div style="font-family: sans-serif; line-height: 1.6; color: #111827;"><p>${escapeHtml(autoBodyText).replace(/\n/g, "<br>")}</p><p style="color: #6b7280; font-size: 12px;">Form: ${escapeHtml(form.name)}</p></div>`,
                 }, "INBOUND");
             } catch (replyErr) {
                 console.error("Failed to send auto-reply:", replyErr);
@@ -565,7 +614,7 @@ export async function POST(req: NextRequest) {
                 }
             };
 
-            fetch(form.webhook_url, {
+            safeFetch(form.webhook_url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(webhookPayload)

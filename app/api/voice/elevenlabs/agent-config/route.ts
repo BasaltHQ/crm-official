@@ -3,15 +3,18 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { requirePlatformAdminApi } from "@/lib/api-auth-guard";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { decryptSecret } from "@/lib/encryption";
+import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
 const ELEVENLABS_API_KEY = () => process.env.ELEVENLABS_API_KEY || "";
 const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1/convai/agents";
 
-function headers() {
+function buildHeaders(apiKey: string) {
   return {
-    "xi-api-key": ELEVENLABS_API_KEY(),
+    "xi-api-key": apiKey,
     "Content-Type": "application/json",
   };
 }
@@ -19,25 +22,56 @@ function headers() {
 /**
  * GET /api/voice/elevenlabs/agent-config?agentId=xxx
  * Fetch the current agent configuration from ElevenLabs.
+ * Platform admins can inspect global or specified agentId; tenant users may ONLY read
+ * their own tenant's configured elevenlabs_agent_id using their own decrypted elevenlabs_api_key.
  */
 export async function GET(req: Request) {
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { searchParams } = new URL(req.url);
-  const agentId = searchParams.get("agentId") || process.env.NEXT_PUBLIC_ELEVENLABS_AGENT;
+  const requestedAgentId = searchParams.get("agentId")?.trim() || null;
 
-  if (!agentId) {
-    return NextResponse.json({ error: "No agent ID" }, { status: 400 });
+  let agentId: string | null = null;
+  let apiKey: string | null = null;
+
+  if (teamInfo!.isPlatformAdmin) {
+    agentId = requestedAgentId || process.env.NEXT_PUBLIC_ELEVENLABS_AGENT || null;
+    apiKey = ELEVENLABS_API_KEY() || null;
+  } else {
+    if (!teamInfo?.teamId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const integration = await prismadb.tenant_Integrations.findUnique({
+      where: { tenant_id: teamInfo.teamId },
+      select: { elevenlabs_agent_id: true, elevenlabs_api_key: true },
+    });
+    const tenantAgentId = integration?.elevenlabs_agent_id?.trim() || null;
+    const tenantApiKey = decryptSecret(integration?.elevenlabs_api_key);
+    if (!tenantAgentId || !tenantApiKey) {
+      return NextResponse.json(
+        { error: "Forbidden — tenant ElevenLabs agent and API key must be configured" },
+        { status: 403 }
+      );
+    }
+    if (requestedAgentId && requestedAgentId !== tenantAgentId) {
+      return NextResponse.json({ error: "Forbidden — agentId mismatch" }, { status: 403 });
+    }
+    agentId = tenantAgentId;
+    apiKey = tenantApiKey;
   }
-  if (!ELEVENLABS_API_KEY()) {
-    return NextResponse.json({ error: "Missing ELEVENLABS_API_KEY" }, { status: 500 });
+
+  if (!agentId || !/^[a-zA-Z0-9_-]+$/.test(agentId)) {
+    return NextResponse.json({ error: "No valid agent ID" }, { status: 400 });
+  }
+  if (!apiKey) {
+    return NextResponse.json({ error: "Missing ElevenLabs API key" }, { status: 500 });
   }
 
   try {
-    const res = await fetch(`${ELEVENLABS_BASE}/${agentId}`, {
+    const res = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agentId)}`, {
       method: "GET",
-      headers: headers(),
+      headers: buildHeaders(apiKey),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -77,7 +111,7 @@ export async function GET(req: Request) {
  * Body: { agentId?, system_prompt?, first_message?, voice_id?, stability?, similarity_boost?, speed? }
  */
 export async function PATCH(req: Request) {
-  const session = await requireApiAuth();
+  const session = await requirePlatformAdminApi();
   if (session instanceof Response) return session;
 
   if (!ELEVENLABS_API_KEY()) {
@@ -87,8 +121,8 @@ export async function PATCH(req: Request) {
   try {
     const body = await req.json();
     const agentId = body?.agentId || process.env.NEXT_PUBLIC_ELEVENLABS_AGENT;
-    if (!agentId) {
-      return NextResponse.json({ error: "No agent ID" }, { status: 400 });
+    if (!agentId || !/^[a-zA-Z0-9_-]+$/.test(String(agentId))) {
+      return NextResponse.json({ error: "No valid agent ID" }, { status: 400 });
     }
 
     // Build the nested update payload — only include fields that were provided
@@ -133,9 +167,9 @@ export async function PATCH(req: Request) {
 
     systemLogger.info(`[AGENT_CONFIG_PATCH] Updating agent ${agentId}: ${JSON.stringify(patch)}`);
 
-    const res = await fetch(`${ELEVENLABS_BASE}/${agentId}`, {
+    const res = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(String(agentId))}`, {
       method: "PATCH",
-      headers: headers(),
+      headers: buildHeaders(ELEVENLABS_API_KEY()),
       body: JSON.stringify(patch),
     });
 

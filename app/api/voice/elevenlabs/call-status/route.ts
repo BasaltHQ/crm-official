@@ -1,63 +1,83 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { getTwilioConfig, twilioApiUrl, twilioAuthHeader } from "@/lib/twilio/twilio-voice";
 import { systemLogger } from "@/lib/logger";
+
+function verifyWebhookSecret(req: Request): boolean {
+  const secret = process.env.ELEVENLABS_WEBHOOK_SECRET || process.env.VOICE_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const provided =
+    req.headers.get("x-webhook-secret")?.trim() ||
+    req.headers.get("x-elevenlabs-secret")?.trim() ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    "";
+  if (!provided) return false;
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(secret, "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 /**
  * GET /api/voice/elevenlabs/call-status?callSid=xxx
- * 
- * Polls Twilio for the call status so the dialer can detect when the
- * remote party hangs up. Uses the Twilio REST API directly.
- * 
- * Returns: { status: string } where status is one of:
- *   queued, ringing, in-progress, completed, busy, no-answer, canceled, failed
+ * Polls Twilio for the call status using the authenticated tenant's Twilio credentials
+ * (or verified webhook secret).
  */
 export async function GET(req: Request) {
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const isWebhookAuth = verifyWebhookSecret(req);
+  let teamId: string | null = null;
+  let isPlatformAdmin = false;
+
+  if (!isWebhookAuth) {
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+    teamId = teamInfo?.teamId || null;
+    isPlatformAdmin = Boolean(teamInfo?.isPlatformAdmin);
+    if (!teamId && !isPlatformAdmin) {
+      return NextResponse.json({ error: "No team context" }, { status: 403 });
+    }
+  }
 
   const { searchParams } = new URL(req.url);
-  const callSid = searchParams.get("callSid");
+  const callSid = searchParams.get("callSid")?.trim() || "";
 
-  if (!callSid) {
-    return NextResponse.json({ error: "Missing callSid" }, { status: 400 });
+  if (!/^CA[0-9a-fA-F]{32}$/.test(callSid)) {
+    return NextResponse.json({ error: "Invalid or missing callSid" }, { status: 400 });
   }
 
   try {
-    // Get Twilio credentials — try tenant DB first, then env
-    let accountSid = process.env.TWILIO_ACCOUNT_ID || "";
-    let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+    let accountSid = "";
+    let authToken = "";
 
-    try {
-      const { getCurrentUserTeamId } = await import("@/lib/team-utils");
-      const { prismadb } = await import("@/lib/prisma");
-      const teamInfo = await getCurrentUserTeamId();
-      if (teamInfo?.teamId) {
-        const integration = await prismadb.tenant_Integrations.findUnique({
-          where: { tenant_id: teamInfo.teamId },
-          select: { twilio_account_sid: true, twilio_auth_token: true },
-        });
-        if (integration?.twilio_account_sid) accountSid = integration.twilio_account_sid;
-        if (integration?.twilio_auth_token) authToken = integration.twilio_auth_token;
+    if (teamId) {
+      const tenantTwilio = await getTwilioConfig(teamId);
+      if (tenantTwilio) {
+        accountSid = tenantTwilio.accountSid;
+        authToken = tenantTwilio.authToken;
       }
-    } catch { /* use env */ }
-
-    if (!accountSid || !authToken) {
-      return NextResponse.json({ error: "Twilio credentials not configured" }, { status: 500 });
     }
 
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
+    if ((!accountSid || !authToken) && (isPlatformAdmin || isWebhookAuth)) {
+      accountSid = process.env.TWILIO_ACCOUNT_ID || "";
+      authToken = process.env.TWILIO_AUTH_TOKEN || "";
+    }
+
+    if (!accountSid || !authToken) {
+      return NextResponse.json({ error: "Twilio credentials not configured for this team" }, { status: 403 });
+    }
+
+    const twilioUrl = twilioApiUrl(accountSid, `/Calls/${callSid}.json`);
     const res = await fetch(twilioUrl, {
       headers: {
-        Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+        Authorization: twilioAuthHeader(accountSid, authToken),
       },
     });
 
     if (!res.ok) {
-      // Call may not exist or already cleaned up — treat as completed
       if (res.status === 404) {
         return NextResponse.json({ status: "completed" });
       }
@@ -70,4 +90,16 @@ export async function GET(req: Request) {
     systemLogger.error("[CALL_STATUS]", e?.message);
     return NextResponse.json({ error: e?.message || "Failed" }, { status: 500 });
   }
+}
+
+export async function POST(req: Request) {
+  const secret = process.env.ELEVENLABS_WEBHOOK_SECRET || process.env.VOICE_WEBHOOK_SECRET;
+  if (!secret) {
+    systemLogger.error("[CALL_STATUS_POST] Missing ELEVENLABS_WEBHOOK_SECRET / VOICE_WEBHOOK_SECRET");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+  if (!verifyWebhookSecret(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json({ ok: true });
 }

@@ -1,48 +1,31 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm as prisma } from "@/lib/prisma-crm";
-import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 /**
  * POST /api/campaigns/[sequenceId]/approve
  * Approves a sequence that is in PENDING_APPROVAL status
- * Admin only
+ * Admin only (within the campaign's tenant)
  */
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        const { sequenceId } = await params;
-
-        // Check if user is admin
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: {
-                is_admin: true,
-                is_account_admin: true,
-                assigned_role: { select: { name: true } },
-            },
-        });
-
-        const isSuperAdmin = user?.assigned_role?.name === "SuperAdmin";
-        const isAdmin = user?.is_admin || user?.is_account_admin;
-
-        if (!isSuperAdmin && !isAdmin) {
+        if (!teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
             return NextResponse.json(
                 { message: "Only admins can approve sequences" },
                 { status: 403 }
             );
         }
 
-        // Get campaign
+        const { sequenceId } = await params;
+
+        // Get campaign and verify tenant ownership
         const campaign = await prisma.crm_Outreach_Campaigns.findUnique({
             where: { id: sequenceId },
         });
@@ -51,6 +34,13 @@ export async function POST(
             return NextResponse.json(
                 { message: "Sequence not found" },
                 { status: 404 }
+            );
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json(
+                { message: "Forbidden" },
+                { status: 403 }
             );
         }
 
@@ -87,41 +77,26 @@ export async function POST(
 /**
  * DELETE /api/campaigns/[sequenceId]/approve
  * Rejects a sequence that is in PENDING_APPROVAL status
- * Admin only
+ * Admin only (within the campaign's tenant)
  */
 export async function DELETE(
     req: Request,
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        const { sequenceId } = await params;
-
-        // Check if user is admin
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: {
-                is_admin: true,
-                is_account_admin: true,
-                assigned_role: { select: { name: true } },
-            },
-        });
-
-        const isSuperAdmin = user?.assigned_role?.name === "SuperAdmin";
-        const isAdmin = user?.is_admin || user?.is_account_admin;
-
-        if (!isSuperAdmin && !isAdmin) {
+        if (!teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
             return NextResponse.json(
                 { message: "Only admins can reject sequences" },
                 { status: 403 }
             );
         }
 
-        // Get campaign
+        const { sequenceId } = await params;
+
+        // Get campaign and verify tenant ownership
         const campaign = await prisma.crm_Outreach_Campaigns.findUnique({
             where: { id: sequenceId },
         });
@@ -130,6 +105,13 @@ export async function DELETE(
             return NextResponse.json(
                 { message: "Sequence not found" },
                 { status: 404 }
+            );
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json(
+                { message: "Forbidden" },
+                { status: 403 }
             );
         }
 

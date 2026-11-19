@@ -7,14 +7,28 @@ export * from './surge-ucp';
 
 const SURGE_API_BASE = 'https://surge.basalthq.com/api';
 
+const allowSelfSigned =
+    process.env.SURGE_ALLOW_SELF_SIGNED === 'true' &&
+    process.env.NODE_ENV !== 'production';
+
 const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
+    rejectUnauthorized: !allowSelfSigned,
 });
 
 interface SurgeOrderResponse {
     receiptId: string;
     orderId: string;
     // other fields
+}
+
+function safeDecryptSurgeKey(rawKey: string | null | undefined): string | null {
+    if (!rawKey) return null;
+    try {
+        return decryptSecret(rawKey);
+    } catch (err) {
+        console.error('[BasaltSurge] Failed to decrypt tenant surge_api_key:', err);
+        return null;
+    }
 }
 
 /**
@@ -24,38 +38,56 @@ interface SurgeOrderResponse {
  * 2. Generate Order
  * 3. Return Payment URL
  */
-export async function createSurgeCheckoutSession(tenantId: string, invoice: any, returnUrl?: string): Promise<{ id: string, url: string } | null> {
+export async function createSurgeCheckoutSession(
+    tenantId: string,
+    invoice: any,
+    returnUrl?: string,
+    options?: { forcePlatformKeys?: boolean }
+): Promise<{ id: string, url: string } | null> {
     try {
-        // 1. Fetch Tenant Secrets
-        // Note: Using findFirst to be safe if multiple integrations exist, prioritized by existence of key
-        const integration = await prismadb.tenant_Integrations.findFirst({
-            where: { tenant_id: tenantId }
-        });
+        const isPlatformBillingInvoice =
+            options?.forcePlatformKeys === true ||
+            ['SUBSCRIPTION', 'AI_TOPUP', 'CREDITS', 'AI_CREDITS', 'AI_USAGE'].includes(
+                String(invoice?.invoice_type || '').toUpperCase()
+            ) ||
+            /^(SUB-|LG-|INV-SURGE-)/.test(String(invoice?.invoice_number || '')) ||
+            String(invoice?.description || '').includes('LeadGen Intelligence Credits');
 
-        // Fallback to ENV for Dev/Testing if DB config is missing
-        let apiKey = decryptSecret(integration?.surge_api_key) || integration?.surge_api_key;
-        if (!apiKey && process.env.SURGE_API_KEY) {
-            apiKey = process.env.SURGE_API_KEY;
+        let apiKey: string | null = null;
+        let merchantId: string | undefined;
+        let preferredChain: string = process.env.SURGE_CHAIN || 'BASE';
+
+        if (isPlatformBillingInvoice) {
+            // Platform subscriptions & credit purchases MUST exclusively settle to platform Surge credentials
+            apiKey = process.env.SURGE_API_KEY || null;
+            merchantId = process.env.SURGE_MERCHANT_ID || undefined;
+        } else {
+            const integration = await prismadb.tenant_Integrations.findFirst({
+                where: { tenant_id: tenantId }
+            });
+
+            apiKey = safeDecryptSurgeKey(integration?.surge_api_key) || process.env.SURGE_API_KEY || null;
+            merchantId = integration?.surge_merchant_id || process.env.SURGE_MERCHANT_ID || undefined;
+            preferredChain = integration?.preferred_chain || process.env.SURGE_CHAIN || 'BASE';
         }
 
         if (!apiKey) {
-            console.warn(`[BasaltSurge] Integration not enabled or missing keys for tenant ${tenantId} (and no ENV fallback)`);
+            console.warn(`[BasaltSurge] Integration not enabled or missing keys for tenant ${tenantId}`);
             return null;
         }
         const sku = `INV-${invoice.invoice_number || invoice.id}`;
         const amount = parseFloat(invoice.invoice_amount || "0");
 
         // 2. Create/Ensure Inventory Item exists
-        // We do this to ensure the price is correct for this specific invoice
         try {
             await axios.post(
                 `${SURGE_API_BASE}/inventory`,
                 {
                     sku: sku,
                     name: `Invoice #${invoice.invoice_number}`,
-                    priceUsd: amount, // Assuming base currency is USD for this API
-                    stockQty: 9999, // Infinite stock
-                    taxable: false, // Invoices usually tax-inclusive or handled separately
+                    priceUsd: amount,
+                    stockQty: 9999,
+                    taxable: false,
                     description: invoice.description || "Invoice Payment"
                 },
                 {
@@ -67,8 +99,6 @@ export async function createSurgeCheckoutSession(tenantId: string, invoice: any,
                 }
             );
         } catch (invError: any) {
-            // If item exists, we might need to update it? 
-            // Or ignore if it's 409 (Conflict).
             if (invError.response?.status !== 409) {
                 console.warn("[BasaltSurge] Inventory creation warning:", invError.message);
             }
@@ -82,10 +112,11 @@ export async function createSurgeCheckoutSession(tenantId: string, invoice: any,
                     qty: 1
                 }
             ],
-            jurisdictionCode: "US-CA", // Defaulting, maybe should be config in Tenant_Integrations
+            jurisdictionCode: "US-CA",
             metadata: {
                 invoiceId: invoice.id,
-                tenantId: tenantId
+                tenantId: tenantId,
+                platformBilling: isPlatformBillingInvoice,
             }
         };
 
@@ -101,65 +132,48 @@ export async function createSurgeCheckoutSession(tenantId: string, invoice: any,
             }
         );
 
-        // API Response might be { receipt: { receiptId: ... } } or just { receiptId: ... }
         const data = response.data as any;
-        console.log("[BasaltSurge] Full Order Response:", JSON.stringify(data, null, 2));
-
         const receiptId = data.receipt?.receiptId || data.receiptId;
 
-        if (!receiptId) {
-            console.error("[BasaltSurge] No receiptId in response:", data);
-            throw new Error("No receiptId returned from Surge");
+        if (!receiptId || !/^[a-zA-Z0-9_-]{1,128}$/.test(String(receiptId))) {
+            console.error("[BasaltSurge] Invalid or missing receiptId in response");
+            throw new Error("No valid receiptId returned from Surge");
         }
 
-        console.log(`[BasaltSurge] Generated Receipt ID: ${receiptId}`);
-
-        // 4. Mercury Handshake (No-Exit)
-        // Auto-create receivable in Mercury *if* integration is enabled
-        // We do this asynchronously so as not to block the checkout redirect
-        import('./mercury').then(({ createMercuryReceivable }) => {
-            createMercuryReceivable(tenantId, invoice).then((res) => {
-                if (res) console.log(`[MercuryHandshake] Created receivable: ${res.id}`);
-            }).catch(err => {
-                console.error("[MercuryHandshake] Failed to create receivable:", err);
+        // 4. Mercury Handshake (No-Exit) — only for tenant commercial invoices
+        if (!isPlatformBillingInvoice) {
+            import('./mercury').then(({ createMercuryReceivable }) => {
+                createMercuryReceivable(tenantId, invoice).then((res) => {
+                    if (res) console.log(`[MercuryHandshake] Created receivable: ${res.id}`);
+                }).catch(err => {
+                    console.error("[MercuryHandshake] Failed to create receivable:", err);
+                });
             });
-        });
+        }
 
         const finalReturnUrl = returnUrl || `${process.env.NEXT_PUBLIC_APP_URL}/invoice/detail/${invoice.id}?payment=success`;
-        console.log(`[BasaltSurge] Using Return URL: ${finalReturnUrl}`);
 
-        // Construct Payment URL based on Doc Review
-        // 1. Use /portal/ for the enhanced UI
-        // 2. recipient MUST be a 0x address for successful settlement
-        // 3. layout=invoice optimizes for the user's specific use case
         const params = new URLSearchParams({
             returnUrl: finalReturnUrl,
             layout: 'widget',
             origin: process.env.NEXT_PUBLIC_APP_URL || '',
-            preferredChain: integration?.preferred_chain || process.env.SURGE_CHAIN || 'BASE'
+            preferredChain
         });
 
-        const merchantId = integration?.surge_merchant_id || process.env.SURGE_MERCHANT_ID;
         if (merchantId && merchantId.startsWith('0x')) {
             params.append('recipient', merchantId);
         } else if (merchantId) {
             params.append('merchantId', merchantId);
         }
 
-        // Determine payment URL strategy
-        const useProxy = process.env.SURGE_USE_PROXY !== 'false'; // Default to true for now
+        const useProxy = process.env.SURGE_USE_PROXY !== 'false';
         let paymentUrl = '';
 
         if (useProxy) {
-            // Return internal proxy URL to bypass iFrame blocking (Current strategy)
             paymentUrl = `/api/surge-portal/${receiptId}?${params.toString()}`;
-            console.log(`[BasaltSurge] Proxy link generated (Secure Handshake active): ${paymentUrl}`);
         } else {
-            // Return direct Surge URL (Target "Gold Standard" strategy)
-            // embedded=1 tells Surge to render in iFrame mode with PostMessage events
             params.append('embedded', '1');
             paymentUrl = `https://surge.basalthq.com/portal/${receiptId}?${params.toString()}`;
-            console.log(`[BasaltSurge] Direct link generated (Production whitelisting active): ${paymentUrl}`);
         }
 
         return {
@@ -173,16 +187,24 @@ export async function createSurgeCheckoutSession(tenantId: string, invoice: any,
     }
 }
 
-export async function getSurgePaymentStatus(tenantId: string, receiptId: string): Promise<{ status: string, paid: boolean } | null> {
+export async function getSurgePaymentStatus(
+    tenantId: string,
+    receiptId: string,
+    options?: { forcePlatformKeys?: boolean }
+): Promise<{ status: string, paid: boolean } | null> {
     try {
-        // Fetch Tenant Secrets
-        const integration = await prismadb.tenant_Integrations.findFirst({
-            where: { tenant_id: tenantId }
-        });
+        if (!receiptId || !/^[a-zA-Z0-9_-]{1,128}$/.test(receiptId)) {
+            return null;
+        }
 
-        let apiKey = decryptSecret(integration?.surge_api_key) || integration?.surge_api_key;
-        if (!apiKey && process.env.SURGE_API_KEY) {
-            apiKey = process.env.SURGE_API_KEY;
+        let apiKey: string | null = null;
+        if (options?.forcePlatformKeys) {
+            apiKey = process.env.SURGE_API_KEY || null;
+        } else {
+            const integration = await prismadb.tenant_Integrations.findFirst({
+                where: { tenant_id: tenantId }
+            });
+            apiKey = safeDecryptSurgeKey(integration?.surge_api_key) || process.env.SURGE_API_KEY || null;
         }
 
         if (!apiKey) {
@@ -190,9 +212,8 @@ export async function getSurgePaymentStatus(tenantId: string, receiptId: string)
             return null;
         }
 
-        // Try to get receipt status
         const response = await axios.get(
-            `${SURGE_API_BASE}/receipts/${receiptId}`,
+            `${SURGE_API_BASE}/receipts/${encodeURIComponent(receiptId)}`,
             {
                 headers: {
                     'Content-Type': 'application/json',
@@ -203,18 +224,15 @@ export async function getSurgePaymentStatus(tenantId: string, receiptId: string)
         );
 
         if (response.data) {
-            // Support both root-level status and nested receipt-level status if present
             const status = response.data.receipt?.status || response.data.status || 'unknown';
-            console.log(`[BasaltSurge] Receipt ${receiptId} status: ${status}`);
 
-            // Possible successful statuses: 'checkout_success' (Portal), 'confirmed' (Chain), 'complete'/'completed' (Final)
             const paid = [
                 'confirmed',
                 'complete',
                 'completed',
                 'paid',
                 'checkout_success'
-            ].includes(status.toLowerCase());
+            ].includes(String(status).toLowerCase());
 
             return { status, paid };
         }

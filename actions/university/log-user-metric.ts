@@ -8,8 +8,14 @@ export async function logUserMetric(metricKey: string) {
     try {
         const session = await getServerSession(authOptions);
         const userId = session?.user?.id;
-        
-        if (!userId) return { success: false, error: "Unauthorized" };
+
+        if (!userId || session?.error === "SessionInvalidated") {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        if (typeof metricKey !== "string" || !/^[a-z0-9_]{2,64}$/i.test(metricKey)) {
+            return { success: false, error: "Invalid metric key" };
+        }
 
         const existingMetric = await prismadb.userMetrics.findUnique({
             where: {

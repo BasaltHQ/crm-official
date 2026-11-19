@@ -2,42 +2,64 @@
 
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requirePlatformAdmin, sanitizeUser } from "@/lib/security/authz";
+import { hashPassword } from "@/lib/password-utils";
+
+const VALID_USER_STATUSES = new Set(["ACTIVE", "INACTIVE", "PENDING"]);
 
 export async function getUsers(query?: string) {
+    const admin = await requirePlatformAdmin();
+    if (!admin) return [];
+
     const where: any = {};
-    if (query) {
+    if (query && typeof query === "string" && query.trim()) {
+        const q = query.trim();
         where.OR = [
-            { name: { contains: query, mode: "insensitive" } },
-            { email: { contains: query, mode: "insensitive" } }
+            { name: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
         ];
     }
 
     const users = await prismadb.users.findMany({
         where,
         include: {
-            assigned_role: true
+            assigned_role: true,
         },
-        orderBy: { created_on: 'desc' }
+        orderBy: { created_on: "desc" },
     });
 
-    return users;
+    return sanitizeUser(users);
 }
 
 export async function getRoles() {
+    const admin = await requirePlatformAdmin();
+    if (!admin) return [];
+
     const roles = await prismadb.role.findMany({
-        orderBy: { name: 'asc' }
+        orderBy: { name: "asc" },
     });
 
     if (roles.length === 0) {
-        // Seed default roles
         await prismadb.role.createMany({
             data: [
-                { name: "Admin", permissions: ["cms.access", "users.manage", "settings.manage", "content.manage"], description: "Full access to all system features." },
-                { name: "Editor", permissions: ["cms.access", "content.manage"], description: "Can manage content but not system settings." },
-                { name: "Viewer", permissions: ["cms.access"], description: "Read-only access." }
-            ]
+                {
+                    name: "Admin",
+                    permissions: ["cms.access", "users.manage", "settings.manage", "content.manage"],
+                    description: "Full access to all system features.",
+                },
+                {
+                    name: "Editor",
+                    permissions: ["cms.access", "content.manage"],
+                    description: "Can manage content but not system settings.",
+                },
+                {
+                    name: "Viewer",
+                    permissions: ["cms.access"],
+                    description: "Read-only access.",
+                },
+            ],
         });
-        return await prismadb.role.findMany({ orderBy: { name: 'asc' } });
+        return await prismadb.role.findMany({ orderBy: { name: "asc" } });
     }
 
     return roles;
@@ -45,27 +67,79 @@ export async function getRoles() {
 
 export async function upsertUser(data: any) {
     try {
-        const { id, ...updateData } = data;
-
-        // If creating new user, verify email uniqueness
-        if (!id) {
-            const existing = await prismadb.users.findUnique({ where: { email: updateData.email } });
-            if (existing) throw new Error("Email already exists");
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { success: false, error: "Forbidden" };
         }
 
-        if (id) {
-            await prismadb.users.update({
-                where: { id },
-                data: updateData
+        if (!data || typeof data !== "object") {
+            return { success: false, error: "Invalid payload" };
+        }
+
+        const id = typeof data.id === "string" && data.id.trim() ? data.id.trim() : undefined;
+
+        // Strictly whitelist editable fields
+        const safeData: Record<string, any> = {};
+
+        if (typeof data.name === "string") {
+            safeData.name = data.name.trim();
+        }
+        if (typeof data.email === "string" && data.email.trim()) {
+            safeData.email = data.email.trim().toLowerCase();
+        }
+        if (data.roleId === null || typeof data.roleId === "string") {
+            safeData.roleId = data.roleId || null;
+        }
+        if (typeof data.userStatus === "string" && VALID_USER_STATUSES.has(data.userStatus)) {
+            safeData.userStatus = data.userStatus;
+        }
+        if (data.avatar === null || typeof data.avatar === "string") {
+            safeData.avatar = data.avatar;
+        }
+        if (typeof data.is_admin === "boolean") {
+            safeData.is_admin = data.is_admin;
+        }
+
+        if (typeof data.password === "string" && data.password.length > 0) {
+            if (data.password.length < 15 || data.password.length > 128) {
+                return { success: false, error: "Password must be between 15 and 128 characters" };
+            }
+            safeData.password = await hashPassword(data.password);
+        }
+
+        if (!id) {
+            if (!safeData.email) {
+                return { success: false, error: "Email is required" };
+            }
+            const existing = await prismadb.users.findFirst({
+                where: { email: { equals: safeData.email, mode: "insensitive" } },
+                select: { id: true },
             });
-        } else {
+            if (existing) {
+                return { success: false, error: "Email already exists" };
+            }
+
             await prismadb.users.create({
                 data: {
-                    ...updateData,
+                    ...safeData,
                     created_on: new Date(),
-                    userStatus: "ACTIVE", // Default to active for manually created users
-                    is_admin: false // Default to false, rely on role
-                }
+                    userStatus: safeData.userStatus || "ACTIVE",
+                    is_admin: typeof safeData.is_admin === "boolean" ? safeData.is_admin : false,
+                } as any,
+            });
+        } else {
+            if (
+                safeData.password ||
+                safeData.roleId !== undefined ||
+                safeData.is_admin !== undefined ||
+                (safeData.userStatus && safeData.userStatus !== "ACTIVE")
+            ) {
+                safeData.session_version = { increment: 1 };
+            }
+
+            await prismadb.users.update({
+                where: { id },
+                data: safeData,
             });
         }
 
@@ -73,38 +147,46 @@ export async function upsertUser(data: any) {
         return { success: true };
     } catch (error: any) {
         console.error("Failed to upsert user:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: "Failed to save user" };
     }
 }
 
 export async function deleteUser(id: string) {
     try {
-        // Soft delete or hard delete? Prudence suggests soft delete usually, but for now specific request implied management including delete.
-        // Let's do hard delete for now as per "delete" request, or check if constraints exist.
-        // Users have many relations. Soft delete (status=INACTIVE) is safer.
-        // But user explicitly asked for "delete".
-        // Let's implement Delete but fallback to Deactivate if relations prevent it?
-        // Actually, let's just delete for now and rely on constraints throwing error if needed, or cascading.
-        // Safe approach: Update status to INACTIVE (Deactivate) is a separate action.
-        // Delete = Hard Delete.
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { success: false, error: "Forbidden" };
+        }
 
         await prismadb.users.delete({ where: { id } });
         revalidatePath("/cms/settings/team");
         return { success: true };
-    } catch (error: any) {
+    } catch {
         return { success: false, error: "Failed to delete user. They may have active records." };
     }
 }
 
 export async function toggleUserStatus(id: string, status: "ACTIVE" | "INACTIVE" | "PENDING") {
     try {
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { success: false, error: "Forbidden" };
+        }
+
+        if (!VALID_USER_STATUSES.has(status)) {
+            return { success: false, error: "Invalid status" };
+        }
+
         await prismadb.users.update({
             where: { id },
-            data: { userStatus: status }
+            data: {
+                userStatus: status,
+                ...(status !== "ACTIVE" ? { session_version: { increment: 1 } } : {}),
+            },
         });
         revalidatePath("/cms/settings/team");
         return { success: true };
-    } catch (error) {
+    } catch {
         return { success: false, error: "Failed to update status" };
     }
 }

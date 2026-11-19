@@ -1,6 +1,7 @@
 
 import axios from 'axios';
 import { prismadb } from '@/lib/prisma';
+import { decryptSecret } from '@/lib/encryption';
 
 const MERCURY_API_BASE = 'https://api.mercury.com/api/v1'; // Placeholder
 
@@ -21,7 +22,8 @@ export async function createMercuryReceivable(tenantId: string, invoice: any) {
             where: { tenant_id: tenantId }
         });
 
-        if (!integration || !integration.mercury_enabled || !integration.mercury_api_key) {
+        const apiKey = decryptSecret(integration?.mercury_api_key);
+        if (!integration || !integration.mercury_enabled || !apiKey) {
             console.warn(`[Mercury] Integration not enabled or missing keys for tenant ${tenantId}`);
             return null;
         }
@@ -44,7 +46,7 @@ export async function createMercuryReceivable(tenantId: string, invoice: any) {
             payload,
             {
                 headers: {
-                    'Authorization': `Bearer ${integration.mercury_api_key}`,
+                    'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -66,13 +68,14 @@ export async function markMercuryInvoicePaid(tenantId: string, mercuryId: string
             where: { tenant_id: tenantId }
         });
 
-        if (!integration || !integration.mercury_api_key) return;
+        const apiKey = decryptSecret(integration?.mercury_api_key);
+        if (!integration || !apiKey) return;
 
         await axios.put(
             `${MERCURY_API_BASE}/invoices/${mercuryId}`,
             { status: "paid" },
             {
-                headers: { 'Authorization': `Bearer ${integration.mercury_api_key}` }
+                headers: { 'Authorization': `Bearer ${apiKey}` }
             }
         );
         console.log(`[Mercury] Marked invoice ${mercuryId} as paid`);

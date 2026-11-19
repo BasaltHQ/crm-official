@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
-export async function POST(req: Request) {
+export async function POST() {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await requireApiAuth();
+        if (session instanceof NextResponse) return session;
 
-        if (!session?.user?.email) {
-            return new NextResponse("Unauthenticated", { status: 401 });
-        }
-
-        const user = await prismadb.users.findFirst({
-            where: { email: session.user.email }
+        const user = await prismadb.users.findUnique({
+            where: { id: session.user.id }
         });
 
         if (!user) {

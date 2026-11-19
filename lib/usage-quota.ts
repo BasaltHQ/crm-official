@@ -1,6 +1,7 @@
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 import { SUBSCRIPTION_PLANS, resolveSlug } from "@/config/subscriptions";
+import { resolveBillingTeamId } from "@/lib/team-billing";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,16 +90,28 @@ export async function checkUsageQuota(
     quantity: number = 1
 ): Promise<QuotaCheckResult> {
     try {
-        // 1. Get team's plan
+        const billingTeamId = await resolveBillingTeamId(teamId);
+
+        // 1. Get parent/billing team's plan
         const team = await prismadb.team.findUnique({
-            where: { id: teamId },
+            where: { id: billingTeamId },
             select: {
                 assigned_plan: { select: { slug: true } },
                 subscription_plan: true, // Deprecated enum fallback
             },
         });
 
-        const planSlug = team?.assigned_plan?.slug || team?.subscription_plan || "STARTER";
+        if (!team) {
+            return {
+                allowed: false,
+                remaining: 0,
+                limit: 0,
+                teamUsed: 0,
+                message: "Billing organization not found.",
+            };
+        }
+
+        const planSlug = team.assigned_plan?.slug || team.subscription_plan || "STARTER";
         const limit = getPlanLimit(planSlug, type);
 
         // -1 = unlimited
@@ -117,8 +130,8 @@ export async function checkUsageQuota(
             };
         }
 
-        // 2. Get current period usage
-        const quota = await getOrCreateTeamQuota(teamId);
+        // 2. Get current period usage on parent/billing team
+        const quota = await getOrCreateTeamQuota(billingTeamId);
         const teamUsed = getUsedCount(quota, type);
         const teamRemaining = limit - teamUsed;
 
@@ -180,8 +193,14 @@ export async function checkUsageQuota(
         };
     } catch (error) {
         systemLogger.error("[USAGE_QUOTA_CHECK_ERROR]", error);
-        // Fail open for UX, but log the error
-        return { allowed: true, remaining: -1, limit: -1, teamUsed: 0 };
+        // Fail closed on quota check failure
+        return {
+            allowed: false,
+            remaining: 0,
+            limit: 0,
+            teamUsed: 0,
+            message: "Unable to verify usage quota at this time. Please try again.",
+        };
     }
 }
 
@@ -200,6 +219,7 @@ export async function recordUsage(
     quantity: number = 1
 ): Promise<void> {
     try {
+        const billingTeamId = await resolveBillingTeamId(teamId);
         const periodStart = getPeriodStart();
 
         // Upsert team-level quota
@@ -207,7 +227,7 @@ export async function recordUsage(
         await prismadb.teamUsageQuota.upsert({
             where: {
                 team_id_period_start: {
-                    team_id: teamId,
+                    team_id: billingTeamId,
                     period_start: periodStart,
                 },
             },
@@ -215,7 +235,7 @@ export async function recordUsage(
                 [teamIncrement]: { increment: quantity },
             },
             create: {
-                team_id: teamId,
+                team_id: billingTeamId,
                 period_start: periodStart,
                 emails_used: type === "email" ? quantity : 0,
                 sms_used: type === "sms" ? quantity : 0,
@@ -226,7 +246,7 @@ export async function recordUsage(
         // Increment user allocation counter (if exists)
         if (userId) {
             const quota = await prismadb.teamUsageQuota.findFirst({
-                where: { team_id: teamId, period_start: periodStart },
+                where: { team_id: billingTeamId, period_start: periodStart },
             });
 
             if (quota) {
@@ -267,10 +287,10 @@ export async function setUserAllocation(
         ai_tokens_limit: number;
     }>
 ): Promise<void> {
-    const periodStart = getPeriodStart();
+    const billingTeamId = await resolveBillingTeamId(teamId);
 
     // Ensure team quota exists
-    const quota = await getOrCreateTeamQuota(teamId);
+    const quota = await getOrCreateTeamQuota(billingTeamId);
 
     await prismadb.teamUserAllocation.upsert({
         where: {

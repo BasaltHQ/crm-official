@@ -5,6 +5,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { systemLogger } from "@/lib/logger";
 import { DECISION_SERVICES } from "@/lib/ai/reply-decisions";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 interface AiUsageSummary {
     service: string;
@@ -23,8 +25,13 @@ export async function getTeamAiUsage(
     opts?: { startDate?: Date; endDate?: Date; limit?: number }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const teamInfo = await getCurrentUserTeamId();
+        if (!teamInfo?.userId) return [];
+
+        if (teamInfo.teamId !== teamId && !teamInfo.isPlatformAdmin) {
+            const admin = await requirePlatformAdmin();
+            if (!admin) return [];
+        }
 
         // Included decision-model usage is visible in Decision Intelligence, not invoices.
         const where: any = { tenant_id: teamId, service: { notIn: [...DECISION_SERVICES] } };
@@ -67,8 +74,13 @@ export async function getTeamAiUsageSummary(
     month?: Date
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const teamInfo = await getCurrentUserTeamId();
+        if (!teamInfo?.userId) return [];
+
+        if (teamInfo.teamId !== teamId && !teamInfo.isPlatformAdmin) {
+            const admin = await requirePlatformAdmin();
+            if (!admin) return [];
+        }
 
         const now = month || new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);

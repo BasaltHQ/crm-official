@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 import NewTaskFromCRMEmail from "@/emails/NewTaskFromCRM";
 import NewTaskFromCRMToWatchersEmail from "@/emails/NewTaskFromCRMToWatchers";
@@ -10,110 +9,142 @@ import { render } from "@react-email/render";
 import { systemLogger } from "@/lib/logger";
 
 //Create new task from CRM in project route
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+export async function POST(
+  req: Request,
+  props: { params: Promise<{ accountId: string }> }
+) {
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
+
+  const params = await props.params;
   const body = await req.json();
-  const { title, user, priority, content, account, dueDateAt } = body;
+  const { title, user: requestedAssignee, priority, content, account, dueDateAt } = body;
 
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
+  const targetAccountId = params?.accountId || account;
 
-  if (!title || !user || !priority || !content || !account) {
+  if (!title || !priority || !content || !targetAccountId) {
     return new NextResponse("Missing one of the task data ", { status: 400 });
   }
 
   try {
+    const accountRecord = await prismadb.crm_Accounts.findUnique({
+      where: { id: targetAccountId },
+      select: { id: true, team_id: true },
+    });
+    if (!accountRecord) {
+      return new NextResponse("Account not found", { status: 404 });
+    }
+    if (!validateResourceOwnership(teamInfo!.teamId, accountRecord.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    const creatorUserId = session!.user.id;
+    let assignedUserId = creatorUserId;
+
+    if (requestedAssignee && requestedAssignee !== creatorUserId) {
+      const assigneeRecord = await prismadb.users.findFirst({
+        where: {
+          id: String(requestedAssignee),
+          ...(accountRecord.team_id ? { team_id: accountRecord.team_id } : {}),
+        },
+        select: { id: true },
+      });
+      if (!assigneeRecord) {
+        return new NextResponse("Forbidden — assignee is not a member of this account's team", { status: 403 });
+      }
+      assignedUserId = assigneeRecord.id;
+    }
+
     const task = await prismadb.crm_Accounts_Tasks.create({
       data: {
         v: 0,
         priority: priority,
         title: title,
         content,
-        account,
+        account: targetAccountId,
         dueDateAt,
-        createdBy: user,
-        updatedBy: user,
-        user: user,
+        createdBy: creatorUserId,
+        updatedBy: creatorUserId,
+        user: assignedUserId,
+        team_id: accountRecord.team_id || teamInfo!.teamId || undefined,
         taskStatus: "ACTIVE",
       },
     });
 
-    //Notification to user who is not a task creator or Account watcher
-    if (user !== session.user.id) {
+    //Notification to assignee who is not the task creator (already verified to belong to account.team_id)
+    if (assignedUserId !== creatorUserId) {
       try {
-        const notifyRecipient = await prismadb.users.findUnique({
-          where: { id: user },
+        const notifyRecipient = await prismadb.users.findFirst({
+          where: {
+            id: assignedUserId,
+            ...(accountRecord.team_id ? { team_id: accountRecord.team_id } : {}),
+          },
         });
 
-        //console.log(notifyRecipient, "notifyRecipient");
+        if (notifyRecipient?.email) {
+          const emailHtml = await render(
+            NewTaskFromCRMEmail({
+              taskFromUser: session!.user.name!,
+              username: notifyRecipient.name!,
+              userLanguage: "en",
+              taskData: task,
+            })
+          );
 
-        const emailHtml = await render(
-          NewTaskFromCRMEmail({
-            taskFromUser: session.user.name!,
-            username: notifyRecipient?.name!,
-            userLanguage: "en",
-            taskData: task,
-          })
-        );
-
-        await sendEmail({
-          from: process.env.EMAIL_FROM,
-          to: notifyRecipient?.email!,
-          subject: `New task - ${title}.`,
-          text: `New task assigned from ${session.user.name}: ${title}`,
-          html: emailHtml,
-        });
-        //console.log("Email sent to user: ", notifyRecipient?.email!);
+          await sendEmail({
+            from: process.env.EMAIL_FROM,
+            to: notifyRecipient.email,
+            subject: `New task - ${title}.`,
+            text: `New task assigned from ${session!.user.name}: ${title}`,
+            html: emailHtml,
+          });
+        }
       } catch (error) {
         console.log(error);
       }
     }
 
-    //Notification to user who are account watchers
-    try {
-      const emailRecipients = await prismadb.users.findMany({
-        where: {
-          //Send to all users watching the board except the user who created the comment
-          id: {
-            not: session.user.id,
-          },
-          watching_accountsIDs: {
-            has: account,
-          },
-        },
-      });
-      //Create notifications for every user watching the specific account except the user who created the task
-      for (const userID of emailRecipients) {
-        const user = await prismadb.users.findUnique({
+    //Notification to users watching the account (strictly filtered to account.team_id)
+    if (accountRecord.team_id) {
+      try {
+        const emailRecipients = await prismadb.users.findMany({
           where: {
-            id: userID.id,
+            id: {
+              not: creatorUserId,
+            },
+            team_id: accountRecord.team_id,
+            watching_accountsIDs: {
+              has: targetAccountId,
+            },
           },
         });
-        console.log("Send email to user: ", user?.email!);
-        const emailHtml = await render(
-          NewTaskFromCRMToWatchersEmail({
-            taskFromUser: session.user.name!,
-            username: user?.name!,
-            userLanguage: "en",
-            taskData: task,
-          })
-        );
 
-        await sendEmail({
-          from: process.env.EMAIL_FROM,
-          to: user?.email!,
-          subject: `New task - ${title}.`,
-          text: `New task created by ${session.user.name}: ${title}`,
-          html: emailHtml,
-        });
+        for (const watcher of emailRecipients) {
+          if (!watcher.email) continue;
+          const emailHtml = await render(
+            NewTaskFromCRMToWatchersEmail({
+              taskFromUser: session!.user.name!,
+              username: watcher.name!,
+              userLanguage: "en",
+              taskData: task,
+            })
+          );
+
+          await sendEmail({
+            from: process.env.EMAIL_FROM,
+            to: watcher.email,
+            subject: `New task - ${title}.`,
+            text: `New task created by ${session!.user.name}: ${title}`,
+            html: emailHtml,
+          });
+        }
+      } catch (error) {
+        console.log(error);
       }
-    } catch (error) {
-      console.log(error);
     }
 
     import("@/actions/quests/add-raw-xp")
-      .then((m) => m.addRawXP({ userId: session.user.id, xpAmount: 2, reason: "Created Account Task" }))
+      .then((m) => m.addRawXP({ userId: creatorUserId, xpAmount: 2, reason: "Created Account Task" }))
       .catch((e) => systemLogger.warn(`[CREATE_TASK_GAMIFICATION] Failed to award XP: ${e?.message}`));
 
     return NextResponse.json(task);

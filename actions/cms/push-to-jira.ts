@@ -2,15 +2,12 @@
 
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-
-// Environment variables should be set:
-// JIRA_DOMAIN (e.g., "yourcompany.atlassian.net")
-// JIRA_EMAIL (email of the user creating ticket)
-// JIRA_API_TOKEN (API token from Atlassian)
-// JIRA_PROJECT_KEY (e.g., "HR", "KAN")
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function pushToJira(applicationId: string) {
     try {
+        const admin = await requirePlatformAdmin();
+        if (!admin) return { success: false, message: "Forbidden" };
         const app = await prismadb.jobApplication.findUnique({
             where: { id: applicationId },
             include: { job: true }

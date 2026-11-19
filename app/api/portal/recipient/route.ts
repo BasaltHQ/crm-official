@@ -4,25 +4,33 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import crypto from "crypto";
 import { systemLogger } from "@/lib/logger";
 
 // GET - List recipients for a portal
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { searchParams } = new URL(req.url);
         const portalId = searchParams.get("portalId");
 
         if (!portalId) {
             return NextResponse.json({ error: "portalId is required" }, { status: 400 });
+        }
+
+        const portal = await prismadb.crm_Message_Portal.findUnique({
+            where: { id: portalId },
+            select: { id: true, team_id: true },
+        });
+        if (!portal) {
+            return NextResponse.json({ error: "Portal not found" }, { status: 404 });
+        }
+        if (!validateResourceOwnership(teamInfo!.teamId, portal.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const recipients = await (prismadb as any).crm_Portal_Recipient.findMany({
@@ -40,10 +48,8 @@ export async function GET(req: NextRequest) {
 // POST - Add recipients from leads
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const body = await req.json();
         const { portalId, leadIds, recipients: manualRecipients } = body;
@@ -52,12 +58,27 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "portalId is required" }, { status: 400 });
         }
 
+        const portal = await prismadb.crm_Message_Portal.findUnique({
+            where: { id: portalId },
+            select: { id: true, team_id: true },
+        });
+        if (!portal) {
+            return NextResponse.json({ error: "Portal not found" }, { status: 404 });
+        }
+        if (!validateResourceOwnership(teamInfo!.teamId, portal.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
         const results: { id: string; email: string; created: boolean; error?: string }[] = [];
 
-        // Add recipients from lead IDs
+        // Add recipients from lead IDs (strictly scoped to portal's team_id)
         if (leadIds?.length) {
+            const targetTeamId = portal.team_id || teamInfo!.teamId;
             const leads = await prismadb.crm_Leads.findMany({
-                where: { id: { in: leadIds } },
+                where: {
+                    id: { in: leadIds },
+                    ...(targetTeamId ? { team_id: targetTeamId } : {}),
+                },
                 select: {
                     id: true,
                     email: true,
@@ -166,16 +187,30 @@ export async function POST(req: NextRequest) {
 // DELETE - Remove a recipient (opt-out)
 export async function DELETE(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { searchParams } = new URL(req.url);
         const recipientId = searchParams.get("recipientId");
 
         if (!recipientId) {
             return NextResponse.json({ error: "recipientId is required" }, { status: 400 });
+        }
+
+        const existingRecipient = await (prismadb as any).crm_Portal_Recipient.findUnique({
+            where: { id: recipientId },
+            select: { id: true, portal: true },
+        });
+        if (!existingRecipient) {
+            return NextResponse.json({ error: "Recipient not found" }, { status: 404 });
+        }
+
+        const portal = await prismadb.crm_Message_Portal.findUnique({
+            where: { id: existingRecipient.portal },
+            select: { id: true, team_id: true },
+        });
+        if (!portal || !validateResourceOwnership(teamInfo!.teamId, portal.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         // Soft delete - mark as opted out

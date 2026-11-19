@@ -3,9 +3,15 @@
 import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export const seedInternalTeam = async () => {
     try {
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { error: "Unauthorized: Platform Admin required." };
+        }
+
         // 1. Check if "BasaltHQ" exists
         let internalTeam = await prismadb.team.findUnique({
             where: {

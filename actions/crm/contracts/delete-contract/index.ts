@@ -5,27 +5,13 @@ import { DeleteContract } from "./schema";
 import { InputType, ReturnType } from "./types";
 
 import { createSafeAction } from "@/lib/create-safe-action";
-import { getServerSession, Session } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
-  const session: Session | null = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error || !teamInfo) {
     return {
       error: "User not logged in.",
-    };
-  }
-
-  const user = await prismadb.users.findUnique({
-    where: {
-      email: session?.user?.email,
-    },
-  });
-
-  if (!user) {
-    return {
-      error: "User not found.",
     };
   }
 
@@ -38,12 +24,22 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   }
 
   try {
-    const result = await prismadb.crm_Contracts.delete({
+    const existing = await prismadb.crm_Contracts.findUnique({
+      where: { id },
+      select: { id: true, team_id: true },
+    });
+    if (!existing) {
+      return { error: "Contract not found." };
+    }
+    if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+      return { error: "Forbidden." };
+    }
+
+    await prismadb.crm_Contracts.delete({
       where: {
         id: id,
       },
     });
-    console.log(result, "result");
   } catch (error) {
     console.log(error);
     return {

@@ -1,8 +1,13 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function getSystemStatus() {
+    const admin = await requirePlatformAdmin();
+    if (!admin) {
+        return { latency: 0, requests: 0, connections: 0, health: 0, status: "UNAUTHORIZED" };
+    }
     try {
         const start = Date.now();
         // Simple query to test DB latency

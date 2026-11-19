@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import DOMPurify from "isomorphic-dompurify";
 
 // ─── Saved Diagram Type ─────────────────────────────
 type SavedDiagram = {
@@ -71,6 +72,18 @@ function persistDiagrams(diagrams: SavedDiagram[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(diagrams));
 }
 
+function formatSafeInlineMarkdown(raw: string): string {
+    const escaped = raw
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    return DOMPurify.sanitize(
+        escaped.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white/70">$1</strong>')
+    );
+}
+
 // ─── Markdown Notes Renderer ────────────────────────
 function renderFormattedNotes(notes: string) {
     if (!notes) return null;
@@ -84,7 +97,7 @@ function renderFormattedNotes(notes: string) {
                 <ol key={`ol-${elements.length}`} className="list-decimal list-inside space-y-2 text-xs text-muted-foreground/80">
                     {currentList.map((item, i) => (
                         <li key={i} className="leading-relaxed" dangerouslySetInnerHTML={{
-                            __html: item.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white/70">$1</strong>')
+                            __html: formatSafeInlineMarkdown(item)
                         }} />
                     ))}
                 </ol>
@@ -120,7 +133,7 @@ function renderFormattedNotes(notes: string) {
         flushList();
         elements.push(
             <p key={`p-${elements.length}`} className="text-xs text-muted-foreground/70 leading-relaxed" dangerouslySetInnerHTML={{
-                __html: trimmed.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white/70">$1</strong>')
+                __html: formatSafeInlineMarkdown(trimmed)
             }} />
         );
     }

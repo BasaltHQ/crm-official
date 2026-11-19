@@ -2,6 +2,7 @@ import { prismadb } from "@/lib/prisma";
 import { getBlobServiceClient } from "@/lib/s3-storage";
 import { cosineSimilarity } from "@/lib/vector-search";
 import { systemLogger } from "@/lib/logger";
+import { safeFetch } from "@/lib/security/ssrf-guard";
 
 // ─── Text Extraction ────────────────────────────────────────────────────────
 
@@ -237,6 +238,9 @@ export async function ingestDocument(
   });
 
   if (!doc) throw new Error(`Document ${documentId} not found`);
+  if (teamId && doc.team_id && doc.team_id !== teamId) {
+    throw new Error("Forbidden: Document belongs to another team");
+  }
 
   systemLogger.info(
     `[DOC_RAG] Ingesting: "${doc.document_name}" (${doc.document_file_mimeType})`
@@ -249,11 +253,11 @@ export async function ingestDocument(
   if (doc.key) {
     // Use presigned URL to fetch
     const presignedUrl = await blobClient.getPresignedUrl(doc.key);
-    const response = await fetch(presignedUrl);
+    const response = await safeFetch(presignedUrl);
     if (!response.ok) throw new Error(`Failed to fetch document from S3: ${response.status}`);
     fileBuffer = Buffer.from(await response.arrayBuffer());
   } else if (doc.document_file_url) {
-    const response = await fetch(doc.document_file_url);
+    const response = await safeFetch(doc.document_file_url);
     if (!response.ok) throw new Error(`Failed to fetch document URL: ${response.status}`);
     fileBuffer = Buffer.from(await response.arrayBuffer());
   } else {
@@ -331,13 +335,15 @@ export async function searchDocuments(
 > {
   const { documentIds, teamId, topK = 5, minScore = 0.1 } = options;
 
-  // Build filter
+  // Build filter — always enforce team_id when provided, even alongside documentIds
   const where: any = {};
+  if (teamId) {
+    where.team_id = teamId;
+  }
   if (documentIds && documentIds.length > 0) {
     where.document_id = { in: documentIds };
-  } else if (teamId) {
-    where.team_id = teamId;
-  } else {
+  }
+  if (!where.team_id && !where.document_id) {
     return [];
   }
 

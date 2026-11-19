@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm as prisma } from "@/lib/prisma-crm";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/campaigns/[sequenceId]/repair
- * Repairs a campaign by finding leads in its assigned pool that were dropped (e.g. account-level emails missing contact link)
- * and triggering an outreach send ONLY for the missing leads.
- */
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { sequenceId } = await params;
 
@@ -35,16 +27,25 @@ export async function POST(
             return NextResponse.json({ message: "Campaign not found" }, { status: 404 });
         }
 
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+
+        if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && campaign.user !== session!.user.id) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+
         if (!campaign.pool) {
             return NextResponse.json({ message: "Campaign has no assigned pool to repair from" }, { status: 400 });
         }
 
-        // 2. Fetch all leads from the pool using the internal route (reuse logic)
-        // Since we are server-side, we must simulate a fetch using absolute URL or reuse logic.
-        // Easiest is to hit our own API.
-        const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
-        const host = req.headers.get("host") || "localhost:3000";
-        const poolUrl = `${protocol}://${host}/api/crm/leads/pools/${campaign.pool}/leads?mine=false`;
+        // 2. Fetch all leads from the pool using trusted base URL (never untrusted Host header)
+        const baseAppUrl = (
+            process.env.NEXT_PUBLIC_APP_URL ||
+            process.env.NEXTAUTH_URL ||
+            "http://localhost:3000"
+        ).replace(/\/$/, "");
+        const poolUrl = `${baseAppUrl}/api/crm/leads/pools/${encodeURIComponent(campaign.pool)}/leads?mine=false`;
         
         const cookie = req.headers.get("cookie") || "";
 
@@ -98,7 +99,7 @@ export async function POST(
             signatureSource: "brand",
         };
 
-        const sendUrl = `${protocol}://${host}/api/outreach/send`;
+        const sendUrl = `${baseAppUrl}/api/outreach/send`;
         const sendRes = await fetch(sendUrl, {
             method: "POST",
             headers: {

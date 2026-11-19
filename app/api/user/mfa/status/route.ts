@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 import { prismadb } from "@/lib/prisma";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await requireApiAuth();
+    if (session instanceof NextResponse) return session;
 
     const user = await prismadb.users.findUnique({
         where: { id: session.user.id },

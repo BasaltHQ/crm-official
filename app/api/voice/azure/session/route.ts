@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { requireFeature } from "@/lib/require-feature";
 
 /**
  * Azure OpenAI Realtime Voice: Ephemeral Session Issuer
@@ -28,9 +29,20 @@ import { requireApiAuth } from "@/lib/api-auth-guard";
  */
 
 export async function POST(req: NextRequest) {
-  // ── Auth guard ──
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  // ── Auth + Team + Feature Gate ──
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
+
+  if (!teamInfo?.teamId) {
+    return NextResponse.json({ error: "Forbidden — team context required" }, { status: 403 });
+  }
+
+  if (!teamInfo.isPlatformAdmin) {
+    const hasVoice = await requireFeature(teamInfo.teamId, "voice");
+    if (!hasVoice) {
+      return NextResponse.json({ error: "Voice requires a Scale plan or higher" }, { status: 403 });
+    }
+  }
 
   try {
     // Parse body safely

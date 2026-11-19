@@ -3,16 +3,54 @@
 import axios from "axios";
 
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import sendEmail from "@/lib/sendmail";
 import { render } from "@react-email/render";
 import AiProjectReportEmail from "@/emails/AiProjectReport";
 
-export async function getAiReport(session: any, boardId: string) {
+export async function getAiReport(_clientSession: any, boardId: string) {
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error || !session?.user?.id || !teamInfo) {
+    return { error: "Unauthorized" };
+  }
 
+  if (!boardId) {
+    return { error: "Missing boardId" };
+  }
+
+  // Verify board exists, belongs to caller's team, and is accessible to the user
+  const board = await prismadb.boards.findUnique({
+    where: { id: boardId },
+    select: {
+      id: true,
+      user: true,
+      sharedWith: true,
+      visibility: true,
+      team_id: true,
+    },
+  });
+  if (!board) {
+    return { error: "Board not found" };
+  }
+  if (!validateResourceOwnership(teamInfo.teamId, board.team_id, teamInfo.isPlatformAdmin)) {
+    return { error: "Forbidden" };
+  }
+
+  const userId = session.user.id;
+  const canAccessBoard =
+    teamInfo.isPlatformAdmin ||
+    teamInfo.isAdmin ||
+    board.user === userId ||
+    (board.sharedWith || []).includes(userId) ||
+    board.visibility === "public";
+
+  if (!canAccessBoard) {
+    return { error: "Forbidden" };
+  }
 
   const user = await prismadb.users.findUnique({
     where: {
-      id: session.user.id,
+      id: userId,
     },
   });
 
@@ -51,12 +89,14 @@ export async function getAiReport(session: any, boardId: string) {
 
   if (!prompt) return { message: "No prompt found" };
 
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+
   const getAiResponse = await axios
     .post(
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/openai/create-chat-completion`,
+      `${appUrl}/api/openai/create-chat-completion`,
       {
         prompt: prompt,
-        userId: session.user.id,
+        userId,
       },
       {
         headers: {
@@ -66,19 +106,15 @@ export async function getAiReport(session: any, boardId: string) {
     )
     .then((res) => res.data);
 
-  //console.log(getAiResponse, "getAiResponse");
-  //console.log(getAiResponse.response.message.content, "getAiResponse");
-
-  //skip if api response is error
   if (getAiResponse.error) {
     console.log("Error from OpenAI API");
   } else {
     try {
       const emailHtml = await render(
         AiProjectReportEmail({
-          username: session.user.name,
-          avatar: session.user.avatar,
-          userLanguage: session.user.userLanguage,
+          username: user.name || session.user.name || "User",
+          avatar: user.avatar || (session.user as any).avatar,
+          userLanguage: user.userLanguage || "en",
           data: getAiResponse.response.message.content,
         })
       );

@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { dbAdapter } from "@/lib/database/db-adapter";
 
 /**
@@ -21,8 +21,8 @@ export async function getGlobalQuestBoard(): Promise<{
     totalActiveQuests: number;
 }> {
     try {
-        const teamInfo = await getCurrentUserTeamId();
-        if (!teamInfo?.teamId) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) {
             return { leaderboard: [], totalActiveQuests: 0 };
         }
 

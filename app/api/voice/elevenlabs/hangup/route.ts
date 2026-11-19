@@ -3,19 +3,9 @@ import { NextResponse } from "next/server";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { requireApiAuth } from "@/lib/api-auth-guard";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { getTwilioConfig, twilioApiUrl, twilioAuthHeader } from "@/lib/twilio/twilio-voice";
 import { systemLogger } from "@/lib/logger";
-
-/**
- * POST /api/voice/elevenlabs/hangup
- * 
- * Terminates an active Twilio call by updating its status to 'completed'.
- * Reads Twilio credentials from the team's integration settings in the DB.
- * 
- * Body: { callSid: string } or { transactionId: string } (legacy compat)
- */
 
 type Body = {
   callSid?: string;
@@ -23,22 +13,20 @@ type Body = {
 };
 
 export async function POST(req: Request) {
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
+
+  const teamId = teamInfo?.teamId;
+  if (!teamId) {
+    return NextResponse.json({ ok: false, error: "No team context" }, { status: 403 });
+  }
 
   try {
     const body = (await req.json()) as Body;
-    const callSid = body?.callSid || body?.transactionId;
+    const callSid = String(body?.callSid || body?.transactionId || "").trim();
 
-    if (!callSid) {
-      return NextResponse.json({ ok: false, error: "Missing callSid" }, { status: 400 });
-    }
-
-    // Load Twilio creds from DB
-    const teamInfo = await getCurrentUserTeamId();
-    const teamId = teamInfo?.teamId;
-    if (!teamId) {
-      return NextResponse.json({ ok: false, error: "No team context" }, { status: 401 });
+    if (!/^CA[0-9a-fA-F]{32}$/.test(callSid)) {
+      return NextResponse.json({ ok: false, error: "Invalid or missing callSid" }, { status: 400 });
     }
 
     const config = await getTwilioConfig(teamId);

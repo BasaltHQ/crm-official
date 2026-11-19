@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { prismadb } from "@/lib/prisma";
-import { safeContactDisplayName, normalizeName } from "@/lib/scraper/normalize";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
@@ -16,10 +13,8 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ poolId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   try {
     const { poolId } = await params;
@@ -30,33 +25,43 @@ export async function POST(
       return new NextResponse("Invalid assignments data", { status: 400 });
     }
 
-    // Check if user is admin (primary DB flags)
-    const userFlags = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: { is_admin: true, is_account_admin: true }
-    });
-    const isAdmin = !!(userFlags?.is_admin || userFlags?.is_account_admin);
-
-    // Verify pool ownership or admin access
+    // Verify pool ownership and tenant scope
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
-      select: { user: true }
+      select: { id: true, user: true, team_id: true }
     });
 
     if (!pool) {
       return new NextResponse("Pool not found", { status: 404 });
     }
 
-    // Only pool owner or admin can assign leads from this pool
-    if (pool.user !== session.user.id && !isAdmin) {
+    if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // Only pool owner or tenant/platform admin can assign leads from this pool
+    if (pool.user !== session!.user.id && !teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
       return new NextResponse("You don't have permission to assign leads from this pool", { status: 403 });
     }
 
     // Validate assignments: non-admins can only assign to themselves
-    if (!isAdmin) {
-      const invalidAssignments = assignments.filter((a: any) => a.userId !== session.user.id);
+    if (!teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
+      const invalidAssignments = assignments.filter((a: any) => a.userId !== session!.user.id);
       if (invalidAssignments.length > 0) {
         return new NextResponse("You can only assign leads to yourself. Only admins can assign to other users.", { status: 403 });
+      }
+    }
+
+    const targetTeamId = pool.team_id || teamInfo!.teamId;
+    if (targetTeamId && !teamInfo!.isPlatformAdmin) {
+      const targetUserIds = Array.from(new Set(assignments.map((a: any) => String(a?.userId || "")).filter(Boolean)));
+      if (targetUserIds.length > 0) {
+        const validMembers = await prismadb.users.count({
+          where: { id: { in: targetUserIds }, team_id: targetTeamId },
+        });
+        if (validMembers !== targetUserIds.length) {
+          return new NextResponse("Forbidden — one or more assignees do not belong to your team", { status: 403 });
+        }
       }
     }
 
@@ -65,9 +70,9 @@ export async function POST(
     for (const assignment of assignments) {
       const { candidateId, userId } = assignment;
 
-      // Get the candidate with contacts
-      const candidate = await (prismadbCrm as any).crm_Lead_Candidates.findUnique({
-        where: { id: candidateId },
+      // Get the candidate with contacts — strictly verify it belongs to poolId
+      const candidate = await (prismadbCrm as any).crm_Lead_Candidates.findFirst({
+        where: { id: candidateId, pool: poolId },
         include: {
           contacts: true,
         },
@@ -85,24 +90,28 @@ export async function POST(
         });
 
         if (existing) {
-          // Update assignment if needed
-          await (prismadbCrm as any).crm_Leads.update({
-            where: { id: existing.lead },
+          // Update assignment strictly within targetTeamId
+          await (prismadbCrm as any).crm_Leads.updateMany({
+            where: {
+              id: existing.lead,
+              ...(targetTeamId ? { team_id: targetTeamId } : {}),
+            },
             data: { assigned_to: userId },
           });
           continue;
         }
 
-        // Check if Account already exists (by domain or name)
+        // Check if Account already exists (by domain or name) within targetTeamId
         let accountId = null;
         const domain = candidate.domain || (candidate.homepageUrl ? new URL(candidate.homepageUrl).hostname : null);
 
         if (domain) {
           const existingAccount = await (prismadbCrm as any).crm_Accounts.findFirst({
             where: {
+              ...(targetTeamId ? { team_id: targetTeamId } : {}),
               OR: [
                 { website: { contains: domain } },
-                { email: { contains: domain } } // rudimentary check
+                { email: { contains: domain } }
               ]
             }
           });
@@ -111,38 +120,42 @@ export async function POST(
 
         if (!accountId && candidate.companyName) {
           const existingAccount = await (prismadbCrm as any).crm_Accounts.findFirst({
-            where: { name: candidate.companyName }
+            where: {
+              name: candidate.companyName,
+              ...(targetTeamId ? { team_id: targetTeamId } : {}),
+            }
           });
           if (existingAccount) accountId = existingAccount.id;
         }
 
         if (!accountId) {
-          // Create new Account
           const newAccount = await (prismadbCrm as any).crm_Accounts.create({
             data: {
               name: candidate.companyName || "Unknown Company",
               description: candidate.description,
               industry: candidate.industry,
               website: candidate.homepageUrl,
-              team_id: (await getCurrentUserTeamId())?.teamId, // Assign to current team
+              team_id: targetTeamId,
               status: "Active",
               assigned_to: userId,
-              createdBy: session.user.id
+              createdBy: session!.user.id
             }
           });
           accountId = newAccount.id;
         }
 
-        // Create Contact linked to Account
-        // Check if contact exists?
         let contactId = null;
-        const existingContact = await (prismadbCrm as any).crm_Contacts.findFirst({
-          where: { email: contact.email }
-        });
+        const existingContact = contact.email
+          ? await (prismadbCrm as any).crm_Contacts.findFirst({
+              where: {
+                email: contact.email,
+                ...(targetTeamId ? { team_id: targetTeamId } : {}),
+              }
+            })
+          : null;
 
         if (existingContact) {
           contactId = existingContact.id;
-          // Link to account if not linked?
           if (!existingContact.account_id) {
             await (prismadbCrm as any).crm_Contacts.update({
               where: { id: contactId },
@@ -162,9 +175,10 @@ export async function POST(
               mobile_phone: contact.phone,
               job_title: contact.title,
               account_id: accountId,
+              team_id: targetTeamId,
               status: true,
               assigned_to: userId,
-              created_by: session.user.id
+              created_by: session!.user.id
             }
           });
           contactId = newContact.id;
@@ -183,7 +197,7 @@ export async function POST(
       }
     }
 
-    await logActivityInternal(session.user.email || "SYSTEM", "CREATE", "crm_Leads", `Assigned ${results.length} candidates from pool ${poolId} to users`, pool.team_id || "");
+    await logActivityInternal(session!.user.email || "SYSTEM", "CREATE", "crm_Leads", `Assigned ${results.length} candidates from pool ${poolId} to users`, pool.team_id || "");
 
     return NextResponse.json({
       success: true,

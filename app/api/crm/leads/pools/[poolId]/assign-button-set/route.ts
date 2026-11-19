@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
 import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
-// PATCH /api/crm/leads/pools/[poolId]/assign-button-set
-// Body: { projectId: string, buttonSetId: string }
-// Writes to pool.icpConfig: { assignedProjectId, assignedButtonSetId }
 export async function PATCH(req: Request, context: { params: Promise<{ poolId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
-    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+    const userId = session!.user.id;
 
     const { poolId } = await context.params;
     if (!poolId) return new NextResponse("Missing poolId", { status: 400 });
 
-    const teamInfo = await getCurrentUserTeamId();
     const teamId = teamInfo?.teamId;
     const isTeamAdmin = teamInfo?.isAdmin;
 
@@ -28,30 +22,38 @@ export async function PATCH(req: Request, context: { params: Promise<{ poolId: s
     if (!projectId) return new NextResponse("Missing projectId", { status: 400 });
     if (!buttonSetId) return new NextResponse("Missing buttonSetId", { status: 400 });
 
-    // Validate pool ownership or Admin
+    // Validate pool ownership and tenant scope
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
       select: { id: true, user: true, team_id: true, icpConfig: true },
     });
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
 
+    if (!validateResourceOwnership(teamId || null, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const isPoolOwner = pool.user === userId;
-    const isPoolTeamAdmin = Boolean(isTeamAdmin && teamId && pool.team_id === teamId);
+    if (!teamInfo!.isPlatformAdmin && !isTeamAdmin && !isPoolOwner) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
-    if (!isPoolOwner && !isPoolTeamAdmin) return new NextResponse("Forbidden", { status: 403 });
-
-    // Validate project access
+    // Validate project access + tenant scope
     const project = await prismadb.boards.findUnique({
       where: { id: projectId },
       select: { id: true, user: true, sharedWith: true, team_id: true, visibility: true },
     });
     if (!project) return new NextResponse("Project not found", { status: 404 });
 
+    if (!validateResourceOwnership(teamId || null, project.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const isProjectOwner = project.user === userId;
     const isProjectShared = (project.sharedWith || []).includes(userId);
     const isTeamPublic = !!(teamId && project.team_id === teamId && project.visibility === "public");
 
-    const canAccessProject = isProjectOwner || isProjectShared || isTeamPublic;
+    const canAccessProject = teamInfo!.isPlatformAdmin || isProjectOwner || isProjectShared || isTeamPublic;
     if (!canAccessProject) return new NextResponse("Forbidden", { status: 403 });
 
     // Validate button set belongs to project and is accessible

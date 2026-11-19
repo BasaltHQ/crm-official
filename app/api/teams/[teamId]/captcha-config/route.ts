@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
-import { encryptSecret } from "@/lib/encryption";
+import { encryptSecret, isMaskedSecret, maskSecretValue } from "@/lib/encryption";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
@@ -12,49 +11,61 @@ export async function POST(
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
         }
 
-        const resolvedParams = await params;
-        const { teamId } = resolvedParams;
-        const body = await request.json();
-        const { site_key, secret_key } = body;
+        const { teamId } = await params;
 
-        // Verify user belongs to this team or is a global admin
-        const user = await prismadb.users.findUnique({
-            where: { email: session.user.email },
-            select: {
-                team_id: true,
-                team_role: true,
-            },
-        });
-
-        // PLATFORM_ADMIN has god mode - no team restriction
-        const isGlobalAdmin = user?.team_role === "PLATFORM_ADMIN";
-        const isTeamAdmin = user?.team_id === teamId && ["OWNER", "ADMIN", "PLATFORM_ADMIN"].includes(user?.team_role || "");
-
-        if (!isGlobalAdmin && !isTeamAdmin) {
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
             return NextResponse.json({ error: "Not authorized to modify this team's settings" }, { status: 403 });
         }
 
-        // Upsert team Captcha config
+        const body = await request.json();
+        const { site_key, secret_key } = body;
+
+        if (typeof site_key !== "string") {
+            return NextResponse.json({ error: "site_key is required" }, { status: 400 });
+        }
+
+        const existing = await prismadb.teamCaptchaConfig.findUnique({
+            where: { team_id: teamId },
+            select: { secret_key: true },
+        });
+
+        const encryptedSecret =
+            isMaskedSecret(secret_key) || secret_key === "HasValue"
+                ? existing?.secret_key || ""
+                : encryptSecret(secret_key) || "";
+
         const config = await prismadb.teamCaptchaConfig.upsert({
             where: { team_id: teamId },
             create: {
                 team_id: teamId,
                 site_key,
-                secret_key: encryptSecret(secret_key) || "",
+                secret_key: encryptedSecret,
             },
             update: {
                 site_key,
-                secret_key: encryptSecret(secret_key) || "",
+                secret_key: encryptedSecret,
             },
         });
 
-        await logActivityInternal(session.user.email, "UPDATE", "TeamCaptchaConfig", `Updated CAPTCHA config for team ${teamId}`, teamId);
-        return NextResponse.json({ ...config, secret_key: config.secret_key ? "HasValue" : null });
+        await logActivityInternal(
+            session!.user.id,
+            "UPDATE",
+            "TeamCaptchaConfig",
+            `Updated CAPTCHA config for team ${teamId}`,
+            teamId
+        );
+
+        return NextResponse.json({
+            ...config,
+            secret_key: maskSecretValue(config.secret_key),
+        });
     } catch (error) {
         systemLogger.error("[TEAM_CAPTCHA_CONFIG_POST]", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -63,23 +74,35 @@ export async function POST(
 
 // GET /api/teams/[teamId]/captcha-config - Get team Captcha configuration
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
         }
 
-        const resolvedParams = await params;
-        const { teamId } = resolvedParams;
+        const { teamId } = await params;
+
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         const config = await prismadb.teamCaptchaConfig.findUnique({
             where: { team_id: teamId },
         });
 
-        return NextResponse.json(config);
+        if (!config) {
+            return NextResponse.json(null);
+        }
+
+        return NextResponse.json({
+            ...config,
+            secret_key: maskSecretValue(config.secret_key),
+        });
     } catch (error) {
         systemLogger.error("[TEAM_CAPTCHA_CONFIG_GET]", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

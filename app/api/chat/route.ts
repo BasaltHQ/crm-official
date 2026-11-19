@@ -10,6 +10,7 @@ import { z } from "zod";
 import { retrieveRelevantFacts } from "@/lib/vector-search";
 import { systemLogger } from "@/lib/logger";
 import { checkTeamQuota } from "@/lib/quota-service";
+import { assertSafeExternalUrl, safeFetch } from "@/lib/security/ssrf-guard";
 
 // ═══════════════════════════════════════════════════════════════════
 // CRM Query Tools — Let Varuni directly query team-scoped CRM data
@@ -287,15 +288,28 @@ function buildCrmTools(teamId: string, userId: string) {
             }),
             execute: async ({ entityName, query }: any): Promise<any> => {
                 try {
+                    if (!teamId) {
+                        return { success: false, reason: "Team context is required to search CRM knowledge." };
+                    }
                     const targetEntity = entityName.split(' ')[0]; // Basic tokenization
-                    // 1. Resolve Entity Context Node
+                    // 1. Resolve Entity Context Node scoped strictly to caller's teamId
                     const contextNode = await prismadb.contextNode.findFirst({
                         where: {
-                            OR: [
-                                { account: { name: { contains: targetEntity, mode: 'insensitive' } } },
-                                { lead: { lastName: { contains: targetEntity, mode: 'insensitive' } } },
-                                { lead: { firstName: { contains: targetEntity, mode: 'insensitive' } } },
-                                { lead: { company: { contains: targetEntity, mode: 'insensitive' } } }
+                            AND: [
+                                {
+                                    OR: [
+                                        { account: { team_id: teamId } },
+                                        { lead: { team_id: teamId } }
+                                    ]
+                                },
+                                {
+                                    OR: [
+                                        { account: { name: { contains: targetEntity, mode: 'insensitive' } } },
+                                        { lead: { lastName: { contains: targetEntity, mode: 'insensitive' } } },
+                                        { lead: { firstName: { contains: targetEntity, mode: 'insensitive' } } },
+                                        { lead: { company: { contains: targetEntity, mode: 'insensitive' } } }
+                                    ]
+                                }
                             ]
                         },
                         include: { account: true, lead: true }
@@ -1245,7 +1259,7 @@ export async function POST(req: Request) {
                     } 
                 }
             });
-            if (user?.assigned_team?.id) targetTeamId = user.assigned_team.id;
+            if (user?.assigned_team?.id || user?.team_id) targetTeamId = user?.assigned_team?.id || user?.team_id || undefined;
             if (user?.assigned_team?.name) teamName = user.assigned_team.name;
             if (user?.team_role) userRole = user.team_role;
             if (user?.name) userName = user.name;
@@ -1401,12 +1415,22 @@ export async function POST(req: Request) {
                     try {
                         let finalUrlString = att.url;
                         if (att.url.includes('s3.us-west-or.io.cloud.ovh.us')) {
-                            // Extract the raw S3 key
-                            const key = att.url.split('.us/')[1];
-                            if (key) {
-                                const { getBlobServiceClient } = await import("@/lib/s3-storage");
-                                finalUrlString = await getBlobServiceClient().getPresignedUrl(key, 3600);
+                            // Extract and verify ownership of S3 key before presigning
+                            const s3Key = decodeURIComponent(att.url.split('.us/')[1] || "").split("?")[0];
+                            if (!s3Key || s3Key.includes("..") || s3Key.includes("\\") || !targetTeamId) {
+                                continue;
                             }
+                            const ownedDoc = await prismadb.documents.findFirst({
+                                where: { key: s3Key, team_id: targetTeamId },
+                                select: { id: true },
+                            });
+                            if (!ownedDoc) {
+                                continue;
+                            }
+                            const { getBlobServiceClient } = await import("@/lib/s3-storage");
+                            finalUrlString = await getBlobServiceClient().getPresignedUrl(s3Key, 3600);
+                        } else {
+                            await assertSafeExternalUrl(finalUrlString);
                         }
                         
                         const fileUrl = new URL(finalUrlString);
@@ -1415,7 +1439,7 @@ export async function POST(req: Request) {
                         
                         if (isDoc) {
                             try {
-                                const docRes = await fetch(finalUrlString);
+                                const docRes = await safeFetch(finalUrlString);
                                 if (docRes.ok) {
                                     if (mime.includes('pdf')) {
                                         const arrayBuffer = await docRes.arrayBuffer();

@@ -7,7 +7,9 @@
  * - Refine search strategy based on results
  */
 
+import net from "net";
 import { getAiSdkModel, isReasoningModel, logAiUsage } from "@/lib/varuni";
+import { assertSafeExternalUrl, isPrivateOrReservedIp } from "@/lib/security/ssrf-guard";
 import { z } from "zod";
 import { generateObject, generateText, tool, type ModelMessage } from "ai";
 
@@ -525,6 +527,43 @@ function buildToolsDefinition(context: { jobId: string; poolId: string; icp: ICP
   };
 }
 
+async function installScraperSsrfGuard(page: any) {
+  try {
+    await page.setRequestInterception(true);
+    page.on("request", (req: any) => {
+      const reqUrl = req.url();
+      if (reqUrl.startsWith("data:") || reqUrl.startsWith("blob:")) {
+        req.continue();
+        return;
+      }
+      try {
+        const parsed = new URL(reqUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          req.abort();
+          return;
+        }
+        const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+        if (
+          host === "localhost" ||
+          host.endsWith(".localhost") ||
+          host.endsWith(".local") ||
+          host.endsWith(".internal") ||
+          host === "metadata.google.internal" ||
+          (net.isIP(host) && isPrivateOrReservedIp(host))
+        ) {
+          req.abort();
+          return;
+        }
+        req.continue();
+      } catch {
+        req.abort();
+      }
+    });
+  } catch {
+    // Request interception may already be enabled on reused page
+  }
+}
+
 /**
  * Discover sitemap URLs from a domain
  */
@@ -533,6 +572,9 @@ async function discoverSitemap(domain: string, page: any): Promise<string[]> {
   const baseUrl = `https://${domain}`;
 
   try {
+    await assertSafeExternalUrl(baseUrl);
+    await installScraperSsrfGuard(page);
+
     // Try common sitemap locations
     const sitemapLocations = [
       `${baseUrl}/sitemap.xml`,
@@ -560,6 +602,7 @@ async function discoverSitemap(domain: string, page: any): Promise<string[]> {
     // Try to fetch sitemap
     for (const sitemapUrl of sitemapLocations) {
       try {
+        await assertSafeExternalUrl(sitemapUrl);
         await page.goto(sitemapUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
         const content = await page.content();
 
@@ -942,13 +985,31 @@ export async function visitWebsiteForAgent(url: string, userId?: string, icp?: I
     }
   }
 
+  const targetUrl = url.startsWith("http") ? url : `https://${url}`;
+  try {
+    await assertSafeExternalUrl(targetUrl);
+  } catch (ssrfErr: any) {
+    return {
+      title: "",
+      description: "",
+      contacts: [],
+      emails: [],
+      phones: [],
+      socialLinks: {},
+      techStack: [],
+      pagesVisited: [],
+      errors: [ssrfErr?.message || "Blocked unsafe target URL"],
+      error: ssrfErr?.message || "Blocked unsafe target URL",
+    };
+  }
+
   // 2. Visit with Puppeteer (real browser)
   let browser;
   try {
     browser = await launchBrowser();
     const page = await newPageWithDefaults(browser);
+    await installScraperSsrfGuard(page);
 
-    const targetUrl = url.startsWith("http") ? url : `https://${url}`;
     const allEmails = new Set<string>();
     const allPhones = new Set<string>();
     const socialLinks: Record<string, string> = {};
@@ -1216,6 +1277,7 @@ export async function visitWebsiteForAgent(url: string, userId?: string, icp?: I
       if (subUrl === targetUrl || subUrl === targetUrl + "/") continue;
 
       try {
+        await assertSafeExternalUrl(subUrl);
         const response = await page.goto(subUrl, { waitUntil: "domcontentloaded", timeout: 12000 });
 
         // Skip 404s and redirects back to homepage
@@ -1456,6 +1518,11 @@ export async function executeToolCall(toolName: string, args: any, context: any)
 
     case "explore_website_structure": {
       const urlObj = args.url.startsWith("http") ? args.url : `https://${args.url}`;
+      try {
+        await assertSafeExternalUrl(urlObj);
+      } catch (ssrfErr: any) {
+        return { success: false, url: args.url, error: ssrfErr?.message || "Blocked unsafe URL" };
+      }
       let rawHtml = "";
       
       const useScraperApiForVisit = jobData?.providers?.searchProvider === "scraper-api";
@@ -1468,6 +1535,7 @@ export async function executeToolCall(toolName: string, args: any, context: any)
         try {
           browser = await launchBrowser();
           const page = await newPageWithDefaults(browser);
+          await installScraperSsrfGuard(page);
           await page.goto(urlObj, { waitUntil: "domcontentloaded", timeout: 20000 });
           // Dismiss overlays text-based
           await new Promise(r => setTimeout(r, 1500));

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { invalidateCacheVersion } from "@/lib/cache-version";
 import { systemLogger } from "@/lib/logger";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 /**
  * POST /api/cron/cache-reset
@@ -12,17 +13,8 @@ import { systemLogger } from "@/lib/logger";
  */
 export async function POST(req: Request) {
     try {
-        // Verify authorization - Vercel sends this header for cron jobs
-        const authHeader = req.headers.get("Authorization");
-        const cronSecret = process.env.CRON_SECRET;
-
-        // Also accept Vercel's internal cron authorization
-        const isVercelCron = req.headers.get("x-vercel-cron") === "true";
-
-        if (!isVercelCron && cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-            systemLogger.error("[CRON] Unauthorized cache reset attempt");
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const cronAuth = requireCronAuth(req);
+        if (cronAuth instanceof Response) return cronAuth;
 
         const newVersion = invalidateCacheVersion();
 

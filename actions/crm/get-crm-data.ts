@@ -1,28 +1,21 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { sanitizeUser } from "@/lib/security/authz";
 
 export const getAllCrmData = async () => {
-  const session = await getServerSession(authOptions);
-  const teamInfo = await getCurrentUserTeamId();
+  const { error, session, teamInfo } = await getSessionAndTeam();
 
-  if (!session || !teamInfo?.teamId) return { users: [], accounts: [], opportunities: [], leads: [], contacts: [], contracts: [], saleTypes: [], saleStages: [], campaigns: [], industries: [], boards: [] };
+  if (error || !session || !teamInfo?.teamId) return { users: [], accounts: [], opportunities: [], leads: [], contacts: [], contracts: [], saleTypes: [], saleStages: [], campaigns: [], industries: [], boards: [] };
 
-  const whereClause: any = {};
-  if (teamInfo?.teamId) {
-            whereClause.team_id = teamInfo.teamId;
-        }
+  const whereClause: any = {
+    team_id: teamInfo.teamId,
+  };
 
-  // Users are special, maybe filter by team_id too?
-  // Previous logic for users was just Active. Now we should filter by Team?
-  // Prismadb.users has team_id.
   const usersWhere = {
     userStatus: "ACTIVE" as any,
-    team_id: teamInfo?.teamId,
+    team_id: teamInfo.teamId,
   };
 
   const accountsWhere = {
@@ -75,11 +68,11 @@ export const getAllCrmData = async () => {
     prismadb.crm_Opportunities_Sales_Stages.findMany({}),
     prismadb.crm_campaigns.findMany({}),
     prismadb.crm_Industry_Type.findMany({}),
-    prismadb.boards.findMany({ select: { id: true, title: true } }),
+    prismadb.boards.findMany({ where: whereClause, select: { id: true, title: true } }),
   ]);
 
   const data = {
-    users,
+    users: sanitizeUser(users),
     accounts,
     opportunities,
     leads,

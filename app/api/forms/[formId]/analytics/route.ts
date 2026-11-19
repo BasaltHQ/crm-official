@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { startOfMonth, subMonths, format, eachDayOfInterval, startOfDay, endOfDay, subDays } from "date-fns";
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { format, eachDayOfInterval, subDays } from "date-fns";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ formId: string }> }
 ) {
-  // ── Auth guard ──
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
     try {
         const { formId } = await params;
@@ -19,14 +18,18 @@ export async function GET(
             return new NextResponse("Form ID is required", { status: 400 });
         }
 
-        // Get basic form stats
+        // Get basic form stats + team_id for tenant ownership check
         const form = await prismadb.form.findUnique({
             where: { id: formId },
-            select: { view_count: true, submission_count: true }
+            select: { team_id: true, view_count: true, submission_count: true }
         });
 
         if (!form) {
             return new NextResponse("Form not found", { status: 404 });
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, form.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         // Calculate conversion rate

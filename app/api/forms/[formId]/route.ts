@@ -1,7 +1,8 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { assertSafeExternalUrl } from "@/lib/security/ssrf-guard";
+import { encryptSecret, isMaskedSecret, maskFields } from "@/lib/encryption";
 import { logActivityInternal } from "@/actions/audit";
 
 // GET - Get single form
@@ -11,21 +12,11 @@ export async function GET(
 ) {
     try {
         const { formId } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        const teamId = (session.user as any).team_id;
-        if (!teamId) {
-            return NextResponse.json({ error: "No team associated" }, { status: 400 });
-        }
-
-        const form = await (prismadb as any).form.findFirst({
-            where: {
-                id: formId,
-                team_id: teamId,
-            },
+        const form = await (prismadb as any).form.findUnique({
+            where: { id: formId },
             include: {
                 fields: {
                     orderBy: { position: "asc" },
@@ -40,7 +31,11 @@ export async function GET(
             return NextResponse.json({ error: "Form not found" }, { status: 404 });
         }
 
-        return NextResponse.json(form);
+        if (!validateResourceOwnership(teamInfo!.teamId, form.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        return NextResponse.json(maskFields(form, ["captcha_secret_key"]));
     } catch (error) {
         console.error("Error fetching form:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -54,37 +49,21 @@ export async function PATCH(
 ) {
     try {
         const { formId } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+        const userId = session!.user.id;
 
-        const userId = session.user.id;
-        let teamId = (session.user as any).team_id;
-
-        // If no team_id on session, try to get from database
-        if (!teamId) {
-            const user = await prismadb.users.findUnique({
-                where: { id: userId },
-                select: { team_id: true },
-            });
-            teamId = user?.team_id;
-        }
-
-        if (!teamId) {
-            return NextResponse.json({ error: "No team associated" }, { status: 400 });
-        }
-
-        // Check form exists and belongs to team
-        const existingForm = await (prismadb as any).form.findFirst({
-            where: {
-                id: formId,
-                team_id: teamId,
-            },
+        // Check form exists and belongs to caller's team
+        const existingForm = await (prismadb as any).form.findUnique({
+            where: { id: formId },
         });
 
         if (!existingForm) {
             return NextResponse.json({ error: "Form not found" }, { status: 404 });
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, existingForm.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const body = await req.json();
@@ -108,6 +87,14 @@ export async function PATCH(
             submission_behavior,
         } = body;
 
+        if (webhook_url) {
+            try {
+                await assertSafeExternalUrl(String(webhook_url));
+            } catch (urlErr: any) {
+                return NextResponse.json({ error: urlErr?.message || "Invalid webhook_url" }, { status: 400 });
+            }
+        }
+
         // Build update data - only include fields that are provided
         const updateData: any = {};
 
@@ -126,7 +113,9 @@ export async function PATCH(
         if (auto_respond_subject !== undefined) updateData.auto_respond_subject = auto_respond_subject;
         if (auto_respond_body !== undefined) updateData.auto_respond_body = auto_respond_body;
         if (captcha_site_key !== undefined) updateData.captcha_site_key = captcha_site_key;
-        if (captcha_secret_key !== undefined) updateData.captcha_secret_key = captcha_secret_key;
+        if (captcha_secret_key !== undefined && !isMaskedSecret(captcha_secret_key)) {
+            updateData.captcha_secret_key = captcha_secret_key ? encryptSecret(captcha_secret_key) : null;
+        }
         if (submission_behavior !== undefined) updateData.submission_behavior = submission_behavior;
 
         const form = await (prismadb as any).form.update({
@@ -139,8 +128,8 @@ export async function PATCH(
             },
         });
 
-        await logActivityInternal(userId, "UPDATE", "Form", `Updated form: ${form.name} (${formId})`, teamId);
-        return NextResponse.json(form);
+        await logActivityInternal(userId, "UPDATE", "Form", `Updated form: ${form.name} (${formId})`, existingForm.team_id || teamInfo!.teamId || undefined);
+        return NextResponse.json(maskFields(form, ["captcha_secret_key"]));
     } catch (error) {
         console.error("Error updating form:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -154,37 +143,20 @@ export async function DELETE(
 ) {
     try {
         const { formId } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+        const userId = session!.user.id;
 
-        const userId = session.user.id;
-        let teamId = (session.user as any).team_id;
-
-        // If no team_id on session, try to get from database
-        if (!teamId) {
-            const user = await prismadb.users.findUnique({
-                where: { id: userId },
-                select: { team_id: true },
-            });
-            teamId = user?.team_id;
-        }
-
-        if (!teamId) {
-            return NextResponse.json({ error: "No team associated" }, { status: 400 });
-        }
-
-        // Check form exists and belongs to team
-        const existingForm = await (prismadb as any).form.findFirst({
-            where: {
-                id: formId,
-                team_id: teamId,
-            },
+        const existingForm = await (prismadb as any).form.findUnique({
+            where: { id: formId },
         });
 
         if (!existingForm) {
             return NextResponse.json({ error: "Form not found" }, { status: 404 });
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, existingForm.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         // Delete form (fields and submissions will cascade due to schema)
@@ -192,7 +164,7 @@ export async function DELETE(
             where: { id: formId },
         });
 
-        await logActivityInternal(userId, "DELETE", "Form", `Deleted form: ${existingForm.name} (${formId})`, teamId);
+        await logActivityInternal(userId, "DELETE", "Form", `Deleted form: ${existingForm.name} (${formId})`, existingForm.team_id || teamInfo!.teamId || undefined);
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Error deleting form:", error);

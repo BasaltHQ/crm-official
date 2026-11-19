@@ -1,22 +1,25 @@
 
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { sendSmsEum } from "@/lib/aws/eum-sms";
 import { systemLogger } from "@/lib/logger";
 
 export async function sendInvoiceSMS(invoiceId: string, phone: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return { error: "Unauthorized" };
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) return { error: "Unauthorized" };
 
         const invoice = await prismadb.invoices.findUnique({
             where: { id: invoiceId },
         });
 
         if (!invoice) return { error: "Invoice not found" };
+
+        if (!validateResourceOwnership(teamInfo.teamId, invoice.team_id, teamInfo.isPlatformAdmin)) {
+            return { error: "Forbidden" };
+        }
 
         const paymentLink = invoice.surge_payment_link;
         if (!paymentLink) return { error: "No payment link generated. Enable Crypto Payments first." };

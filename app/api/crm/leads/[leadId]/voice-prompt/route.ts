@@ -19,7 +19,7 @@ export async function POST(req: Request, props: { params: Promise<{ leadId: stri
 
     if (!lead) return new NextResponse("Lead not found", { status: 404 });
 
-    if (!validateResourceOwnership(teamInfo!.teamId, lead.team_id, false)) {
+    if (!validateResourceOwnership(teamInfo!.teamId, lead.team_id, teamInfo!.isPlatformAdmin)) {
       return await unauthorizedResponse("POST", `crm_Leads:${params.leadId}`);
     }
 

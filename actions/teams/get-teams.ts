@@ -2,10 +2,16 @@
 
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
+import { requirePlatformAdmin, sanitizeUser } from "@/lib/security/authz";
 
 // Version: 2026-02-12-v5 - Switched to Internal Prisma Client Path
 export const getTeams = async () => {
     try {
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return [];
+        }
+
         const teams = await prismadb.team.findMany({
             where: {
                 OR: [
@@ -55,7 +61,7 @@ export const getTeams = async () => {
 
             return {
                 ...team,
-                members: uniqueMembers
+                members: sanitizeUser(uniqueMembers)
             };
         });
 

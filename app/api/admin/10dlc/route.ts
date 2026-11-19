@@ -4,8 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 import {
     initiate10DLCRegistration,
@@ -20,10 +19,11 @@ import {
 
 export async function GET(req: NextRequest) {
     try {
-        // Auth check - admin only
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
         }
 
         const { searchParams } = new URL(req.url);
@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
 
         switch (action) {
             case "list": {
-                // List all registrations
                 const registrations = await listAllRegistrations();
                 const phoneNumbers = await listPhoneNumbers();
                 return NextResponse.json({
@@ -63,7 +62,7 @@ export async function GET(req: NextRequest) {
     } catch (err: any) {
         systemLogger.error("[10DLC API] Error:", err);
         return NextResponse.json(
-            { error: err.message || "Internal server error" },
+            { error: "Internal server error" },
             { status: 500 }
         );
     }
@@ -71,10 +70,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        // Auth check - admin only
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
         }
 
         const body = await req.json();
@@ -82,19 +82,17 @@ export async function POST(req: NextRequest) {
 
         switch (action) {
             case "initiate": {
-                // Start the 10DLC registration process
-                const ein = body.ein; // Optional EIN for brand registration
+                const ein = body.ein;
                 const result = await initiate10DLCRegistration(ein);
                 return NextResponse.json(result);
             }
 
             case "requestPhoneNumber": {
-                // Request a new phone number
                 const {
                     isoCountryCode = "US",
                     messageType = "TRANSACTIONAL",
                     numberType = "TEN_DLC",
-                    registrationId
+                    registrationId,
                 } = body;
 
                 const phoneNumber = await requestPhoneNumber({
@@ -116,7 +114,6 @@ export async function POST(req: NextRequest) {
             }
 
             case "associate": {
-                // Associate phone number with campaign
                 const { phoneNumberId, campaignRegistrationId } = body;
                 if (!phoneNumberId || !campaignRegistrationId) {
                     return NextResponse.json(
@@ -142,7 +139,7 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
         systemLogger.error("[10DLC API] Error:", err);
         return NextResponse.json(
-            { error: err.message || "Internal server error" },
+            { error: "Internal server error" },
             { status: 500 }
         );
     }

@@ -4,34 +4,55 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { isReservedTeamSlug, normalizeTeamSlug } from "@/lib/security/authz";
 
 export async function setupOrganization(companyName: string) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
             return { error: "Unauthorized" };
+        }
+
+        const trimmedName = String(companyName || "").trim();
+        if (!trimmedName || trimmedName.length < 2) {
+            return { error: "A valid organization name is required." };
         }
 
         const user = await prismadb.users.findUnique({
             where: { id: session.user.id }
         });
 
-        if (!user) {
-            return { error: "User not found" };
+        if (!user || user.userStatus === "INACTIVE") {
+            return { error: "User not found or inactive" };
         }
 
-        // Slugify company name
-        let slug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        // Ensure slug is not empty
-        if (!slug) slug = "company-" + Math.random().toString(36).substring(7);
+        // Prevent an existing team member (e.g. VIEWER/MEMBER) from spawning a new org to become OWNER
+        if (user.team_id) {
+            return { error: "Forbidden: You already belong to an organization." };
+        }
 
-        let existing = await prismadb.team.findUnique({ where: { slug } });
+        // Normalize and validate company slug
+        const baseSlug = normalizeTeamSlug(trimmedName);
+        if (!baseSlug) {
+            return { error: "Invalid organization name." };
+        }
+
+        if (isReservedTeamSlug(trimmedName) || isReservedTeamSlug(baseSlug)) {
+            return { error: "This organization name is reserved. Please choose another." };
+        }
+
+        let slug = baseSlug;
+        let existing = await prismadb.team.findFirst({
+            where: { slug: { equals: slug, mode: "insensitive" } },
+        });
         let counter = 1;
 
         // Try to generate unique slug if colliding
         while (existing && counter < 10) {
-            slug = `${slug}-${counter}`;
-            existing = await prismadb.team.findUnique({ where: { slug } });
+            slug = `${baseSlug}-${counter}`;
+            existing = await prismadb.team.findFirst({
+                where: { slug: { equals: slug, mode: "insensitive" } },
+            });
             counter++;
         }
 
@@ -39,18 +60,21 @@ export async function setupOrganization(companyName: string) {
             return { error: "Company name already taken (slug collision). Please choose another." };
         }
 
-        // Default to FREE plan
-        const freePlan = await prismadb.plan.findFirst({ where: { slug: "FREE" } });
-        if (!freePlan) {
-            return { error: "System configuration error: Free plan not found." };
+        // Default to STARTER (fallback FREE) plan
+        const starterPlan =
+            (await prismadb.plan.findFirst({ where: { slug: "STARTER" } })) ||
+            (await prismadb.plan.findFirst({ where: { slug: "FREE" } }));
+        if (!starterPlan) {
+            return { error: "System configuration error: Starter plan not found." };
         }
 
         // Create the team and associate the owner
         const team = await prismadb.team.create({
             data: {
-                name: companyName,
+                name: trimmedName,
                 slug,
-                plan_id: freePlan.id,
+                plan_id: starterPlan.id,
+                subscription_plan: (starterPlan.slug || "STARTER") as any,
                 owner_id: user.id,
                 status: "ACTIVE",
                 members: {

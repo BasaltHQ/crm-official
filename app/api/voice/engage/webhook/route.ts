@@ -1,67 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import nodeCrypto from "crypto";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/voice/engage/webhook
- * BasaltECHO → BasaltCRM webhook for agent/call events with optional HMAC verification and best-effort idempotency.
- *
- * Security:
- * - Set BASALTECHO_WEBHOOK_SECRET to enable HMAC verification (Header: x-basaltecho-signature = hex(HMAC_SHA256(rawBody, secret)))
- *
- * Event payload examples:
- * {
- *   "type": "tool_call",
- *   "name": "schedule_meeting",
- *   "leadId": "lead_abc",
- *   "args": { "datetime": "2025-11-21T15:00:00Z", "timezone": "America/Denver" },
- *   "eventId": "evt_123",
- *   "ts": 1732040000000
- * }
- *
- * {
- *   "type": "call_connected",
- *   "leadId": "lead_abc",
- *   "eventId": "evt_456",
- *   "ts": 1732030000000
- * }
- *
- * {
- *   "type": "call_ended",
- *   "leadId": "lead_abc",
- *   "durationSec": 482,
- *   "eventId": "evt_789",
- *   "ts": 1732030482000
- * }
- */
+function verifySignature(raw: string, signatureHex: string | null, secret: string): boolean {
+  if (!signatureHex || !secret) return false;
+  const cleaned = signatureHex.trim().replace(/^sha256=/i, "");
+  if (!/^[0-9a-fA-F]{64}$/.test(cleaned)) return false;
 
-function timingSafeEqual(a: Uint8Array, b: Uint8Array) {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a[i] ^ b[i];
-  }
-  return diff === 0;
-}
-
-async function verifySignature(raw: string, signatureHex: string | null): Promise<boolean> {
-  const secret = process.env.BASALTECHO_WEBHOOK_SECRET;
-  if (!secret) return true; // allow if no secret configured
-  if (!signatureHex) return false;
-  // Compute HMAC-SHA256 of raw body
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(raw));
-  const signedBytes = new Uint8Array(sig);
-  // Convert provided hex signature to bytes
-  const providedBytes = new Uint8Array(signatureHex.match(/.{1,2}/g)?.map((h) => parseInt(h, 16)) || []);
-  return timingSafeEqual(signedBytes, providedBytes);
+  const expected = nodeCrypto.createHmac("sha256", secret).update(raw, "utf8").digest();
+  const provided = Buffer.from(cleaned, "hex");
+  return expected.length === provided.length && nodeCrypto.timingSafeEqual(expected, provided);
 }
 
 // Best-effort idempotency: check recent activities for matching eventId
@@ -86,10 +35,18 @@ async function isDuplicateEvent(leadId: string, eventId?: string | null): Promis
 
 export async function POST(req: NextRequest) {
   try {
+    const secret =
+      process.env.BASALTECHO_WEBHOOK_SECRET ||
+      process.env.VOICE_WEBHOOK_SECRET ||
+      process.env.ELEVENLABS_WEBHOOK_SECRET;
+    if (!secret) {
+      systemLogger.error("[VOICE_ENGAGE_WEBHOOK] Missing BASALTECHO_WEBHOOK_SECRET / VOICE_WEBHOOK_SECRET");
+      return NextResponse.json({ ok: false, error: "Server misconfiguration" }, { status: 500 });
+    }
+
     const raw = await req.text();
-    const signature = req.headers.get("x-basaltecho-signature");
-    const ok = await verifySignature(raw, signature);
-    if (!ok) {
+    const signature = req.headers.get("x-basaltecho-signature") || req.headers.get("x-webhook-signature");
+    if (!verifySignature(raw, signature, secret)) {
       return new NextResponse("Invalid signature", { status: 401 });
     }
 

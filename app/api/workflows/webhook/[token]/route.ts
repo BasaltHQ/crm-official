@@ -21,6 +21,12 @@ export async function POST(
 ) {
     try {
         const { token } = await params;
+        if (!token || typeof token !== "string" || token.trim().length < 16) {
+            return NextResponse.json(
+                { error: "Invalid webhook token or workflow is not active" },
+                { status: 404 }
+            );
+        }
 
         // Find workflow by webhook token
         const workflow = await prismadb.crm_Workflow.findFirst({
@@ -30,7 +36,7 @@ export async function POST(
             },
         });
 
-        if (!workflow) {
+        if (!workflow || !workflow.team_id) {
             return NextResponse.json(
                 { error: "Invalid webhook token or workflow is not active" },
                 { status: 404 }
@@ -98,18 +104,20 @@ export async function GET(
     { params }: { params: Promise<{ token: string }> }
 ) {
     const { token } = await params;
+    if (!token || typeof token !== "string" || token.trim().length < 16) {
+        return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
+    }
 
     const workflow = await prismadb.crm_Workflow.findFirst({
         where: { webhook_token: token },
-        select: { name: true, status: true },
+        select: { status: true, team_id: true },
     });
 
-    if (!workflow) {
+    if (!workflow || !workflow.team_id) {
         return NextResponse.json({ error: "Webhook not found" }, { status: 404 });
     }
 
     return NextResponse.json({
-        name: workflow.name,
         status: workflow.status,
         ready: workflow.status === "ACTIVE",
     });

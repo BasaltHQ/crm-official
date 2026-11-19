@@ -1,19 +1,20 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { decryptSecret } from "@/lib/encryption";
+import { safeFetch } from "@/lib/security/ssrf-guard";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
 export async function getProducts() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return [];
 
         const products = await prismadb.crm_Products.findMany({
             where: {
-                team_id: (session.user as any).team_id,
+                team_id: teamInfo.teamId,
                 active: true,
             },
             include: {
@@ -67,14 +68,15 @@ export async function createProduct(data: {
     shippingConfig?: any;
 }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false };
 
-        const teamId = (session.user as any).team_id;
+        const teamId = teamInfo.teamId;
+        const { id: _id, team_id: _teamId, ...safeData } = data as any;
 
         const newProduct = await prismadb.crm_Products.create({
             data: {
-                ...data,
+                ...safeData,
                 team_id: teamId,
             },
         });
@@ -85,22 +87,26 @@ export async function createProduct(data: {
         });
 
         const syncResults: string[] = [];
+        const surgeApiKey = decryptSecret(integration?.surge_api_key);
+        const shopifyAccessToken = decryptSecret(integration?.shopify_access_token);
+        const wooConsumerKey = decryptSecret(integration?.woocommerce_consumer_key);
+        const wooConsumerSecret = decryptSecret(integration?.woocommerce_consumer_secret);
 
         // Auto-sync to Surge if linked
-        if (integration?.surge_enabled && integration?.surge_api_key) {
-            const result = await syncProductToSurge(newProduct, integration.surge_api_key);
+        if (integration?.surge_enabled && surgeApiKey) {
+            const result = await syncProductToSurge(newProduct, surgeApiKey);
             if (result) syncResults.push("Surge");
         }
 
         // Auto-sync to Shopify if linked
-        if (integration?.shopify_enabled && integration?.shopify_access_token && integration?.shopify_store_url) {
-            const result = await syncProductToShopify(newProduct, integration.shopify_store_url, integration.shopify_access_token);
+        if (integration?.shopify_enabled && shopifyAccessToken && integration?.shopify_store_url) {
+            const result = await syncProductToShopify(newProduct, integration.shopify_store_url, shopifyAccessToken);
             if (result) syncResults.push("Shopify");
         }
 
         // Auto-sync to WooCommerce if linked
-        if (integration?.woocommerce_enabled && integration?.woocommerce_consumer_key && integration?.woocommerce_consumer_secret && integration?.woocommerce_store_url) {
-            const result = await syncProductToWooCommerce(newProduct, integration.woocommerce_store_url, integration.woocommerce_consumer_key, integration.woocommerce_consumer_secret);
+        if (integration?.woocommerce_enabled && wooConsumerKey && wooConsumerSecret && integration?.woocommerce_store_url) {
+            const result = await syncProductToWooCommerce(newProduct, integration.woocommerce_store_url, wooConsumerKey, wooConsumerSecret);
             if (result) syncResults.push("WooCommerce");
         }
 
@@ -152,8 +158,8 @@ async function resolveImageForSurge(product: any): Promise<string[] | undefined>
                 fetchUrl = await getBlobServiceClient().getPresignedUrl(key);
             }
 
-            // Fetch and convert to data URL
-            const imgRes = await fetch(fetchUrl);
+            // Fetch and convert to data URL via SSRF-safe fetch
+            const imgRes = await safeFetch(fetchUrl);
             if (imgRes.ok) {
                 const arrayBuffer = await imgRes.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
@@ -257,7 +263,7 @@ async function syncProductToShopify(product: any, storeUrl: string, accessToken:
             ? `https://${cleanUrl}/admin/api/2024-01/products/${product.shopify_id}.json`
             : `https://${cleanUrl}/admin/api/2024-01/products.json`;
 
-        const response = await fetch(endpoint, {
+        const response = await safeFetch(endpoint, {
             method,
             headers: {
                 "Content-Type": "application/json",
@@ -311,7 +317,7 @@ async function syncProductToWooCommerce(product: any, storeUrl: string, consumer
             ? `${cleanUrl}/wp-json/wc/v3/products/${product.woo_id}`
             : `${cleanUrl}/wp-json/wc/v3/products`;
 
-        const response = await fetch(endpoint, {
+        const response = await safeFetch(endpoint, {
             method,
             headers: {
                 "Content-Type": "application/json",
@@ -371,14 +377,23 @@ export async function updateProduct(productId: string, data: {
     shippingConfig?: any;
 }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false };
 
-        const teamId = (session.user as any).team_id;
+        const existingProduct = await prismadb.crm_Products.findUnique({
+            where: { id: productId },
+            select: { id: true, team_id: true },
+        });
+        if (!existingProduct || !validateResourceOwnership(teamInfo.teamId, existingProduct.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false };
+        }
+
+        const teamId = existingProduct.team_id || teamInfo.teamId;
+        const { id: _id, team_id: _teamId, ...safeData } = data as any;
 
         const updated = await prismadb.crm_Products.update({
-            where: { id: productId, team_id: teamId },
-            data
+            where: { id: productId },
+            data: safeData
         });
 
         // Fetch integration config once for all sync checks
@@ -387,22 +402,26 @@ export async function updateProduct(productId: string, data: {
         });
 
         const syncResults: string[] = [];
+        const surgeApiKey = decryptSecret(integration?.surge_api_key);
+        const shopifyAccessToken = decryptSecret(integration?.shopify_access_token);
+        const wooConsumerKey = decryptSecret(integration?.woocommerce_consumer_key);
+        const wooConsumerSecret = decryptSecret(integration?.woocommerce_consumer_secret);
 
         // Auto-sync to Surge if linked
-        if (updated.surge_id && integration?.surge_enabled && integration?.surge_api_key) {
-            const result = await syncProductToSurge(updated, integration.surge_api_key);
+        if (updated.surge_id && integration?.surge_enabled && surgeApiKey) {
+            const result = await syncProductToSurge(updated, surgeApiKey);
             if (result) syncResults.push("Surge");
         }
 
         // Auto-sync to Shopify if linked
-        if (updated.shopify_id && integration?.shopify_enabled && integration?.shopify_access_token && integration?.shopify_store_url) {
-            const result = await syncProductToShopify(updated, integration.shopify_store_url, integration.shopify_access_token);
+        if (updated.shopify_id && integration?.shopify_enabled && shopifyAccessToken && integration?.shopify_store_url) {
+            const result = await syncProductToShopify(updated, integration.shopify_store_url, shopifyAccessToken);
             if (result) syncResults.push("Shopify");
         }
 
         // Auto-sync to WooCommerce if linked
-        if (updated.woo_id && integration?.woocommerce_enabled && integration?.woocommerce_consumer_key && integration?.woocommerce_consumer_secret && integration?.woocommerce_store_url) {
-            const result = await syncProductToWooCommerce(updated, integration.woocommerce_store_url, integration.woocommerce_consumer_key, integration.woocommerce_consumer_secret);
+        if (updated.woo_id && integration?.woocommerce_enabled && wooConsumerKey && wooConsumerSecret && integration?.woocommerce_store_url) {
+            const result = await syncProductToWooCommerce(updated, integration.woocommerce_store_url, wooConsumerKey, wooConsumerSecret);
             if (result) syncResults.push("WooCommerce");
         }
 
@@ -416,17 +435,18 @@ export async function updateProduct(productId: string, data: {
 
 export async function deleteProduct(productId: string, deleteFromSurge: boolean = true) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
-        const teamId = (session.user as any).team_id;
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false, error: "Unauthorized" };
 
         const product = await prismadb.crm_Products.findUnique({
-            where: { id: productId, team_id: teamId }
+            where: { id: productId }
         });
 
-        if (!product) return { success: false, error: "Product not found" };
+        if (!product || !validateResourceOwnership(teamInfo.teamId, product.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Product not found" };
+        }
 
+        const teamId = product.team_id || teamInfo.teamId;
         let surgeDeleted = false;
 
         // Only delete from Surge if explicitly requested and product is synced
@@ -435,12 +455,13 @@ export async function deleteProduct(productId: string, deleteFromSurge: boolean 
                 const integration = await prismadb.tenant_Integrations.findUnique({
                     where: { tenant_id: teamId }
                 });
+                const surgeApiKey = decryptSecret(integration?.surge_api_key);
 
-                if (integration?.surge_enabled && integration?.surge_api_key) {
-                    const response = await fetch(`https://surge.basalthq.com/api/inventory?id=${product.surge_id}`, {
+                if (integration?.surge_enabled && surgeApiKey) {
+                    const response = await fetch(`https://surge.basalthq.com/api/inventory?id=${encodeURIComponent(product.surge_id)}`, {
                         method: "DELETE",
                         headers: {
-                            "Ocp-Apim-Subscription-Key": integration.surge_api_key
+                            "Ocp-Apim-Subscription-Key": surgeApiKey
                         }
                     });
 
@@ -480,21 +501,22 @@ export async function deleteProduct(productId: string, deleteFromSurge: boolean 
 
 export async function getSurgeTaxCatalog() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { jurisdictions: [] };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { jurisdictions: [] };
 
-        const teamId = (session.user as any).team_id;
+        const teamId = teamInfo.teamId;
         const integration = await prismadb.tenant_Integrations.findUnique({
             where: { tenant_id: teamId }
         });
+        const surgeApiKey = decryptSecret(integration?.surge_api_key);
 
-        if (!integration?.surge_enabled || !integration?.surge_api_key) {
+        if (!integration?.surge_enabled || !surgeApiKey) {
             return { jurisdictions: [] };
         }
 
         const response = await fetch("https://surge.basalthq.com/api/tax/catalog", {
             headers: {
-                "Ocp-Apim-Subscription-Key": integration.surge_api_key
+                "Ocp-Apim-Subscription-Key": surgeApiKey
             }
         });
 
@@ -509,21 +531,22 @@ export async function getSurgeTaxCatalog() {
 
 export async function importFromSurge() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false, error: "Unauthorized" };
 
-        const teamId = (session.user as any).team_id;
+        const teamId = teamInfo.teamId;
         const integration = await prismadb.tenant_Integrations.findUnique({
             where: { tenant_id: teamId }
         });
+        const surgeApiKey = decryptSecret(integration?.surge_api_key);
 
-        if (!integration?.surge_enabled || !integration?.surge_api_key) {
+        if (!integration?.surge_enabled || !surgeApiKey) {
             return { success: false, error: "Surge integration not configured" };
         }
 
         const response = await fetch("https://surge.basalthq.com/api/inventory", {
             headers: {
-                "Ocp-Apim-Subscription-Key": integration.surge_api_key
+                "Ocp-Apim-Subscription-Key": surgeApiKey
             }
         });
 
@@ -654,23 +677,26 @@ export async function importFromSurge() {
 
 export async function exportToSurge(productId: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false, error: "Unauthorized" };
 
-        const teamId = (session.user as any).team_id;
+        const product = await prismadb.crm_Products.findUnique({
+            where: { id: productId }
+        });
+
+        if (!product || !validateResourceOwnership(teamInfo.teamId, product.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Product not found" };
+        }
+
+        const teamId = product.team_id || teamInfo.teamId;
         const integration = await prismadb.tenant_Integrations.findUnique({
             where: { tenant_id: teamId }
         });
+        const surgeApiKey = decryptSecret(integration?.surge_api_key);
 
-        if (!integration?.surge_enabled || !integration?.surge_api_key) {
+        if (!integration?.surge_enabled || !surgeApiKey) {
             return { success: false, error: "Surge integration not configured" };
         }
-
-        const product = await prismadb.crm_Products.findUnique({
-            where: { id: productId, team_id: teamId }
-        });
-
-        if (!product) return { success: false, error: "Product not found" };
 
         const surgeImages = await resolveImageForSurge(product);
 
@@ -706,7 +732,7 @@ export async function exportToSurge(productId: string) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Ocp-Apim-Subscription-Key": integration.surge_api_key
+                "Ocp-Apim-Subscription-Key": surgeApiKey
             },
             body: JSON.stringify(surgeBody)
         });
@@ -737,10 +763,10 @@ export async function exportToSurge(productId: string) {
 // Returns which e-commerce integrations are enabled (no secrets exposed)
 export async function getEnabledIntegrations() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { surge: false, shopify: false, woocommerce: false };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { surge: false, shopify: false, woocommerce: false };
 
-        const teamId = (session.user as any).team_id;
+        const teamId = teamInfo.teamId;
         const integration = await prismadb.tenant_Integrations.findUnique({
             where: { tenant_id: teamId }
         });
@@ -758,23 +784,24 @@ export async function getEnabledIntegrations() {
 
 export async function importFromShopify() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false, error: "Unauthorized" };
 
-        const teamId = (session.user as any).team_id;
+        const teamId = teamInfo.teamId;
         const integration = await prismadb.tenant_Integrations.findUnique({
             where: { tenant_id: teamId }
         });
+        const shopifyAccessToken = decryptSecret(integration?.shopify_access_token);
 
-        if (!integration?.shopify_enabled || !integration?.shopify_access_token || !integration?.shopify_store_url) {
+        if (!integration?.shopify_enabled || !shopifyAccessToken || !integration?.shopify_store_url) {
             return { success: false, error: "Shopify integration not configured. Go to Admin → Integrations to set it up." };
         }
 
         // Shopify Admin REST API — GET products
         const storeUrl = integration.shopify_store_url.replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const response = await fetch(`https://${storeUrl}/admin/api/2024-01/products.json?limit=250`, {
+        const response = await safeFetch(`https://${storeUrl}/admin/api/2024-01/products.json?limit=250`, {
             headers: {
-                "X-Shopify-Access-Token": integration.shopify_access_token
+                "X-Shopify-Access-Token": shopifyAccessToken
             }
         });
 
@@ -854,23 +881,25 @@ export async function importFromShopify() {
 
 export async function importFromWooCommerce() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return { success: false, error: "Unauthorized" };
 
-        const teamId = (session.user as any).team_id;
+        const teamId = teamInfo.teamId;
         const integration = await prismadb.tenant_Integrations.findUnique({
             where: { tenant_id: teamId }
         });
+        const wooConsumerKey = decryptSecret(integration?.woocommerce_consumer_key);
+        const wooConsumerSecret = decryptSecret(integration?.woocommerce_consumer_secret);
 
-        if (!integration?.woocommerce_enabled || !integration?.woocommerce_consumer_key || !integration?.woocommerce_consumer_secret || !integration?.woocommerce_store_url) {
+        if (!integration?.woocommerce_enabled || !wooConsumerKey || !wooConsumerSecret || !integration?.woocommerce_store_url) {
             return { success: false, error: "WooCommerce integration not configured. Go to Admin → Integrations to set it up." };
         }
 
         // WooCommerce REST API v3 — Basic Auth
         const storeUrl = integration.woocommerce_store_url.replace(/\/$/, "");
-        const authHeader = "Basic " + Buffer.from(`${integration.woocommerce_consumer_key}:${integration.woocommerce_consumer_secret}`).toString("base64");
+        const authHeader = "Basic " + Buffer.from(`${wooConsumerKey}:${wooConsumerSecret}`).toString("base64");
 
-        const response = await fetch(`${storeUrl}/wp-json/wc/v3/products?per_page=100`, {
+        const response = await safeFetch(`${storeUrl}/wp-json/wc/v3/products?per_page=100`, {
             headers: {
                 "Authorization": authHeader
             }

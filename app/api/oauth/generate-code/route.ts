@@ -1,36 +1,53 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/oauth/generate-code
- * Generate an authorization code server-side with authenticated user context.
- * 
- * Expected body:
- * {
- *   clientId: string,
- *   redirectUri: string,
- *   scope?: string,
- *   codeChallenge: string,
- *   challengeMethod?: string
- * }
- * 
- * Returns:
- * {
- *   ok: boolean,
- *   code?: string,
- *   error?: string
- * }
- */
+async function isAllowedRedirectUri(rawUri: string): Promise<boolean> {
+    let parsed: URL;
+    try {
+        parsed = new URL(rawUri);
+    } catch {
+        return false;
+    }
+
+    if (parsed.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && parsed.hostname === "localhost" && parsed.protocol === "http:")) {
+        return false;
+    }
+
+    const allowedOrigins = new Set<string>([
+        "https://echo.basalthq.com",
+        "https://crm.basalthq.com",
+    ]);
+
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+        try {
+            allowedOrigins.add(new URL(process.env.NEXT_PUBLIC_APP_URL).origin);
+        } catch { /* ignore */ }
+    }
+
+    try {
+        const echoService = await prismadb.systemServices.findFirst({
+            where: { name: "basaltecho" },
+            select: { serviceUrl: true },
+        });
+        if (echoService?.serviceUrl) {
+            allowedOrigins.add(new URL(echoService.serviceUrl).origin);
+        }
+    } catch { /* ignore */ }
+
+    return allowedOrigins.has(parsed.origin);
+}
+
 export async function POST(req: NextRequest) {
     try {
         // Get authenticated user
         const session = await getServerSession(authOptions as any);
         const userId = (session as any)?.user?.id as string | undefined;
 
-        if (!userId) {
+        if (!userId || (session as any)?.error === "SessionInvalidated") {
             return NextResponse.json(
                 { ok: false, error: "unauthorized", hint: "User must be logged in to CRM" },
                 { status: 401 }
@@ -50,14 +67,15 @@ export async function POST(req: NextRequest) {
         if (!redirectUri) {
             return NextResponse.json({ ok: false, error: "missing_redirect_uri" }, { status: 400 });
         }
+        if (!(await isAllowedRedirectUri(redirectUri))) {
+            return NextResponse.json({ ok: false, error: "invalid_redirect_uri" }, { status: 400 });
+        }
         if (!codeChallenge) {
             return NextResponse.json({ ok: false, error: "missing_code_challenge" }, { status: 400 });
         }
 
         // Generate a cryptographically secure authorization code
-        const code = `auth_${Array.from(crypto.getRandomValues(new Uint8Array(32)))
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("")}`;
+        const code = `auth_${crypto.randomBytes(32).toString("hex")}`;
 
         // Store the code with user context and PKCE challenge
         // Expire in 10 minutes

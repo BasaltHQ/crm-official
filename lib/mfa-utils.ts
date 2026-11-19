@@ -12,8 +12,10 @@ import {
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
+import { SignJWT, jwtVerify } from "jose";
 import { prismadb } from "./prisma";
 import { sendSmsEum } from "./aws/eum-sms";
+import { decryptSecret } from "./encryption";
 
 /**
  * MFA & NIST 800-63B Compliance Utilities
@@ -24,6 +26,46 @@ const commonOptions = {
     createBase32: () => new ScureBase32Plugin(),
 };
 
+function getMfaJwtKey(): Uint8Array {
+    const sec = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!sec) {
+        throw new Error("[MFA] Missing JWT_SECRET / NEXTAUTH_SECRET");
+    }
+    return new TextEncoder().encode(sec);
+}
+
+// ─── Server-Signed WebAuthn Challenge Tokens ─────────────────────────────────
+
+export async function signWebAuthnChallenge(
+    userId: string,
+    challenge: string,
+    purpose: "register" | "authenticate"
+): Promise<string> {
+    return new SignJWT({ challenge, purpose })
+        .setProtectedHeader({ alg: "HS256" })
+        .setSubject(userId)
+        .setIssuedAt()
+        .setExpirationTime("5m")
+        .sign(getMfaJwtKey());
+}
+
+export async function verifySignedWebAuthnChallenge(
+    token: string | undefined | null,
+    expectedUserId: string,
+    expectedPurpose: "register" | "authenticate"
+): Promise<string | null> {
+    if (!token) return null;
+    try {
+        const { payload } = await jwtVerify(token, getMfaJwtKey());
+        if (payload.sub !== expectedUserId || payload.purpose !== expectedPurpose) {
+            return null;
+        }
+        return typeof payload.challenge === "string" ? payload.challenge : null;
+    } catch {
+        return null;
+    }
+}
+
 // ─── TOTP (QR Code / 6-Digit) ────────────────────────────────────────────────
 
 export const generateTotpSecret = () => {
@@ -32,11 +74,12 @@ export const generateTotpSecret = () => {
 
 export const getTotpAuthUrl = (email: string, secret: string) => {
     const appName = process.env.NEXT_PUBLIC_APP_NAME || "Basalt CRM";
+    const rawSecret = decryptSecret(secret) || secret;
     return generateURI({
         ...commonOptions,
         issuer: appName,
         label: email,
-        secret,
+        secret: rawSecret,
     });
 };
 
@@ -45,10 +88,11 @@ export const generateQrCodeDataUrl = async (authUrl: string) => {
 };
 
 export const verifyTotpToken = async (token: string, secret: string) => {
+    const rawSecret = decryptSecret(secret) || secret;
     const result = await verify({
         ...commonOptions,
         token,
-        secret
+        secret: rawSecret,
     });
     return result.valid;
 };
@@ -68,7 +112,6 @@ export const sendMfaSms = async (phone: string, code: string) => {
 
 const rpName = process.env.NEXT_PUBLIC_APP_NAME || "Basalt CRM";
 const origin = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
-// Auto-derive rpID from the origin hostname (e.g. "crm.basalthq.com" or "localhost")
 const rpID = process.env.NEXT_PUBLIC_AUTH_DOMAIN || (() => {
     try { return new URL(origin).hostname; } catch { return "localhost"; }
 })();
@@ -85,41 +128,44 @@ export const getWebAuthnRegistrationOptions = async (userId: string, email: stri
         rpID,
         userID: userBytes,
         userName: email,
-        attestationType: 'none',
-        // v13: excludeCredentials expects { id: Base64URLString, transports? }[]
+        attestationType: "none",
         excludeCredentials: userAuthenticators.map((auth: any) => ({
             id: auth.credentialID,
             transports: auth.transports as any,
         })),
         authenticatorSelection: {
-            residentKey: 'preferred',
-            userVerification: 'preferred',
-            // No authenticatorAttachment — allow both platform (biometrics) and cross-platform (USB keys)
+            residentKey: "preferred",
+            userVerification: "preferred",
         },
     });
 };
 
-export const verifyWebAuthnRegistration = async (body: any, currentOptions: any) => {
+export const verifyWebAuthnRegistration = async (body: any, expectedChallenge: string) => {
     try {
+        const challenge = typeof expectedChallenge === "string"
+            ? expectedChallenge
+            : expectedChallenge && (expectedChallenge as any).challenge;
+
+        if (!challenge) {
+            return { verified: false, error: "Missing server challenge" };
+        }
+
         const verification: any = await verifyRegistrationResponse({
             response: body,
-            expectedChallenge: currentOptions.challenge,
+            expectedChallenge: challenge,
             expectedOrigin: origin,
             expectedRPID: rpID,
             requireUserVerification: false,
         });
 
-        // v13: registrationInfo.credential is a WebAuthnCredential { id, publicKey, counter }
         if (verification.verified && verification.registrationInfo) {
             const { credential } = verification.registrationInfo;
 
             return {
                 verified: true,
                 authenticator: {
-                    // credential.id is already a Base64URLString
                     credentialID: credential.id,
-                    // credential.publicKey is Uint8Array — encode to base64url for DB storage
-                    publicKey: Buffer.from(credential.publicKey).toString('base64url'),
+                    publicKey: Buffer.from(credential.publicKey).toString("base64url"),
                     counter: credential.counter,
                     transports: body.response?.transports || [],
                 },
@@ -140,26 +186,32 @@ export const getWebAuthnAuthenticationOptions = async (userId: string) => {
 
     return await generateAuthenticationOptions({
         rpID,
-        // v13: allowCredentials expects { id: Base64URLString, transports? }[]
         allowCredentials: userAuthenticators.map((auth: any) => ({
             id: auth.credentialID,
             transports: auth.transports as any,
         })),
-        userVerification: 'preferred',
+        userVerification: "preferred",
     });
 };
 
-export const verifyWebAuthnAuthentication = async (body: any, currentOptions: any, auth: any) => {
+export const verifyWebAuthnAuthentication = async (body: any, expectedChallenge: string, auth: any) => {
     try {
+        const challenge = typeof expectedChallenge === "string"
+            ? expectedChallenge
+            : expectedChallenge && (expectedChallenge as any).challenge;
+
+        if (!challenge) {
+            return { verified: false, error: "Missing server challenge" };
+        }
+
         const verification: any = await verifyAuthenticationResponse({
             response: body,
-            expectedChallenge: currentOptions.challenge,
+            expectedChallenge: challenge,
             expectedOrigin: origin,
             expectedRPID: rpID,
-            // v13: credential is WebAuthnCredential { id, publicKey: Uint8Array, counter }
             credential: {
                 id: auth.credentialID,
-                publicKey: new Uint8Array(Buffer.from(auth.publicKey, 'base64url')),
+                publicKey: new Uint8Array(Buffer.from(auth.publicKey, "base64url")),
                 counter: auth.counter,
                 transports: auth.transports,
             },
@@ -172,4 +224,3 @@ export const verifyWebAuthnAuthentication = async (body: any, currentOptions: an
         return { verified: false, error: error.message };
     }
 };
-

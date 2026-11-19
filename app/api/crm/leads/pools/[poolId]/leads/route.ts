@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { prismadbCrm } from "@/lib/prisma-crm";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
-// GET /api/crm/leads/pools/[poolId]/leads?mine=true
-// Returns leads converted from a pool; if mine=true, restrict to current user's assigned leads.
 export async function GET(req: Request, context: { params: Promise<{ poolId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     const { poolId } = await context.params;
     if (!poolId) return new NextResponse("Missing poolId", { status: 400 });
@@ -19,21 +15,6 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
     const { searchParams } = new URL(req.url);
     const mine = searchParams.get("mine") === "true";
 
-    // Verify user role directly
-    const user = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: { team_role: true }
-    });
-
-    // Permission check
-    // 1. Global Admin (simplified check or rely on isGlobalAdmin from teamInfo if reliable, but role is better)
-    // 2. Pool Owner
-    // 3. Team Admin (if pool is in team)
-
-    const teamInfo = await getCurrentUserTeamId();
-    const isTeamAdmin = teamInfo?.isAdmin;
-
-    // Fetch pool with team_id and assigned_members
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
       select: { user: true, team_id: true, assigned_members: true },
@@ -41,19 +22,14 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
 
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
 
-    const isOwner = pool.user === session.user.id;
-    const isTeamMatch = pool.team_id === teamInfo?.teamId;
-    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session.user.id);
+    if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
-    // RBAC logic:
-    // 1. Global Admin (GOD MODE) -> Always allow
-    // 2. Creator (isOwner) -> Always allow
-    // 3. Team Admin/Owner (isTeamAdmin && isTeamMatch) -> Allow team management
-    // 4. Member (isAssigned) -> Allow access if list is assigned to them
+    const isOwner = pool.user === session!.user.id;
+    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session!.user.id);
 
-    if (isOwner || (isTeamAdmin && isTeamMatch) || isAssigned) {
-      // Access granted
-    } else {
+    if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && !isOwner && !isAssigned) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -64,11 +40,14 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
     });
     const leadIds = poolLeads.map((pl: any) => pl.lead);
 
-    // Fetch leads from primary DB and restrict to mine if requested (assigned_to=user)
+    const targetTeamId = pool.team_id || teamInfo!.teamId;
+
+    // Fetch leads from primary DB strictly scoped to pool's tenant
     const leads = await prismadb.crm_Leads.findMany({
       where: {
         id: { in: leadIds },
-        ...(mine ? { assigned_to: session.user.id } : {}),
+        ...(targetTeamId ? { team_id: targetTeamId } : {}),
+        ...(mine ? { assigned_to: session!.user.id } : {}),
       },
       select: {
         id: true,
@@ -112,10 +91,13 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
     const convertedCandidates = candidates.filter((c: any) => c.status === "CONVERTED" || c.accountsIDs);
     const activeCandidates = candidates.filter((c: any) => !(c.status === "CONVERTED" || c.accountsIDs));
 
-    // Fetch Converted Accounts
+    // Fetch Converted Accounts (strictly scoped to targetTeamId)
     const accountIds = convertedCandidates.map((c: any) => c.accountsIDs).filter(Boolean);
     const convertedAccounts = await (prismadbCrm as any).crm_Accounts.findMany({
-      where: { id: { in: accountIds } },
+      where: {
+        id: { in: accountIds },
+        ...(targetTeamId ? { team_id: targetTeamId } : {}),
+      },
       include: { contacts: true, leads: true }
     });
 
@@ -269,11 +251,10 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
 }
 
 // POST /api/crm/leads/pools/[poolId]/leads
-// Manually add a contact to a pool by creating a crm_Lead_Candidates + crm_Contact_Candidates record.
 export async function POST(req: Request, context: { params: Promise<{ poolId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     const { poolId } = await context.params;
     if (!poolId) return new NextResponse("Missing poolId", { status: 400 });
@@ -285,8 +266,6 @@ export async function POST(req: Request, context: { params: Promise<{ poolId: st
       return new NextResponse("Name or company is required", { status: 400 });
     }
 
-    // Permission check
-    const teamInfo = await getCurrentUserTeamId();
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
       select: { user: true, team_id: true, assigned_members: true },
@@ -294,12 +273,14 @@ export async function POST(req: Request, context: { params: Promise<{ poolId: st
 
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
 
-    const isOwner = pool.user === session.user.id;
-    const isTeamAdmin = teamInfo?.isAdmin;
-    const isTeamMatch = pool.team_id === teamInfo?.teamId;
-    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session.user.id);
+    if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
-    if (!(isOwner || (isTeamAdmin && isTeamMatch) || isAssigned)) {
+    const isOwner = pool.user === session!.user.id;
+    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session!.user.id);
+
+    if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && !isOwner && !isAssigned) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -310,7 +291,7 @@ export async function POST(req: Request, context: { params: Promise<{ poolId: st
         companyName: companyName || `${firstName || ""} ${lastName || ""}`.trim(),
         status: "NEW",
         freshnessAt: new Date(),
-        provenance: { source: "manual", addedBy: session.user.id },
+        provenance: { source: "manual", addedBy: session!.user.id },
       },
     });
 
@@ -336,11 +317,10 @@ export async function POST(req: Request, context: { params: Promise<{ poolId: st
 }
 
 // DELETE /api/crm/leads/pools/[poolId]/leads?leadId=xxx
-// Removes a lead from this pool WITHOUT deleting them from the CRM.
 export async function DELETE(req: Request, context: { params: Promise<{ poolId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     const { poolId } = await context.params;
     if (!poolId) return new NextResponse("Missing poolId", { status: 400 });
@@ -349,8 +329,6 @@ export async function DELETE(req: Request, context: { params: Promise<{ poolId: 
     const leadId = searchParams.get("leadId");
     if (!leadId) return new NextResponse("Missing leadId", { status: 400 });
 
-    // Permission check — same as GET
-    const teamInfo = await getCurrentUserTeamId();
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
       select: { user: true, team_id: true, assigned_members: true },
@@ -358,12 +336,14 @@ export async function DELETE(req: Request, context: { params: Promise<{ poolId: 
 
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
 
-    const isOwner = pool.user === session.user.id;
-    const isTeamAdmin = teamInfo?.isAdmin;
-    const isTeamMatch = pool.team_id === teamInfo?.teamId;
-    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session.user.id);
+    if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
 
-    if (!(isOwner || (isTeamAdmin && isTeamMatch) || isAssigned)) {
+    const isOwner = pool.user === session!.user.id;
+    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session!.user.id);
+
+    if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && !isOwner && !isAssigned) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 

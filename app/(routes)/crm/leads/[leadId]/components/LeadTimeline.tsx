@@ -40,6 +40,7 @@ import { SmartEmailModal } from "@/components/modals/SmartEmailModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCompletion } from "@ai-sdk/react";
 import { toast } from "react-hot-toast";
+import DOMPurify from "isomorphic-dompurify";
 
 interface TimelineActivity {
     id: string;
@@ -261,7 +262,7 @@ export function LeadTimeline({ leadId, leadEmail, leadName, contactId, accountId
                                             </div>
 
                                             <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 shadow-inner">
-                                                <div className="text-[13px] text-white/80 leading-relaxed prose prose-invert max-w-none prose-sm prose-p:my-2" dangerouslySetInnerHTML={{ __html: body }} />
+                                                <div className="text-[13px] text-white/80 leading-relaxed prose prose-invert max-w-none prose-sm prose-p:my-2" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }} />
 
                                                 {/* Attachments Section */}
                                                 {attachments.length > 0 && (

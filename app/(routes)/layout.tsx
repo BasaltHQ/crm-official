@@ -75,7 +75,7 @@ export default async function AppLayout({
 
   //console.log(session, "session");
 
-  if (!session) {
+  if (!session || !session.user || (session as any).error === "SessionInvalidated") {
     return redirect("/sign-in");
   }
 

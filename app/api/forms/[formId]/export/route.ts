@@ -2,16 +2,15 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { format } from "date-fns";
 import ExcelJS from "exceljs";
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ formId: string }> }
 ) {
-    // ── Auth guard ──
-    const session = await requireApiAuth();
-    if (session instanceof Response) return session;
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     try {
         const { formId } = await params;
@@ -20,7 +19,18 @@ export async function POST(
             return new NextResponse("Form ID is required", { status: 400 });
         }
 
-        // Fetch ALL submissions (no limit for export)
+        const form = await prismadb.form.findUnique({
+            where: { id: formId },
+            select: { id: true, team_id: true },
+        });
+        if (!form) {
+            return new NextResponse("Form not found", { status: 404 });
+        }
+        if (!validateResourceOwnership(teamInfo!.teamId, form.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
+
+        // Fetch ALL submissions for this verified form
         const submissions = await (prismadb as any).formSubmission.findMany({
             where: { form_id: formId, is_deleted: false },
             orderBy: { createdAt: "desc" }

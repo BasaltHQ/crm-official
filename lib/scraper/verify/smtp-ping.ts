@@ -1,5 +1,8 @@
 import net from "net";
 import dns from "node:dns/promises";
+import { isPrivateOrReservedIp } from "@/lib/security/ssrf-guard";
+
+const STRICT_EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
 
 /**
  * Perform a raw SMTP ping to check if an email's domain MX server accepts it.
@@ -10,7 +13,18 @@ import dns from "node:dns/promises";
  *  - "unknown": Connection failed, timeout, or grey-listed (4xx)
  */
 export async function nativeSmtpPing(email: string): Promise<"accept" | "reject" | "unknown"> {
-  const [localPart, domain] = email.toLowerCase().split("@");
+  if (
+    typeof email !== "string" ||
+    email.length === 0 ||
+    email.length > 254 ||
+    /[\r\n<>\s\x00-\x1f\x7f]/.test(email) ||
+    !STRICT_EMAIL_RE.test(email)
+  ) {
+    return "unknown";
+  }
+
+  const normalizedEmail = email.toLowerCase();
+  const [localPart, domain] = normalizedEmail.split("@");
   if (!domain || !localPart) return "unknown";
 
   try {
@@ -20,6 +34,15 @@ export async function nativeSmtpPing(email: string): Promise<"accept" | "reject"
     // Sort by highest priority (lowest number)
     mxRecords.sort((a, b) => a.priority - b.priority);
     const targetMx = mxRecords[0].exchange;
+    if (!targetMx || /[\r\n\s\x00-\x1f\x7f]/.test(targetMx)) {
+      return "unknown";
+    }
+
+    // Block MX records resolving to loopback/RFC1918/link-local addresses
+    const mxAddresses = await dns.lookup(targetMx, { all: true, verbatim: true });
+    if (!mxAddresses || mxAddresses.length === 0 || mxAddresses.some((rec) => isPrivateOrReservedIp(rec.address))) {
+      return "unknown";
+    }
 
     return new Promise((resolve) => {
       const socket = new net.Socket();
@@ -60,7 +83,7 @@ export async function nativeSmtpPing(email: string): Promise<"accept" | "reject"
           }
         } else if (step === 2) {
           if (code === 250) {
-            socket.write(`RCPT TO:<${email}>\r\n`);
+            socket.write(`RCPT TO:<${normalizedEmail}>\r\n`);
             step++;
           } else {
             finish("unknown");

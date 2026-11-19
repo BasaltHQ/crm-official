@@ -15,6 +15,7 @@ import { getSubscriptionPlan } from "@/lib/subscription";
 import { Lock } from "lucide-react";
 import { IntegrationLockedCard } from "@/components/IntegrationLockedCard";
 import { UpgradeTag } from "@/components/ui/UpgradeTag";
+import { maskFields, SECRET_FIELDS } from "@/lib/encryption";
 
 export default async function IntegrationsSettingsPage() {
     const session = await getServerSession(authOptions);
@@ -23,13 +24,15 @@ export default async function IntegrationsSettingsPage() {
     const teamInfo = await getCurrentUserTeamId();
     if (!teamInfo?.isAdmin || !teamInfo.teamId) redirect("/");
 
-    const integration = await prismadb.tenant_Integrations.findUnique({
+    const rawIntegration = await prismadb.tenant_Integrations.findUnique({
         where: { tenant_id: teamInfo.teamId }
     });
+    const integration = maskFields(rawIntegration, SECRET_FIELDS.Tenant_Integrations);
 
-    const captchaConfig = await (prismadb as any).teamCaptchaConfig.findUnique({
+    const rawCaptchaConfig = await (prismadb as any).teamCaptchaConfig.findUnique({
         where: { team_id: teamInfo.teamId }
     });
+    const captchaConfig = maskFields(rawCaptchaConfig, SECRET_FIELDS.TeamCaptchaConfig);
 
     const team = await prismadb.team.findUnique({
         where: { id: teamInfo.teamId },

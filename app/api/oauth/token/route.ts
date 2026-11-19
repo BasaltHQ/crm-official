@@ -1,35 +1,43 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /oauth/token
- * Scaffold for BasaltCRM OAuth Token endpoint (Authorization Code + PKCE).
- *
- * Expected body (application/json or x-www-form-urlencoded semantics):
- * {
- *   grant_type: "authorization_code",
- *   code: string,
- *   redirect_uri: string,
- *   client_id: string,
- *   code_verifier: string
- * }
- *
- * Behavior (scaffold):
- * - Validates required fields.
- * - Returns mock access/refresh tokens and expiry.
- * - In a full implementation, validate the code against an authorization store,
- *   verify PKCE code_verifier vs previously stored code_challenge, and mint real JWTs.
- *
- * Response (example):
- * {
- *   "access_token": "mock_access_...",
- *   "refresh_token": "mock_refresh_...",
- *   "token_type": "Bearer",
- *   "expires_in": 3600,
- *   "scope": "softphone:control outreach:write leads:read"
- * }
- */
+async function isAllowedRedirectUri(rawUri: string): Promise<boolean> {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUri);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && parsed.hostname === "localhost" && parsed.protocol === "http:")) {
+    return false;
+  }
+
+  const allowedOrigins = new Set<string>([
+    "https://echo.basalthq.com",
+    "https://crm.basalthq.com",
+  ]);
+
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    try {
+      allowedOrigins.add(new URL(process.env.NEXT_PUBLIC_APP_URL).origin);
+    } catch { /* ignore */ }
+  }
+
+  try {
+    const echoService = await prismadb.systemServices.findFirst({
+      where: { name: "basaltecho" },
+      select: { serviceUrl: true },
+    });
+    if (echoService?.serviceUrl) {
+      allowedOrigins.add(new URL(echoService.serviceUrl).origin);
+    }
+  } catch { /* ignore */ }
+
+  return allowedOrigins.has(parsed.origin);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +49,6 @@ export async function POST(req: NextRequest) {
       const text = await req.text();
       body = Object.fromEntries(new URLSearchParams(text) as any);
     } else {
-      // Best effort parse as JSON, otherwise treat as empty
       try {
         body = await req.json();
       } catch {
@@ -63,6 +70,9 @@ export async function POST(req: NextRequest) {
     }
     if (!redirectUri) {
       return NextResponse.json({ error: "invalid_request", error_description: "missing redirect_uri" }, { status: 400 });
+    }
+    if (!(await isAllowedRedirectUri(redirectUri))) {
+      return NextResponse.json({ error: "invalid_request", error_description: "disallowed redirect_uri" }, { status: 400 });
     }
     if (!clientId) {
       return NextResponse.json({ error: "invalid_request", error_description: "missing client_id" }, { status: 400 });
@@ -98,14 +108,10 @@ export async function POST(req: NextRequest) {
 
     // Verify PKCE: compute S256(code_verifier) and compare to stored code_challenge
     try {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(codeVerifier);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashBase64 = btoa(String.fromCharCode(...hashArray))
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
+      const hashBase64 = crypto
+        .createHash("sha256")
+        .update(codeVerifier, "utf8")
+        .digest("base64url");
 
       if (hashBase64 !== authCode.codeChallenge) {
         return NextResponse.json({ error: "invalid_grant", error_description: "PKCE verification failed" }, { status: 400 });
@@ -121,32 +127,12 @@ export async function POST(req: NextRequest) {
       data: { used: true },
     });
 
-    // Generate tokens (still mock for now, but with userId context)
+    // Generate cryptographically random tokens
     const now = Math.floor(Date.now() / 1000);
     const expiresIn = 3600;
     const userId = authCode.userId;
-    const accessToken = `access_${userId}_${Math.random().toString(36).slice(2)}`;
-    const refreshToken = `refresh_${userId}_${Math.random().toString(36).slice(2)}`;
-
-    // Auto-detect and persist BasaltECHO base URL from redirect_uri so CRM can forward prompts without env config
-    try {
-      const basaltechoOrigin = new URL(redirectUri).origin.replace(/\/+$/, "");
-      if (basaltechoOrigin && /^https?:\/\//i.test(basaltechoOrigin)) {
-        const existing = await prismadb.systemServices.findFirst({
-          where: { name: "basaltecho" },
-        });
-        if (existing) {
-          await prismadb.systemServices.update({
-            where: { id: existing.id },
-            data: { serviceUrl: basaltechoOrigin, servicePassword: userId },
-          });
-        } else {
-          await prismadb.systemServices.create({
-            data: { name: "basaltecho", serviceUrl: basaltechoOrigin, servicePassword: userId, v: 0 },
-          });
-        }
-      }
-    } catch { }
+    const accessToken = `access_${userId}_${crypto.randomBytes(32).toString("hex")}`;
+    const refreshToken = `refresh_${userId}_${crypto.randomBytes(32).toString("hex")}`;
 
     return NextResponse.json(
       {
@@ -156,7 +142,7 @@ export async function POST(req: NextRequest) {
         expires_in: expiresIn,
         scope: authCode.scope || "softphone:control outreach:write leads:read",
         issued_at: now,
-        user_id: userId, // Include userId in response for BasaltECHO to use
+        user_id: userId,
       },
       { status: 200 }
     );

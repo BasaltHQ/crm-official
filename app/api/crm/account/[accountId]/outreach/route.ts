@@ -1,40 +1,47 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 type Params = { params: Promise<{ accountId: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { accountId } = await params;
         if (!accountId) return new NextResponse("Missing accountId", { status: 400 });
 
-        // Find the account to get its email
+        // Find the account and verify tenant ownership
         const account = await prismadb.crm_Accounts.findUnique({
             where: { id: accountId },
-            select: { email: true, additional_emails: true },
+            select: { id: true, team_id: true, email: true, additional_emails: true },
         });
+        if (!account) {
+            return new NextResponse("Account not found", { status: 404 });
+        }
+        if (!validateResourceOwnership(teamInfo!.teamId, account.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
         const accountEmails: string[] = [];
-        if (account?.email) accountEmails.push(account.email);
-        if (account?.additional_emails) accountEmails.push(...(account.additional_emails as string[]));
+        if (account.email) accountEmails.push(account.email);
+        if (account.additional_emails) accountEmails.push(...(account.additional_emails as string[]));
 
-        // Find all leads linked to this account
+        const targetTeamFilter = account.team_id ? { team_id: account.team_id } : {};
+
+        // Find all leads linked to this account within the same tenant
         const leads = await prismadb.crm_Leads.findMany({
-            where: { accountsIDs: accountId },
+            where: { accountsIDs: accountId, ...targetTeamFilter },
             select: { id: true },
         });
 
         const leadIds = leads.map((l: { id: string }) => l.id);
 
-        // Also find leads by email match
+        // Also find leads by email match within the same tenant
         if (accountEmails.length > 0) {
             const leadsByEmail = await prismadb.crm_Leads.findMany({
-                where: { email: { in: accountEmails } },
+                where: { email: { in: accountEmails }, ...targetTeamFilter },
                 select: { id: true },
             });
             leadsByEmail.forEach((l: { id: string }) => {
@@ -42,11 +49,16 @@ export async function GET(_req: Request, { params }: Params) {
             });
         }
 
-        // Find all outreach items linked to these leads, the account, or by candidate email
+        // Find outreach items linked to these leads, the account, or by candidate email within the account's team campaigns
         const orConditions: any[] = [];
         if (leadIds.length > 0) orConditions.push({ lead: { in: leadIds } });
         orConditions.push({ account_id: accountId });
-        if (accountEmails.length > 0) orConditions.push({ candidate_email: { in: accountEmails } });
+        if (accountEmails.length > 0 && account.team_id) {
+            orConditions.push({
+                candidate_email: { in: accountEmails },
+                assigned_campaign: { team_id: account.team_id },
+            });
+        }
 
         const items = await prismadb.crm_Outreach_Items.findMany({
             where: { OR: orConditions },

@@ -1,9 +1,9 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
+import { normalizeTeamSlug, requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function moveMemberToNewTeam(
     userId: string,
@@ -12,56 +12,63 @@ export async function moveMemberToNewTeam(
     planId?: string
 ) {
     try {
-        const currentUser = await getCurrentUserTeamId();
-
-        if (false) {
-            return { error: "Unauthorized: Only Platform Admins can perform this action." };
+        const admin = await requirePlatformAdmin();
+        if (!admin) {
+            return { error: "Unauthorized: Platform Admin required." };
         }
 
         // 1. Verify user exists
         const targetUser = await (prismadb.users as any).findUnique({
-            where: { id: userId }
+            where: { id: userId },
+            select: { id: true, email: true }
         });
 
         if (!targetUser) {
             return { error: "User not found" };
         }
 
-        // 2. Check if slug exists
-        const existingTeam = await prismadb.team.findUnique({
-            where: { slug: teamSlug }
+        const normalizedSlug = normalizeTeamSlug(teamSlug || teamName);
+        if (!normalizedSlug) {
+            return { error: "Invalid team slug" };
+        }
+
+        // 2. Check if slug exists (case-insensitive)
+        const existingTeam = await prismadb.team.findFirst({
+            where: { slug: { equals: normalizedSlug, mode: "insensitive" } }
         });
 
         if (existingTeam) {
-            return { error: `A team with slug "${teamSlug}" already exists.` };
+            return { error: `A team with slug "${normalizedSlug}" already exists.` };
         }
 
-        // 3. Create the new team — default to FREE plan if none specified
-        let resolvedPlanId = planId;
-        if (!resolvedPlanId) {
-            const freePlan = await prismadb.plan.findFirst({ where: { slug: "FREE" } });
-            if (freePlan) resolvedPlanId = freePlan.id;
+        // 3. Create the new team — default to STARTER (fallback FREE) plan if none specified
+        let selectedPlan = planId
+            ? await prismadb.plan.findUnique({ where: { id: planId } })
+            : null;
+        if (!selectedPlan) {
+            selectedPlan =
+                (await prismadb.plan.findFirst({ where: { slug: "STARTER" } })) ||
+                (await prismadb.plan.findFirst({ where: { slug: "FREE" } }));
         }
 
+        const resolvedPlanId = selectedPlan?.id;
         let renewalDate = null;
-        if (resolvedPlanId) {
-            const plan = await prismadb.plan.findUnique({ where: { id: resolvedPlanId } });
-            if (plan) {
-                const now = new Date();
-                if (plan.billing_cycle === 'MONTHLY') {
-                    renewalDate = new Date(now.setMonth(now.getMonth() + 1));
-                } else if (plan.billing_cycle === 'YEARLY') {
-                    renewalDate = new Date(now.setFullYear(now.getFullYear() + 1));
-                }
+        if (selectedPlan) {
+            const now = new Date();
+            if (selectedPlan.billing_cycle === "MONTHLY") {
+                renewalDate = new Date(now.setMonth(now.getMonth() + 1));
+            } else if (selectedPlan.billing_cycle === "YEARLY") {
+                renewalDate = new Date(now.setFullYear(now.getFullYear() + 1));
             }
         }
 
         const newTeam = await prismadb.team.create({
             data: {
-                name: teamName,
-                slug: teamSlug,
+                name: String(teamName).trim(),
+                slug: normalizedSlug,
                 owner_id: userId,
                 plan_id: resolvedPlanId,
+                subscription_plan: (selectedPlan?.slug || "STARTER") as any,
                 renewal_date: renewalDate,
             }
         });

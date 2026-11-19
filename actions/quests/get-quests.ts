@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { dbAdapter } from "@/lib/database/db-adapter";
 import type { QuestWithProgress } from "./types";
 
@@ -9,8 +9,9 @@ export async function getQuests(filters?: {
     quest_type?: string;
 }): Promise<QuestWithProgress[]> {
     try {
-        const teamInfo = await getCurrentUserTeamId();
-        if (!teamInfo?.teamId) return [];
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) return [];
+        const userId = session.user.id;
 
         const { ObjectId } = require("mongodb");
         const questCollection = await dbAdapter.getNativeCollection("Quest");
@@ -25,10 +26,10 @@ export async function getQuests(filters?: {
 
         // Build filter
         const filter: any = { team_id: new ObjectId(teamInfo.teamId) };
-        if (filters?.status) {
+        if (typeof filters?.status === "string" && filters.status) {
             filter.status = filters.status;
         }
-        if (filters?.quest_type) {
+        if (typeof filters?.quest_type === "string" && filters.quest_type) {
             filter.quest_type = filters.quest_type;
         }
 
@@ -44,7 +45,7 @@ export async function getQuests(filters?: {
         const userProgress = await progressCollection
             .find({
                 quest_id: { $in: questIds },
-                user_id: new ObjectId(teamInfo.userId),
+                user_id: new ObjectId(userId),
             })
             .toArray();
 

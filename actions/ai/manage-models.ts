@@ -5,12 +5,25 @@ import { prismadb } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import sendEmail from "@/lib/sendmail";
 import { systemLogger } from "@/lib/logger";
+import { requirePlatformAdmin } from "@/lib/security/authz";
+import { assertSafeExternalUrl, escapeHtml } from "@/lib/security/ssrf-guard";
+import { getSessionAndTeam } from "@/lib/api-utils";
+
+async function validateOptionalBaseUrl(baseUrl: string | null | undefined): Promise<string | null> {
+    if (!baseUrl || baseUrl.trim() === "") return null;
+    const trimmed = baseUrl.trim();
+    const parsed = await assertSafeExternalUrl(trimmed, { allowHttp: false });
+    return parsed.toString().replace(/\/$/, "");
+}
 
 // ============================================================================
 // MODEL PRICING UPDATE (existing)
 // ============================================================================
 
 export const updateModelPricing = async (formData: FormData) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     const id = formData.get("id") as string;
     const inputPrice = parseFloat(formData.get("inputPrice") as string);
     const outputPrice = parseFloat(formData.get("outputPrice") as string);
@@ -52,15 +65,18 @@ export const updateModelPricing = async (formData: FormData) => {
 // ============================================================================
 
 export const createAiProvider = async (formData: FormData) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     const slug = (formData.get("slug") as string).toUpperCase().replace(/\s+/g, "_");
     const name = formData.get("name") as string;
     const sdkType = (formData.get("sdkType") as string) || "OPENAI_COMPATIBLE";
-    const baseUrl = formData.get("baseUrl") as string || null;
-    const apiKeyUrl = formData.get("apiKeyUrl") as string || null;
+    const baseUrl = await validateOptionalBaseUrl(formData.get("baseUrl") as string | null);
+    const apiKeyUrl = await validateOptionalBaseUrl(formData.get("apiKeyUrl") as string | null);
     const color = formData.get("color") as string || "text-gray-400";
     const gradient = formData.get("gradient") as string || "from-gray-500/20 to-slate-500/20";
     const description = formData.get("description") as string || null;
-    const createdBy = formData.get("createdBy") as string || null;
+    const createdBy = admin.id;
 
     const existing = await prismadb.aiProviderRegistry.findUnique({ where: { slug } });
     if (existing) throw new Error(`Provider with slug "${slug}" already exists`);
@@ -78,11 +94,14 @@ export const createAiProvider = async (formData: FormData) => {
 };
 
 export const updateAiProvider = async (formData: FormData) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     const id = formData.get("id") as string;
     const name = formData.get("name") as string;
     const sdkType = formData.get("sdkType") as string;
-    const baseUrl = formData.get("baseUrl") as string || null;
-    const apiKeyUrl = formData.get("apiKeyUrl") as string || null;
+    const baseUrl = await validateOptionalBaseUrl(formData.get("baseUrl") as string | null);
+    const apiKeyUrl = await validateOptionalBaseUrl(formData.get("apiKeyUrl") as string | null);
     const isActive = formData.get("isActive") === "on";
 
     await prismadb.aiProviderRegistry.update({
@@ -96,6 +115,9 @@ export const updateAiProvider = async (formData: FormData) => {
 };
 
 export const deleteAiProvider = async (id: string) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     // Safety: Don't delete built-in providers
     const provider = await prismadb.aiProviderRegistry.findUnique({ where: { id } });
     if (provider?.isBuiltIn) throw new Error("Cannot delete built-in providers");
@@ -115,6 +137,9 @@ export const deleteAiProvider = async (id: string) => {
 // ============================================================================
 
 export const createAiModel = async (formData: FormData) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     const name = formData.get("name") as string;
     const modelId = formData.get("modelId") as string;
     const provider = formData.get("provider") as string;
@@ -138,7 +163,30 @@ export const createAiModel = async (formData: FormData) => {
     revalidatePath("/admin/ai-settings");
 };
 
+export const updateAiModel = async (formData: FormData) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
+    const id = formData.get("id") as string;
+    const name = formData.get("name") as string;
+    const modelId = formData.get("modelId") as string;
+    const provider = formData.get("provider") as string;
+    const description = (formData.get("description") as string) || null;
+
+    await prismadb.aiModel.update({
+        where: { id },
+        data: { name, modelId, provider, description },
+    });
+
+    revalidatePath("/partners/ai-pricing");
+    revalidatePath("/partners/ai-system-config");
+    revalidatePath("/admin/ai-settings");
+};
+
 export const toggleAiModelStatus = async (id: string, isActive: boolean) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     await prismadb.aiModel.update({
         where: { id },
         data: { isActive }
@@ -148,7 +196,12 @@ export const toggleAiModelStatus = async (id: string, isActive: boolean) => {
     revalidatePath("/admin/ai-settings");
 };
 
+export const toggleModelActive = toggleAiModelStatus;
+
 export const deleteAiModel = async (id: string) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     await prismadb.aiModel.update({
         where: { id },
         data: { isActive: false }
@@ -163,16 +216,26 @@ export const deleteAiModel = async (id: string) => {
 // ============================================================================
 
 export const submitCustomModelRequest = async (formData: FormData) => {
-    const provider = formData.get("provider") as string;
-    const modelId = formData.get("modelId") as string;
-    const displayName = formData.get("displayName") as string;
-    const baseUrl = formData.get("baseUrl") as string || null;
-    const description = formData.get("description") as string || null;
-    const team_id = formData.get("team_id") as string;
-    const requested_by = formData.get("requested_by") as string;
-    const team_name = formData.get("team_name") as string || null;
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error || !session?.user?.id || !teamInfo?.teamId) {
+        throw new Error("Unauthorized: Valid team session required");
+    }
 
-    const request = await prismadb.customModelRequest.create({
+    const provider = String(formData.get("provider") || "").trim();
+    const modelId = String(formData.get("modelId") || "").trim();
+    const displayName = String(formData.get("displayName") || "").trim();
+    const baseUrl = await validateOptionalBaseUrl(formData.get("baseUrl") as string | null);
+    const description = (formData.get("description") as string) || null;
+    const team_id = teamInfo.teamId;
+    const requested_by = session.user.id;
+
+    const teamRecord = await prismadb.team.findUnique({
+        where: { id: team_id },
+        select: { name: true },
+    });
+    const team_name = teamRecord?.name || null;
+
+    await prismadb.customModelRequest.create({
         data: {
             provider, modelId, displayName, baseUrl, description,
             team_id, requested_by, team_name, status: "PENDING",
@@ -204,9 +267,19 @@ export const submitCustomModelRequest = async (formData: FormData) => {
 
     // ─── Email to support@basalthq.com ───
     try {
-        const requesterUser = requested_by
-            ? await prismadb.users.findUnique({ where: { id: requested_by }, select: { name: true, email: true } })
-            : null;
+        const requesterUser = await prismadb.users.findUnique({
+            where: { id: requested_by },
+            select: { name: true, email: true },
+        });
+
+        const safeDisplayName = escapeHtml(displayName);
+        const safeModelId = escapeHtml(modelId);
+        const safeProvider = escapeHtml(provider);
+        const safeBaseUrl = baseUrl ? escapeHtml(baseUrl) : "";
+        const safeTeamLabel = escapeHtml(team_name || team_id);
+        const safeRequesterName = escapeHtml(requesterUser?.name || "");
+        const safeRequesterEmail = escapeHtml(requesterUser?.email || "");
+        const safeDescription = description ? escapeHtml(description) : "";
 
         await sendEmail({
             to: "support@basalthq.com",
@@ -235,14 +308,14 @@ export const submitCustomModelRequest = async (formData: FormData) => {
                     </div>
                     <div style="padding: 24px 28px;">
                         <table style="width: 100%; border-collapse: collapse;">
-                            <tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Model</td><td style="padding: 8px 0; color: #f4f4f5; font-weight: 600;">${displayName}</td></tr>
-                            <tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Model ID</td><td style="padding: 8px 0; color: #a1a1aa; font-family: monospace;">${modelId}</td></tr>
-                            <tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Provider</td><td style="padding: 8px 0; color: #f4f4f5;">${provider}</td></tr>
-                            ${baseUrl ? `<tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Base URL</td><td style="padding: 8px 0; color: #a1a1aa; font-family: monospace; font-size: 12px;">${baseUrl}</td></tr>` : ""}
-                            <tr style="border-top: 1px solid #27272a;"><td style="padding: 12px 0 8px; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Team</td><td style="padding: 12px 0 8px; color: #f4f4f5;">${team_name || team_id}</td></tr>
-                            ${requesterUser ? `<tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Requester</td><td style="padding: 8px 0; color: #f4f4f5;">${requesterUser.name || ""} <span style="color: #71717a;">(${requesterUser.email || ""})</span></td></tr>` : ""}
+                            <tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Model</td><td style="padding: 8px 0; color: #f4f4f5; font-weight: 600;">${safeDisplayName}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Model ID</td><td style="padding: 8px 0; color: #a1a1aa; font-family: monospace;">${safeModelId}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Provider</td><td style="padding: 8px 0; color: #f4f4f5;">${safeProvider}</td></tr>
+                            ${safeBaseUrl ? `<tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Base URL</td><td style="padding: 8px 0; color: #a1a1aa; font-family: monospace; font-size: 12px;">${safeBaseUrl}</td></tr>` : ""}
+                            <tr style="border-top: 1px solid #27272a;"><td style="padding: 12px 0 8px; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Team</td><td style="padding: 12px 0 8px; color: #f4f4f5;">${safeTeamLabel}</td></tr>
+                            ${requesterUser ? `<tr><td style="padding: 8px 0; color: #71717a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Requester</td><td style="padding: 8px 0; color: #f4f4f5;">${safeRequesterName} <span style="color: #71717a;">(${safeRequesterEmail})</span></td></tr>` : ""}
                         </table>
-                        ${description ? `<div style="margin-top: 16px; padding: 12px 16px; background: #18181b; border: 1px solid #27272a; border-radius: 8px;"><p style="margin: 0; color: #a1a1aa; font-size: 13px; line-height: 1.5;"><strong style="color: #71717a;">Reason:</strong> ${description}</p></div>` : ""}
+                        ${safeDescription ? `<div style="margin-top: 16px; padding: 12px 16px; background: #18181b; border: 1px solid #27272a; border-radius: 8px;"><p style="margin: 0; color: #a1a1aa; font-size: 13px; line-height: 1.5;"><strong style="color: #71717a;">Reason:</strong> ${safeDescription}</p></div>` : ""}
                         <div style="margin-top: 24px; text-align: center;">
                             <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://app.basalthq.com"}/partners/ai-system-config" style="display: inline-block; padding: 10px 24px; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 13px;">Review Request →</a>
                         </div>
@@ -262,13 +335,21 @@ export const submitCustomModelRequest = async (formData: FormData) => {
 };
 
 export const reviewCustomModelRequest = async (formData: FormData) => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     const id = formData.get("id") as string;
     const status = formData.get("status") as string; // "APPROVED" or "REJECTED"
-    const reviewed_by = formData.get("reviewed_by") as string;
+    const reviewed_by = admin.id;
     const review_notes = formData.get("review_notes") as string || null;
 
     const request = await prismadb.customModelRequest.findUnique({ where: { id } });
     if (!request) throw new Error("Request not found");
+
+    let validatedBaseUrl: string | null = null;
+    if (status === "APPROVED" && request.baseUrl) {
+        validatedBaseUrl = await validateOptionalBaseUrl(request.baseUrl);
+    }
 
     await prismadb.customModelRequest.update({
         where: { id },
@@ -309,14 +390,15 @@ export const reviewCustomModelRequest = async (formData: FormData) => {
             where: { slug: request.provider.toUpperCase().replace(/\s+/g, "_") }
         });
 
-        if (!providerExists && request.baseUrl) {
+        if (!providerExists && validatedBaseUrl) {
             await prismadb.aiProviderRegistry.create({
                 data: {
                     slug: request.provider.toUpperCase().replace(/\s+/g, "_"),
                     name: request.provider,
                     sdkType: "OPENAI_COMPATIBLE",
-                    baseUrl: request.baseUrl,
+                    baseUrl: validatedBaseUrl,
                     isBuiltIn: false,
+                    createdBy: admin.id,
                 }
             });
         }
@@ -328,6 +410,9 @@ export const reviewCustomModelRequest = async (formData: FormData) => {
 };
 
 export const getPendingModelRequests = async () => {
+    const admin = await requirePlatformAdmin();
+    if (!admin) throw new Error("Forbidden: Platform Admin required");
+
     return prismadb.customModelRequest.findMany({
         where: { status: "PENDING" },
         orderBy: { createdAt: "desc" },
@@ -335,6 +420,9 @@ export const getPendingModelRequests = async () => {
 };
 
 export const getAllProviders = async () => {
+    const { error } = await getSessionAndTeam();
+    if (error) throw new Error("Unauthorized");
+
     return prismadb.aiProviderRegistry.findMany({
         where: { isActive: true },
         orderBy: { slug: "asc" },

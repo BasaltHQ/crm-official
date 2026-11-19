@@ -1,7 +1,7 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { getLeadsStageCounts } from "@/actions/dashboard/get-leads-stage-counts";
 import { getTeamAnalytics } from "@/actions/dashboard/get-team-analytics";
 
@@ -19,12 +19,21 @@ export type UserSpecificSalesData = {
 };
 
 export const getUserSalesData = async (targetUserId: string): Promise<UserSpecificSalesData | null> => {
-    const session = await getServerSession(authOptions);
-    if (!session) return null;
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error || !session?.user?.id || !teamInfo?.teamId || !targetUserId) return null;
 
-    // Security check: Only Admins/Managers should be able to fetch other users' data
-    // For now, assuming if you have access to the page, you can view (or simplistic check)
-    // Real implementation should check session.user.role
+    if (targetUserId !== session.user.id) {
+        if (!teamInfo.isAdmin && !teamInfo.isPlatformAdmin) {
+            return null;
+        }
+        const targetUser = await prismadb.users.findUnique({
+            where: { id: targetUserId },
+            select: { id: true, team_id: true },
+        });
+        if (!targetUser || !validateResourceOwnership(teamInfo.teamId, targetUser.team_id, teamInfo.isPlatformAdmin)) {
+            return null;
+        }
+    }
 
     const [userStageCounts, teamAnalytics] = await Promise.all([
         getLeadsStageCounts(targetUserId),

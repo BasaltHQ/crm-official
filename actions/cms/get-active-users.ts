@@ -1,14 +1,16 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function getActiveUsers() {
     try {
-        // Fetch users sorted by lastLoginAt (descending)
-        // Taking top 20 for the "Active Now" view
+        const admin = await requirePlatformAdmin();
+        if (!admin) return [];
+
         const users = await prismadb.users.findMany({
             orderBy: {
-                lastLoginAt: 'desc',
+                lastLoginAt: "desc",
             },
             take: 20,
             select: {
@@ -17,8 +19,8 @@ export async function getActiveUsers() {
                 email: true,
                 avatar: true,
                 lastLoginAt: true,
-                is_admin: true
-            }
+                is_admin: true,
+            },
         });
 
         return users;

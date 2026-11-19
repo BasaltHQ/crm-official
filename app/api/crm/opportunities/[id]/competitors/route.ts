@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+
+async function verifyOpportunityAccess(id: string) {
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return { error, session: null };
+
+    const opportunity = await prismadb.crm_Opportunities.findUnique({
+        where: { id },
+        select: { id: true, team_id: true },
+    });
+    if (!opportunity) {
+        return { error: new NextResponse("Opportunity not found", { status: 404 }), session: null };
+    }
+    if (!validateResourceOwnership(teamInfo!.teamId, opportunity.team_id, teamInfo!.isPlatformAdmin)) {
+        return { error: new NextResponse("Forbidden", { status: 403 }), session: null };
+    }
+    return { error: null, session };
+}
 
 /**
  * GET /api/crm/opportunities/[id]/competitors
@@ -12,12 +28,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
-
         const { id } = await params;
+        const access = await verifyOpportunityAccess(id);
+        if (access.error) return access.error;
 
         const competitors = await prismadb.crm_Opportunity_Competitors.findMany({
             where: { opportunity_id: id },
@@ -40,12 +53,10 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
-
         const { id } = await params;
+        const access = await verifyOpportunityAccess(id);
+        if (access.error) return access.error;
+
         const body = await req.json();
 
         const competitor = await prismadb.crm_Opportunity_Competitors.create({
@@ -61,7 +72,7 @@ export async function POST(
                 threat_level: body.threat_level || "MEDIUM",
                 outcome: body.outcome || "ACTIVE",
                 price_position: body.price_position || null,
-                createdBy: session.user.id,
+                createdBy: access.session!.user.id,
             },
         });
 
@@ -81,10 +92,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { id } = await params;
+        const access = await verifyOpportunityAccess(id);
+        if (access.error) return access.error;
 
         const body = await req.json();
         const { competitorId } = body;
@@ -93,9 +103,13 @@ export async function DELETE(
             return new NextResponse("competitorId required", { status: 400 });
         }
 
-        await prismadb.crm_Opportunity_Competitors.delete({
-            where: { id: competitorId },
+        const deleted = await prismadb.crm_Opportunity_Competitors.deleteMany({
+            where: { id: competitorId, opportunity_id: id },
         });
+
+        if (deleted.count === 0) {
+            return new NextResponse("Competitor not found", { status: 404 });
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

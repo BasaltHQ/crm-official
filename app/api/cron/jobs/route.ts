@@ -84,6 +84,19 @@ export async function POST(req: Request) {
       );
     }
 
+    if (campaignId) {
+      const campaign = await prismadb.crm_Outreach_Campaigns.findUnique({
+        where: { id: String(campaignId) },
+        select: { id: true, team_id: true },
+      });
+      if (!campaign || campaign.team_id !== user.team_id) {
+        return NextResponse.json(
+          { error: "Forbidden — campaign does not belong to your team" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Future: enforce per-team limits here
     // const activeCount = await countActiveJobs(user.team_id);
     // const limit = await getTeamCronLimit(user.team_id);

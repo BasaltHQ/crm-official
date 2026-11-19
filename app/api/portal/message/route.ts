@@ -4,20 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { sendSmsEum } from "@/lib/aws/eum-sms";
-import crypto from "crypto";
 import { systemLogger } from "@/lib/logger";
 
 // POST - Create and send a message
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const body = await req.json();
         const {
@@ -45,9 +41,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Portal not found" }, { status: 404 });
         }
 
+        if (!validateResourceOwnership(teamInfo!.teamId, portal.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
         // Get sender info from session
         const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
+            where: { id: session!.user.id },
             select: { name: true, email: true, avatar: true },
         });
 
@@ -59,10 +59,10 @@ export async function POST(req: NextRequest) {
                 body_text: bodyText,
                 body_html: bodyHtml || null,
                 mobile_html: mobileHtml || null,
-                sender_name: user?.name || session.user.name || "User",
-                sender_email: user?.email || session.user.email,
+                sender_name: user?.name || session!.user.name || "User",
+                sender_email: user?.email || session!.user.email,
                 sender_avatar: user?.avatar || null,
-                sent_by: session.user.id,
+                sent_by: session!.user.id,
                 sentAt: new Date(),
             },
         });

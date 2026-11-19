@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm as prisma } from "@/lib/prisma-crm";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 import { checkWarmupQuota } from "@/lib/email-warmup";
 
@@ -14,10 +13,8 @@ export async function GET(
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { sequenceId } = await params;
 
@@ -63,6 +60,10 @@ export async function GET(
                 { message: "Campaign not found" },
                 { status: 404 }
             );
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
         }
 
         // ── Progress reconciliation (READ-SAFE — no destructive mutations) ────
@@ -130,12 +131,12 @@ export async function GET(
             const senderMode = branding.senderMode || "company";
             
             const user = await prisma.users.findUnique({
-                where: { id: session.user.id },
+                where: { id: session!.user.id },
                 select: { id: true, team_id: true, email: true }
             });
             const teamId = campaign.team_id || user?.team_id;
             
-            let warmupSenderEmail = user?.email || session.user.email || "";
+            let warmupSenderEmail = user?.email || session!.user.email || "";
             if (senderMode !== "personal" && teamId) {
                 const teamOutboundCheck = await prisma.teamEmailConfig.findUnique({
                     where: { team_id_purpose: { team_id: teamId, purpose: "OUTREACH" } },
@@ -186,10 +187,8 @@ export async function PATCH(
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { sequenceId } = await params;
         const body = await req.json();
@@ -213,11 +212,19 @@ export async function PATCH(
 
         const campaign = await prisma.crm_Outreach_Campaigns.findUnique({
             where: { id: sequenceId },
-            select: { id: true, status: true, user: true, campaign_branding: true },
+            select: { id: true, status: true, user: true, team_id: true, campaign_branding: true },
         });
 
         if (!campaign) {
             return NextResponse.json({ message: "Campaign not found" }, { status: 404 });
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+
+        if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && campaign.user !== session!.user.id) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
         }
 
         const updateData: any = {};
@@ -237,7 +244,7 @@ export async function PATCH(
         });
 
         if (status) {
-            systemLogger.info(`[CAMPAIGN_STATUS] Campaign ${sequenceId} status changed: ${campaign.status} → ${status} by user ${session.user.id}`);
+            systemLogger.info(`[CAMPAIGN_STATUS] Campaign ${sequenceId} status changed: ${campaign.status} → ${status} by user ${session!.user.id}`);
         }
 
         // If pausing, also cancel any pending CRON jobs
@@ -275,14 +282,12 @@ export async function DELETE(
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { sequenceId } = await params;
 
-        // Verify campaign exists and belongs to user
+        // Verify campaign exists and belongs to caller's team
         const campaign = await prisma.crm_Outreach_Campaigns.findUnique({
             where: { id: sequenceId },
             select: { id: true, user: true, team_id: true },
@@ -292,13 +297,11 @@ export async function DELETE(
             return NextResponse.json({ message: "Campaign not found" }, { status: 404 });
         }
 
-        // Only the campaign owner or team admin can delete
-        const user = await prisma.users.findUnique({
-            where: { id: session.user.id },
-            select: { id: true, team_id: true, is_admin: true, is_account_admin: true },
-        });
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
 
-        if (campaign.user !== session.user.id && !user?.is_admin && !user?.is_account_admin) {
+        if (campaign.user !== session!.user.id && !teamInfo!.isAdmin && !teamInfo!.isPlatformAdmin) {
             return NextResponse.json({ message: "Forbidden" }, { status: 403 });
         }
 
@@ -317,10 +320,13 @@ export async function DELETE(
 
         systemLogger.info(`[CAMPAIGN_DELETE] Deleted ${outreachItems.length} outreach items for campaign ${sequenceId}`);
 
-        // 3. Reset leads that were part of this campaign
+        // 3. Reset leads that were part of this campaign (scoped to campaign.team_id)
         if (leadIds.length > 0) {
             await prisma.crm_Leads.updateMany({
-                where: { id: { in: leadIds } },
+                where: {
+                    id: { in: leadIds },
+                    ...(campaign.team_id ? { team_id: campaign.team_id } : {}),
+                },
                 data: {
                     outreach_status: "IDLE" as any,
                     outreach_sent_at: null,

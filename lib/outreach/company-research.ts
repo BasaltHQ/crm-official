@@ -5,6 +5,7 @@
  */
 
 import { systemLogger } from "@/lib/logger";
+import { safeFetch } from "@/lib/security/ssrf-guard";
 
 /**
  * Extract domain from an email address
@@ -31,13 +32,12 @@ async function scrapeWebsite(url: string): Promise<string | null> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml",
       },
       signal: controller.signal,
-      redirect: "follow",
     });
 
     clearTimeout(timeout);

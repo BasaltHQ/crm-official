@@ -108,6 +108,12 @@ export default async function AdminAiSettingsPage() {
         .filter((c: any) => c.apiKey && c.apiKey.trim().length > 0)
         .map((c: any) => c.provider);
 
+    // Strip system API keys/ciphertexts before passing to client component
+    const maskedSystemConfigs = (systemConfigs as any[]).map((c: any) => ({
+        ...c,
+        apiKey: c.apiKey ? "********" : null,
+    }));
+
     // Fetch available providers for the request form
     let providerOptions: { slug: string; name: string }[] = [];
     const leadgenCredits = await getTeamLeadGenCredits(teamId);
@@ -149,7 +155,7 @@ export default async function AdminAiSettingsPage() {
                 providerOptions={providerOptions}
                 leadgenCredits={leadgenCredits}
                 aiTokensBalance={teamConfig && 'ai_token_balance' in teamConfig && teamConfig.ai_token_balance !== null ? Number(teamConfig.ai_token_balance) : 0}
-                systemConfigs={systemConfigs as any[]}
+                systemConfigs={maskedSystemConfigs}
             />
         </Container>
     );

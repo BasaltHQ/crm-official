@@ -1,26 +1,19 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { searchDocuments } from "@/lib/document-rag";
 import { systemLogger } from "@/lib/logger";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import { prismadb } from "@/lib/prisma";
 
 /**
  * POST /api/documents/search
  *
- * Semantic search across ingested documents.
- * Body: {
- *   query: string;
- *   documentIds?: string[];  // Scope to specific docs
- *   teamId?: string;         // Or scope to a team
- *   topK?: number;           // Number of results (default 5)
- *   minScore?: number;       // Minimum similarity threshold (default 0.1)
- * }
+ * Semantic search across ingested documents, strictly scoped to caller's team.
  */
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error || !teamInfo) {
+      return error || new NextResponse("Unauthorized", { status: 401 });
     }
 
     const body = await req.json();
@@ -29,9 +22,33 @@ export async function POST(req: Request) {
       return new NextResponse("Query is required", { status: 400 });
     }
 
+    const effectiveTeamId =
+      teamInfo.isPlatformAdmin && typeof body.teamId === "string" && body.teamId
+        ? body.teamId
+        : teamInfo.teamId;
+
+    if (!effectiveTeamId) {
+      return new NextResponse("Forbidden: No team context", { status: 403 });
+    }
+
+    const requestedDocIds: string[] | undefined = Array.isArray(body.documentIds)
+      ? body.documentIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+      : undefined;
+
+    if (requestedDocIds && requestedDocIds.length > 0 && !teamInfo.isPlatformAdmin) {
+      const uniqueIds = Array.from(new Set(requestedDocIds));
+      const ownedDocs = await prismadb.documents.findMany({
+        where: { id: { in: uniqueIds }, team_id: effectiveTeamId },
+        select: { id: true },
+      });
+      if (ownedDocs.length !== uniqueIds.length) {
+        return new NextResponse("Forbidden: Unauthorized document access", { status: 403 });
+      }
+    }
+
     const results = await searchDocuments(body.query, {
-      documentIds: body.documentIds,
-      teamId: body.teamId,
+      documentIds: requestedDocIds,
+      teamId: effectiveTeamId,
       topK: body.topK,
       minScore: body.minScore,
     });

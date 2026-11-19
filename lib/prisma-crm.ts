@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
+const NO_TEAM_SENTINEL_ID = "000000000000000000000000";
+
 function computeCrmUrl(): string {
   const explicit = process.env.CRM_DATABASE_URL;
   if (explicit) return explicit;
@@ -16,7 +18,7 @@ function computeCrmUrl(): string {
       u.pathname = `/${dbName}`;
     }
     return u.toString();
-  } catch (_e) {
+  } catch {
     if (base.includes("/")) return base;
     return `${base}/${dbName}`;
   }
@@ -25,16 +27,18 @@ function computeCrmUrl(): string {
 const crmUrl = computeCrmUrl();
 
 const TENANT_MODELS = [
-  "crm_Accounts", "crm_Leads", "crm_Opportunities", "crm_Outreach_Campaigns", 
-  "crm_Contacts", "crm_Contacts_Opportunities", "crm_Contracts", "Boards", "Invoices", "Documents", 
-  "Tasks", "crm_Accounts_Tasks", "CustomRole", "crm_CustomWidget", 
-  "TeamEmailConfig", "TeamAiConfig", "CustomModelRequest", "TeamSmsConfig", 
-  "TeamCaptchaConfig", "crm_Lead_Pools", "Form", "FormSubmission", 
-  "crm_Message_Portal", "RolePermission", "crm_Workflow", 
-  "CustomObjectDefinition", "CustomRecord", "PageLayout", "crm_Cases", 
-  "SLA_Policy", "RoutingConfig", "KnowledgeCategory", "KnowledgeArticle", 
-  "ValidationRule", "ApprovalProcess", "ApprovalRequest", "Notification", 
-  "crm_Products", "crm_Quotes", "NavigationConfig"
+  "crm_Accounts", "crm_Leads", "crm_Opportunities", "crm_Outreach_Campaigns",
+  "crm_Contacts", "crm_Contacts_Opportunities", "crm_Contracts", "Boards", "Invoices", "Documents",
+  "Tasks", "crm_Accounts_Tasks", "CustomRole", "crm_CustomWidget",
+  "TeamEmailConfig", "TeamAiConfig", "CustomModelRequest", "TeamSmsConfig",
+  "TeamCaptchaConfig", "crm_Lead_Pools", "Form", "FormSubmission",
+  "crm_Message_Portal", "RolePermission", "crm_Workflow",
+  "CustomObjectDefinition", "CustomRecord", "PageLayout", "crm_Cases",
+  "SLA_Policy", "RoutingConfig", "KnowledgeCategory", "KnowledgeArticle",
+  "ValidationRule", "ApprovalProcess", "ApprovalRequest", "Notification",
+  "crm_Products", "crm_Quotes", "NavigationConfig",
+  "MyAccount", "TeamBrandIdentity", "crm_Agentic_Actions", "crm_Document_Chunks",
+  "crm_Entitlement", "InternalMessage", "Quest", "Sandbox", "EmailWarmup", "crm_Email_Thread"
 ];
 
 const TARGET_OPS = ["findMany", "findFirst", "count", "aggregate", "updateMany", "deleteMany"];
@@ -52,14 +56,14 @@ const client = new PrismaClient({
                         if (cookieStore) {
                             const { getCurrentUserTeamId } = await import("@/lib/team-utils");
                             const teamInfo = await getCurrentUserTeamId();
-                            if (teamInfo && teamInfo.teamId) {
-                                // Apply tenant boundary if they are a standard user, OR if they are a global admin currently impersonating a client
-                                if (!teamInfo.isGlobalAdmin || teamInfo.isImpersonating) {
-                                    (args as any).where = { ...(args as any).where || {}, team_id: teamInfo.teamId };
-                                }
+                            if (teamInfo && (!teamInfo.isGlobalAdmin || teamInfo.isImpersonating)) {
+                                const scopedTeamId = teamInfo.teamId || NO_TEAM_SENTINEL_ID;
+                                (args as any).where = { ...(args as any).where || {}, team_id: scopedTeamId };
                             }
                         }
-                    } catch (e) { /* Ignore */ }
+                    } catch {
+                        // Outside request context
+                    }
                 }
                 return query(args);
             }

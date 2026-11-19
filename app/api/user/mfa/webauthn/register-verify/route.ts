@@ -1,28 +1,53 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { verifyWebAuthnRegistration } from "@/lib/mfa-utils";
+import { cookies } from "next/headers";
+import { requireApiAuth } from "@/lib/api-auth-guard";
+import { verifyWebAuthnRegistration, verifySignedWebAuthnChallenge } from "@/lib/mfa-utils";
 import { prismadb } from "@/lib/prisma";
+
+function clearRegChallengeCookie(res: NextResponse) {
+    res.cookies.delete("webauthn_reg_challenge");
+    res.cookies.set("webauthn_reg_challenge", "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 0,
+    });
+    return res;
+}
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const session = await requireApiAuth();
+        if (session instanceof NextResponse) return session;
 
         const user = await prismadb.users.findUnique({
-            where: { email: session.user.email },
+            where: { id: session.user.id },
         });
 
         if (!user) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
+            return clearRegChallengeCookie(
+                NextResponse.json({ error: "User not found" }, { status: 404 })
+            );
         }
 
-        const { body, currentOptions } = await req.json();
+        const cookieStore = await cookies();
+        const challengeCookie = cookieStore.get("webauthn_reg_challenge")?.value;
+        const verifiedChallenge = await verifySignedWebAuthnChallenge(
+            challengeCookie,
+            user.id,
+            "register"
+        );
 
-        const verification = await verifyWebAuthnRegistration(body, currentOptions);
+        if (!verifiedChallenge) {
+            return clearRegChallengeCookie(
+                NextResponse.json({ error: "Invalid or expired registration challenge" }, { status: 400 })
+            );
+        }
+
+        const { body } = await req.json();
+
+        const verification = await verifyWebAuthnRegistration(body, verifiedChallenge);
 
         if (verification.verified && verification.authenticator) {
             const { authenticator } = verification;
@@ -48,15 +73,19 @@ export async function POST(req: Request) {
                 },
             });
 
-            return NextResponse.json({ success: true });
+            return clearRegChallengeCookie(NextResponse.json({ success: true }));
         }
 
-        return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+        return clearRegChallengeCookie(
+            NextResponse.json({ error: "Verification failed" }, { status: 400 })
+        );
     } catch (error: any) {
         console.error("[WebAuthn Register Verify Error]", error);
-        return NextResponse.json(
-            { error: error?.message || "WebAuthn registration verification failed" },
-            { status: 500 }
+        return clearRegChallengeCookie(
+            NextResponse.json(
+                { error: "WebAuthn registration verification failed" },
+                { status: 500 }
+            )
         );
     }
 }

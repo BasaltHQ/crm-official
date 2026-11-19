@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { generateRandomPassword } from "@/lib/utils";
-import { hash } from "bcryptjs";
+import { getSessionAndTeam, validateResourceOwnership, unauthorizedResponse } from "@/lib/api-utils";
+import { isPrivilegedSystemRole } from "@/lib/security/authz";
+import { hashPassword } from "@/lib/password-utils";
 import TempPasswordEmail from "@/emails/TempPasswordEmail";
 import { logActivity } from "@/actions/audit";
 import { render } from "@react-email/render";
@@ -16,22 +16,10 @@ export async function POST(
 ) {
     const params = await props.params;
     try {
-        const session = await getServerSession(authOptions);
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthenticated", { status: 401 });
-        }
-
-        // Check if session user has admin privileges
-        const requestingUser = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: { is_admin: true, team_role: true }
-        });
-
-        const isAdmin = requestingUser?.is_admin ||
-            ["PLATFORM_ADMIN", "SUPER_ADMIN", "ADMIN", "OWNER"].includes(requestingUser?.team_role || "");
-
-        if (!isAdmin) {
+        if (!teamInfo!.isAdmin) {
             return new NextResponse("Unauthorized: Admin privileges required", { status: 403 });
         }
 
@@ -44,16 +32,30 @@ export async function POST(
                 email: true,
                 name: true,
                 avatar: true,
-                userLanguage: true, // Needed for email template
-            }
+                userLanguage: true,
+                team_id: true,
+                is_admin: true,
+                team_role: true,
+            },
         });
 
         if (!user) {
             return new NextResponse("User not found", { status: 404 });
         }
 
-        const tempPassword = generateRandomPassword();
-        const hashedPassword = await hash(tempPassword, 12);
+        if (!validateResourceOwnership(teamInfo!.teamId, user.team_id, teamInfo!.isPlatformAdmin)) {
+            return await unauthorizedResponse("ADMIN_RESET_PASSWORD", `Users:${params.userId}`);
+        }
+
+        if (
+            !teamInfo!.isPlatformAdmin &&
+            (user.is_admin || isPrivilegedSystemRole(user.team_role))
+        ) {
+            return new NextResponse("Forbidden: Cannot reset password for a Platform Admin", { status: 403 });
+        }
+
+        const tempPassword = `Tmp!${randomBytes(15).toString("base64url")}`;
+        const hashedPassword = await hashPassword(tempPassword);
 
         await prismadb.users.update({
             where: {
@@ -62,11 +64,10 @@ export async function POST(
             data: {
                 session_version: { increment: 1 },
                 password: hashedPassword,
-                mustChangePassword: true, // Force reset on next login
+                mustChangePassword: true,
             },
         });
 
-        // Send Email using Unified Relay
         try {
             const emailHtml = await render(
                 TempPasswordEmail({
@@ -83,11 +84,10 @@ export async function POST(
                 subject: "BasaltCRM - Temporary Password",
                 text: `Your temporary password is: ${tempPassword}`,
                 html: emailHtml,
-                replyTo: "support@basalthq.com"
+                replyTo: "support@basalthq.com",
             });
         } catch (emailError) {
             systemLogger.error("[ADMIN_RESET_EMAIL_ERROR]", emailError);
-            // Continue execution, we still reset the password in DB
         }
 
         await logActivity(

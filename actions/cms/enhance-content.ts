@@ -1,5 +1,6 @@
 "use server";
 
+import { requirePlatformAdmin } from "@/lib/security/authz";
 import { getAiSdkModel, isReasoningModel, logAiUsage } from "@/lib/varuni";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -22,6 +23,11 @@ export async function enhanceContent(
     context: EnhanceContext,
     instruction: string
 ): Promise<EnhanceResult> {
+    const admin = await requirePlatformAdmin();
+    if (!admin) {
+        throw new Error("Forbidden — platform administrator privileges required");
+    }
+
     const { model, modelId, teamId } = await getAiSdkModel("system");
     if (!model) {
         throw new Error("AI model not configured");

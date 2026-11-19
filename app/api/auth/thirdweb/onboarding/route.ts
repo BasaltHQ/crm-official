@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
-import { thirdwebAuth } from "@/lib/thirdweb-auth";
+import { thirdwebAuth, isThirdwebConfigured } from "@/lib/thirdweb-auth";
 import { encode } from "next-auth/jwt";
 
 /**
  * POST /api/auth/thirdweb/onboarding
- * 
- * Called after Thirdweb login with profile data (email, name) from social auth.
- * Handles three scenarios:
- *   1. Existing user with matching email → link thirdweb_address, bridge session
- *   2. Existing user already linked → just bridge session
- *   3. New user → create account (respects ALLOW_OPEN_REGISTRATION)
+ *
+ * Called after Thirdweb login with profile data (email, name).
+ * Security rules:
+ *   1. Existing user already linked by wallet → verify ACTIVE + !mfaEnabled, then bridge session
+ *   2. Active NextAuth session → allow linking wallet ONLY to activeSession.user.id
+ *   3. Unauthenticated caller with existing email → reject 409 (never auto-link by email!)
+ *   4. Brand new user → create account (respects ALLOW_OPEN_REGISTRATION)
  */
 export async function POST(req: NextRequest) {
   try {
+    if (!isThirdwebConfigured) {
+      return NextResponse.json(
+        { error: "Thirdweb authentication is not configured" },
+        { status: 503 }
+      );
+    }
+
     const token = req.cookies.get("thirdweb_auth_token")?.value;
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,54 +35,98 @@ export async function POST(req: NextRequest) {
     }
 
     const address = authResult.parsedJWT.sub;
-    const body = await req.json();
-    const { email, displayName } = body;
+    const body = await req.json().catch(() => ({}));
+    const { email, displayName } = body || {};
 
     // ── Case 1: Already linked by address ──
-    // Check this FIRST so SSO works without requiring an email payload
     const alreadyLinked = await prismadb.users.findFirst({
       where: { thirdweb_address: address },
     });
 
     if (alreadyLinked) {
+      if (alreadyLinked.userStatus !== "ACTIVE") {
+        return NextResponse.json(
+          {
+            error: "Account is pending approval or inactive.",
+            needsRegistration: alreadyLinked.userStatus === "PENDING",
+          },
+          { status: 403 }
+        );
+      }
+      if ((alreadyLinked as any).mfaEnabled) {
+        return NextResponse.json(
+          { error: "MFA is enabled on this account. Please sign in with your password and MFA." },
+          { status: 403 }
+        );
+      }
+
       const res = NextResponse.json({ success: true, userId: alreadyLinked.id, linked: true });
       await bridgeNextAuthSession(res, alreadyLinked);
       return res;
     }
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required for account linking", needsRegistration: true }, { status: 400 });
-    }
+    // ── Case 2: Authenticated NextAuth session linking wallet ──
+    const activeSession = await getServerSession(authOptions);
+    if (activeSession?.user?.id && !(activeSession as any).error) {
+      const sessionUser = await prismadb.users.findUnique({
+        where: { id: activeSession.user.id },
+      });
 
-    const normalizedEmail = email.trim().toLowerCase();
+      if (!sessionUser || sessionUser.userStatus !== "ACTIVE") {
+        return NextResponse.json({ error: "Account is not active" }, { status: 403 });
+      }
 
-    // ── Case 2: Existing user with same email → link ──
-    const existingByEmail = await prismadb.users.findFirst({
-      where: { email: normalizedEmail },
-    });
+      if (sessionUser.thirdweb_address && sessionUser.thirdweb_address !== address) {
+        return NextResponse.json(
+          { error: "Your account is already linked to a different wallet." },
+          { status: 409 }
+        );
+      }
 
-    if (existingByEmail) {
-      // Link the Thirdweb address to the existing user
       const updated = await prismadb.users.update({
-        where: { id: existingByEmail.id },
+        where: { id: sessionUser.id },
         data: {
           thirdweb_address: address,
           lastLoginAt: new Date(),
-          // Update avatar/name if not already set
-          ...(displayName && !existingByEmail.name ? { name: displayName } : {}),
+          ...(displayName && !sessionUser.name ? { name: displayName } : {}),
         },
       });
 
       console.log(
-        `[ThirdwebOnboarding] Linked address ${address} to existing user ${existingByEmail.email} (${existingByEmail.id})`
+        `[ThirdwebOnboarding] Linked address ${address} to authenticated user (${updated.id})`
       );
 
-      const res = NextResponse.json({ success: true, userId: updated.id, linked: true, migrated: true });
+      const res = NextResponse.json({ success: true, userId: updated.id, linked: true });
       await bridgeNextAuthSession(res, updated);
       return res;
     }
 
-    // ── Case 3: Brand new user → create ──
+    if (!email || typeof email !== "string") {
+      return NextResponse.json(
+        { error: "Email is required for account registration", needsRegistration: true },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // ── Case 3: Existing user with same email → reject unauthenticated takeover ──
+    const existingByEmail = await prismadb.users.findFirst({
+      where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+      select: { id: true },
+    });
+
+    if (existingByEmail) {
+      return NextResponse.json(
+        {
+          error:
+            "An account with this email already exists. Please sign in with your password first to link your wallet.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // ── Case 4: Brand new user → create ──
     const userStatus =
       process.env.ALLOW_OPEN_REGISTRATION === "true" ? "ACTIVE" : "PENDING";
 
@@ -99,17 +153,20 @@ export async function POST(req: NextRequest) {
       created: true,
       needsRegistration: userStatus === "PENDING",
     });
-    await bridgeNextAuthSession(res, newUser);
+
+    if (userStatus === "ACTIVE") {
+      await bridgeNextAuthSession(res, newUser);
+    }
+
     return res;
   } catch (error: any) {
     console.error("[ThirdwebOnboarding] Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Onboarding failed" }, { status: 500 });
   }
 }
 
 /**
  * Bridge: Issue a NextAuth-compatible JWT session cookie.
- * Duplicated from the catch-all route for isolation.
  */
 async function bridgeNextAuthSession(res: NextResponse, user: any) {
   try {
@@ -124,20 +181,17 @@ async function bridgeNextAuthSession(res: NextResponse, user: any) {
       name: user.name,
       picture: user.avatar,
       id: user.id,
-      session_version: user.session_version,
+      session_version: user.session_version ?? 1,
     };
 
-    // NextAuth derives the AES encryption key using an empty salt ("") by default.
-    // We generate the token and place it in both cookies to prevent NEXTAUTH_URL mismatches.
     const secureToken = await encode({
       token: payload,
       secret,
       maxAge: 8 * 60 * 60,
     });
 
-    const insecureToken = secureToken; // They use the exact same salt, so we can just reuse the token
+    const insecureToken = secureToken;
 
-    // Set BOTH cookies to prevent NextAuth NEXTAUTH_URL http/https inference mismatches on custom hosting (Plesk)
     res.cookies.set("__Secure-next-auth.session-token", secureToken, {
       httpOnly: true,
       secure: true,
@@ -145,7 +199,7 @@ async function bridgeNextAuthSession(res: NextResponse, user: any) {
       path: "/",
       maxAge: 8 * 60 * 60,
     });
-    
+
     res.cookies.set("next-auth.session-token", insecureToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

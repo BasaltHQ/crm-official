@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth-guard";
+import { safeFetch } from "@/lib/security/ssrf-guard";
 
 function pick<T extends string>(html: string, prop: T, attr: "property" | "name" = "property") {
   const re = new RegExp(`<meta[^>]+${attr}=["']${prop}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i");
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
     const url = searchParams.get("url");
     if (!url) return new NextResponse("Missing url", { status: 400 });
 
-    const res = await fetch(url, { headers: { "User-Agent": "BasaltCRM-Link-Preview/1.0" } });
+    const res = await safeFetch(url, { headers: { "User-Agent": "BasaltCRM-Link-Preview/1.0" } });
     if (!res.ok) return new NextResponse(`Fetch failed: ${res.status}`, { status: 502 });
     const html = await res.text();
 

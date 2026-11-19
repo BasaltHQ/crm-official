@@ -19,7 +19,7 @@ const AnalysisSchema = z.object({
 
 export async function POST(req: Request) {
     const auth = await getServerSession(authOptions);
-    if (!auth) {
+    if (!auth?.user?.id || (auth as any).error === "SessionInvalidated") {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -30,8 +30,16 @@ export async function POST(req: Request) {
             return new NextResponse("Session ID is required", { status: 400 });
         }
 
+        // Verify chat session belongs to authenticated user
+        const chatSession = await db.chat_Sessions.findUnique({
+            where: { id: sessionId },
+            select: { id: true, user: true },
+        });
+        if (!chatSession || chatSession.user !== auth.user.id) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
+
         // Fetch chat history
-        // We need to fetch messages from the DB
         const messages = await db.chat_Messages.findMany({
             where: { session: sessionId },
             orderBy: { createdAt: "asc" },

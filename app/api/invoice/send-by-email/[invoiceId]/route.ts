@@ -1,86 +1,82 @@
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { fillXmlTemplate } from "@/lib/xml-generator";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { sendTeamEmail } from "@/lib/email/team-mailer";
 
 export async function GET(req: Request, props: { params: Promise<{ invoiceId: string }> }) {
-  const params = await props.params;
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ status: 401, body: { error: "Unauthorized" } });
-  }
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
+  const params = await props.params;
   const { invoiceId } = params;
 
   if (!invoiceId) {
-    return NextResponse.json({
-      status: 400,
-      body: { error: "Bad Request - invoice id is mandatory" },
-    });
+    return NextResponse.json(
+      { error: "Bad Request - invoice id is mandatory" },
+      { status: 400 }
+    );
   }
 
-  const myCompany = await prismadb.myAccount.findFirst({});
-
-  const invoiceData = await prismadb.invoices.findFirst({
+  const invoiceData = await prismadb.invoices.findUnique({
     where: {
       id: invoiceId,
     },
   });
 
-  const xmlString = fillXmlTemplate(invoiceData, myCompany);
+  if (!invoiceData) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
 
-  //write xml to file in public folder /public/tmp/[invoiceId].xml
-  //fs.writeFileSync(`public/tmp/${invoiceId}.xml`, xmlString);
-  //fs.writeFileSync(`public/tmp/${invoiceData}.json`, invoiceData);
+  if (!validateResourceOwnership(teamInfo!.teamId, invoiceData.team_id, teamInfo!.isPlatformAdmin)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const targetTeamId = invoiceData.team_id || teamInfo!.teamId;
+  if (!targetTeamId) {
+    return NextResponse.json({ error: "No team context associated with invoice" }, { status: 400 });
+  }
+
+  const myCompany = await prismadb.myAccount.findFirst({
+    where: { team_id: targetTeamId },
+  });
+
+  const xmlString = fillXmlTemplate(invoiceData, myCompany);
   const buffer = Buffer.from(xmlString);
 
   if (!buffer) {
-    return NextResponse.json({
-      status: 400,
-      body: { error: "Bad Request - buffer is empty. Nothing to send." },
-    });
+    return NextResponse.json(
+      { error: "Bad Request - buffer is empty. Nothing to send." },
+      { status: 400 }
+    );
   }
 
-  let message = `Hello, \n\n Please find attached invoice in XML format. \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
+  const message = `Hello, \n\n Please find attached invoice in XML format. \n\n Thank you \n\n ${process.env.NEXT_PUBLIC_APP_NAME}`;
 
-  //Get accountant email from database (MyAccount table)
-  const accountantEmail = await prismadb.myAccount.findFirst({});
-
-  if (!accountantEmail) {
-    return NextResponse.json({
-      status: 400,
-      body: {
-        error:
-          "Bad Request - accountant email is empty. Nothing to send. Fill the accountant email in the settings.",
+  if (!myCompany || !myCompany.email_accountant) {
+    return NextResponse.json(
+      {
+        message:
+          "There is no accountant email in the database for your team. Nothing to send. Fill the accountant email in the settings.",
       },
-    });
+      { status: 400 }
+    );
   }
 
-  if (accountantEmail.email_accountant) {
-    await sendTeamEmail(session.user.team_id as string, {
-      to: accountantEmail.email_accountant,
-      subject: `${process.env.NEXT_PUBLIC_APP_NAME} invoice in XML format for ERP system`,
-      text: message,
-      attachments: [
-        {
-          filename: `invoice-${invoiceId}.xml`,
-          content: buffer,
-          contentType: "application/xml",
-        },
-      ],
-    });
-    return NextResponse.json({
-      status: 200,
-      body: { message: "Email with XML send to its destination" },
-    });
-  }
-  return NextResponse.json(
-    {
-      message:
-        "There is no accountant email in the database. Nothing to send. Fill the accountant email in the settings.",
-    },
-    { status: 400 }
-  );
+  await sendTeamEmail(targetTeamId, {
+    to: myCompany.email_accountant,
+    subject: `${process.env.NEXT_PUBLIC_APP_NAME} invoice in XML format for ERP system`,
+    text: message,
+    attachments: [
+      {
+        filename: `invoice-${invoiceId}.xml`,
+        content: buffer,
+        contentType: "application/xml",
+      },
+    ],
+  });
+  return NextResponse.json({
+    status: 200,
+    body: { message: "Email with XML send to its destination" },
+  });
 }

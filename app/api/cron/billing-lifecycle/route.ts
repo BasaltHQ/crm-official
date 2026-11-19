@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 import { stripe } from "@/lib/stripe";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 /**
  * GET /api/cron/billing-lifecycle
@@ -13,11 +14,8 @@ import { stripe } from "@/lib/stripe";
  */
 export async function GET(req: Request) {
     try {
-        const authHeader = req.headers.get("authorization");
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            // Uncomment in production:
-            // return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const cronAuth = requireCronAuth(req);
+        if (cronAuth instanceof Response) return cronAuth;
 
         systemLogger.info("[CRON_BILLING] Starting sweep for expired subscriptions...");
 

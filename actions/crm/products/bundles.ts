@@ -1,15 +1,35 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
 export async function updateProductBundles(productId: string, bundles: { childProductId: string, quantity: number, isRequired: boolean }[]) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) throw new Error("Unauthorized");
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error || !teamInfo) throw new Error("Unauthorized");
+
+        const parentProduct = await prismadb.crm_Products.findUnique({
+            where: { id: productId },
+            select: { id: true, team_id: true },
+        });
+        if (!parentProduct) {
+            return { success: false, error: "Product not found" };
+        }
+        if (!validateResourceOwnership(teamInfo.teamId, parentProduct.team_id, teamInfo.isPlatformAdmin)) {
+            return { success: false, error: "Forbidden" };
+        }
+
+        const childIds = Array.from(new Set((bundles || []).map((b) => b.childProductId).filter(Boolean)));
+        if (childIds.length > 0 && parentProduct.team_id && !teamInfo.isPlatformAdmin) {
+            const validChildren = await prismadb.crm_Products.count({
+                where: { id: { in: childIds }, team_id: parentProduct.team_id },
+            });
+            if (validChildren !== childIds.length) {
+                return { success: false, error: "Forbidden — child products must belong to your team" };
+            }
+        }
 
         // Simple approach: Delete existing and recreate
         await prismadb.crm_ProductBundles.deleteMany({

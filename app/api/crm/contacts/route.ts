@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import sendEmail from "@/lib/sendmail";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 const isValidId = (id: any) => typeof id === "string" && id.length === 24;
 
 //Create route
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
   try {
     const body = await req.json();
-    const userId = session.user.id;
+    const userId = session!.user.id;
 
     if (!body) {
       return new NextResponse("No form data", { status: 400 });
@@ -47,29 +43,52 @@ export async function POST(req: Request) {
       type,
     } = body;
 
-    const teamInfo = await getCurrentUserTeamId();
     const teamId = teamInfo?.teamId;
+
+    if (assigned_account && assigned_account.trim() !== "") {
+      const acc = await prismadb.crm_Accounts.findUnique({
+        where: { id: assigned_account },
+        select: { id: true, team_id: true },
+      });
+      if (!acc || !validateResourceOwnership(teamId || null, acc.team_id, teamInfo!.isPlatformAdmin)) {
+        return new NextResponse("Forbidden — invalid assigned account", { status: 403 });
+      }
+    }
+
+    if (assigned_to && assigned_to.trim() !== "" && teamId && !teamInfo!.isPlatformAdmin) {
+      const targetAssignee = await prismadb.users.findFirst({
+        where: { id: assigned_to, team_id: teamId },
+        select: { id: true },
+      });
+      if (!targetAssignee) {
+        return new NextResponse("Forbidden — invalid assignee", { status: 403 });
+      }
+    }
 
     // SOC2 CC6.1 / A1.2: Check contact quotas before allowing creation
     if (teamId) {
       const { checkTeamQuota } = await import("@/lib/quota-service");
-      const quota = await checkTeamQuota(teamId, "CONTACTS", session.user.id);
+      const quota = await checkTeamQuota(teamId, "CONTACTS", userId);
       if (!quota.allowed) {
         return NextResponse.json({ error: quota.message }, { status: 403 });
       }
     }
 
-    // Helper no longer needed — mode:insensitive is SQL-only, removed
-    const existingContact = await (prismadb.crm_Contacts as any).findFirst({
-      where: {
-        team_id: isValidId(teamId) ? teamId : undefined,
-        OR: [
-          ...(email ? [{ email: { equals: email } }] : []),
-          ...(mobile_phone ? [{ mobile_phone: { equals: mobile_phone } }] : []),
-          ...(office_phone ? [{ office_phone: { equals: office_phone } }] : []),
-        ],
-      },
-    });
+    const dedupOr = [
+      ...(email ? [{ email: { equals: email } }] : []),
+      ...(mobile_phone ? [{ mobile_phone: { equals: mobile_phone } }] : []),
+      ...(office_phone ? [{ office_phone: { equals: office_phone } }] : []),
+    ];
+
+    const existingContact =
+      dedupOr.length > 0 && isValidId(teamId)
+        ? await (prismadb.crm_Contacts as any).findFirst({
+            where: {
+              team_id: teamId,
+              OR: dedupOr,
+            },
+          })
+        : null;
 
     if (existingContact) {
       // Merge: Update existing contact with new data if current fields are empty
@@ -164,7 +183,7 @@ export async function POST(req: Request) {
 
     if (assigned_account && assigned_account.trim() !== "") {
       import("@/actions/quests/add-raw-xp")
-        .then((m) => m.addRawXP({ userId: session.user.id, xpAmount: 1, reason: "Sourced Contact for Account" }))
+        .then((m) => m.addRawXP({ userId, xpAmount: 1, reason: "Sourced Contact for Account" }))
         .catch((e) => systemLogger.warn(`[CONTACT_ACCOUNT_GAMIFICATION] Failed to award XP: ${e?.message}`));
     }
 
@@ -177,16 +196,25 @@ export async function POST(req: Request) {
 
 //Update route
 export async function PUT(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
   try {
     const body = await req.json();
-    const userId = session.user.id;
+    const userId = session!.user.id;
 
-    if (!body) {
-      return new NextResponse("No form data", { status: 400 });
+    if (!body || !body.id) {
+      return new NextResponse("No form data or contact ID", { status: 400 });
+    }
+
+    const existing = await prismadb.crm_Contacts.findUnique({
+      where: { id: body.id },
+      select: { id: true, team_id: true },
+    });
+    if (!existing) {
+      return new NextResponse("Contact not found", { status: 404 });
+    }
+    if (!validateResourceOwnership(teamInfo!.teamId, existing.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const {
@@ -215,7 +243,25 @@ export async function PUT(req: Request) {
       type,
     } = body;
 
-    console.log(assigned_account, "assigned_account");
+    if (assigned_account && assigned_account.trim() !== "") {
+      const acc = await prismadb.crm_Accounts.findUnique({
+        where: { id: assigned_account },
+        select: { id: true, team_id: true },
+      });
+      if (!acc || !validateResourceOwnership(teamInfo!.teamId, acc.team_id, teamInfo!.isPlatformAdmin)) {
+        return new NextResponse("Forbidden — invalid assigned account", { status: 403 });
+      }
+    }
+
+    if (assigned_to && assigned_to.trim() !== "" && existing.team_id && !teamInfo!.isPlatformAdmin) {
+      const targetAssignee = await prismadb.users.findFirst({
+        where: { id: assigned_to, team_id: existing.team_id },
+        select: { id: true },
+      });
+      if (!targetAssignee) {
+        return new NextResponse("Forbidden — invalid assignee", { status: 403 });
+      }
+    }
 
     const newContact = await prismadb.crm_Contacts.update({
       where: {

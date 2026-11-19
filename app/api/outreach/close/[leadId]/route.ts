@@ -1,19 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { convertLeadToOpportunity } from "@/actions/crm/convert-lead";
 import { closeDealAndCreateProject } from "@/actions/crm/close-deal-and-create-project";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/outreach/close/[leadId]
- * Body: { reason?: string }
- * Manually closes outreach for a lead (sets outreach_status = "CLOSED") and logs activity.
- * UPDATED: Follows "Project > Lead > Opportunity > Project" flow.
- * - Converts Lead to Opportunity
- * - Closes Opportunity (creating Project)
- */
 type RequestBody = {
   reason?: string;
 };
@@ -21,10 +12,8 @@ type RequestBody = {
 type Params = { params: Promise<{ leadId: string }> };
 export async function POST(req: Request, { params }: Params) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { error, session, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
 
     const { leadId } = await params;
     if (!leadId) {
@@ -34,24 +23,21 @@ export async function POST(req: Request, { params }: Params) {
     const payload = (await req.json().catch(() => ({}))) as RequestBody;
     const reason = (payload?.reason || "").toString().slice(0, 2000);
 
-    // Load user (to check admin)
-    const user = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: { is_admin: true, is_account_admin: true },
-    });
-    const isAdmin = !!(user?.is_admin || user?.is_account_admin);
-
-    // Load lead to verify assignment
+    // Load lead to verify tenant ownership and assignment
     const lead = await prismadb.crm_Leads.findUnique({
       where: { id: leadId },
-      select: { id: true, assigned_to: true, outreach_status: true, status: true },
+      select: { id: true, team_id: true, assigned_to: true, outreach_status: true, status: true },
     });
     if (!lead) {
       return new NextResponse("Lead not found", { status: 404 });
     }
 
-    // Permission: assigned user or admin can close
-    if (!isAdmin && lead.assigned_to !== session.user.id) {
+    if (!validateResourceOwnership(teamInfo!.teamId, lead.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // Permission: assigned user or tenant/platform admin can close
+    if (!teamInfo!.isAdmin && lead.assigned_to !== session!.user.id) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -93,7 +79,7 @@ export async function POST(req: Request, { params }: Params) {
     await prismadb.crm_Lead_Activities.create({
       data: {
         lead: lead.id,
-        user: session.user.id,
+        user: session!.user.id,
         type: "status_changed",
         metadata: { to: "CLOSED_WON", reason, opportunityId } as any,
       },

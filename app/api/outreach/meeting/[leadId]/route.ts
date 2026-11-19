@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * GET /api/outreach/meeting/[leadId]
- * Resolves meeting link for the lead (lead.outreach_meeting_link -> assigned user's meeting_link),
- * logs crm_Lead_Activities: "meeting_link_clicked", and redirects (302) to the external meeting URL.
- * If meeting link cannot be resolved, returns 400.
- */
 type Params = { params: Promise<{ leadId: string }> };
 export async function GET(
   _req: Request,
   { params }: Params
 ) {
-  // ── Auth guard ──
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   try {
     const { leadId } = await params;
@@ -24,11 +17,12 @@ export async function GET(
       return new NextResponse("Missing leadId", { status: 400 });
     }
 
-    // Load lead with assigned user info
+    // Load lead with assigned user + team_id
     const lead = await prismadb.crm_Leads.findUnique({
       where: { id: leadId },
       select: {
         id: true,
+        team_id: true,
         assigned_to: true,
         outreach_meeting_link: true,
       },
@@ -36,6 +30,10 @@ export async function GET(
 
     if (!lead) {
       return new NextResponse("Lead not found", { status: 404 });
+    }
+
+    if (!validateResourceOwnership(teamInfo!.teamId, lead.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     // Determine meeting link
@@ -51,6 +49,16 @@ export async function GET(
 
     if (!meetingLink) {
       return new NextResponse("No meeting link configured", { status: 400 });
+    }
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(meetingLink);
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return new NextResponse("Invalid meeting link protocol", { status: 400 });
+      }
+    } catch {
+      return new NextResponse("Invalid meeting link URL", { status: 400 });
     }
 
     // Log activity: meeting_link_clicked
@@ -71,7 +79,7 @@ export async function GET(
     });
 
     // Redirect to external meeting link
-    return NextResponse.redirect(meetingLink, { status: 302 });
+    return NextResponse.redirect(parsedUrl.toString(), { status: 302 });
   } catch (error) {
      
     systemLogger.error("[OUTREACH_MEETING_GET]", error);

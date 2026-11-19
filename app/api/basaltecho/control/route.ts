@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getSessionAndTeam } from "@/lib/api-utils";
 
 /**
  * CRM -> BasaltECHO control bridge
@@ -41,9 +41,15 @@ function normalizeOrigin(raw?: string | null): string | undefined {
 }
 
 export async function POST(req: Request) {
-  // ── Auth guard ──
-  const session = await requireApiAuth();
-  if (session instanceof Response) return session;
+  // ── Platform Admin Auth Guard (controls global BasaltECHO service state) ──
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
+  if (!teamInfo?.isPlatformAdmin) {
+    return NextResponse.json(
+      { ok: false, error: "Forbidden — platform administrator privileges required" },
+      { status: 403 }
+    );
+  }
 
   try {
     const body = (await req.json().catch(() => ({}))) as ControlBody;
@@ -109,7 +115,6 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         ok: true,
-        forwarded: { base: basaltechoBase, wallet },
         result: out,
       },
       { status: 200 }

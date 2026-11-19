@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { sanitizeUser } from "@/lib/security/authz";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
@@ -14,23 +14,46 @@ export async function GET(
 ) {
     const { userId } = await params;
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        const isSelf = Boolean(
+            session?.user?.id &&
+            (session as any).error !== "SessionInvalidated" &&
+            session.user.userStatus === "ACTIVE" &&
+            session.user.id === userId
+        );
+
+        if (error && !isSelf) return error;
+        if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const user = await prismadb.users.findUnique({
             where: { id: userId },
-            select: { assigned_modules: true, name: true }
+            select: {
+                assigned_modules: true,
+                name: true,
+                team_id: true,
+                assigned_team: { select: { parent_id: true } },
+            },
         });
 
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
+        if (!isSelf) {
+            const isChildDept = Boolean(teamInfo?.teamId && user.assigned_team?.parent_id === teamInfo.teamId);
+            if (
+                !isChildDept &&
+                !validateResourceOwnership(teamInfo!.teamId, user.team_id, teamInfo!.isPlatformAdmin)
+            ) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+        }
+
         return NextResponse.json({
             modules: user.assigned_modules || [],
-            name: user.name
+            name: user.name,
         });
     } catch (error) {
         systemLogger.error("[USER_MODULES_GET]", error);
@@ -48,36 +71,47 @@ export async function PUT(
 ) {
     const { userId } = await params;
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        if (!teamInfo!.isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
         }
 
-        // Verify admin status
-        const requester = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: { team_role: true, is_admin: true }
+        const targetUser = await prismadb.users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                team_id: true,
+                assigned_team: { select: { parent_id: true } },
+            },
         });
 
-        const role = (requester?.team_role || "").toUpperCase();
-        const isAdmin = requester?.is_admin === true ||
-            ["ADMIN", "OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN", "PLATFORM ADMIN", "SYSADM"].includes(role);
+        if (!targetUser) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
 
-        if (!isAdmin) {
-            return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+        const isChildDept = Boolean(teamInfo!.teamId && targetUser.assigned_team?.parent_id === teamInfo!.teamId);
+        if (
+            !isChildDept &&
+            !validateResourceOwnership(teamInfo!.teamId, targetUser.team_id, teamInfo!.isPlatformAdmin)
+        ) {
+            return NextResponse.json({ error: "Forbidden: Cross-tenant access denied" }, { status: 403 });
         }
 
         const body = await req.json();
         const { modules } = body;
 
-        if (!Array.isArray(modules)) {
+        if (!Array.isArray(modules) || !modules.every((m) => typeof m === "string")) {
             return NextResponse.json({ error: "Invalid modules format" }, { status: 400 });
         }
 
-        const updated = await prismadb.users.update({
-            where: { id: userId },
-            data: { assigned_modules: modules }
-        });
+        const updated = sanitizeUser(
+            await prismadb.users.update({
+                where: { id: userId },
+                data: { assigned_modules: modules },
+            })
+        );
 
         systemLogger.info(`[USER_MODULES] Updated modules for user ${userId}:`, modules);
         return NextResponse.json({ modules: updated.assigned_modules });

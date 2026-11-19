@@ -90,7 +90,13 @@ export async function runWorkflowEngine(workflowExecutionId: string) {
             let outcome: string | null = null;
 
             try {
-                const result = await executeNode(node, triggerData, nodeOutputs, workflowExecutionId);
+                const result = await executeNode(
+                    node,
+                    triggerData,
+                    nodeOutputs,
+                    workflowExecutionId,
+                    execution.workflow.team_id
+                );
                 nodeOutputs[node.id] = result.output;
                 outcome = result.outcome || null;
 
@@ -223,11 +229,47 @@ type NodeResult = {
     resumeAt?: Date;
 };
 
+const ALLOWED_WORKFLOW_MODELS = new Set([
+    "crm_Leads",
+    "crm_Contacts",
+    "crm_Accounts",
+    "crm_Opportunities",
+    "crm_Cases",
+    "tasks",
+    "Tasks",
+]);
+
+const BLOCKED_WORKFLOW_UPDATE_FIELDS = new Set([
+    "id",
+    "_id",
+    "v",
+    "__v",
+    "team_id",
+    "tenant_id",
+    "createdBy",
+    "created_by",
+    "is_admin",
+    "is_account_admin",
+    "team_role",
+    "plan_id",
+    "subscription_plan",
+    "password",
+    "mfaSecret",
+    "mfaBackupCodes",
+    "resetToken",
+    "resetTokenExpires",
+    "openAi_keys",
+    "__proto__",
+    "constructor",
+    "prototype",
+]);
+
 async function executeNode(
     node: any,
     triggerData: any,
     previousOutputs: Record<string, any>,
-    executionId: string
+    executionId: string,
+    workflowTeamId: string
 ): Promise<NodeResult> {
     const data = node.data || {};
 
@@ -236,13 +278,13 @@ async function executeNode(
             return { output: triggerData };
 
         case 'action':
-            return await handleActionNode(data, triggerData, previousOutputs);
+            return await handleActionNode(data, triggerData, previousOutputs, workflowTeamId);
 
         case 'condition':
             return await handleConditionNode(data, triggerData, previousOutputs);
 
         case 'updateRecord':
-            return await handleUpdateRecordNode(data, triggerData, previousOutputs);
+            return await handleUpdateRecordNode(data, triggerData, previousOutputs, workflowTeamId);
 
         case 'delay':
             return await handleDelayNode(data, executionId);
@@ -325,7 +367,12 @@ async function handleLoopNode(
 }
 
 // ── Action Node (send_email, notify, create_task) ───────────────────────────
-async function handleActionNode(data: any, triggerData: any, previousOutputs: Record<string, any>) {
+async function handleActionNode(
+    data: any,
+    triggerData: any,
+    previousOutputs: Record<string, any>,
+    workflowTeamId: string
+) {
     const actionType = data.actionType;
 
     const resolveVars = (str: string) => {
@@ -351,16 +398,22 @@ async function handleActionNode(data: any, triggerData: any, previousOutputs: Re
 
     if (actionType === 'notify') {
         const userId = data.userId || triggerData.assigned_to || triggerData.createdBy;
-        if (userId) {
-            await prismadb.crm_Notifications.create({
-                data: {
-                    user_id: userId,
-                    title: resolveVars(data.title || "Workflow Alert"),
-                    content: resolveVars(data.message || "A workflow has triggered an alert."),
-                    type: "WORKFLOW",
-                    status: "UNREAD"
-                }
+        if (userId && workflowTeamId) {
+            const targetUser = await prismadb.users.findFirst({
+                where: { id: String(userId), team_id: workflowTeamId },
+                select: { id: true },
             });
+            if (targetUser) {
+                await prismadb.crm_Notifications.create({
+                    data: {
+                        user_id: targetUser.id,
+                        title: resolveVars(data.title || "Workflow Alert"),
+                        content: resolveVars(data.message || "A workflow has triggered an alert."),
+                        type: "WORKFLOW",
+                        status: "UNREAD"
+                    }
+                });
+            }
         }
         return { output: { notified: true } };
     }
@@ -409,28 +462,56 @@ async function handleConditionNode(data: any, triggerData: any, previousOutputs:
 }
 
 // ── Update Record Node ──────────────────────────────────────────────────────
-async function handleUpdateRecordNode(data: any, triggerData: any, previousOutputs: Record<string, any>) {
-    const objectType = data.objectType;
-    const recordId = triggerData.id;
+async function handleUpdateRecordNode(
+    data: any,
+    triggerData: any,
+    previousOutputs: Record<string, any>,
+    workflowTeamId: string
+) {
+    const objectType = typeof data.objectType === "string" ? data.objectType.trim() : "";
+    const recordId = typeof triggerData?.id === "string" ? triggerData.id.trim() : "";
+
+    if (!workflowTeamId) {
+        throw new Error("UpdateRecordNode missing workflow team_id context.");
+    }
 
     if (!objectType || !recordId) {
         throw new Error("UpdateRecordNode missing objectType or recordId context.");
     }
 
+    if (!ALLOWED_WORKFLOW_MODELS.has(objectType)) {
+        throw new Error(`UpdateRecordNode disallowed objectType: ${objectType}`);
+    }
+
     const updates: Record<string, any> = {};
-    if (data.fieldUpdates) {
-        data.fieldUpdates.forEach((u: { field: string, value: string }) => {
-            updates[u.field] = u.value;
+    if (Array.isArray(data.fieldUpdates)) {
+        data.fieldUpdates.forEach((u: { field: string; value: string }) => {
+            const fieldName = typeof u?.field === "string" ? u.field.trim() : "";
+            if (
+                !fieldName ||
+                fieldName.startsWith("$") ||
+                BLOCKED_WORKFLOW_UPDATE_FIELDS.has(fieldName)
+            ) {
+                return;
+            }
+            updates[fieldName] = u.value;
         });
     }
 
-    const model = (prismadb as any)[objectType];
-    if (model) {
-        await model.update({
-            where: { id: recordId },
-            data: updates
-        });
+    if (Object.keys(updates).length === 0) {
+        return { output: { updated: false, fields: [] } };
     }
 
-    return { output: { updated: true, fields: Object.keys(updates) } };
+    const prismaModelKey = objectType === "Tasks" ? "tasks" : objectType;
+    const model = (prismadb as any)[prismaModelKey];
+    if (!model || typeof model.updateMany !== "function") {
+        throw new Error(`Invalid workflow target model: ${objectType}`);
+    }
+
+    const result = await model.updateMany({
+        where: { id: recordId, team_id: workflowTeamId },
+        data: updates,
+    });
+
+    return { output: { updated: result.count > 0, count: result.count, fields: Object.keys(updates) } };
 }

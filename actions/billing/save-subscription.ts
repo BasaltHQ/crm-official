@@ -8,7 +8,15 @@ import { createSurgeCheckoutSession } from "@/lib/surge";
 import { createStripeCheckoutSession } from "@/lib/stripe";
 import { systemLogger } from "@/lib/logger";
 import { sendSmsSetupInstructions } from "@/lib/email/sms-setup-instructions";
-import { SURGE_DISCOUNT_PERCENT } from "@/config/subscriptions";
+import {
+    SUBSCRIPTION_PLANS,
+    SURGE_DISCOUNT_PERCENT,
+    getAnnualPrice,
+    getMonthlyPrice,
+    resolveSlug,
+} from "@/config/subscriptions";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { isSelfServicePlanSlug, requirePlatformAdmin } from "@/lib/security/authz";
 
 export async function saveSubscription(data: {
     planName: string;
@@ -20,34 +28,73 @@ export async function saveSubscription(data: {
     paymentProvider?: "STRIPE" | "SURGE";
 }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const [session, teamInfo] = await Promise.all([
+            getServerSession(authOptions),
+            getCurrentUserTeamId(),
+        ]);
+        if (!session?.user?.id || !teamInfo?.teamId) {
             return { error: "Unauthorized" };
+        }
+
+        if (!teamInfo.isAdmin) {
+            return { error: "Forbidden: Only team admins can manage subscriptions." };
         }
 
         const user = await prismadb.users.findUnique({
             where: { id: session.user.id }
         });
 
-        if (!user || !user.team_id) {
-            return { error: "User or Team not found" };
+        if (!user) {
+            return { error: "User not found" };
         }
 
-        const teamId = user.team_id;
-        const provider = data.paymentProvider || "SURGE";
-
-        // Fetch team slug for exemption check
-        const team = await prismadb.team.findUnique({
-            where: { id: teamId },
-            select: { slug: true, name: true }
+        // Resolve department to parent organization if needed
+        const rawTeam = await prismadb.team.findUnique({
+            where: { id: teamInfo.teamId },
+            select: { id: true, slug: true, name: true, parent_id: true, team_type: true }
         });
 
-        // Apply 5% Surge discount for manual BasaltSurge payments
-        let finalAmount = data.amount;
-        let discountApplied = data.discountApplied;
+        if (!rawTeam) {
+            return { error: "Team not found" };
+        }
+
+        const team =
+            rawTeam.team_type === "DEPARTMENT" && rawTeam.parent_id
+                ? await prismadb.team.findUnique({
+                      where: { id: rawTeam.parent_id },
+                      select: { id: true, slug: true, name: true },
+                  })
+                : rawTeam;
+
+        if (!team) {
+            return { error: "Billing organization not found" };
+        }
+
+        const teamId = team.id;
+        const provider = data.paymentProvider || "SURGE";
+        const interval: "monthly" | "annual" = data.interval === "annual" ? "annual" : "monthly";
+
+        const isInternalSlug = ["basalt", "basalthq", "ledger1"].includes(team.slug.toLowerCase());
+        const platformAdmin = isInternalSlug ? await requirePlatformAdmin() : null;
+        const isInternalTeam = isInternalSlug && Boolean(platformAdmin);
+
+        const planSlug = resolveSlug(data.planName);
+        if (!isInternalTeam && !isSelfServicePlanSlug(planSlug)) {
+            return { error: "Selected plan is not available for self-service subscription." };
+        }
+
+        const canonicalPlan = SUBSCRIPTION_PLANS[planSlug];
+        const baseAmount =
+            interval === "annual"
+                ? getAnnualPrice(planSlug)
+                : getMonthlyPrice(planSlug);
+
+        // Apply 5% Surge discount on canonical server-computed price (never trust client data.amount)
+        let finalAmount = baseAmount;
+        let discountApplied = interval === "annual";
 
         if (provider === "SURGE") {
-            finalAmount = data.amount * (1 - SURGE_DISCOUNT_PERCENT / 100);
+            finalAmount = Math.round(baseAmount * (1 - SURGE_DISCOUNT_PERCENT / 100) * 100) / 100;
             discountApplied = true;
         }
 
@@ -57,19 +104,20 @@ export async function saveSubscription(data: {
         }
 
         // Calculate next billing date
+        const safeBillingDay = Math.min(28, Math.max(1, Math.floor(Number(data.billingDay) || 1)));
         const now = new Date();
-        let nextBillingDate = new Date(now.getFullYear(), now.getMonth(), data.billingDay);
+        let nextBillingDate = new Date(now.getFullYear(), now.getMonth(), safeBillingDay);
 
         const daysDiff = (nextBillingDate.getTime() - now.getTime()) / (1000 * 3600 * 24);
 
         if (daysDiff < 10) {
-            if (data.interval === "annual") {
+            if (interval === "annual") {
                 nextBillingDate = addMonths(nextBillingDate, 12);
             } else {
                 nextBillingDate = addMonths(nextBillingDate, 1);
             }
         } else {
-            if (data.interval === "annual") {
+            if (interval === "annual") {
                 nextBillingDate = addMonths(nextBillingDate, 12);
             }
         }
@@ -85,8 +133,8 @@ export async function saveSubscription(data: {
                 const checkoutSession = await createStripeCheckoutSession(
                     teamId,
                     user.email!,
-                    data.planName,
-                    data.interval,
+                    planSlug,
+                    interval,
                     team?.name
                 );
 
@@ -106,9 +154,7 @@ export async function saveSubscription(data: {
         // payment since Surge uses an in-app payment modal, not an external redirect.
         // =====================================================================
 
-        const isInternalTeam = team && ['basalt', 'basalthq', 'ledger1'].includes(team.slug.toLowerCase());
-
-        // Internal/exempt teams get ACTIVE immediately; everyone else starts PENDING
+        // Verified internal/exempt platform admin teams get ACTIVE immediately; everyone else starts PENDING
         // until payment is confirmed via Surge webhook
         const status = isInternalTeam ? "ACTIVE" : "PENDING_PAYMENT";
         const lastChargeStatus = isInternalTeam ? "SYSTEM_FREE_TIER" : "PENDING_FIRST_PAYMENT";
@@ -122,10 +168,10 @@ export async function saveSubscription(data: {
                 customer_wallet: data.customerWallet,
                 discount_applied: discountApplied,
                 payment_provider: provider,
-                plan_name: data.planName,
+                plan_name: canonicalPlan.name,
                 amount: isInternalTeam ? 0 : finalAmount,
-                billing_day: data.billingDay,
-                interval: data.interval,
+                billing_day: safeBillingDay,
+                interval: interval,
                 next_billing_date: nextBillingDate,
                 status: status,
                 last_charge_status: lastChargeStatus
@@ -135,10 +181,10 @@ export async function saveSubscription(data: {
                 customer_wallet: data.customerWallet,
                 discount_applied: discountApplied,
                 payment_provider: provider,
-                plan_name: data.planName,
+                plan_name: canonicalPlan.name,
                 amount: isInternalTeam ? 0 : finalAmount,
-                billing_day: data.billingDay,
-                interval: data.interval,
+                billing_day: safeBillingDay,
+                interval: interval,
                 next_billing_date: nextBillingDate,
                 status: status,
                 last_charge_status: lastChargeStatus
@@ -147,19 +193,19 @@ export async function saveSubscription(data: {
 
         // 2. Internal / Exempt Teams: handle early
         if (isInternalTeam) {
-            systemLogger.error(`[SaveSubscription] Internal team ${team.slug} detected.`);
+            systemLogger.info(`[SaveSubscription] Internal team ${team.slug} detected.`);
         }
 
-        // 2.5 Send SMS/Email Setup Notification for Basic / Pro
-        if (["Basic", "Pro", "BASIC", "PRO"].includes(data.planName.toUpperCase())) {
+        // 2.5 Send SMS/Email Setup Notification for Growth / Scale
+        if (["GROWTH", "SCALE"].includes(planSlug)) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://basalthq.com";
-            sendSmsSetupInstructions(user.email!, user.name!, data.planName, appUrl).catch(e => {
+            sendSmsSetupInstructions(user.email!, user.name!, canonicalPlan.name, appUrl).catch(e => {
                 systemLogger.error(`[SaveSubscription] Failed to send SMS Setup Instructions to ${user.email}`, e);
             });
         }
 
         // =====================================================================
-        // SURGE PATH — Existing BasaltSurge checkout flow (5% discount applied)
+        // SURGE PATH — BasaltSurge checkout flow (5% discount applied)
         // =====================================================================
 
         // 3. Create Invoice & Checkout
@@ -170,7 +216,8 @@ export async function saveSubscription(data: {
                 invoice_number: `SUB-${Date.now()}`,
                 invoice_amount: finalAmount.toString(),
                 invoice_currency: "USD",
-                description: `Subscription: ${data.planName} (${data.interval}) — BasaltSurge`,
+                invoice_type: "SUBSCRIPTION",
+                description: `Subscription: ${canonicalPlan.name} (${interval}) — BasaltSurge`,
                 status: "UNPAID",
                 payment_status: "UNPAID",
                 invoice_file_mimeType: "application/pdf",
@@ -178,23 +225,23 @@ export async function saveSubscription(data: {
             }
         });
 
-        systemLogger.error(`[SaveSubscription] Created invoice ${invoice.id} for subscription (${data.planName}, $${finalAmount})`);
+        systemLogger.info(`[SaveSubscription] Created invoice ${invoice.id} for subscription (${canonicalPlan.name}, $${finalAmount})`);
 
         // 3b. Also create a formal crm_BillingInvoice
         const periodStart = now;
-        const periodEnd = data.interval === "annual" ? addMonths(now, 12) : addMonths(now, 1);
+        const periodEnd = interval === "annual" ? addMonths(now, 12) : addMonths(now, 1);
 
         await (prismadb as any).crm_BillingInvoice.create({
             data: {
                 tenant_id: teamId,
                 subscription_id: sub.id,
-                invoice_number: `BIL-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+                invoice_number: `BIL-${invoice.invoice_number}`,
                 type: "SUBSCRIPTION",
-                description: `${data.planName} Plan — ${data.interval === "annual" ? "Annual" : "Monthly"} (BasaltSurge -${SURGE_DISCOUNT_PERCENT}%)`,
+                description: `${canonicalPlan.name} Plan — ${interval === "annual" ? "Annual" : "Monthly"} (BasaltSurge -${SURGE_DISCOUNT_PERCENT}%)`,
                 period_start: periodStart,
                 period_end: periodEnd,
-                subtotal: data.amount,
-                discount: data.amount - finalAmount,
+                subtotal: baseAmount,
+                discount: Math.max(0, Math.round((baseAmount - finalAmount) * 100) / 100),
                 tax: 0,
                 total: finalAmount,
                 payment_method: data.customerWallet ? "CRYPTO" : "SURGE",
@@ -202,8 +249,10 @@ export async function saveSubscription(data: {
             }
         });
 
-        // 3c. Generate Surge Checkout Session
-        const checkoutSession = await createSurgeCheckoutSession(teamId, invoice);
+        // 3c. Generate Surge Checkout Session using platform Surge keys
+        const checkoutSession = await createSurgeCheckoutSession(teamId, invoice, undefined, {
+            forcePlatformKeys: true,
+        });
 
         if (checkoutSession && checkoutSession.url) {
             await prismadb.invoices.update({

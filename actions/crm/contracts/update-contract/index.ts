@@ -5,33 +5,18 @@ import { UpdateContract } from "./schema";
 import { InputType, ReturnType } from "./types";
 
 import { createSafeAction } from "@/lib/create-safe-action";
-import { getServerSession, Session } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
-  const session: Session | null = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error || !session?.user?.id || !teamInfo) {
     return {
       error: "User not logged in.",
     };
   }
 
-  const user = await prismadb.users.findUnique({
-    where: {
-      email: session?.user?.email,
-    },
-  });
-
-  if (!user) {
-    return {
-      error: "User not found.",
-    };
-  }
-
   const {
     id,
-    v,
     title,
     value,
     startDate,
@@ -58,12 +43,45 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   }
 
   try {
-    const result = await prismadb.crm_Contracts.update({
+    const existing = await prismadb.crm_Contracts.findUnique({
+      where: { id: data.id },
+      select: { id: true, team_id: true, v: true },
+    });
+    if (!existing) {
+      return { error: "Contract not found." };
+    }
+    if (!validateResourceOwnership(teamInfo.teamId, existing.team_id, teamInfo.isPlatformAdmin)) {
+      return { error: "Forbidden." };
+    }
+
+    const targetTeamId = existing.team_id || teamInfo.teamId;
+
+    if (account) {
+      const acc = await prismadb.crm_Accounts.findUnique({
+        where: { id: account },
+        select: { id: true, team_id: true },
+      });
+      if (!acc || !validateResourceOwnership(targetTeamId, acc.team_id, teamInfo.isPlatformAdmin)) {
+        return { error: "Invalid account for this team." };
+      }
+    }
+
+    if (assigned_to && targetTeamId && !teamInfo.isPlatformAdmin) {
+      const assignee = await prismadb.users.findFirst({
+        where: { id: assigned_to, team_id: targetTeamId },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return { error: "Invalid assignee for this team." };
+      }
+    }
+
+    await prismadb.crm_Contracts.update({
       where: {
         id: data.id,
       },
       data: {
-        v: data.v + 1,
+        v: (existing.v || 0) + 1,
         title,
         value: parseFloat(value),
         startDate,
@@ -75,11 +93,9 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         status,
         account: account || undefined,
         assigned_to: assigned_to || undefined,
-        createdBy: user.id,
+        updatedBy: session.user.id,
       },
     });
-
-    //console.log("Result: ", result);
   } catch (error) {
     console.log(error);
     return {

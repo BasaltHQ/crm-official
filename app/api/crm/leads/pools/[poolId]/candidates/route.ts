@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
-import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 /**
@@ -13,10 +11,8 @@ export async function GET(
   _req: Request,
   context: { params: Promise<{ poolId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { poolId } = await context.params;
   if (!poolId) {
@@ -24,19 +20,19 @@ export async function GET(
   }
 
   try {
-    // Verify pool ownership or admin access
-    const user = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: { is_admin: true, is_account_admin: true },
-    });
-    const isAdmin = !!(user?.is_admin || user?.is_account_admin);
-
     const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
       where: { id: poolId },
-      select: { user: true },
+      select: { user: true, team_id: true, assigned_members: true },
     });
     if (!pool) return new NextResponse("Pool not found", { status: 404 });
-    if (!isAdmin && pool.user !== session.user.id) {
+
+    const isTeamOwned = validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin);
+    if (!isTeamOwned) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session!.user.id);
+    if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && pool.user !== session!.user.id && !isAssigned) {
       return new NextResponse("Forbidden", { status: 403 });
     }
     const candidates = await (prismadbCrm as any).crm_Lead_Candidates.findMany({

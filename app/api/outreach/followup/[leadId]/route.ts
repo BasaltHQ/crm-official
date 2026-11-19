@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import crypto from "crypto";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import sendEmail from "@/lib/sendmail";
 import { render } from "@react-email/render";
 import OutreachTemplate, { type ResourceLink } from "@/emails/OutreachTemplate";
@@ -24,6 +24,9 @@ import { checkWarmupQuota, recordWarmupSend } from "@/lib/email-warmup";
 
 type RequestBody = {
   promptOverride?: string;
+  customPrompt?: string;
+  campaignId?: string;
+  followupNumber?: number;
   meetingLinkOverride?: string;
   test?: boolean;
 };
@@ -51,49 +54,32 @@ function systemInstructionFollowup() {
 
 import { buildOutreachPrompt } from "@/lib/outreach/prompt-builder";
 
+function isValidCronCall(req: Request): boolean {
+  const expected = process.env.CRON_SECRET || "";
+  const provided = req.headers.get("x-cron-secret")?.trim() || "";
+  if (!expected || !provided) return false;
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 type Params = { params: Promise<{ leadId: string }> };
 export async function POST(req: Request, { params }: Params) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { leadId } = await params;
     if (!leadId) {
       return new NextResponse("Missing leadId", { status: 400 });
     }
 
     const body = (await req.json().catch(() => ({}))) as RequestBody;
+    const isCron = isValidCronCall(req);
 
-    // Load user settings
-    const user = await prismadb.users.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        is_admin: true,
-        is_account_admin: true,
-        meeting_link: true,
-        signature_html: true,
-        resource_links: true,
-        outreach_prompt_default: true,
-        team_id: true,
-      } as const,
-    });
-    if (!user) return new NextResponse("User not found", { status: 404 });
-
-    let brandIdentity = null;
-    if (user.team_id) {
-        brandIdentity = await prismadb.teamBrandIdentity.findFirst({
-            where: { team_id: user.team_id, is_default: true }
-        });
-    }
-
-    // Load lead and check eligibility
+    // Load lead first so we can verify tenant ownership
     const lead = await prismadb.crm_Leads.findUnique({
       where: { id: leadId },
       select: {
         id: true,
+        team_id: true,
         firstName: true,
         lastName: true,
         company: true,
@@ -108,18 +94,77 @@ export async function POST(req: Request, { params }: Params) {
     });
     if (!lead) return new NextResponse("Lead not found", { status: 404 });
 
+    let actingUserId: string | null = null;
+    let actingUserEmail: string | null = null;
+
+    if (isCron) {
+      if (!body.campaignId) {
+        return new NextResponse("Missing campaignId for cron followup", { status: 400 });
+      }
+      const campaign = await prismadb.crm_Outreach_Campaigns.findUnique({
+        where: { id: body.campaignId },
+        select: { id: true, user: true, team_id: true },
+      });
+      if (!campaign || !campaign.team_id || campaign.team_id !== lead.team_id) {
+        return new NextResponse("Forbidden — campaign/lead team mismatch", { status: 403 });
+      }
+      actingUserId = campaign.user || lead.assigned_to || null;
+      if (!actingUserId) {
+        return new NextResponse("No campaign owner found", { status: 400 });
+      }
+    } else {
+      const { error, session, teamInfo } = await getSessionAndTeam();
+      if (error) return error;
+      if (!validateResourceOwnership(teamInfo!.teamId, lead.team_id, teamInfo!.isPlatformAdmin)) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+      if (!teamInfo!.isAdmin && lead.assigned_to && lead.assigned_to !== session!.user.id) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+      actingUserId = session!.user.id;
+      actingUserEmail = session!.user.email || null;
+    }
+
+    // Load user settings
+    const user = await prismadb.users.findUnique({
+      where: { id: actingUserId },
+      select: {
+        id: true,
+        email: true,
+        is_admin: true,
+        is_account_admin: true,
+        meeting_link: true,
+        signature_html: true,
+        resource_links: true,
+        outreach_prompt_default: true,
+        team_id: true,
+      } as const,
+    });
+    if (!user) return new NextResponse("User not found", { status: 404 });
+
+    let brandIdentity = null;
+    const effectiveTeamId = lead.team_id || user.team_id;
+    if (effectiveTeamId) {
+        brandIdentity = await prismadb.teamBrandIdentity.findFirst({
+            where: { team_id: effectiveTeamId, is_default: true }
+        });
+    }
+
     const eligibleStatus = lead.outreach_status === ("SENT" as any) || lead.outreach_status === ("OPENED" as any);
     const noBooking = !lead.outreach_meeting_booked_at;
     if (!eligibleStatus || !noBooking) {
       return new NextResponse("Lead not eligible for follow-up", { status: 400 });
     }
 
-    const toEmail = body.test ? (process.env.TEST_EMAIL || session.user.email || "") : (lead.email || "");
+    const toEmail = body.test ? (process.env.TEST_EMAIL || actingUserEmail || user.email || "") : (lead.email || "");
     if (!toEmail) return new NextResponse("Lead has no email", { status: 400 });
 
-    // Unsubscribe check (best effort)
+    // Unsubscribe check (best effort, scoped to tenant if present)
     const contact = await prismadb.crm_Contacts.findFirst({
-      where: { email: lead.email || "" },
+      where: {
+        email: lead.email || "",
+        ...(lead.team_id ? { team_id: lead.team_id } : {}),
+      },
       select: { email_unsubscribed: true },
     });
     if (contact?.email_unsubscribed) {
@@ -151,11 +196,11 @@ export async function POST(req: Request, { params }: Params) {
     const trackingPixelUrl = baseUrl ? `${baseUrl}/api/outreach/open/${encodeURIComponent(token)}.png` : undefined;
 
     // OpenAI client
-    const { model, modelId, teamId } = await getAiSdkModel(session.user.id);
+    const { model, modelId, teamId } = await getAiSdkModel(actingUserId);
     if (!model) return new NextResponse("AI model not configured", { status: 500 });
 
     const contactName = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
-    const promptOverride = body.promptOverride?.trim();
+    const promptOverride = (body.promptOverride || body.customPrompt)?.trim();
     const basePrompt = buildOutreachPrompt({
       basePrompt: promptOverride || user.outreach_prompt_default || null,
       contact: { name: contactName || undefined, company: lead.company || undefined, jobTitle: lead.jobTitle || undefined, email: lead.email || undefined },
@@ -188,7 +233,7 @@ export async function POST(req: Request, { params }: Params) {
 
       // Track AI token usage
       await logAiUsage({
-        teamId, userId: session.user.id, service: "email",
+        teamId: teamId || effectiveTeamId || null, userId: actingUserId, service: "email",
         model: modelId || "unknown",
         usage: { promptTokens: (usage as any)?.promptTokens || 0, completionTokens: (usage as any)?.completionTokens || 0 },
         description: "Outreach followup email"
@@ -256,7 +301,7 @@ export async function POST(req: Request, { params }: Params) {
     await prismadb.crm_Lead_Activities.create({
       data: {
         lead: lead.id,
-        user: session.user.id,
+        user: actingUserId,
         type: "followup_sent",
         metadata: { to: toEmail, subject } as any,
       },

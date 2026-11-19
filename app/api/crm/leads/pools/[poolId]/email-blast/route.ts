@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 type EmailBlastRequest = {
@@ -33,10 +32,8 @@ export async function POST(
   req: Request,
   { params }: Params
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { poolId } = await params;
   if (!poolId) {
@@ -58,8 +55,22 @@ export async function POST(
   }
 
   try {
-    // Fetch contacts limited to the given pool and selected IDs
-    // We first fetch candidates for the pool to build a map of candidateId -> company data
+    const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
+      where: { id: poolId },
+      select: { id: true, user: true, team_id: true, assigned_members: true },
+    });
+    if (!pool) {
+      return new NextResponse("Pool not found", { status: 404 });
+    }
+    if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+    const isAssigned = Array.isArray(pool.assigned_members) && pool.assigned_members.includes(session!.user.id);
+    if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && pool.user !== session!.user.id && !isAssigned) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // Fetch candidates for the pool to build a map of candidateId -> company data
     const candidates = await (prismadbCrm as any).crm_Lead_Candidates.findMany({
       where: { pool: poolId },
       select: {
@@ -73,9 +84,17 @@ export async function POST(
       candidateMeta.set(c.id, { companyName: c.companyName, domain: c.domain });
     }
 
-    // Fetch contacts by IDs
+    const poolCandidateIds = Array.from(candidateMeta.keys());
+    if (poolCandidateIds.length === 0) {
+      return NextResponse.json({ preparedCount: 0, prepared: [] }, { status: 200 });
+    }
+
+    // Fetch contacts strictly scoped to both selected IDs AND this pool's candidates
     const contacts = await (prismadbCrm as any).crm_Contact_Candidates.findMany({
-      where: { id: { in: payload.selectedContactIds } },
+      where: {
+        id: { in: payload.selectedContactIds },
+        leadCandidate: { in: poolCandidateIds },
+      },
       select: {
         id: true,
         email: true,

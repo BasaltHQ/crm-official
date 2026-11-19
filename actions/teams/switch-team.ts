@@ -7,31 +7,42 @@ import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 import { signImpersonatedTeamId } from "@/lib/cookie-utils";
 import { logActivityInternal } from "@/actions/audit";
+import { normalizeRoleName } from "@/lib/security/authz";
 
 export async function switchTeam(teamId: string | null) {
     try {
         const currentUser = await getCurrentUserTeamId();
-
-        const user = await prismadb.users.findUnique({
-            where: { id: currentUser?.userId },
-            include: { assigned_team: true }
-        });
-
-        if (!user) {
+        if (!currentUser?.userId) {
             return { error: "Unauthorized" };
         }
 
-        const isPlatformAdminRole = user.is_admin || user.is_account_admin || ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'OWNER', 'SYSADM', 'PLATFORM ADMIN'].includes(user.team_role?.toUpperCase() || '');
-        const isTeamAdminRole = ['ADMIN', 'OWNER'].includes(user.team_role?.toUpperCase() || '');
+        const user = await prismadb.users.findUnique({
+            where: { id: currentUser.userId },
+            include: { assigned_team: true }
+        });
+
+        if (!user || user.userStatus === "INACTIVE") {
+            return { error: "Unauthorized" };
+        }
+
+        const normalizedRole = normalizeRoleName(user.team_role);
+        const isPlatformAdminRole = Boolean(user.is_admin) || normalizedRole === "PLATFORM_ADMIN";
+        const isTeamAdminRole = ["OWNER", "ADMIN", "SUPER_ADMIN"].includes(normalizedRole);
 
         let isAuthorized = isPlatformAdminRole;
 
-        if (teamId && !isAuthorized && isTeamAdminRole) {
-            if (user.team_id === teamId) {
+        if (teamId && !isAuthorized) {
+            if (user.team_id === teamId && (user.is_account_admin || isTeamAdminRole)) {
                 isAuthorized = true;
-            } else {
-                // DOWNWARD traversal: A regular company owner/admin switching to a child department
-                const targetTeam = await prismadb.team.findUnique({ where: { id: teamId } });
+            } else if (user.assigned_team?.parent_id === teamId && (user.is_account_admin || isTeamAdminRole)) {
+                // UPWARD traversal: department admin/account_admin switching back to parent organization
+                isAuthorized = true;
+            } else if (isTeamAdminRole && user.team_id) {
+                // DOWNWARD traversal: regular company owner/admin switching to a child department
+                const targetTeam = await prismadb.team.findUnique({
+                    where: { id: teamId },
+                    select: { parent_id: true }
+                });
                 if (targetTeam?.parent_id && targetTeam.parent_id === user.team_id) {
                     isAuthorized = true;
                 }
@@ -52,7 +63,7 @@ export async function switchTeam(teamId: string | null) {
 
             if (!team) return { error: "Team not found" };
 
-            const signedToken = await signImpersonatedTeamId(teamId);
+            const signedToken = await signImpersonatedTeamId(teamId, user.id);
 
             cookieStore.set("impersonated_team_id", signedToken, {
                 path: "/",
@@ -99,27 +110,30 @@ export async function getAvailableContexts() {
             }
         });
 
-        if (!user || (!user.is_admin && !user.is_account_admin && !['SUPER_ADMIN', 'PLATFORM_ADMIN', 'OWNER', 'SYSADM', 'PLATFORM ADMIN', 'ADMIN'].includes(user.team_role?.toUpperCase() || ''))) {
+        const normalizedRole = normalizeRoleName(user?.team_role);
+        const isPlatformAdminRole = Boolean(user?.is_admin) || normalizedRole === "PLATFORM_ADMIN";
+        const isTeamAdminRole = ["OWNER", "ADMIN", "SUPER_ADMIN"].includes(normalizedRole);
+
+        if (!user || user.userStatus === "INACTIVE" || (!isPlatformAdminRole && !user.is_account_admin && !isTeamAdminRole)) {
             return { success: false, options: [], currentTeamId: currentUser.teamId, isImpersonating: false };
         }
 
         const options: any[] = [];
-        const isPlatformAdminOrAccountAdmin = user.is_admin || user.is_account_admin || ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'OWNER', 'SYSADM', 'PLATFORM ADMIN'].includes(user.team_role?.toUpperCase() || '');
 
         // Always push their home team if it exists
         if (user.assigned_team) {
             options.push({ id: user.assigned_team.id, name: user.assigned_team.name, type: "HOME", isDepartment: !!user.assigned_team.parent_id });
 
             if (user.assigned_team.parent_id) {
-                // They belong to a department. Only allow UPWARD traversal to Company if they have Platform/Account Admin rights.
-                if (isPlatformAdminOrAccountAdmin) {
+                // They belong to a department. Allow UPWARD traversal to parent Company if they have Platform/Account/Team Admin rights.
+                if (isPlatformAdminRole || user.is_account_admin || isTeamAdminRole) {
                     const parent = await prismadb.team.findUnique({ where: { id: user.assigned_team.parent_id }, select: { id: true, name: true } });
                     if (parent) {
                         options.push({ id: parent.id, name: parent.name, type: "COMPANY" });
                     }
                 }
-            } else {
-                // They belong to a company. Let them fetch all departments (DOWNWARD traversal) since they are an admin of the parent company.
+            } else if (isPlatformAdminRole || isTeamAdminRole || user.is_account_admin) {
+                // They belong to a company. Let them fetch child departments (DOWNWARD traversal).
                 const depts = await prismadb.team.findMany({ where: { parent_id: user.assigned_team.id }, select: { id: true, name: true } });
                 depts.forEach((d: any) => {
                     options.push({ id: d.id, name: d.name, type: "DEPARTMENT" });

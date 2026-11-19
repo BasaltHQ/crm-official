@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -25,18 +25,26 @@ export async function GET(req: Request) {
       return new NextResponse("Missing code", { status: 400 });
     }
 
-    // Decode state, prefer server session userId if mismatch
-    let userId = session.user.id;
-    if (state) {
+    if (!state) {
+      return new NextResponse("Forbidden: Missing OAuth state", { status: 403 });
+    }
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(Buffer.from(state, "base64url").toString("utf-8"));
+    } catch {
       try {
-        const parsed = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
-        if (parsed?.u && typeof parsed.u === "string") userId = parsed.u;
+        parsed = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
       } catch {
-        // ignore invalid state
+        return new NextResponse("Forbidden: Invalid OAuth state", { status: 403 });
       }
     }
 
-    await exchangeCodeForTokens(userId, code);
+    if (!parsed || typeof parsed.u !== "string" || parsed.u !== session.user.id) {
+      return new NextResponse("Forbidden: OAuth state user mismatch", { status: 403 });
+    }
+
+    await exchangeCodeForTokens(session.user.id, code);
 
     // Redirect to Profile or Sales Dashboard; default to Profile page
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "/";

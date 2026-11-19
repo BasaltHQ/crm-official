@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { safeFetch } from "@/lib/security/ssrf-guard";
 import { getAiSdkModel, logAiUsage } from "@/lib/varuni";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -13,21 +16,34 @@ import { checkUsageQuota, recordUsage } from "@/lib/usage-quota";
 
 export const maxDuration = 60;
 
+function isValidInternalCall(req: Request): boolean {
+    const expected =
+        process.env.SYNTHESIS_SECRET ||
+        process.env.CRON_SECRET ||
+        process.env.JWT_SECRET ||
+        "";
+    const provided = req.headers.get("x-internal-secret")?.trim() || "";
+    if (!expected || !provided) return false;
+    const a = Buffer.from(provided, "utf8");
+    const b = Buffer.from(expected, "utf8");
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /**
  * POST /api/outreach/reply
  * Generates and sends an AI-powered reply to an inbound email.
- * Called from the inbound handler when auto_reply_enabled is true on the campaign.
- *
- * Capabilities:
- * - Consistent signature + resource links in every reply
- * - AI-determined attachment of campaign documents
- * - Meeting scheduling (link or direct calendar booking)
- * - Opportunity promotion on positive signals
- *
- * Body: { outreachItemId, inboundThreadId, campaignId }
+ * Requires either a valid x-internal-secret header or an authenticated session owning the campaign.
  */
 export async function POST(req: Request) {
     try {
+        const isInternal = isValidInternalCall(req);
+        let sessionTeamInfo: Awaited<ReturnType<typeof getSessionAndTeam>>["teamInfo"] = null;
+        if (!isInternal) {
+            const { error, teamInfo } = await getSessionAndTeam();
+            if (error) return error;
+            sessionTeamInfo = teamInfo;
+        }
+
         const { outreachItemId, inboundThreadId, campaignId, sentiment } = await req.json();
 
         if (!outreachItemId || !campaignId) {
@@ -58,6 +74,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
         }
 
+        if (
+            !isInternal &&
+            !validateResourceOwnership(
+                sessionTeamInfo!.teamId,
+                campaign.team_id,
+                sessionTeamInfo!.isPlatformAdmin
+            )
+        ) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
         if (!campaign.auto_reply_enabled) {
             return NextResponse.json({ status: "skipped", reason: "auto_reply_disabled" });
         }
@@ -79,6 +106,7 @@ export async function POST(req: Request) {
             where: { id: outreachItemId },
             select: {
                 id: true,
+                campaign: true,
                 lead: true,
                 auto_reply_count: true,
                 subject: true,
@@ -91,8 +119,8 @@ export async function POST(req: Request) {
             },
         });
 
-        if (!outreachItem) {
-            return NextResponse.json({ error: "Outreach item not found" }, { status: 404 });
+        if (!outreachItem || outreachItem.campaign !== campaign.id) {
+            return NextResponse.json({ error: "Outreach item not found for campaign" }, { status: 404 });
         }
 
         // Check max reply count
@@ -127,8 +155,11 @@ export async function POST(req: Request) {
         // ── Load inbound message ───────────────────────────────────────────
         let inboundMessage = "";
         if (inboundThreadId) {
-            const inbound = await prismadb.crm_Email_Thread.findUnique({
-                where: { id: inboundThreadId },
+            const inbound = await prismadb.crm_Email_Thread.findFirst({
+                where: {
+                    id: inboundThreadId,
+                    ...(campaign.team_id ? { team_id: campaign.team_id } : { outreach_item: outreachItem.id }),
+                },
                 select: { body_text: true, from_email: true },
             });
             inboundMessage = inbound?.body_text || "";
@@ -170,11 +201,11 @@ export async function POST(req: Request) {
             });
         }
 
-        // ── Load campaign documents metadata ───────────────────────────────
+        // ── Load campaign documents metadata (strictly scoped to campaign.team_id) ──
         let availableDocuments: { name: string; type?: string; id: string }[] = [];
-        if (campaign.document_ids?.length) {
+        if (campaign.document_ids?.length && campaign.team_id) {
             const docs = await prismadb.documents.findMany({
-                where: { id: { in: campaign.document_ids } },
+                where: { id: { in: campaign.document_ids }, team_id: campaign.team_id },
                 select: { id: true, document_name: true, document_file_mimeType: true, document_file_url: true },
             });
             availableDocuments = docs.map((d: any) => ({
@@ -284,17 +315,17 @@ ${sentiment === "NEGATIVE" ? `IMPORTANT — NEGATIVE SENTIMENT DETECTED: The lea
 
         // ── Prepare attachments if AI flagged ──────────────────────────────
         let attachments: { filename: string; content: any; contentType?: string }[] = [];
-        if (object.attachDocuments && availableDocuments.length > 0) {
+        if (object.attachDocuments && availableDocuments.length > 0 && campaign.team_id) {
             systemLogger.info(`[AUTO_REPLY] AI requested document attachment for ${outreachItem.id}. Reason: ${object.attachmentReason || "N/A"}`);
             try {
                 const docs = await prismadb.documents.findMany({
-                    where: { id: { in: campaign.document_ids } },
+                    where: { id: { in: campaign.document_ids }, team_id: campaign.team_id },
                     select: { id: true, document_name: true, document_file_mimeType: true, document_file_url: true },
                 });
                 for (const doc of docs) {
                     if (doc.document_file_url) {
                         try {
-                            const resp = await fetch(doc.document_file_url);
+                            const resp = await safeFetch(doc.document_file_url);
                             if (resp.ok) {
                                 const buffer = Buffer.from(await resp.arrayBuffer());
                                 attachments.push({

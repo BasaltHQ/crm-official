@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+
+async function verifyOpportunityAccess(id: string) {
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return { error, opportunity: null, teamInfo: null };
+
+    const opportunity = await prismadb.crm_Opportunities.findUnique({
+        where: { id },
+        select: { id: true, team_id: true, expected_revenue: true },
+    });
+    if (!opportunity) {
+        return { error: new NextResponse("Opportunity not found", { status: 404 }), opportunity: null, teamInfo: null };
+    }
+    if (!validateResourceOwnership(teamInfo!.teamId, opportunity.team_id, teamInfo!.isPlatformAdmin)) {
+        return { error: new NextResponse("Forbidden", { status: 403 }), opportunity: null, teamInfo: null };
+    }
+    return { error: null, opportunity, teamInfo };
+}
 
 /**
  * GET /api/crm/opportunities/[id]/splits
@@ -12,12 +28,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
-
         const { id } = await params;
+        const access = await verifyOpportunityAccess(id);
+        if (access.error) return access.error;
 
         const splits = await prismadb.crm_Opportunity_Splits.findMany({
             where: { opportunity_id: id },
@@ -45,14 +58,12 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
-
         const { id } = await params;
-        const body = await req.json();
+        const access = await verifyOpportunityAccess(id);
+        if (access.error) return access.error;
+        const opportunity = access.opportunity!;
 
+        const body = await req.json();
         const { user_id, split_pct, split_type, note } = body;
 
         if (!user_id || split_pct === undefined) {
@@ -61,6 +72,16 @@ export async function POST(
 
         if (split_pct < 0 || split_pct > 100) {
             return new NextResponse("split_pct must be between 0 and 100", { status: 400 });
+        }
+
+        if (opportunity.team_id && !access.teamInfo!.isPlatformAdmin) {
+            const targetUser = await prismadb.users.findFirst({
+                where: { id: String(user_id), team_id: opportunity.team_id },
+                select: { id: true },
+            });
+            if (!targetUser) {
+                return new NextResponse("Forbidden — split user does not belong to opportunity team", { status: 403 });
+            }
         }
 
         // Get existing splits excluding this user (for validation)
@@ -79,14 +100,7 @@ export async function POST(
             );
         }
 
-        // Get opportunity revenue for credit calculation
-        const opportunity = await prismadb.crm_Opportunities.findUnique({
-            where: { id },
-            select: { expected_revenue: true },
-        });
-        const revenue_credit = opportunity
-            ? (opportunity.expected_revenue * split_pct) / 100
-            : 0;
+        const revenue_credit = (opportunity.expected_revenue * split_pct) / 100;
 
         // Upsert (one user per opportunity)
         const split = await prismadb.crm_Opportunity_Splits.upsert({
@@ -125,10 +139,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { id } = await params;
+        const access = await verifyOpportunityAccess(id);
+        if (access.error) return access.error;
 
         const body = await req.json();
         const { splitId } = body;
@@ -137,9 +150,13 @@ export async function DELETE(
             return new NextResponse("splitId required", { status: 400 });
         }
 
-        await prismadb.crm_Opportunity_Splits.delete({
-            where: { id: splitId },
+        const deleted = await prismadb.crm_Opportunity_Splits.deleteMany({
+            where: { id: splitId, opportunity_id: id },
         });
+
+        if (deleted.count === 0) {
+            return new NextResponse("Split not found", { status: 404 });
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -3,58 +3,54 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { validateResourceOwnership } from "@/lib/api-utils";
+import DOMPurify from "isomorphic-dompurify";
 
 /**
  * GET/POST /api/profile/signature
  * Supports optional ?brandId= query param for per-brand signatures.
  * Without brandId: operates on user-level signature (backward compatible).
- * With brandId: operates on TeamBrandIdentity signature_html / signature_meta.
- *
- * GET: returns { signature_html, signature_meta, signature_updated_at }
- * POST: body { signatureHtml: string, meta?: any } - saves sanitized HTML and meta
+ * With brandId: operates on TeamBrandIdentity signature_html / signature_meta after tenant check.
  */
 
-// very basic sanitization: strip <script> tags and on* event attributes
-function sanitizeSignatureHtml(html: string) {
-  try {
-    let s = html || "";
-    // remove script blocks
-    s = s.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, "");
-    // remove inline event handlers e.g., onclick=""
-    s = s.replace(/\son[a-z]+\s*=\s*["'][^"']*["']/gi, "");
-    // limit overall size to avoid abuse
-    if (s.length > 100_000) {
-      s = s.slice(0, 100_000);
-    }
-    return s;
-  } catch {
-    return html;
-  }
+function sanitizeSignatureHtml(html: string): string {
+  const truncated = (html || "").slice(0, 100_000);
+  return DOMPurify.sanitize(truncated);
 }
 
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const brandId = searchParams.get("brandId");
 
     if (brandId) {
-      // Brand-level signature
+      const teamInfo = await getCurrentUserTeamId();
       const brand = await prismadb.teamBrandIdentity.findUnique({
         where: { id: brandId },
         select: {
+          team_id: true,
           signature_html: true,
           signature_meta: true,
           updatedAt: true,
         },
       });
+      if (!brand) {
+        return new NextResponse("Brand not found", { status: 404 });
+      }
+      if (!validateResourceOwnership(teamInfo?.teamId ?? null, brand.team_id, Boolean(teamInfo?.isPlatformAdmin))) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
       return NextResponse.json(
         {
-          signature_html: brand?.signature_html || "",
-          signature_meta: brand?.signature_meta || null,
-          signature_updated_at: brand?.updatedAt || null,
+          signature_html: brand.signature_html || "",
+          signature_meta: brand.signature_meta || null,
+          signature_updated_at: brand.updatedAt || null,
         },
         { status: 200 }
       );
@@ -79,7 +75,6 @@ export async function GET(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-     
     systemLogger.error("[PROFILE_SIGNATURE_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
@@ -88,7 +83,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
+    if (!session?.user?.id || (session as any).error === "SessionInvalidated") {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const brandId = searchParams.get("brandId");
@@ -104,6 +101,18 @@ export async function POST(req: Request) {
     const signatureHtml = sanitizeSignatureHtml(signatureHtmlRaw);
 
     if (brandId) {
+      const teamInfo = await getCurrentUserTeamId();
+      const brand = await prismadb.teamBrandIdentity.findUnique({
+        where: { id: brandId },
+        select: { id: true, team_id: true },
+      });
+      if (!brand) {
+        return new NextResponse("Brand not found", { status: 404 });
+      }
+      if (!validateResourceOwnership(teamInfo?.teamId ?? null, brand.team_id, Boolean(teamInfo?.isPlatformAdmin))) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+
       // Brand-level save
       await prismadb.teamBrandIdentity.update({
         where: { id: brandId },

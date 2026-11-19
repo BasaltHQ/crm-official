@@ -1,38 +1,36 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/campaigns/[sequenceId]/auto-reply
- * Toggles auto-reply on the campaign. When enabling, scans existing threads
- * for unanswered inbound replies and triggers AI auto-replies for them.
- * 
- * Body: { enabled: boolean, max_count?: number, prompt?: string }
- */
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ sequenceId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { sequenceId } = await params;
         const body = await req.json();
         const { enabled, max_count, prompt, backfill_only } = body;
 
-        // Verify campaign exists
+        // Verify campaign exists and belongs to caller's team
         const campaign = await prismadb.crm_Outreach_Campaigns.findUnique({
             where: { id: sequenceId },
-            select: { id: true, team_id: true, auto_reply_enabled: true },
+            select: { id: true, user: true, team_id: true, auto_reply_enabled: true },
         });
 
         if (!campaign) {
             return NextResponse.json({ message: "Campaign not found" }, { status: 404 });
+        }
+
+        if (!validateResourceOwnership(teamInfo!.teamId, campaign.team_id, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+        }
+
+        if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && campaign.user !== session!.user.id) {
+            return NextResponse.json({ message: "Forbidden" }, { status: 403 });
         }
 
         // If backfill_only, skip toggle — just run the scan
@@ -90,10 +88,18 @@ export async function POST(
                         });
 
                         if (latestInbound) {
+                            const internalSecret =
+                                process.env.SYNTHESIS_SECRET ||
+                                process.env.CRON_SECRET ||
+                                process.env.JWT_SECRET ||
+                                "";
                             // Fire auto-reply (fire-and-forget)
                             fetch(`${appUrl}/api/outreach/reply`, {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json" },
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "x-internal-secret": internalSecret,
+                                },
                                 body: JSON.stringify({
                                     outreachItemId: item.id,
                                     inboundThreadId: latestInbound.id,

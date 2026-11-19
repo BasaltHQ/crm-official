@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
@@ -10,10 +9,8 @@ import { systemLogger } from "@/lib/logger";
  */
 export async function POST() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const session = await requireApiAuth();
+        if (session instanceof NextResponse) return session;
 
         await prismadb.users.update({
             where: { id: session.user.id },

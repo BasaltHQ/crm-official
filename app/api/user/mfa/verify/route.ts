@@ -1,20 +1,43 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 import { prismadb } from "@/lib/prisma";
 import { verifyTotpToken } from "@/lib/mfa-utils";
+import { encryptSecret } from "@/lib/encryption";
+import { comparePassword } from "@/lib/password-utils";
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
+    const session = await requireApiAuth();
+    if (session instanceof NextResponse) return session;
 
-    if (!session?.user?.email) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { code, secret, currentCode, currentPassword } = await req.json();
+
+    if (!code || !secret || typeof code !== "string" || typeof secret !== "string") {
+        return NextResponse.json({ error: "Missing code or secret" }, { status: 400 });
     }
 
-    const { code, secret } = await req.json();
+    const user = await prismadb.users.findUnique({
+        where: { id: session.user.id },
+    });
 
-    if (!code || !secret) {
-        return NextResponse.json({ error: "Missing code or secret" }, { status: 400 });
+    if (!user) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Prevent silent TOTP overwrite when MFA + existing mfaSecret are already active
+    if (user.mfaEnabled && user.mfaSecret) {
+        let stepUpOk = false;
+        if (currentCode && typeof currentCode === "string") {
+            stepUpOk = await verifyTotpToken(currentCode, user.mfaSecret);
+        }
+        if (!stepUpOk && currentPassword && typeof currentPassword === "string" && user.password) {
+            stepUpOk = await comparePassword(currentPassword, user.password);
+        }
+        if (!stepUpOk) {
+            return NextResponse.json(
+                { error: "TOTP is already enabled. Provide currentCode or currentPassword to replace your authenticator secret." },
+                { status: 403 }
+            );
+        }
     }
 
     const isValid = await verifyTotpToken(code, secret);
@@ -23,13 +46,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid verification code" }, { status: 400 });
     }
 
-    // Verification successful! Enable MFA for this user.
+    const encryptedSecret = encryptSecret(secret);
+
     await prismadb.users.update({
-        where: { email: session.user.email },
+        where: { id: user.id },
         data: {
             mfaEnabled: true,
             mfaMethod: "TOTP",
-            mfaSecret: secret,
+            mfaSecret: encryptedSecret,
         },
     });
 

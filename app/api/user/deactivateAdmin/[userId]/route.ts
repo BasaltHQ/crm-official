@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiAuth } from "@/lib/api-auth-guard";
+import { requirePlatformAdmin, sanitizeUser } from "@/lib/security/authz";
 import { logActivity } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
 export async function POST(req: Request, props: { params: Promise<{ userId: string }> }) {
   const params = await props.params;
-  const session = await getServerSession(authOptions);
+  const session = await requireApiAuth();
+  if (session instanceof NextResponse) return session;
 
-  if (!session) {
-    return new NextResponse("Unauthenticated", { status: 401 });
+  const admin = await requirePlatformAdmin();
+  if (!admin) {
+    return new NextResponse("Forbidden", { status: 403 });
   }
 
   try {
@@ -30,9 +32,9 @@ export async function POST(req: Request, props: { params: Promise<{ userId: stri
       `Removed admin from ${user.email}`
     );
 
-    return NextResponse.json(user);
+    return NextResponse.json(sanitizeUser(user));
   } catch (error) {
     systemLogger.error("[USER_ADMIN_DEACTIVATE_POST]", error);
-    return new NextResponse("Initial error", { status: 500 });
+    return new NextResponse("Internal error", { status: 500 });
   }
 }

@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 
 // PATCH: Update submission status (delete, restore, archive)
 export async function PATCH(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const userId = session.user.id;
-        const teamId = (session.user as any).team_id;
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const body = await req.json();
         const { submissionId, action } = body;
@@ -24,15 +18,16 @@ export async function PATCH(req: NextRequest) {
         // Get the submission first
         const submission = await (prismadb as any).formSubmission.findUnique({
             where: { id: submissionId },
+            include: { form: { select: { team_id: true } } },
         });
 
         if (!submission) {
             return NextResponse.json({ error: "Submission not found" }, { status: 404 });
         }
 
-        // Verify access - check team_id if available, otherwise allow
-        if (teamId && submission.team_id && submission.team_id !== teamId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        const resourceTeamId = submission.team_id || submission.form?.team_id || null;
+        if (!validateResourceOwnership(teamInfo!.teamId, resourceTeamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         let updateData: any = {};
@@ -75,12 +70,8 @@ export async function PATCH(req: NextRequest) {
 // DELETE: Permanent delete
 export async function DELETE(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const teamId = (session.user as any).team_id;
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { searchParams } = new URL(req.url);
         const submissionId = searchParams.get("submissionId");
@@ -92,15 +83,16 @@ export async function DELETE(req: NextRequest) {
         // Get the submission first
         const submission = await (prismadb as any).formSubmission.findUnique({
             where: { id: submissionId },
+            include: { form: { select: { team_id: true } } },
         });
 
         if (!submission) {
             return NextResponse.json({ error: "Submission not found" }, { status: 404 });
         }
 
-        // Verify access
-        if (teamId && submission.team_id && submission.team_id !== teamId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        const resourceTeamId = submission.team_id || submission.form?.team_id || null;
+        if (!validateResourceOwnership(teamInfo!.teamId, resourceTeamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         // Permanently delete

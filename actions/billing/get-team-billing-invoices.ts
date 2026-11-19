@@ -4,15 +4,22 @@ import { prismadb } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { systemLogger } from "@/lib/logger";
+import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 
 /**
  * Get billing invoices for a specific team.
- * Used by platform admins on /partners to view any team's invoices.
+ * Used by platform admins on /partners or team members for their own team.
  */
 export async function getTeamBillingInvoices(teamId: string) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const teamInfo = await getCurrentUserTeamId();
+        if (!teamInfo?.userId) return [];
+
+        if (teamInfo.teamId !== teamId && !teamInfo.isPlatformAdmin) {
+            const admin = await requirePlatformAdmin();
+            if (!admin) return [];
+        }
 
         // diverse-safety-check: ensure the model exists on the runtime client (handling dev-mode stale client)
         if (!(prismadb as any).crm_BillingInvoice) {
@@ -90,8 +97,8 @@ export async function getMyTeamBillingInvoices() {
  */
 export async function getAllBillingInvoices() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) return [];
+        const admin = await requirePlatformAdmin();
+        if (!admin) return [];
 
         // diverse-safety-check: ensure the model exists on the runtime client (handling dev-mode stale client)
         if (!(prismadb as any).crm_BillingInvoice) {

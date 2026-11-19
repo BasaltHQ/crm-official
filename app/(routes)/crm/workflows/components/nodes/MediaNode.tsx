@@ -1,6 +1,7 @@
 import { Handle, Position, NodeResizer } from "@xyflow/react";
 import { Image as ImageIcon, FileCode, StickyNote, X } from "lucide-react";
 import { useState } from "react";
+import DOMPurify from "isomorphic-dompurify";
 
 interface MediaNodeProps {
     id: string;
@@ -80,7 +81,11 @@ export function MediaNode({ id, data, selected }: MediaNodeProps) {
                         {data.content ? (
                             <div
                                 className="w-full h-full flex items-center justify-center child-svg-full"
-                                dangerouslySetInnerHTML={{ __html: data.content }}
+                                dangerouslySetInnerHTML={{
+                                    __html: DOMPurify.sanitize(data.content, {
+                                        USE_PROFILES: { svg: true, svgFilters: true },
+                                    }),
+                                }}
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center gap-2 text-gray-500">

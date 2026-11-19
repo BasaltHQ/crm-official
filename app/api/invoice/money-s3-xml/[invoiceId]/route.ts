@@ -1,52 +1,49 @@
-import { authOptions } from "@/lib/auth";
 import { getS3Client } from "@/lib/digital-ocean-s3";
 import { prismadb } from "@/lib/prisma";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { fillXmlTemplate } from "@/lib/xml-generator";
-import { PutObjectAclCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getServerSession } from "next-auth";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
-const fs = require("fs");
+export async function GET(req: Request, props: { params: Promise<{ invoiceId: string }> }) {
+  const { error, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
-export async function GET(req: Request, { params }: any) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ status: 401, body: { error: "Unauthorized" } });
-  }
-
-  //console.log(myCompany, "myCompany");
-
-  const { invoiceId } = params;
+  const { invoiceId } = await props.params;
 
   if (!invoiceId) {
-    return NextResponse.json({
-      status: 400,
-      body: { error: "There is no inovice ID, invoice ID is mandatory" },
-    });
+    return NextResponse.json(
+      { error: "There is no invoice ID, invoice ID is mandatory" },
+      { status: 400 }
+    );
   }
 
-  //Get data for invoice headers
-  const myCompany = await prismadb.myAccount.findFirst({});
-
-  //Get data for invoice body
-  const invoiceData = await prismadb.invoices.findFirst({
+  // Get data for invoice body and verify tenant ownership BEFORE generating or uploading XML
+  const invoiceData = await prismadb.invoices.findUnique({
     where: {
       id: invoiceId,
     },
   });
 
-  //This function will generate XML file from template and data
+  if (!invoiceData) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
+
+  if (!validateResourceOwnership(teamInfo!.teamId, invoiceData.team_id, teamInfo!.isPlatformAdmin)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const targetTeamId = invoiceData.team_id || teamInfo!.teamId;
+
+  // Get tenant-scoped data for invoice headers
+  const myCompany = targetTeamId
+    ? await prismadb.myAccount.findFirst({ where: { team_id: targetTeamId } })
+    : null;
+
   const xmlString = fillXmlTemplate(invoiceData, myCompany);
-
-  //write xml to file in public folder /public/tmp/[invoiceId].xml
-  //fs.writeFileSync(`public/tmp/${invoiceId}.xml`, xmlString);
-  //fs.writeFileSync(`public/tmp/${invoiceData}.json`, invoiceData);
-
-  //Store raw XML string in buffer
   const buffer = Buffer.from(xmlString);
 
-  //Upload xml to S3 bucket and return url
   const bucketName = process.env.STORAGE_PROVIDER === "s3" ? process.env.S3_BUCKET_NAME : process.env.DO_BUCKET;
 
   const bucketParamsJSON = {
@@ -54,9 +51,7 @@ export async function GET(req: Request, { params }: any) {
     Key: `xml/invoice-${invoiceId}.xml`,
     Body: buffer,
     ContentType: "application/xml",
-    ContentDisposition: "inline",
-    // Note: ACL may fail on standard AWS depending on settings, but keeping for compatibility
-    ACL: "public-read" as const,
+    ContentDisposition: "attachment",
   };
 
   try {

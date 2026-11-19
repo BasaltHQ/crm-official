@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
-/**
- * POST /api/crm/leads/autogen/control/[jobId]
- * Control job execution: pause, resume, or stop
- * Body: { action: "pause" | "resume" | "stop" }
- */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const { error, session, teamInfo } = await getSessionAndTeam();
+  if (error) return error;
 
   const { jobId } = await params;
   const body = await req.json();
@@ -35,15 +27,20 @@ export async function POST(
     // Get current job
     const job = await db.crm_Lead_Gen_Jobs.findUnique({
       where: { id: jobId },
-      select: { id: true, status: true, user: true }
+      select: { id: true, status: true, user: true, assigned_pool: { select: { team_id: true } } }
     });
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    // Verify ownership
-    if (job.user !== session.user.id) {
+    const canControl =
+      teamInfo!.isPlatformAdmin ||
+      job.user === session!.user.id ||
+      (teamInfo!.isAdmin &&
+        validateResourceOwnership(teamInfo!.teamId, job.assigned_pool?.team_id || null, false));
+
+    if (!canControl) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 

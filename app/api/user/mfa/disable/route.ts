@@ -1,36 +1,86 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { jwtVerify } from "jose";
+import { requireApiAuth } from "@/lib/api-auth-guard";
 import { prismadb } from "@/lib/prisma";
+import { verifyTotpToken } from "@/lib/mfa-utils";
+import { comparePassword } from "@/lib/password-utils";
 import { logActivityInternal } from "@/actions/audit";
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email || !session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await requireApiAuth();
+    if (session instanceof NextResponse) return session;
 
     let method = "all";
+    let code: string | undefined;
+    let password: string | undefined;
+    let mfaToken: string | undefined;
+
     try {
         const body = await req.json();
-        method = body.method || "all";
+        method = body?.method || "all";
+        code = typeof body?.code === "string" ? body.code.trim() : undefined;
+        password =
+            typeof body?.password === "string"
+                ? body.password
+                : typeof body?.currentPassword === "string"
+                    ? body.currentPassword
+                    : undefined;
+        mfaToken = typeof body?.mfaToken === "string" ? body.mfaToken : undefined;
     } catch {
-        // No body = disable all (backwards compatible)
+        // Malformed or empty JSON body — rejected by step-up check below
+    }
+
+    const dbUser = await prismadb.users.findUnique({
+        where: { id: session.user.id },
+        include: { authenticators: true },
+    });
+
+    if (!dbUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Require step-up verification (current password, TOTP code, or verified WebAuthn mfaToken)
+    let stepUpVerified = false;
+
+    if (password && dbUser.password) {
+        stepUpVerified = await comparePassword(password, dbUser.password);
+    }
+
+    if (!stepUpVerified && code && dbUser.mfaSecret) {
+        stepUpVerified = await verifyTotpToken(code, dbUser.mfaSecret);
+    }
+
+    if (!stepUpVerified && mfaToken) {
+        try {
+            const jwtSec = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+            if (jwtSec) {
+                const { payload } = await jwtVerify(mfaToken, new TextEncoder().encode(jwtSec));
+                if (payload.sub === dbUser.id && payload.mfaVerified === true) {
+                    stepUpVerified = true;
+                }
+            }
+        } catch {
+            stepUpVerified = false;
+        }
+    }
+
+    if (!stepUpVerified) {
+        return NextResponse.json(
+            { error: "Step-up verification required. Please confirm with your current password or authenticator code." },
+            { status: 403 }
+        );
     }
 
     if (method === "totp") {
         // ── Reset TOTP only ──
-        // Check if WebAuthn is still configured
         const authenticatorCount = await prismadb.authenticator.count({
-            where: { userId: session.user.id },
+            where: { userId: dbUser.id },
         });
 
         await (prismadb.users as any).update({
-            where: { email: session.user.email },
+            where: { id: dbUser.id },
             data: {
                 mfaSecret: null,
-                // If WebAuthn is still configured, keep MFA enabled with WEBAUTHN as primary
                 ...(authenticatorCount > 0
                     ? { mfaMethod: "WEBAUTHN" }
                     : { mfaEnabled: false, mfaMethod: "NONE" }
@@ -39,28 +89,20 @@ export async function POST(req: Request) {
         });
 
         await logActivityInternal(
-            session.user.id, "MFA_TOTP_RESET", "Security",
+            dbUser.id, "MFA_TOTP_RESET", "Security",
             "User reset TOTP authenticator app configuration.",
-            undefined
+            dbUser.team_id || undefined
         );
-
     } else if (method === "webauthn") {
         // ── Reset WebAuthn only ──
         await prismadb.authenticator.deleteMany({
-            where: { userId: session.user.id },
-        });
-
-        // Check if TOTP is still configured
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: { mfaSecret: true },
+            where: { userId: dbUser.id },
         });
 
         await (prismadb.users as any).update({
-            where: { email: session.user.email },
+            where: { id: dbUser.id },
             data: {
-                // If TOTP is still configured, keep MFA enabled with TOTP as primary
-                ...(user?.mfaSecret
+                ...(dbUser.mfaSecret
                     ? { mfaMethod: "TOTP" }
                     : { mfaEnabled: false, mfaMethod: "NONE" }
                 ),
@@ -68,20 +110,18 @@ export async function POST(req: Request) {
         });
 
         await logActivityInternal(
-            session.user.id, "MFA_WEBAUTHN_RESET", "Security",
+            dbUser.id, "MFA_WEBAUTHN_RESET", "Security",
             "User reset WebAuthn/Passkey configuration.",
-            undefined
+            dbUser.team_id || undefined
         );
-
     } else {
         // ── Disable ALL MFA ──
-        // Delete all authenticator records
         await prismadb.authenticator.deleteMany({
-            where: { userId: session.user.id },
+            where: { userId: dbUser.id },
         });
 
         const user = await (prismadb.users as any).update({
-            where: { email: session.user.email },
+            where: { id: dbUser.id },
             data: {
                 mfaEnabled: false,
                 mfaMethod: "NONE",

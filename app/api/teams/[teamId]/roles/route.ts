@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 import { prismadb } from "@/lib/prisma";
 import { logActivityInternal } from "@/actions/audit";
 import { systemLogger } from "@/lib/logger";
 
 // GET /api/teams/[teamId]/roles - Get all roles for a team
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        const resolvedParams = await params;
-        const { teamId } = resolvedParams;
+        const { teamId } = await params;
+
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         const roles = await prismadb.customRole.findMany({
             where: { team_id: teamId },
@@ -38,33 +39,31 @@ export async function POST(
     { params }: { params: Promise<{ teamId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
+
+        const { teamId } = await params;
+
+        if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Check if user is a global admin (platform owner)
-        const currentUser = await prismadb.users.findUnique({
-            where: { email: session.user.email },
-            select: { team_role: true, assigned_team: { select: { slug: true } } },
-        });
-
-        // PLATFORM_ADMIN has god mode - no team restriction
-        const isGlobalAdmin = currentUser?.team_role === "PLATFORM_ADMIN";
-        if (!isGlobalAdmin) {
+        const platformAdmin = await requirePlatformAdmin();
+        if (!platformAdmin) {
             return NextResponse.json({ error: "Only platform admins can create roles" }, { status: 403 });
         }
 
-        const resolvedParams = await params;
-        const { teamId } = resolvedParams;
         const body = await request.json();
         const { name, description, modules } = body;
 
-        if (!name?.trim()) {
+        if (!name || typeof name !== "string" || !name.trim()) {
             return NextResponse.json({ error: "Role name is required" }, { status: 400 });
         }
 
-        // Check if role name already exists for this team
+        const safeModules = Array.isArray(modules)
+            ? modules.filter((m: unknown): m is string => typeof m === "string")
+            : [];
+
         const existingRole = await prismadb.customRole.findFirst({
             where: { team_id: teamId, name: name.trim() },
         });
@@ -76,13 +75,19 @@ export async function POST(
         const role = await prismadb.customRole.create({
             data: {
                 name: name.trim(),
-                description: description || null,
-                modules: modules || [],
+                description: typeof description === "string" ? description : null,
+                modules: safeModules,
                 team_id: teamId,
             },
         });
 
-        await logActivityInternal(session.user.email, "CREATE", "CustomRole", `Created custom role ${role.name}`, teamId);
+        await logActivityInternal(
+            session!.user.id,
+            "CREATE",
+            "CustomRole",
+            `Created custom role ${role.name}`,
+            teamId
+        );
         return NextResponse.json(role, { status: 201 });
     } catch (error) {
         systemLogger.error("[TEAM_ROLES_POST]", error);

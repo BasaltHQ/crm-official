@@ -8,16 +8,31 @@ export async function GET(req: Request) {
     const targetUrl = searchParams.get("url");
 
     if (!token || !targetUrl) {
-        return NextResponse.redirect(new URL("/", req.url));
+        return new NextResponse("Bad Request: Missing token or target URL", { status: 400 });
+    }
+
+    let parsedTarget: URL;
+    try {
+        parsedTarget = new URL(targetUrl);
+    } catch {
+        return new NextResponse("Bad Request: Invalid target URL", { status: 400 });
+    }
+
+    if (parsedTarget.protocol !== "http:" && parsedTarget.protocol !== "https:") {
+        return new NextResponse("Bad Request: Disallowed URL protocol", { status: 400 });
     }
 
     try {
-        // Record the click
+        // Verify token matches an existing outreach item before redirecting
         const outreachItem = await prismadb.crm_Outreach_Items.findFirst({
             where: { tracking_token: token }
         });
 
-        if (outreachItem) {
+        if (!outreachItem) {
+            return new NextResponse("Bad Request: Invalid tracking token", { status: 400 });
+        }
+
+        try {
             const now = new Date();
             await prismadb.crm_Outreach_Items.update({
                 where: { id: outreachItem.id },
@@ -51,7 +66,7 @@ export async function GET(req: Request) {
                         lead: outreachItem.lead,
                         type: "EMAIL_CLICK",
                         title: "Link Clicked (FLOW STATE Pixel)",
-                        description: `The recipient clicked a link in the outreach email for campaign ${outreachItem.campaign}. Target: ${targetUrl}`,
+                        description: `The recipient clicked a link in the outreach email for campaign ${outreachItem.campaign}. Target: ${parsedTarget.toString()}`,
                         createdAt: now,
                         v: 1
                     }
@@ -70,11 +85,13 @@ export async function GET(req: Request) {
                     });
                 }
             }
+        } catch (statsError) {
+            systemLogger.warn("[EMAIL_TRACK_CLICK_STATS_ERROR]", statsError);
         }
 
-        return NextResponse.redirect(targetUrl);
+        return NextResponse.redirect(parsedTarget.toString());
     } catch (error) {
         systemLogger.error("[EMAIL_TRACK_CLICK_ERROR]", error);
-        return NextResponse.redirect(targetUrl);
+        return new NextResponse("Bad Request", { status: 400 });
     }
 }

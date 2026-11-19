@@ -1,10 +1,16 @@
 "use server";
 
 import { prismadb } from "@/lib/prisma";
+import { requirePlatformAdmin } from "@/lib/security/authz";
 import { revalidatePath } from "next/cache";
 import { systemLogger } from "@/lib/logger";
 
 export async function deleteCategory(categoryName: string) {
+    const admin = await requirePlatformAdmin();
+    if (!admin) {
+        throw new Error("Forbidden — platform administrator privileges required");
+    }
+
     if (!categoryName) throw new Error("Category name is required");
 
     try {

@@ -1,33 +1,18 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prismadbCrm } from "@/lib/prisma-crm";
-import { prismadb } from "@/lib/prisma";
-import { getCurrentUserTeamId } from "@/lib/team-utils";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { systemLogger } from "@/lib/logger";
 
 export async function GET(req: Request, context: { params: Promise<{ poolId: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { poolId } = await context.params;
 
         if (!poolId) {
             return new NextResponse("Missing poolId", { status: 400 });
         }
-
-        // Verify user role
-        const user = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: { team_role: true }
-        });
-
-        const teamInfo = await getCurrentUserTeamId();
-        const isTeamAdmin = teamInfo?.isAdmin;
-        const teamId = teamInfo?.teamId;
 
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
             where: { id: poolId },
@@ -42,13 +27,15 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
             return new NextResponse("Pool not found", { status: 404 });
         }
 
-        // Permissions
-        const isOwner = pool.user === session.user.id;
-        const isTeamMatch = pool.team_id === teamId;
-        const assignedMembers = pool.assigned_members || [];
-        const isAssigned = assignedMembers.includes(session.user.id);
+        if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
-        if (!isOwner && !(isTeamAdmin && isTeamMatch) && !isAssigned) {
+        const isOwner = pool.user === session!.user.id;
+        const assignedMembers = pool.assigned_members || [];
+        const isAssigned = assignedMembers.includes(session!.user.id);
+
+        if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && !isOwner && !isAssigned) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 
@@ -62,10 +49,8 @@ export async function GET(req: Request, context: { params: Promise<{ poolId: str
 
 export async function PATCH(req: Request, context: { params: Promise<{ poolId: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
         const { poolId } = await context.params;
         const body = await req.json();
@@ -74,10 +59,6 @@ export async function PATCH(req: Request, context: { params: Promise<{ poolId: s
         if (!name || typeof name !== "string" || !name.trim()) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
-
-        const teamInfo = await getCurrentUserTeamId();
-        const isTeamAdmin = teamInfo?.isAdmin;
-        const teamId = teamInfo?.teamId;
 
         const pool = await (prismadbCrm as any).crm_Lead_Pools.findUnique({
             where: { id: poolId },
@@ -88,9 +69,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ poolId: s
             return new NextResponse("Pool not found", { status: 404 });
         }
 
-        const isOwner = pool.user === session.user.id;
-        const isTeamMatch = pool.team_id === teamId;
-        if (!isOwner && !(isTeamAdmin && isTeamMatch)) {
+        if (!validateResourceOwnership(teamInfo!.teamId, pool.team_id, teamInfo!.isPlatformAdmin)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
+
+        const isOwner = pool.user === session!.user.id;
+        if (!teamInfo!.isPlatformAdmin && !teamInfo!.isAdmin && !isOwner) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 

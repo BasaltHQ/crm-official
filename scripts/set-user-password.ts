@@ -1,41 +1,26 @@
 /**
- * One-off script to set a specific user's password in the current DATABASE_URL (ledger1crm).
- *
- * Defaults:
- *  - TARGET_EMAIL = founders@theutilitycompany.co
- *  - NEW_PASSWORD = Vishnu@123
- *
- * You can override via env when running:
- *   set TARGET_EMAIL="user@example.com" && set NEW_PASSWORD="StrongPass123!" && npx ts-node ./scripts/set-user-password.ts
- *
- * Notes:
- *  - Uses bcryptjs with 12 salt rounds (compatible with app's hashing/compare).
- *  - Normalizes email to lowercase before lookup (matches app behavior).
- *  - Performs UPDATE only; will error if user not found (to avoid accidental new record/id).
+ * One-off admin script to set a specific user's password in DATABASE_URL.
+ * Requires TARGET_EMAIL and NEW_PASSWORD environment variables (no hardcoded defaults).
  */
 
 import { PrismaClient } from "@prisma/client";
-import bcryptjs from "bcryptjs";
-const { hash } = bcryptjs;
+import { hashPassword } from "../lib/password-utils";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set. Provide it inline when running the script.");
+  throw new Error("DATABASE_URL is not set.");
 }
 const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
 
 async function main() {
-  const emailRaw = process.env.TARGET_EMAIL || "founders@theutilitycompany.co";
-  const newPasswordRaw = process.env.NEW_PASSWORD || "Vishnu@123";
-
-  const email = String(emailRaw).trim().toLowerCase();
-  const newPassword = String(newPasswordRaw).trim();
+  const email = (process.env.TARGET_EMAIL || "").trim().toLowerCase();
+  const newPassword = (process.env.NEW_PASSWORD || "").trim();
 
   if (!email || !newPassword) {
-    throw new Error("TARGET_EMAIL and NEW_PASSWORD must be provided or use defaults.");
+    throw new Error("TARGET_EMAIL and NEW_PASSWORD environment variables are required.");
   }
-  if (newPassword.length < 8) {
-    throw new Error("NEW_PASSWORD must be at least 8 characters.");
+  if (newPassword.length < 15 || newPassword.length > 128) {
+    throw new Error("NEW_PASSWORD must be between 15 and 128 characters.");
   }
 
   const user = await prisma.users.findFirst({ where: { email } });
@@ -43,13 +28,16 @@ async function main() {
     throw new Error(`User not found for email: ${email}. Aborting update.`);
   }
 
-  const hashed = await hash(newPassword, 12);
+  const hashed = await hashPassword(newPassword);
   await prisma.users.update({
     where: { id: user.id },
-    data: { password: hashed },
+    data: {
+      password: hashed,
+      session_version: { increment: 1 },
+    },
   });
 
-  console.log(`Password updated for ${email} (user id: ${user.id}).`);
+  console.log(`Password updated and existing sessions invalidated for ${email} (user id: ${user.id}).`);
 }
 
 main()

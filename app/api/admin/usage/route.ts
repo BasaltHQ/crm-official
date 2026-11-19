@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 import { resolveSlug, SUBSCRIPTION_PLANS } from "@/config/subscriptions";
 
 export async function GET(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!teamInfo!.isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -17,17 +18,10 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "teamId required" }, { status: 400 });
     }
 
-    // Verify the requesting user belongs to this team AND is admin
-    const user = await prismadb.users.findUnique({
-        where: { id: session.user.id },
-        select: { team_id: true, is_admin: true, is_account_admin: true },
-    });
-
-    if (!user || (user.team_id !== teamId && !user.is_admin)) {
+    if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get the team's subscription plan for limits
     const team = await prismadb.team.findUnique({
         where: { id: teamId },
         select: { subscription_plan: true },
@@ -36,7 +30,6 @@ export async function GET(req: Request) {
     const slug = resolveSlug(team?.subscription_plan);
     const planLimits = SUBSCRIPTION_PLANS[slug].limits;
 
-    // Get current month's quota record
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -48,7 +41,6 @@ export async function GET(req: Request) {
         orderBy: { period_start: "desc" },
     });
 
-    // Get AI token usage for this month from AiUsageLog
     const aiLogs = await prismadb.crm_AiUsageLog.aggregate({
         where: {
             team_id: teamId,

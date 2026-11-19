@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getWebAuthnRegistrationOptions } from "@/lib/mfa-utils";
+import { requireApiAuth } from "@/lib/api-auth-guard";
+import { getWebAuthnRegistrationOptions, signWebAuthnChallenge } from "@/lib/mfa-utils";
 import { prismadb } from "@/lib/prisma";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await requireApiAuth();
+    if (session instanceof NextResponse) return session;
 
     const user = await prismadb.users.findUnique({
-        where: { email: session.user.email },
+        where: { id: session.user.id },
     });
 
     if (!user) {
@@ -20,9 +16,20 @@ export async function GET() {
     }
 
     const options = await getWebAuthnRegistrationOptions(user.id, user.email);
+    const signedChallenge = await signWebAuthnChallenge(
+        user.id,
+        options.challenge,
+        "register"
+    );
 
-    // Note: challenge must be stored to be verified later.
-    // We'll return it and expect the client to use it, but for a secure implementation
-    // should ideally be stored in a signed cookie or session.
-    return NextResponse.json(options);
+    const res = NextResponse.json(options);
+    res.cookies.set("webauthn_reg_challenge", signedChallenge, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 300,
+    });
+
+    return res;
 }

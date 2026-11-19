@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
+import { requireCronAuth } from "@/lib/api-auth-guard";
 
 /**
  * GET /api/cron/auto-followup
@@ -17,12 +18,8 @@ import { systemLogger } from "@/lib/logger";
  */
 export async function GET(req: Request) {
   try {
-    // Simple auth via cron secret
-    const { searchParams } = new URL(req.url);
-    const cronSecret = searchParams.get("secret");
-    if (cronSecret !== process.env.CRON_SECRET && process.env.NODE_ENV !== "development") {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const cronAuth = requireCronAuth(req);
+    if (cronAuth instanceof Response) return cronAuth;
 
     const now = new Date();
     let processed = 0;

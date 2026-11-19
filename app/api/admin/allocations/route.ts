@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam, validateResourceOwnership } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 
 // GET: Fetch user allocations for a team
 export async function GET(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!teamInfo!.isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -17,17 +18,10 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "teamId required" }, { status: 400 });
     }
 
-    // Verify user is admin of this team
-    const requestor = await prismadb.users.findUnique({
-        where: { id: session.user.id },
-        select: { team_id: true, is_admin: true, is_account_admin: true },
-    });
-
-    if (!requestor || (requestor.team_id !== teamId && !requestor.is_admin)) {
+    if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch team members
     const members = await prismadb.users.findMany({
         where: { team_id: teamId },
         select: {
@@ -65,9 +59,11 @@ export async function GET(req: Request) {
 
 // POST: Upsert a user allocation
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error, teamInfo } = await getSessionAndTeam();
+    if (error) return error;
+
+    if (!teamInfo!.isAdmin) {
+        return NextResponse.json({ error: "Forbidden: Admin privileges required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -77,17 +73,19 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "teamId and userId required" }, { status: 400 });
     }
 
-    // Verify requesting user is admin of this team
-    const requestor = await prismadb.users.findUnique({
-        where: { id: session.user.id },
-        select: { team_id: true, is_admin: true, is_account_admin: true },
-    });
-
-    if (!requestor || (requestor.team_id !== teamId && !requestor.is_admin)) {
+    if (!validateResourceOwnership(teamInfo!.teamId, teamId, teamInfo!.isPlatformAdmin)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Upsert allocation
+    const targetMember = await prismadb.users.findUnique({
+        where: { id: userId },
+        select: { team_id: true },
+    });
+
+    if (!targetMember || targetMember.team_id !== teamId) {
+        return NextResponse.json({ error: "User does not belong to this team" }, { status: 400 });
+    }
+
     const existing = await (prismadb as any).teamUserAllocation.findFirst({
         where: { team_id: teamId, user_id: userId },
     });

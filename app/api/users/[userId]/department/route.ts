@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam } from "@/lib/api-utils";
+import {
+    ALLOWED_TENANT_ROLES,
+    isPrivilegedSystemRole,
+    normalizeRoleName,
+    requirePlatformAdmin,
+} from "@/lib/security/authz";
 import { prismadb } from "@/lib/prisma";
 import { systemLogger } from "@/lib/logger";
 
@@ -17,85 +22,128 @@ export async function PUT(
 ) {
     const { userId } = await params;
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { error, teamInfo } = await getSessionAndTeam();
+        if (error) return error;
 
-        // Verify admin status
-        const requester = await prismadb.users.findUnique({
-            where: { id: session.user.id },
-            select: { team_role: true, is_admin: true, team_id: true }
-        });
-
-        const reqRole = (requester?.team_role || "").toUpperCase();
-        const isAdmin = requester?.is_admin === true ||
-            ["ADMIN", "OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN", "PLATFORM ADMIN", "SYSADM"].includes(reqRole);
-
-        if (!isAdmin) {
+        if (!teamInfo!.isAdmin) {
             return NextResponse.json({ error: "Forbidden: Company admin access required" }, { status: 403 });
         }
 
         const body = await req.json();
         const { departmentId, role = "MEMBER", organizationId } = body;
 
-        if (!organizationId) {
+        if (!organizationId || typeof organizationId !== "string") {
             return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
         }
 
+        const platformAdmin = await requirePlatformAdmin();
+        const isPlatformAdmin = Boolean(platformAdmin);
+
+        // Verify caller owns organizationId
+        if (!isPlatformAdmin && teamInfo!.teamId !== organizationId) {
+            return NextResponse.json(
+                { error: "Forbidden: Organization does not match your active team" },
+                { status: 403 }
+            );
+        }
+
+        const normalizedRole = normalizeRoleName(role);
+        if (isPrivilegedSystemRole(normalizedRole)) {
+            if (!isPlatformAdmin) {
+                return NextResponse.json(
+                    { error: "Forbidden: Cannot assign privileged system role" },
+                    { status: 403 }
+                );
+            }
+        } else if (!ALLOWED_TENANT_ROLES.has(normalizedRole)) {
+            return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+        }
+
+        const callerRole = normalizeRoleName(teamInfo!.teamRole);
+        if (normalizedRole === "OWNER" && !isPlatformAdmin && callerRole !== "OWNER") {
+            return NextResponse.json(
+                { error: "Forbidden: Only an Owner or Platform Admin can assign OWNER" },
+                { status: 403 }
+            );
+        }
+
+        // Verify targetUser belongs to organizationId (directly or via a child department of organizationId)
+        const targetUser = await prismadb.users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                team_id: true,
+                team_role: true,
+                is_admin: true,
+                assigned_team: { select: { id: true, parent_id: true } },
+            },
+        });
+
+        if (!targetUser) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        const targetBelongsToOrg =
+            targetUser.team_id === organizationId ||
+            targetUser.assigned_team?.parent_id === organizationId;
+
+        if (!isPlatformAdmin && !targetBelongsToOrg) {
+            return NextResponse.json(
+                { error: "Forbidden: Target user does not belong to your organization" },
+                { status: 403 }
+            );
+        }
+
+        if (
+            !isPlatformAdmin &&
+            (targetUser.is_admin || isPrivilegedSystemRole(targetUser.team_role))
+        ) {
+            return NextResponse.json(
+                { error: "Forbidden: Cannot modify a Platform Admin" },
+                { status: 403 }
+            );
+        }
+
+        const tRole = normalizeRoleName(targetUser.team_role);
+        const isTargetAdmin =
+            targetUser.is_admin ||
+            ["ADMIN", "OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN", "SYSADM"].includes(tRole);
+
         if (departmentId) {
-            // Assigning to a department — verify it exists and is a DEPARTMENT type under this org
             const dept = await prismadb.team.findUnique({
                 where: { id: departmentId },
-                select: { team_type: true, parent_id: true }
+                select: { id: true, team_type: true, parent_id: true },
             });
-            if (!dept || (dept as any).team_type !== "DEPARTMENT") {
-                return NextResponse.json({ error: "Invalid department" }, { status: 400 });
+
+            if (!dept || (dept as any).team_type !== "DEPARTMENT" || dept.parent_id !== organizationId) {
+                return NextResponse.json(
+                    { error: "Invalid department for this organization" },
+                    { status: 400 }
+                );
             }
 
-            // Fetch the target user's current role before we blow it away
-            const targetUser = await prismadb.users.findUnique({
-                where: { id: userId },
-                select: { team_role: true, team_id: true }
-            });
-            const tRole = (targetUser?.team_role || "").toUpperCase();
-            const isTargetAdmin = ["ADMIN", "OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN", "PLATFORM ADMIN", "SYSADM"].includes(tRole);
-
-            // Build update data
-            // Top-level admins retain their organization team_id & role, only gaining department_id affinity
-            const dataToUpdate: any = {
+            const dataToUpdate: Record<string, any> = {
                 department_id: departmentId,
             };
 
             if (!isTargetAdmin) {
-                // For normal users, move them squarely into the department team
                 dataToUpdate.team_id = departmentId;
-                dataToUpdate.team_role = role;
+                dataToUpdate.team_role = normalizedRole;
             } else {
                 systemLogger.info(`[USER_DEPT] Target ${userId} is top-level admin (${tRole}); preserving global team_id and role.`);
             }
 
-            // Move user to the department team with chosen role (or just update department_id for admins)
             const updated = await prismadb.users.update({
                 where: { id: userId },
-                data: dataToUpdate
+                data: dataToUpdate,
             });
 
-            systemLogger.info(`[USER_DEPT] User ${userId} assigned to dept ${departmentId} with role ${role}`);
+            systemLogger.info(`[USER_DEPT] User ${userId} assigned to dept ${departmentId} with role ${normalizedRole}`);
             return NextResponse.json({ team_id: updated.team_id, team_role: updated.team_role });
         } else {
-            // Unassigning — move user back to the organization level
-            const targetUser = await prismadb.users.findUnique({
-                where: { id: userId },
-                select: { team_role: true }
-            });
-            const tRole = (targetUser?.team_role || "").toUpperCase();
-            const isTargetAdmin = ["ADMIN", "OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN", "PLATFORM ADMIN", "SYSADM"].includes(tRole);
-            
-            const dataToUpdate: any = { department_id: null };
-            
+            const dataToUpdate: Record<string, any> = { department_id: null };
+
             if (!isTargetAdmin) {
-                // If they are a top-level admin, DO NOT downgrade their role to MEMBER.
                 dataToUpdate.team_id = organizationId;
                 dataToUpdate.team_role = "MEMBER";
             } else {
@@ -104,7 +152,7 @@ export async function PUT(
 
             const updated = await prismadb.users.update({
                 where: { id: userId },
-                data: dataToUpdate
+                data: dataToUpdate,
             });
 
             systemLogger.info(`[USER_DEPT] User ${userId} moved back to org ${organizationId}`);

@@ -1,20 +1,16 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionAndTeam } from "@/lib/api-utils";
 import { prismadb } from "@/lib/prisma";
 
 export async function getActiveForms() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const { error, session, teamInfo } = await getSessionAndTeam();
+        if (error || !session?.user?.id || !teamInfo?.teamId) {
             return [];
         }
 
-        const teamId = (session.user as any).team_id;
-        if (!teamId) {
-            return [];
-        }
+        const teamId = teamInfo.teamId;
 
         const forms = await (prismadb as any).form.findMany({
             where: {
